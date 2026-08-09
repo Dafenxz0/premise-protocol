@@ -28,7 +28,11 @@ importers:
         specifier: workspace:*
         version: link:../protocol-types
 
-  packages/index-sqlite: {}
+  packages/index-sqlite:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
 
   packages/mcp-bridge: {}
 
@@ -42,9 +46,17 @@ importers:
 
   packages/testkit: {}
 
-  packages/validator-filesystem: {}
+  packages/validator-filesystem:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
 
-  packages/validator-git: {}
+  packages/validator-git:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
 
 packages:
 
