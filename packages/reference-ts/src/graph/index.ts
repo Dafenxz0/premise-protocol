@@ -25,9 +25,10 @@ export class DependencyGraph {
   }
 
   addDependency(nodeId: string, dependencyId: string): void {
+    const nodeWasKnown = this.dependencies.has(nodeId);
     this.addNode(nodeId);
     this.addNode(dependencyId);
-    if (nodeId === dependencyId || this.hasPath(dependencyId, nodeId)) throw new DependencyCycleError(nodeId, dependencyId);
+    if (nodeId === dependencyId || (nodeWasKnown && this.hasPath(dependencyId, nodeId))) throw new DependencyCycleError(nodeId, dependencyId);
     const deps = this.dependencies.get(nodeId)!;
     if (deps.has(dependencyId)) return;
     deps.add(dependencyId);
@@ -35,14 +36,20 @@ export class DependencyGraph {
   }
 
   setDependencies(nodeId: string, dependencyIds: readonly string[]): void {
+    const nodeWasKnown = this.dependencies.has(nodeId);
     this.addNode(nodeId);
     const next = [...new Set(dependencyIds)].sort();
     for (const dependencyId of next) {
-      if (nodeId === dependencyId || this.hasPath(dependencyId, nodeId)) throw new DependencyCycleError(nodeId, dependencyId);
+      if (typeof dependencyId !== "string" || dependencyId.length === 0) throw new TypeError("dependencyId must be non-empty");
+      if (nodeId === dependencyId || (nodeWasKnown && this.hasPath(dependencyId, nodeId))) throw new DependencyCycleError(nodeId, dependencyId);
     }
     for (const oldDependency of this.dependencies.get(nodeId)!) this.dependents.get(oldDependency)?.delete(nodeId);
     this.dependencies.get(nodeId)!.clear();
-    for (const dependencyId of next) this.addDependency(nodeId, dependencyId);
+    for (const dependencyId of next) {
+      this.addNode(dependencyId);
+      this.dependencies.get(nodeId)!.add(dependencyId);
+      this.dependents.get(dependencyId)!.add(nodeId);
+    }
   }
 
   dependenciesOf(nodeId: string): readonly string[] {

@@ -102,6 +102,26 @@ Artefactos:
 - [Resumen de verificación](./summary.md)
 - [Trazas por escenario](./traces/)
 
+## Investigación hacia la siguiente versión
+
+La siguiente iteración ya incluye una medición emparejada para no confundir una demo con una mejora real:
+
+- **Sin protocolo**: en 21 episodios con cambios, usa el recuerdo sin comprobar y alcanza un `unsafeActionRate` del **100%**.
+- **Con PREMiSE**: llega a **0%** de acciones inseguras, recupera el **100%** de los casos reparables, rechaza el **100%** de los casos no reparables y conserva la historia.
+- En contexto grande, una cadena de **25.000** memorias pasó de unos **64 s** a unos **0,23 s** después de eliminar el chequeo de ciclos innecesario al añadir nodos nuevos. Fanout y shared-support también terminan por debajo de un segundo en la medición local.
+
+Estos resultados son locales y reproducibles; no son una promesa de producción. La auditoría del benchmark histórico queda en `PROVISIONALLY-VALID`: ya exporta decisiones y costes observables, pero conserva límites explícitos sobre hardware, payload real y validators externos.
+
+```bash
+pnpm benchmark:compare       # protocolo vs. baseline sin protocolo
+pnpm benchmark:context       # 1k y 5k nodos, apto para CI
+pnpm benchmark:context:full  # 1k, 5k, 10k y 25k; stress test
+pnpm benchmark:evaluate      # auditoría paired y gate de regresión
+pnpm benchmark:next          # ejecuta la campaña completa
+```
+
+Resultados de investigación: [`comparative-bench`](./benchmarks/comparative-bench/), [`long-context-bench`](./benchmarks/long-context-bench/) y [`evaluation`](./benchmarks/evaluation/).
+
 ## Empezar sin complicaciones
 
 Necesitas Node.js 24 y pnpm 10. Después:

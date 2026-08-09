@@ -99,14 +99,13 @@ export class ReferenceProtocol {
   signal(event: { readonly specVersion: typeof SPEC_VERSION; readonly eventId: string; readonly type: "SourceChanged"; readonly occurredAt: string; readonly payload: Readonly<Record<string, unknown>> }): PropagationReport {
     this.journal.append(event);
     const sourceUri = typeof event.payload.sourceUri === "string" ? event.payload.sourceUri : undefined;
-    const roots = this.states.states().filter((state) => sourceUri !== undefined && state.envelope.provenance?.some((source) => source.sourceUri === sourceUri)).map((state) => state.memoryId);
+    const roots = sourceUri === undefined ? [] : this.states.memoryIdsForSource(sourceUri);
     const affected = new Set<string>();
     for (const root of roots) {
-      const before = new Map(this.states.states().map((state) => [state.memoryId, state.status]));
-      const changed = this.states.markStatus(root, "STALE");
-      for (const state of changed) {
+      const changed = this.states.markStatusWithPrevious(root, "STALE");
+      for (const { state, previousStatus } of changed) {
         affected.add(state.memoryId);
-        this.appendTransition(state.memoryId, before.get(state.memoryId), state.status, event.occurredAt, "signal");
+        this.appendTransition(state.memoryId, previousStatus, state.status, event.occurredAt, "signal");
       }
     }
     const statuses: Record<string, MemoryStatus> = {};
@@ -117,25 +116,22 @@ export class ReferenceProtocol {
   async validate(memoryIds: readonly string[], suppliedResults?: Readonly<Record<string, ValidationResult>>): Promise<ValidationReport> {
     const items: ValidationReportItem[] = [];
     const eventIds: string[] = [];
-    const prepared: { memoryId: string; state: NonNullable<ReturnType<MemoryStateStore["stateOf"]>>; result: ValidationResult }[] = [];
+    const prepared: { memoryId: string; previousStatus: MemoryStatus; result: ValidationResult }[] = [];
     for (const memoryId of memoryIds) {
       const state = this.states.stateOf(memoryId);
       if (!state) throw new Error(`Unknown memory: ${memoryId}`);
       const source = state.envelope.provenance?.[0];
       const result = suppliedResults?.[memoryId] ?? await this.runValidator(source, memoryId);
       if (result.memoryId !== memoryId || !isValidationResult(result)) throw new TypeError(`Invalid validation result for ${memoryId}`);
-      prepared.push({ memoryId, state, result });
+      prepared.push({ memoryId, previousStatus: state.status, result });
     }
-    for (const { memoryId, state, result } of prepared) {
-      const previousStatus = state.status;
+    for (const { memoryId, previousStatus, result } of prepared) {
       const nextStatus = statusForResult(result.result);
-      const before = new Map(this.states.states().map((entry) => [entry.memoryId, entry.status]));
-      const changed = this.states.markStatus(memoryId, nextStatus);
-      for (const affected of changed) {
-        const oldStatus = before.get(affected.memoryId);
-        if (affected.memoryId === memoryId || oldStatus !== affected.status) {
-          const id = this.appendTransition(affected.memoryId, oldStatus, affected.status, result.checkedAt, result.result, affected.memoryId === memoryId ? result.version : undefined);
-          if (affected.memoryId === memoryId && id !== undefined) eventIds.push(id);
+      const changed = this.states.markStatusWithPrevious(memoryId, nextStatus);
+      for (const { state, previousStatus: affectedPreviousStatus } of changed) {
+        if (state.memoryId === memoryId || affectedPreviousStatus !== state.status) {
+          const id = this.appendTransition(state.memoryId, affectedPreviousStatus, state.status, result.checkedAt, result.result, state.memoryId === memoryId ? result.version : undefined);
+          if (state.memoryId === memoryId && id !== undefined) eventIds.push(id);
         }
       }
       items.push({ memoryId, result: result.result, previousStatus, status: this.states.stateOf(memoryId)?.status ?? nextStatus, ...(result.version ? { version: result.version } : {}) });
@@ -152,17 +148,20 @@ export class ReferenceProtocol {
   }
 
   frontier(memoryIds: readonly string[]): readonly FrontierItem[] {
-    const grouped = new Map<string, FrontierItem>();
+    const grouped = new Map<string, { source: SourceReference; memoryIds: Set<string> }>();
     for (const memoryId of memoryIds) {
       const state = this.states.stateOf(memoryId);
       if (!state || state.status === "FRESH") continue;
       for (const source of state.envelope.provenance ?? []) {
         const key = `${source.sourceUri}|${source.version?.scheme ?? ""}|${source.version?.token ?? ""}`;
         const previous = grouped.get(key);
-        grouped.set(key, previous ? { ...previous, memoryIds: [...new Set([...previous.memoryIds, memoryId])].sort() } : { ...source, memoryIds: [memoryId] });
+        if (previous) previous.memoryIds.add(memoryId);
+        else grouped.set(key, { source, memoryIds: new Set([memoryId]) });
       }
     }
-    return [...grouped.values()].sort((left, right) => left.sourceUri.localeCompare(right.sourceUri));
+    return [...grouped.values()]
+      .map(({ source, memoryIds: ids }) => ({ ...source, memoryIds: [...ids].sort() }))
+      .sort((left, right) => left.sourceUri.localeCompare(right.sourceUri));
   }
 
   private async runValidator(source: SourceReference | undefined, memoryId: string): Promise<ValidationResult> {

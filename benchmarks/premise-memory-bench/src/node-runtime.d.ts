@@ -5,3 +5,7 @@ declare module "node:fs/promises" {
 declare module "node:path" {
   export function join(...parts: string[]): string;
 }
+
+declare module "node:perf_hooks" {
+  export const performance: { now(): number };
+}

@@ -14,7 +14,10 @@
     },
     {
       "name": "session-reopened",
-      "at": "2"
+      "at": "2",
+      "data": {
+        "observedVersion": "2"
+      }
     },
     {
       "name": "recalled",
@@ -22,16 +25,29 @@
       "data": {
         "staleRecall": true
       }
+    },
+    {
+      "name": "revalidated",
+      "at": "2",
+      "data": {
+        "status": "FRESH",
+        "result": "UNCHANGED",
+        "calls": 1
+      }
     }
   ],
   "staleRecall": true,
   "staleAction": true,
   "actionRequired": true,
-  "repaired": false,
-  "taskSuccess": false,
-  "revalidationCalls": 0,
-  "changeStatus": "STALE",
+  "repaired": true,
+  "taskSuccess": true,
+  "revalidationCalls": 1,
+  "changeStatus": "INVALID",
   "repairPossible": true,
   "ttlExpired": false,
-  "historyPreserved": true
+  "historyPreserved": true,
+  "readCalls": 3,
+  "durationMs": 0.0033999999999991815,
+  "serializedMetadataBytes": 231,
+  "revalidationStatus": "FRESH"
 }

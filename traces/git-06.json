@@ -18,16 +18,29 @@
       "data": {
         "staleRecall": true
       }
+    },
+    {
+      "name": "revalidated",
+      "at": "2",
+      "data": {
+        "status": "FRESH",
+        "result": "UNCHANGED",
+        "calls": 1
+      }
     }
   ],
   "staleRecall": true,
   "staleAction": true,
   "actionRequired": true,
-  "repaired": false,
-  "taskSuccess": false,
-  "revalidationCalls": 0,
-  "changeStatus": "STALE",
+  "repaired": true,
+  "taskSuccess": true,
+  "revalidationCalls": 1,
+  "changeStatus": "INVALID",
   "repairPossible": true,
   "ttlExpired": false,
-  "historyPreserved": true
+  "historyPreserved": true,
+  "readCalls": 2,
+  "durationMs": 0.002200000000001978,
+  "serializedMetadataBytes": 231,
+  "revalidationStatus": "FRESH"
 }

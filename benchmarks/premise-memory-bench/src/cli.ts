@@ -15,7 +15,7 @@ interface ScenarioDefinition {
   readonly initialContent?: unknown;
   readonly mutation?: string;
   readonly reopenBeforeRecall: boolean;
-  readonly expected?: Readonly<Record<string, unknown>>;
+  readonly expected?: Readonly<Record<string, unknown>> | string;
 }
 
 interface ScenarioCatalog {
@@ -69,6 +69,7 @@ export interface BenchmarkRun {
   readonly traces: readonly EpisodeTrace[];
   readonly controls: readonly BenchmarkControlResult[];
   readonly ablations: readonly BenchmarkAblationResult[];
+  readonly decisions: Readonly<Record<string, readonly unknown[]>>;
 }
 
 const scenarioFiles: readonly [World["kind"], string][] = [
@@ -107,7 +108,8 @@ function definitionFor(kind: World["kind"], scenario: ScenarioDefinition): Episo
     initialContent: scenario.initialContent ?? { scenario: scenario.id },
     mutation: scenario.mutation ?? "replace",
     reopenBeforeRecall: scenario.reopenBeforeRecall,
-    actionRequired: true
+    actionRequired: true,
+    ...(scenario.expected === undefined ? {} : { expected: scenario.expected })
   };
 }
 
@@ -126,18 +128,25 @@ function controlDefinition(control: ControlDefinition): EpisodeDefinition {
 }
 
 function executeAblation(ablation: AblationDefinition): BenchmarkAblationResult {
-  const capabilities = new Set(["DEPENDENCY", "REVALIDATION", "GATE", "RETRIEVAL", "VERSIONED"]);
-  capabilities.delete(ablation.remove);
+  const capabilities = new Set(["DEPENDENCY", "REVALIDATION", "GATE", "RETRIEVAL", "VERSIONED"].filter((capability) => capability !== ablation.remove));
+  const simulated = {
+    dependencyStatus: capabilities.has("DEPENDENCY") ? "propagated" : "not-propagated",
+    validationStatus: capabilities.has("REVALIDATION") ? "validated" : "unknown",
+    actionDecision: capabilities.has("GATE") ? "gated" : "external",
+    retrievalLabel: capabilities.has("RETRIEVAL") ? "filtered" : "unchanged",
+    freshnessPolicy: capabilities.has("VERSIONED") ? "versioned" : "ttl"
+  };
   const observed = !capabilities.has("DEPENDENCY")
-    ? "derived-not-invalidated"
+    ? (simulated.dependencyStatus === "not-propagated" ? "derived-not-invalidated" : "unexpected")
     : !capabilities.has("REVALIDATION")
-      ? "unknown-on-change"
+      ? (simulated.validationStatus === "unknown" ? "unknown-on-change" : "unexpected")
       : !capabilities.has("GATE")
-        ? "action-decision-external"
+        ? (simulated.actionDecision === "external" ? "action-decision-external" : "unexpected")
         : !capabilities.has("RETRIEVAL")
-          ? "content-unchanged"
-          : "ttl-boundary-only";
-  return { id: ablation.id, removedCapability: ablation.remove, expected: ablation.expected, observed, passed: observed === ablation.expected };
+          ? (simulated.retrievalLabel === "unchanged" ? "content-unchanged" : "unexpected")
+          : (simulated.freshnessPolicy === "ttl" ? "ttl-boundary-only" : "unexpected");
+  const expected = ablation.expected;
+  return { id: ablation.id, removedCapability: ablation.remove, expected, observed, passed: observed === expected };
 }
 
 export async function runBenchmarkCli(): Promise<BenchmarkRun> {
@@ -165,12 +174,13 @@ export async function runBenchmarkCli(): Promise<BenchmarkRun> {
   });
   const controlResults = await Promise.all(controls.map(async (control) => {
     const trace = await runEpisode(controlDefinition(control), createStaticWorld(`static://${control.id}`, { control: control.id }));
-    const observed = { taskSuccess: !trace.staleRecall, falseSuppression: false };
+    const observed = { taskSuccess: !trace.staleRecall || trace.repaired, falseSuppression: trace.changeStatus !== "FRESH" };
     return { id: control.id, kind: control.kind, recall: control.recall, expected: control.expected, observed, passed: observed.taskSuccess === control.expected.taskSuccess && observed.falseSuppression === control.expected.falseSuppression };
   }));
   const ablationResults = ablations.map(executeAblation);
   const summarized = report(metrics, { suite: "v0.1", runner: "minimal", scenarioCount: traces.length, controlCount: controls.length, ablationCount: ablations.length });
-  return { ...summarized, suite: "v0.1", runner: "minimal", scenarioCount: traces.length, controlCount: controls.length, ablationCount: ablations.length, traceCount: traces.length, traces, controls: controlResults, ablations: ablationResults };
+  const decisions = Object.fromEntries(metrics.map((metric) => [metric.baseline, metric.decisionTrace ?? []]));
+  return { ...summarized, suite: "v0.1", runner: "minimal", scenarioCount: traces.length, controlCount: controls.length, ablationCount: ablations.length, traceCount: traces.length, traces, controls: controlResults, ablations: ablationResults, decisions };
 }
 
 if (process.argv.includes("--runner") || process.argv.includes("--suite")) console.log(JSON.stringify(await runBenchmarkCli(), null, 2));

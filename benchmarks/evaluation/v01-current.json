@@ -16,8 +16,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 0,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.003500000000002501,
-      "latencyP95Ms": 0.014299999999998647,
+      "latencyP50Ms": 0.00420000000000087,
+      "latencyP95Ms": 0.01419999999999888,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -353,8 +353,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 40,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.003500000000002501,
-      "latencyP95Ms": 0.014299999999998647,
+      "latencyP50Ms": 0.00420000000000087,
+      "latencyP95Ms": 0.01419999999999888,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -690,8 +690,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 0,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.003500000000002501,
-      "latencyP95Ms": 0.014299999999998647,
+      "latencyP50Ms": 0.00420000000000087,
+      "latencyP95Ms": 0.01419999999999888,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -1027,8 +1027,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 40,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.003500000000002501,
-      "latencyP95Ms": 0.014299999999998647,
+      "latencyP50Ms": 0.00420000000000087,
+      "latencyP95Ms": 0.01419999999999888,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -1364,8 +1364,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 20,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.003500000000002501,
-      "latencyP95Ms": 0.014299999999998647,
+      "latencyP50Ms": 0.00420000000000087,
+      "latencyP95Ms": 0.01419999999999888,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -1693,6 +1693,2084 @@
     }
   ],
   "traceCount": 40,
+  "traces": [
+    {
+      "episodeId": "fs-01",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "one"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "replace"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.07000000000000028,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-02",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "two"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "append"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.013000000000001677,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-03",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "three"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "delete"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.00840000000000174,
+      "serializedMetadataBytes": 235,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "fs-04",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "four"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "replace"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.01419999999999888,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-05",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "five"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "chmod"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.008900000000000574,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-06",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "six"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "append"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.006799999999998363,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-07",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "seven"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "replace"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.009000000000000341,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-08",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "eight"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "delete"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.010500000000000398,
+      "serializedMetadataBytes": 235,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "fs-09",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "nine"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "append"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.010500000000000398,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "fs-10",
+      "kind": "filesystem",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "ten"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "replace"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.016500000000000625,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-01",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "one"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-commit"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.012699999999998823,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-02",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "two"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-commit"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.0057000000000009265,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-03",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "three"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "tree-change"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.0029000000000003467,
+      "serializedMetadataBytes": 232,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-04",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "four"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-commit"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.0035999999999987153,
+      "serializedMetadataBytes": 233,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-05",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "five"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "branch-switch"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003600000000002268,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-06",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "six"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-commit"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.0022999999999981924,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-07",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "seven"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "tree-change"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.00420000000000087,
+      "serializedMetadataBytes": 232,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-08",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "eight"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "file-delete"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.005299999999998306,
+      "serializedMetadataBytes": 233,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "git-09",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "nine"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-commit"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.004100000000001103,
+      "serializedMetadataBytes": 234,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "git-10",
+      "kind": "git",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": "ten"
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-commit"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.0031000000000034333,
+      "serializedMetadataBytes": 231,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-01",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-01"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "push-commit"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.005500000000001393,
+      "serializedMetadataBytes": 243,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-02",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-02"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "rerun-checks"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.005099999999998772,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-03",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-03"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "new-review"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.0034999999999989484,
+      "serializedMetadataBytes": 242,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-04",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-04"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "label-change"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.004400000000000404,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-05",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-05"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "force-push"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.0033999999999991815,
+      "serializedMetadataBytes": 243,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-06",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-06"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "check-completed"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.006600000000002382,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-07",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-07"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "review-dismissed"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.004400000000000404,
+      "serializedMetadataBytes": 246,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-08",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-08"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "label-removed"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.006000000000000227,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-09",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-09"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "branch-deleted"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003700000000002035,
+      "serializedMetadataBytes": 243,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-10",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-10"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "check-failed"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.002500000000001279,
+      "serializedMetadataBytes": 245,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-11",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-11"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "approval-added"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003900000000001569,
+      "serializedMetadataBytes": 242,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-12",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-12"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "label-change"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.0034999999999989484,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-13",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-13"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "merge-base-change"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.0024999999999977263,
+      "serializedMetadataBytes": 243,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-14",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-14"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "workflow-change"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003500000000002501,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-15",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-15"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "review-edited"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003700000000002035,
+      "serializedMetadataBytes": 242,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-16",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-16"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "label-added"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.002599999999997493,
+      "serializedMetadataBytes": 241,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-17",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-17"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "commit-reverted"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003600000000002268,
+      "serializedMetadataBytes": 243,
+      "revalidationStatus": "INVALID"
+    },
+    {
+      "episodeId": "gh-18",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-18"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "check-cancelled"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "UNKNOWN",
+            "result": "UNKNOWN",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "UNKNOWN",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.003600000000002268,
+      "serializedMetadataBytes": 245,
+      "revalidationStatus": "UNKNOWN"
+    },
+    {
+      "episodeId": "gh-19",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-19"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "review-requested"
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "FRESH",
+            "result": "UNCHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": true,
+      "taskSuccess": true,
+      "revalidationCalls": 1,
+      "changeStatus": "STALE",
+      "repairPossible": true,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 2,
+      "durationMs": 0.002599999999997493,
+      "serializedMetadataBytes": 242,
+      "revalidationStatus": "FRESH"
+    },
+    {
+      "episodeId": "gh-20",
+      "kind": "github-like",
+      "steps": [
+        {
+          "name": "memory-observed",
+          "at": "1",
+          "data": {
+            "scenario": "gh-20"
+          }
+        },
+        {
+          "name": "world-mutated",
+          "at": "2",
+          "data": "pull-closed"
+        },
+        {
+          "name": "session-reopened",
+          "at": "2",
+          "data": {
+            "observedVersion": "2"
+          }
+        },
+        {
+          "name": "recalled",
+          "at": "1",
+          "data": {
+            "staleRecall": true
+          }
+        },
+        {
+          "name": "revalidated",
+          "at": "2",
+          "data": {
+            "status": "INVALID",
+            "result": "CHANGED",
+            "calls": 1
+          }
+        }
+      ],
+      "staleRecall": true,
+      "staleAction": true,
+      "actionRequired": true,
+      "repaired": false,
+      "taskSuccess": false,
+      "revalidationCalls": 1,
+      "changeStatus": "INVALID",
+      "repairPossible": false,
+      "ttlExpired": false,
+      "historyPreserved": true,
+      "readCalls": 3,
+      "durationMs": 0.005400000000001626,
+      "serializedMetadataBytes": 243,
+      "revalidationStatus": "INVALID"
+    }
+  ],
   "controls": [
     {
       "id": "static-01",
