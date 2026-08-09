@@ -1,0 +1,19 @@
+{
+  "name": "@premise/conformance",
+  "version": "0.1.0-rc.1",
+  "description": "PREMiSE conformance runner.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "premise-conformance": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

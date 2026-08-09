@@ -1,0 +1,16 @@
+{
+  "name": "@premise/validator-git",
+  "version": "0.1.0-rc.1",
+  "description": "PREMiSE Git validator scaffold.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

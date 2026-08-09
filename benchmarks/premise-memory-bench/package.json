@@ -1,0 +1,19 @@
+{
+  "name": "@premise/benchmark",
+  "version": "0.1.0-rc.1",
+  "description": "PREMiSE memory benchmark scaffold.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "premise-benchmark": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

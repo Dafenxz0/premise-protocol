@@ -1,0 +1,16 @@
+{
+  "name": "@premise/testkit",
+  "version": "0.1.0-rc.1",
+  "description": "PREMiSE conformance and property-test support scaffold.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@premise/example-generic-memory",
+  "version": "0.1.0-rc.1",
+  "private": true,
+  "description": "Vendor-neutral PREMiSE example scaffold.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

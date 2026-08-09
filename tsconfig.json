@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": [],
+  "references": [
+    { "path": "./packages/protocol-types" },
+    { "path": "./packages/reference-ts" },
+    { "path": "./packages/index-sqlite" },
+    { "path": "./packages/conformance" },
+    { "path": "./packages/adapter-openai" },
+    { "path": "./packages/validator-filesystem" },
+    { "path": "./packages/validator-git" },
+    { "path": "./packages/mcp-bridge" },
+    { "path": "./packages/testkit" },
+    { "path": "./benchmarks/premise-memory-bench" },
+    { "path": "./examples/generic-memory" },
+    { "path": "./examples/openai-memory" },
+    { "path": "./examples/mcp-memory" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "premise-protocol",
+  "version": "0.1.0-rc.1",
+  "private": true,
+  "description": "PREMiSE protocol workspace.",
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "pnpm": ">=10.0.0 <11"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json --pretty false",
+    "test": "pnpm run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}
