@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/schemas/validation-result.schema.json",
+  "title": "PREMiSE v0.1 validation result",
+  "description": "The result of validating one memory's supporting observation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "memoryId": {
+      "$ref": "#/$defs/memoryId"
+    },
+    "sourceUri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "result": {
+      "enum": [
+        "UNCHANGED",
+        "CHANGED",
+        "MISSING",
+        "UNKNOWN"
+      ]
+    },
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "$ref": "#/$defs/version"
+    },
+    "status": {
+      "enum": [
+        "FRESH",
+        "STALE",
+        "INVALID",
+        "UNKNOWN"
+      ]
+    }
+  },
+  "required": [
+    "memoryId",
+    "result",
+    "checkedAt"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "enum": [
+              "UNCHANGED",
+              "CHANGED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "version"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+              "const": "UNCHANGED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "FRESH"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "enum": [
+              "CHANGED",
+              "MISSING"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "INVALID"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "const": "UNKNOWN"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "UNKNOWN"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "memoryId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "scheme",
+        "token"
+      ]
+    }
+  }
+}

@@ -1,0 +1,563 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/schemas/premise-event.schema.json",
+  "title": "PREMiSE v0.1 event",
+  "description": "A typed PREMiSE event with common identity fields and a payload discriminated by type.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "specVersion": {
+      "const": "premise/0.1"
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "$ref": "#/$defs/eventType"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "memoryId": {
+      "$ref": "#/$defs/memoryId"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "specVersion",
+    "eventId",
+    "type",
+    "occurredAt",
+    "payload"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "memoryId"
+      ],
+      "properties": {
+        "type": {
+          "const": "MemoryRegistered"
+        },
+        "payload": {
+          "$ref": "#/$defs/memoryRegisteredPayload"
+        }
+      }
+    },
+    {
+      "required": [
+        "memoryId"
+      ],
+      "properties": {
+        "type": {
+          "const": "MemoryDerived"
+        },
+        "payload": {
+          "$ref": "#/$defs/memoryDerivedPayload"
+        }
+      }
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "SourceChanged"
+        },
+        "payload": {
+          "$ref": "#/$defs/sourceChangedPayload"
+        }
+      }
+    },
+    {
+      "required": [
+        "memoryId"
+      ],
+      "properties": {
+        "type": {
+          "const": "MemoryStaled"
+        },
+        "payload": {
+          "$ref": "#/$defs/memoryStaledPayload"
+        }
+      }
+    },
+    {
+      "required": [
+        "memoryId"
+      ],
+      "properties": {
+        "type": {
+          "const": "MemoryInvalidated"
+        },
+        "payload": {
+          "$ref": "#/$defs/memoryInvalidatedPayload"
+        }
+      }
+    },
+    {
+      "required": [
+        "memoryId"
+      ],
+      "properties": {
+        "type": {
+          "const": "MemoryRevalidated"
+        },
+        "payload": {
+          "$ref": "#/$defs/memoryRevalidatedPayload"
+        }
+      }
+    },
+    {
+      "required": [
+        "memoryId"
+      ],
+      "properties": {
+        "type": {
+          "const": "MemoryReplaced"
+        },
+        "payload": {
+          "$ref": "#/$defs/memoryReplacedPayload"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "eventType": {
+      "enum": [
+        "MemoryRegistered",
+        "MemoryDerived",
+        "SourceChanged",
+        "MemoryStaled",
+        "MemoryInvalidated",
+        "MemoryRevalidated",
+        "MemoryReplaced"
+      ]
+    },
+    "memoryId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "scheme",
+        "token"
+      ]
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "operation"
+      ]
+    },
+    "sourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceUri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "validator": {
+          "$ref": "#/$defs/validator"
+        }
+      },
+      "required": [
+        "sourceUri",
+        "observedAt"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "version",
+            "validator"
+          ]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "version"
+                ]
+              },
+              {
+                "required": [
+                  "validator"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "FRESH",
+            "STALE",
+            "INVALID",
+            "UNKNOWN"
+          ]
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "policy": {
+          "enum": [
+            "IMMUTABLE",
+            "VERSIONED",
+            "TTL",
+            "MANUAL"
+          ]
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "status",
+        "checkedAt",
+        "policy"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "policy": {
+                "const": "TTL"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "expiresAt"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "expiresAt"
+            ]
+          },
+          "then": {
+            "properties": {
+              "policy": {
+                "const": "TTL"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "memoryEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "specVersion": {
+          "const": "premise/0.1"
+        },
+        "memoryId": {
+          "$ref": "#/$defs/memoryId"
+        },
+        "contentDigest": {
+          "type": "string",
+          "pattern": "^sha256:.+$"
+        },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sourceReference"
+          }
+        },
+        "validity": {
+          "$ref": "#/$defs/validity"
+        },
+        "dependsOn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/memoryId"
+          }
+        }
+      },
+      "required": [
+        "specVersion",
+        "memoryId",
+        "validity",
+        "dependsOn"
+      ],
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "provenance"
+              ]
+            },
+            {
+              "properties": {
+                "dependsOn": {
+                  "minItems": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "if": {
+            "properties": {
+              "validity": {
+                "properties": {
+                  "policy": {
+                    "const": "VERSIONED"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provenance"
+            ],
+            "properties": {
+              "provenance": {
+                "items": {
+                  "required": [
+                    "version",
+                    "validator"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "memoryRegisteredPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "envelope": {
+          "$ref": "#/$defs/memoryEnvelope"
+        }
+      },
+      "required": [
+        "envelope"
+      ]
+    },
+    "memoryDerivedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dependsOn": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/memoryId"
+          }
+        }
+      },
+      "required": [
+        "dependsOn"
+      ]
+    },
+    "sourceChangedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceUri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "previousVersion": {
+          "$ref": "#/$defs/version"
+        }
+      },
+      "required": [
+        "sourceUri",
+        "version"
+      ]
+    },
+    "memoryStaledPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    },
+    "memoryInvalidatedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    },
+    "memoryRevalidatedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "result": {
+          "enum": [
+            "UNCHANGED",
+            "CHANGED",
+            "MISSING",
+            "UNKNOWN"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "status": {
+          "enum": [
+            "FRESH",
+            "STALE",
+            "INVALID",
+            "UNKNOWN"
+          ]
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "enum": [
+                  "UNCHANGED",
+                  "CHANGED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "version"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "UNCHANGED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "FRESH"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "enum": [
+                  "CHANGED",
+                  "MISSING"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "INVALID"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "UNKNOWN"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "UNKNOWN"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "memoryReplacedPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "replacementMemoryId": {
+          "$ref": "#/$defs/memoryId"
+        }
+      },
+      "required": [
+        "replacementMemoryId"
+      ]
+    }
+  }
+}

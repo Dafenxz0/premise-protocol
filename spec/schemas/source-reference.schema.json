@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/schemas/source-reference.schema.json",
+  "title": "PREMiSE v0.1 source reference",
+  "description": "A source observation and the optional opaque version and validator metadata used to check it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sourceUri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "$ref": "#/$defs/version"
+    },
+    "validator": {
+      "$ref": "#/$defs/validator"
+    }
+  },
+  "required": [
+    "sourceUri",
+    "observedAt"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "version",
+        "validator"
+      ]
+    },
+    {
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "version"
+            ]
+          },
+          {
+            "required": [
+              "validator"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "scheme",
+        "token"
+      ]
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "operation"
+      ]
+    }
+  }
+}

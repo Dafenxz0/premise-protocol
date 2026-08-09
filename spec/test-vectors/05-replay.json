@@ -1,0 +1,15 @@
+{
+  "format": "premise-test-vector-suite/0.1",
+  "protocol": "premise/0.1",
+  "suiteId": "replay",
+  "vectors": [
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "replay-is-deterministic",
+      "category": "transition",
+      "description": "Replaying the same event log yields the same state and preserves history.",
+      "steps": [{"operation": "recordEvents", "input": {"events": ["MemoryRegistered", "MemoryStaled", "MemoryRevalidated", "MemoryReplaced"]}}, {"operation": "replay", "input": {"runs": 2}, "expect": {"deterministic": true, "sameState": true, "historyPreserved": true, "finalStatus": "FRESH"}}]
+    }
+  ]
+}

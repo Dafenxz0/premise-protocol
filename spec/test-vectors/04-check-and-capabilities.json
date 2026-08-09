@@ -1,0 +1,23 @@
+{
+  "format": "premise-test-vector-suite/0.1",
+  "protocol": "premise/0.1",
+  "suiteId": "check-and-capabilities",
+  "vectors": [
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "capabilities-required-profile",
+      "category": "positive",
+      "description": "RECORD, DEPENDENCY, and REVALIDATION are sufficient for v0.1 compatibility.",
+      "steps": [{"operation": "declareCapabilities", "input": {"capabilities": ["RECORD", "DEPENDENCY", "REVALIDATION"]}, "expect": {"compatible": true, "profile": "PREMiSE-compatible v0.1"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "capabilities-missing-required-profile",
+      "category": "negative",
+      "description": "RETRIEVAL and GATE alone do not satisfy the minimum profile.",
+      "steps": [{"operation": "declareCapabilities", "input": {"capabilities": ["RETRIEVAL", "GATE"]}, "expect": {"compatible": false, "missing": ["RECORD", "DEPENDENCY", "REVALIDATION"]}}]
+    }
+  ]
+}

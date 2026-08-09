@@ -1,0 +1,31 @@
+{
+  "format": "premise-test-vector-suite/0.1",
+  "protocol": "premise/0.1",
+  "suiteId": "propagation-and-graphs",
+  "vectors": [
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "exact-reachable-propagation",
+      "category": "transition",
+      "description": "Invalidating a source reaches every dependent node exactly once.",
+      "steps": [{"operation": "registerGraph", "input": {"edges": [["a", "b"], ["b", "c"]]}}, {"operation": "signal", "input": {"memoryId": "a", "change": "version"}, "expect": {"invalidated": ["a", "b", "c"]}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "unrelated-branch-is-not-cascaded",
+      "category": "transition",
+      "description": "A disconnected branch is not affected by propagation.",
+      "steps": [{"operation": "registerGraph", "input": {"edges": [["a", "b"], ["x", "y"]]}}, {"operation": "signal", "input": {"memoryId": "a", "change": "version"}, "expect": {"invalidated": ["a", "b"], "untouched": ["x", "y"]}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "self-cycle-is-rejected",
+      "category": "negative",
+      "description": "A dependency cycle is rejected before it can enter the graph.",
+      "steps": [{"operation": "derive", "input": {"memoryId": "a", "dependsOn": ["a"]}, "expect": {"accepted": false, "error": "DEPENDENCY_CYCLE"}}]
+    }
+  ]
+}

@@ -1,0 +1,345 @@
+{
+  "format": "premise-test-vector-suite/0.1",
+  "protocol": "premise/0.1",
+  "suiteId": "registration-and-derivation",
+  "vectors": [
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "register-fresh-versioned",
+      "category": "positive",
+      "description": "Register a versioned memory with current evidence and use it immediately.",
+      "initial": {
+        "clock": {
+          "mode": "manual",
+          "now": "2026-08-09T19:20:00Z"
+        },
+        "memories": []
+      },
+      "steps": [
+        {
+          "id": "register-current-evidence",
+          "operation": "register",
+          "input": {
+            "envelope": {
+              "specVersion": "premise/0.1",
+              "memoryId": "memory:register-fresh",
+              "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "provenance": [
+                {
+                  "sourceUri": "git://acme/repo",
+                  "observedAt": "2026-08-09T19:20:00Z",
+                  "version": {
+                    "scheme": "git.commit",
+                    "token": "commit-1"
+                  },
+                  "validator": {
+                    "id": "git",
+                    "operation": "head"
+                  }
+                }
+              ],
+              "validity": {
+                "status": "FRESH",
+                "checkedAt": "2026-08-09T19:20:00Z",
+                "policy": "VERSIONED"
+              },
+              "dependsOn": []
+            }
+          },
+          "expect": {
+            "accepted": true,
+            "events": [
+              {
+                "type": "MemoryRegistered",
+                "memoryId": "memory:register-fresh",
+                "at": "2026-08-09T19:20:00Z"
+              }
+            ],
+            "state": {
+              "memory:register-fresh": {
+                "status": "FRESH",
+                "dependsOn": [],
+                "provenanceVersions": [
+                  {
+                    "sourceUri": "git://acme/repo",
+                    "scheme": "git.commit",
+                    "token": "commit-1"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "check-before-use",
+          "operation": "check",
+          "input": {
+            "memoryIds": [
+              "memory:register-fresh"
+            ]
+          },
+          "expect": {
+            "accepted": true,
+            "events": [],
+            "result": {
+              "items": [
+                {
+                  "memoryId": "memory:register-fresh",
+                  "decision": "USABLE"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "derive-from-fresh",
+      "category": "positive",
+      "description": "Derive a conclusion from three fresh supporting memories and preserve the exact dependency list.",
+      "initial": {
+        "clock": {
+          "mode": "manual",
+          "now": "2026-08-09T19:20:00Z"
+        },
+        "memories": []
+      },
+      "steps": [
+        {
+          "id": "register-head",
+          "operation": "register",
+          "input": {
+            "envelope": {
+              "specVersion": "premise/0.1",
+              "memoryId": "memory:pr-42-head",
+              "contentDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "provenance": [
+                {
+                  "sourceUri": "github://acme/repo/pulls/42/head",
+                  "observedAt": "2026-08-09T19:20:00Z",
+                  "version": {
+                    "scheme": "git.commit",
+                    "token": "commit-42"
+                  },
+                  "validator": {
+                    "id": "github.pull-request",
+                    "operation": "getPR"
+                  }
+                }
+              ],
+              "validity": {
+                "status": "FRESH",
+                "checkedAt": "2026-08-09T19:20:00Z",
+                "policy": "VERSIONED"
+              },
+              "dependsOn": []
+            }
+          },
+          "expect": {
+            "accepted": true,
+            "events": [
+              {
+                "type": "MemoryRegistered",
+                "memoryId": "memory:pr-42-head",
+                "at": "2026-08-09T19:20:00Z"
+              }
+            ],
+            "state": {
+              "memory:pr-42-head": {
+                "status": "FRESH",
+                "dependsOn": [],
+                "provenanceVersions": [
+                  {
+                    "sourceUri": "github://acme/repo/pulls/42/head",
+                    "scheme": "git.commit",
+                    "token": "commit-42"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "register-ci",
+          "operation": "register",
+          "input": {
+            "envelope": {
+              "specVersion": "premise/0.1",
+              "memoryId": "memory:pr-42-ci",
+              "contentDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "provenance": [
+                {
+                  "sourceUri": "github://acme/repo/pulls/42/checks",
+                  "observedAt": "2026-08-09T19:20:00Z",
+                  "version": {
+                    "scheme": "git.commit",
+                    "token": "commit-42"
+                  },
+                  "validator": {
+                    "id": "github.pull-request",
+                    "operation": "getChecks"
+                  }
+                }
+              ],
+              "validity": {
+                "status": "FRESH",
+                "checkedAt": "2026-08-09T19:20:00Z",
+                "policy": "VERSIONED"
+              },
+              "dependsOn": []
+            }
+          },
+          "expect": {
+            "accepted": true,
+            "events": [
+              {
+                "type": "MemoryRegistered",
+                "memoryId": "memory:pr-42-ci",
+                "at": "2026-08-09T19:20:00Z"
+              }
+            ],
+            "state": {
+              "memory:pr-42-ci": {
+                "status": "FRESH",
+                "dependsOn": [],
+                "provenanceVersions": [
+                  {
+                    "sourceUri": "github://acme/repo/pulls/42/checks",
+                    "scheme": "git.commit",
+                    "token": "commit-42"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "register-approvals",
+          "operation": "register",
+          "input": {
+            "envelope": {
+              "specVersion": "premise/0.1",
+              "memoryId": "memory:pr-42-approvals",
+              "contentDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "provenance": [
+                {
+                  "sourceUri": "github://acme/repo/pulls/42/reviews",
+                  "observedAt": "2026-08-09T19:20:00Z",
+                  "version": {
+                    "scheme": "github.review-sequence",
+                    "token": "review-seq-7"
+                  },
+                  "validator": {
+                    "id": "github.pull-request",
+                    "operation": "getReviews"
+                  }
+                }
+              ],
+              "validity": {
+                "status": "FRESH",
+                "checkedAt": "2026-08-09T19:20:00Z",
+                "policy": "VERSIONED"
+              },
+              "dependsOn": []
+            }
+          },
+          "expect": {
+            "accepted": true,
+            "events": [
+              {
+                "type": "MemoryRegistered",
+                "memoryId": "memory:pr-42-approvals",
+                "at": "2026-08-09T19:20:00Z"
+              }
+            ],
+            "state": {
+              "memory:pr-42-approvals": {
+                "status": "FRESH",
+                "dependsOn": [],
+                "provenanceVersions": [
+                  {
+                    "sourceUri": "github://acme/repo/pulls/42/reviews",
+                    "scheme": "github.review-sequence",
+                    "token": "review-seq-7"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "derive-mergeable",
+          "operation": "derive",
+          "input": {
+            "envelope": {
+              "specVersion": "premise/0.1",
+              "memoryId": "memory:pr-42-mergeable",
+              "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "provenance": [],
+              "validity": {
+                "status": "FRESH",
+                "checkedAt": "2026-08-09T19:20:00Z",
+                "policy": "MANUAL"
+              },
+              "dependsOn": [
+                "memory:pr-42-head",
+                "memory:pr-42-ci",
+                "memory:pr-42-approvals"
+              ]
+            }
+          },
+          "expect": {
+            "accepted": true,
+            "events": [
+              {
+                "type": "MemoryDerived",
+                "memoryId": "memory:pr-42-mergeable",
+                "dependsOn": [
+                  "memory:pr-42-head",
+                  "memory:pr-42-ci",
+                  "memory:pr-42-approvals"
+                ],
+                "at": "2026-08-09T19:20:00Z"
+              }
+            ],
+            "state": {
+              "memory:pr-42-mergeable": {
+                "status": "FRESH",
+                "dependsOn": [
+                  "memory:pr-42-head",
+                  "memory:pr-42-ci",
+                  "memory:pr-42-approvals"
+                ],
+                "provenanceVersions": []
+              }
+            }
+          }
+        },
+        {
+          "id": "check-derived-memory",
+          "operation": "check",
+          "input": {
+            "memoryIds": [
+              "memory:pr-42-mergeable"
+            ]
+          },
+          "expect": {
+            "accepted": true,
+            "events": [],
+            "result": {
+              "items": [
+                {
+                  "memoryId": "memory:pr-42-mergeable",
+                  "decision": "USABLE"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

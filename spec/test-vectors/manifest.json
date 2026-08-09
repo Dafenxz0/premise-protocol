@@ -1,0 +1,103 @@
+{
+  "format": "premise-test-vector-manifest/0.1",
+  "protocol": "premise/0.1",
+  "description": "Language-neutral PREMiSE v0.1 conformance vectors.",
+  "files": [
+    {
+      "path": "01-registration-and-derivation.json",
+      "vectorIds": [
+        "register-fresh-versioned",
+        "derive-from-fresh"
+      ],
+      "covers": [
+        "registration",
+        "fresh",
+        "derivation"
+      ]
+    },
+    {
+      "path": "02-status-transitions.json",
+      "vectorIds": [
+        "ttl-expiry-stales-memory",
+        "notification-stales-memory",
+        "epoch-change-stales-memory",
+        "version-change-invalidates-memory",
+        "missing-resource-invalidates-memory",
+        "validator-unknown-preserves-unknown",
+        "same-version-repairs-stale-memory",
+        "check-status-decision-table"
+      ],
+      "covers": [
+        "stale",
+        "ttl",
+        "notification",
+        "epoch",
+        "invalid",
+        "version-change",
+        "missing",
+        "unknown",
+        "same-version-repair",
+        "check"
+      ]
+    },
+    {
+      "path": "03-propagation-and-graphs.json",
+      "vectorIds": [
+        "exact-reachable-propagation",
+        "unrelated-branch-is-not-cascaded",
+        "self-cycle-is-rejected"
+      ],
+      "covers": [
+        "exact-propagation",
+        "unrelated-cascade",
+        "cycle-rejection"
+      ]
+    },
+    {
+      "path": "04-check-and-capabilities.json",
+      "vectorIds": [
+        "capabilities-required-profile",
+        "capabilities-missing-required-profile"
+      ],
+      "covers": [
+        "capabilities",
+        "compatibility-profile"
+      ]
+    },
+    {
+      "path": "05-replay.json",
+      "vectorIds": [
+        "replay-is-deterministic"
+      ],
+      "covers": [
+        "replay",
+        "determinism",
+        "history-preservation"
+      ]
+    }
+  ],
+  "coverage": {
+    "positive": [
+      "register-fresh-versioned",
+      "derive-from-fresh",
+      "same-version-repairs-stale-memory",
+      "capabilities-required-profile"
+    ],
+    "negative": [
+      "version-change-invalidates-memory",
+      "missing-resource-invalidates-memory",
+      "self-cycle-is-rejected",
+      "capabilities-missing-required-profile"
+    ],
+    "transition": [
+      "ttl-expiry-stales-memory",
+      "notification-stales-memory",
+      "epoch-change-stales-memory",
+      "validator-unknown-preserves-unknown",
+      "check-status-decision-table",
+      "exact-reachable-propagation",
+      "unrelated-branch-is-not-cascaded",
+      "replay-is-deterministic"
+    ]
+  }
+}

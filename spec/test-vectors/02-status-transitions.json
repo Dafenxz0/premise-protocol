@@ -1,0 +1,71 @@
+{
+  "format": "premise-test-vector-suite/0.1",
+  "protocol": "premise/0.1",
+  "suiteId": "status-transitions",
+  "vectors": [
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "ttl-expiry-stales-memory",
+      "category": "transition",
+      "description": "A TTL envelope becomes STALE after its expiry instant.",
+      "steps": [{"operation": "register", "input": {"memoryId": "memory:ttl", "policy": "TTL", "status": "FRESH", "expiresAt": "2026-08-09T20:00:00Z"}}, {"operation": "advanceClock", "input": {"now": "2026-08-09T20:00:01Z"}}, {"operation": "check", "input": {"memoryIds": ["memory:ttl"]}, "expect": {"status": "STALE", "decision": "REVALIDATE"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "notification-stales-memory",
+      "category": "transition",
+      "description": "A source notification marks the affected memory STALE.",
+      "steps": [{"operation": "register", "input": {"memoryId": "memory:notification", "status": "FRESH"}}, {"operation": "signal", "input": {"event": "SourceChanged", "memoryIds": ["memory:notification"]}, "expect": {"status": "STALE", "event": "MemoryStaled"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "epoch-change-stales-memory",
+      "category": "transition",
+      "description": "A validator epoch change makes freshness no longer guaranteed.",
+      "steps": [{"operation": "signal", "input": {"event": "SourceChanged", "change": "epoch"}, "expect": {"status": "STALE"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "version-change-invalidates-memory",
+      "category": "negative",
+      "description": "A different opaque version token invalidates the previous memory.",
+      "steps": [{"operation": "validate", "input": {"result": "CHANGED", "previousToken": "v1", "currentToken": "v2"}, "expect": {"status": "INVALID", "decision": "REJECT", "event": "MemoryInvalidated"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "missing-resource-invalidates-memory",
+      "category": "negative",
+      "description": "A missing source invalidates the memory.",
+      "steps": [{"operation": "validate", "input": {"result": "MISSING"}, "expect": {"status": "INVALID", "decision": "REJECT", "event": "MemoryInvalidated"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "validator-unknown-preserves-unknown",
+      "category": "transition",
+      "description": "An indeterminate validator result produces UNKNOWN.",
+      "steps": [{"operation": "validate", "input": {"result": "UNKNOWN"}, "expect": {"status": "UNKNOWN", "decision": "REVALIDATE"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "same-version-repairs-stale-memory",
+      "category": "positive",
+      "description": "Revalidation with the same version token restores FRESH.",
+      "steps": [{"operation": "validate", "input": {"result": "UNCHANGED", "token": "v1", "statusBefore": "STALE"}, "expect": {"status": "FRESH", "event": "MemoryRevalidated"}}]
+    },
+    {
+      "format": "premise-test-vector/0.1",
+      "protocol": "premise/0.1",
+      "vectorId": "check-status-decision-table",
+      "category": "transition",
+      "description": "Usability decisions follow the normative status table.",
+      "steps": [{"operation": "check", "input": {"statuses": ["FRESH", "STALE", "UNKNOWN", "INVALID"]}, "expect": {"decisions": {"FRESH": "USABLE", "STALE": "REVALIDATE", "UNKNOWN": "REVALIDATE", "INVALID": "REJECT"}}}]
+    }
+  ]
+}
