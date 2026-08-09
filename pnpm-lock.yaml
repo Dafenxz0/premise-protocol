@@ -12,7 +12,14 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
-  benchmarks/premise-memory-bench: {}
+  benchmarks/premise-memory-bench:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../../packages/protocol-types
+      '@premise/reference-ts':
+        specifier: workspace:*
+        version: link:../../packages/reference-ts
 
   examples/generic-memory: {}
 
