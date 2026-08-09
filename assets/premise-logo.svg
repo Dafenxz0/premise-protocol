@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" role="img" aria-labelledby="title description">
+  <title id="title">PREMiSE Protocol</title>
+  <desc id="description">PREMiSE Protocol, memory validity protocol.</desc>
+  <defs>
+    <linearGradient id="mark" x1="24" y1="24" x2="176" y2="176" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="word" x1="250" y1="74" x2="690" y2="164" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B132B"/>
+      <stop offset="1" stop-color="#1E3A5F"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="240" rx="32" fill="#F8FAFC"/>
+  <rect x="30" y="30" width="180" height="180" rx="44" fill="#0B132B"/>
+  <path d="M78 168V72h57c34 0 55 19 55 48s-21 48-55 48h-30" fill="none" stroke="#F8FAFC" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M78 118h60" fill="none" stroke="url(#mark)" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="78" cy="72" r="11" fill="#14B8A6"/>
+  <circle cx="190" cy="120" r="11" fill="#2563EB"/>
+  <circle cx="78" cy="168" r="11" fill="#F59E0B"/>
+
+  <text x="250" y="126" fill="url(#word)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="74" font-weight="750" letter-spacing="-3">PREMiSE</text>
+  <text x="255" y="166" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="5">MEMORY VALIDITY PROTOCOL</text>
+</svg>

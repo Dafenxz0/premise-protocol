@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 620" role="img" aria-labelledby="title description">
+  <title id="title">Cómo funciona PREMiSE</title>
+  <desc id="description">Una fuente cambia, PREMiSE marca los recuerdos afectados, un validator comprueba la fuente y check decide si el agente puede usarlos.</desc>
+  <defs>
+    <linearGradient id="header" x1="64" y1="42" x2="1336" y2="106" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B132B"/>
+      <stop offset="1" stop-color="#183B63"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0B132B" flood-opacity=".12"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 10 5 0 10Z" fill="#8AA0B8"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="620" rx="32" fill="#F8FAFC"/>
+  <rect x="36" y="32" width="1328" height="118" rx="24" fill="url(#header)"/>
+  <text x="76" y="82" fill="#F8FAFC" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="31" font-weight="750">La memoria no envejece a escondidas</text>
+  <text x="76" y="119" fill="#B8C8DA" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20">PREMiSE mantiene visible qué respalda un recuerdo y cuándo debe comprobarse otra vez.</text>
+  <text x="1294" y="91" text-anchor="end" fill="#5EEAD4" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="2">PREMISE / 0.1</text>
+
+  <g filter="url(#shadow)">
+    <rect x="52" y="194" width="250" height="196" rx="22" fill="#FFFFFF"/>
+    <rect x="326" y="194" width="250" height="196" rx="22" fill="#FFFFFF"/>
+    <rect x="600" y="194" width="250" height="196" rx="22" fill="#FFFFFF"/>
+    <rect x="874" y="194" width="250" height="196" rx="22" fill="#FFFFFF"/>
+  </g>
+
+  <circle cx="96" cy="238" r="23" fill="url(#teal)"/>
+  <text x="96" y="246" text-anchor="middle" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">1</text>
+  <text x="130" y="245" fill="#0B132B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="750">El mundo cambia</text>
+  <text x="76" y="288" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">Una fuente publica una nueva</text>
+  <text x="76" y="314" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">versión o deja de estar disponible.</text>
+  <rect x="76" y="342" width="158" height="28" rx="14" fill="#E6FFFB"/>
+  <text x="155" y="361" text-anchor="middle" fill="#0F766E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">SourceChanged</text>
+
+  <circle cx="370" cy="238" r="23" fill="url(#blue)"/>
+  <text x="370" y="246" text-anchor="middle" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">2</text>
+  <text x="404" y="245" fill="#0B132B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="750">Se marca el recuerdo</text>
+  <text x="350" y="288" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">El estado pasa a `STALE` y</text>
+  <text x="350" y="314" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">se propaga a sus derivados.</text>
+  <rect x="350" y="342" width="118" height="28" rx="14" fill="#E7F0FF"/>
+  <text x="409" y="361" text-anchor="middle" fill="#1D4ED8" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">FRESH → STALE</text>
+
+  <circle cx="644" cy="238" r="23" fill="#F59E0B"/>
+  <text x="644" y="246" text-anchor="middle" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">3</text>
+  <text x="678" y="245" fill="#0B132B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="750">Se comprueba la fuente</text>
+  <text x="624" y="288" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">Un validator compara la versión</text>
+  <text x="624" y="314" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">observada con la versión actual.</text>
+  <rect x="624" y="342" width="137" height="28" rx="14" fill="#FFF6DD"/>
+  <text x="692" y="361" text-anchor="middle" fill="#A16207" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">Revalidation</text>
+
+  <circle cx="918" cy="238" r="23" fill="#EF6A64"/>
+  <text x="918" y="246" text-anchor="middle" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">4</text>
+  <text x="952" y="245" fill="#0B132B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="750">Se decide con seguridad</text>
+  <text x="898" y="288" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">`check()` le dice al agente si</text>
+  <text x="898" y="314" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">puede usar el recuerdo.</text>
+  <rect x="898" y="342" width="145" height="28" rx="14" fill="#FFF0EF"/>
+  <text x="970" y="361" text-anchor="middle" fill="#B83A35" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">USE / CHECK / REJECT</text>
+
+  <path d="M304 292h14" stroke="#8AA0B8" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M578 292h14" stroke="#8AA0B8" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M852 292h14" stroke="#8AA0B8" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="52" y="438" width="1072" height="120" rx="22" fill="#FFFFFF" stroke="#D8E2EC"/>
+  <text x="82" y="474" fill="#0B132B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="750">El contenido sigue en tu memoria</text>
+  <text x="82" y="505" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">PREMiSE conserva metadata, dependencias e historia: no borra el recuerdo ni reemplaza tu sistema de memoria.</text>
+  <text x="82" y="535" fill="#4B647E" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">La decisión final queda explícita: usarlo, revalidarlo o rechazarlo como soporte actual.</text>
+
+  <rect x="1160" y="194" width="204" height="364" rx="22" fill="#0B132B"/>
+  <text x="1190" y="236" fill="#5EEAD4" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="800" letter-spacing="2">ESTADOS</text>
+  <rect x="1190" y="264" width="144" height="44" rx="22" fill="#123D3B"/>
+  <circle cx="1213" cy="286" r="7" fill="#2DD4BF"/>
+  <text x="1230" y="292" fill="#E6FFFB" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">FRESH</text>
+  <rect x="1190" y="322" width="144" height="44" rx="22" fill="#172D52"/>
+  <circle cx="1213" cy="344" r="7" fill="#60A5FA"/>
+  <text x="1230" y="350" fill="#E7F0FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">STALE</text>
+  <rect x="1190" y="380" width="144" height="44" rx="22" fill="#4B2828"/>
+  <circle cx="1213" cy="402" r="7" fill="#FB7185"/>
+  <text x="1230" y="408" fill="#FFF0EF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">INVALID</text>
+  <rect x="1190" y="438" width="144" height="44" rx="22" fill="#473B20"/>
+  <circle cx="1213" cy="460" r="7" fill="#FBBF24"/>
+  <text x="1230" y="466" fill="#FFF6DD" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="700">UNKNOWN</text>
+  <text x="1190" y="521" fill="#B8C8DA" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">No es una nota de confianza.</text>
+</svg>
