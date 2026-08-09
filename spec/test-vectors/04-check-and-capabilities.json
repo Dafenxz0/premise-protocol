@@ -9,7 +9,10 @@
       "vectorId": "capabilities-required-profile",
       "category": "positive",
       "description": "RECORD, DEPENDENCY, and REVALIDATION are sufficient for v0.1 compatibility.",
-      "steps": [{"operation": "declareCapabilities", "input": {"capabilities": ["RECORD", "DEPENDENCY", "REVALIDATION"]}, "expect": {"compatible": true, "profile": "PREMiSE-compatible v0.1"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "declare-required-profile", "operation": "capabilities", "input": { "specVersion": "premise/0.1", "capabilities": ["RECORD", "DEPENDENCY", "REVALIDATION"], "profile": "PREMiSE-compatible v0.1" }, "expect": { "compatible": true, "profile": "PREMiSE-compatible v0.1" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -17,7 +20,10 @@
       "vectorId": "capabilities-missing-required-profile",
       "category": "negative",
       "description": "RETRIEVAL and GATE alone do not satisfy the minimum profile.",
-      "steps": [{"operation": "declareCapabilities", "input": {"capabilities": ["RETRIEVAL", "GATE"]}, "expect": {"compatible": false, "missing": ["RECORD", "DEPENDENCY", "REVALIDATION"]}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "declare-incomplete-profile", "operation": "capabilities", "input": { "specVersion": "premise/0.1", "capabilities": ["RETRIEVAL", "GATE"], "profile": "PREMiSE-compatible v0.1" }, "expect": { "compatible": false, "missing": ["RECORD", "DEPENDENCY", "REVALIDATION"] } }
+      ]
     }
   ]
 }

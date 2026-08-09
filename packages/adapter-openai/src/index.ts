@@ -1,5 +1,5 @@
 import { ReferenceProtocol, type ValidationReport } from "@premise/reference-ts";
-import type { CapabilitiesDeclaration, Capability, MemoryEnvelope } from "@premise/protocol-types";
+import type { CapabilitiesDeclaration, Capability, MemoryEnvelope, PremiseEvent, ValidationResult } from "@premise/protocol-types";
 
 export interface OpenAIMemoryRecord<T = unknown> {
   readonly memoryId: string;
@@ -29,18 +29,37 @@ export class OpenAIMemoryAdapter<T = unknown> {
 
   register(record: OpenAIMemoryRecord<T>): void {
     if (this.memories.has(record.memoryId)) throw new Error(`Memory already registered: ${record.memoryId}`);
+    if (record.memoryId !== record.envelope.memoryId) throw new Error("Memory record and envelope IDs must match");
     this.protocol.register(record.envelope);
     this.memories.set(record.memoryId, record);
   }
 
   derive(record: OpenAIMemoryRecord<T>): void {
     if (this.memories.has(record.memoryId)) throw new Error(`Memory already registered: ${record.memoryId}`);
+    if (record.memoryId !== record.envelope.memoryId) throw new Error("Memory record and envelope IDs must match");
     this.protocol.derive(record.envelope);
     this.memories.set(record.memoryId, record);
   }
 
   async revalidate(memoryIds: readonly string[], results?: Parameters<ReferenceProtocol["validate"]>[1]): Promise<ValidationReport> {
     return this.protocol.validate(memoryIds, results);
+  }
+
+  signal(event: PremiseEvent): ReturnType<ReferenceProtocol["signal"]> {
+    if (event.type !== "SourceChanged") throw new Error("OpenAI adapter signal accepts SourceChanged events only");
+    return this.protocol.signal(event as Parameters<ReferenceProtocol["signal"]>[0]);
+  }
+
+  validate(memoryIds: readonly string[], results?: Readonly<Record<string, ValidationResult>>): Promise<ValidationReport> {
+    return this.protocol.validate(memoryIds, results);
+  }
+
+  check(memoryIds: readonly string[]) {
+    return this.protocol.check(memoryIds).items;
+  }
+
+  history(memoryId: string) {
+    return this.protocol.history(memoryId);
   }
 
   retrieve(memoryIds: readonly string[]): readonly RetrievedMemory<T>[] {

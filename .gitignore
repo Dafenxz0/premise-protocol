@@ -10,9 +10,5 @@ coverage/
 .env.*
 !.env.example
 
-conformance-report.json
-results.json
-traces/
-
 .DS_Store
 Thumbs.db

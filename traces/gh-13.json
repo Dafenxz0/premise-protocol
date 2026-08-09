@@ -1,0 +1,35 @@
+{
+  "episodeId": "gh-13",
+  "kind": "github-like",
+  "steps": [
+    {
+      "name": "memory-observed",
+      "at": "1",
+      "data": {
+        "scenario": "gh-13"
+      }
+    },
+    {
+      "name": "world-mutated",
+      "at": "2",
+      "data": "merge-base-change"
+    },
+    {
+      "name": "recalled",
+      "at": "1",
+      "data": {
+        "staleRecall": true
+      }
+    }
+  ],
+  "staleRecall": true,
+  "staleAction": true,
+  "actionRequired": true,
+  "repaired": false,
+  "taskSuccess": false,
+  "revalidationCalls": 0,
+  "changeStatus": "STALE",
+  "repairPossible": true,
+  "ttlExpired": false,
+  "historyPreserved": true
+}

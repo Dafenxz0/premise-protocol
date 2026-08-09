@@ -18,7 +18,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isDateTime(value: unknown): value is string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && !Number.isNaN(Date.parse(value));
 }
 
 function isVersion(value: unknown): boolean {
@@ -37,6 +37,8 @@ function cloneJson<T>(value: T): T {
 
 function assertEvent(input: unknown): PremiseEvent {
   if (!isRecord(input)) throw new TypeError("PREMiSE event must be an object");
+  const allowed = new Set(["specVersion", "eventId", "type", "occurredAt", "memoryId", "payload"]);
+  for (const key of Object.keys(input)) if (!allowed.has(key)) throw new TypeError(`Event field is not permitted: ${key}`);
   if (input.specVersion !== "premise/0.1") throw new TypeError("Event specVersion must be premise/0.1");
   if (typeof input.eventId !== "string" || input.eventId.length === 0) throw new TypeError("Event eventId must be non-empty");
   if (typeof input.type !== "string" || !eventTypes.has(input.type as PremiseEventType)) throw new TypeError("Event type is invalid");
@@ -48,10 +50,13 @@ function assertEvent(input: unknown): PremiseEvent {
 
   switch (input.type) {
     case "MemoryRegistered":
-      parseMemoryEnvelope(input.payload.envelope);
+      {
+        const envelope = parseMemoryEnvelope(input.payload.envelope);
+        if (envelope.memoryId !== input.memoryId) throw new TypeError("MemoryRegistered event and envelope IDs must match");
+      }
       break;
     case "MemoryDerived":
-      if (!Array.isArray(input.payload.dependsOn) || input.payload.dependsOn.length === 0 || input.payload.dependsOn.some((id) => typeof id !== "string" || id.length === 0)) {
+      if (!Array.isArray(input.payload.dependsOn) || input.payload.dependsOn.length === 0 || input.payload.dependsOn.some((id) => typeof id !== "string" || id.length === 0) || new Set(input.payload.dependsOn).size !== input.payload.dependsOn.length) {
         throw new TypeError("MemoryDerived payload requires dependencies");
       }
       break;
@@ -71,6 +76,8 @@ function assertEvent(input: unknown): PremiseEvent {
       if ((input.payload.result === "UNCHANGED" || input.payload.result === "CHANGED") && !isVersion(input.payload.version)) {
         throw new TypeError("This validation result requires a version");
       }
+      const expectedStatus = input.payload.result === "UNCHANGED" ? "FRESH" : input.payload.result === "CHANGED" || input.payload.result === "MISSING" ? "INVALID" : "UNKNOWN";
+      if (input.payload.status !== expectedStatus) throw new TypeError(`MemoryRevalidated status must be ${expectedStatus}`);
       break;
     case "MemoryReplaced":
       if (typeof input.payload.replacementMemoryId !== "string" || input.payload.replacementMemoryId.length === 0) {
@@ -118,8 +125,10 @@ function migrate(database: DatabaseSync): void {
       event_json TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS premise_events_memory_idx ON premise_events(memory_id, sequence);
-    INSERT OR IGNORE INTO premise_schema_migrations(version) VALUES (${SIDECAR_SCHEMA_VERSION});
   `);
+  const versions = database.prepare("SELECT version FROM premise_schema_migrations ORDER BY version ASC").all().map((row) => Number(row.version));
+  if (versions.some((version) => !Number.isInteger(version) || version > SIDECAR_SCHEMA_VERSION)) throw new Error("SQLite sidecar schema is newer than this implementation");
+  if (!versions.includes(SIDECAR_SCHEMA_VERSION)) database.prepare("INSERT INTO premise_schema_migrations(version) VALUES (?)").run(SIDECAR_SCHEMA_VERSION);
 }
 
 export class SqlitePremiseIndex {

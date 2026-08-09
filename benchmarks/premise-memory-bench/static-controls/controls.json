@@ -1,0 +1,15 @@
+{
+  "format": "premise-benchmark-controls/0.1",
+  "controls": [
+    {"id":"static-01","kind":"immutable","recall":"current","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-02","kind":"manual","recall":"current","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-03","kind":"versioned","recall":"same-version","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-04","kind":"ttl","recall":"before-expiry","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-05","kind":"immutable","recall":"after-idle","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-06","kind":"manual","recall":"after-reopen","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-07","kind":"versioned","recall":"same-token","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-08","kind":"ttl","recall":"exact-expiry-boundary","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-09","kind":"immutable","recall":"repeated","expected":{"taskSuccess":true,"falseSuppression":false}},
+    {"id":"static-10","kind":"manual","recall":"after-reopen","expected":{"taskSuccess":true,"falseSuppression":false}}
+  ]
+}

@@ -1,0 +1,245 @@
+{
+  "format": "premise-benchmark-results/0.1",
+  "suite": "v0.1",
+  "runner": "minimal",
+  "scenarioCount": 40,
+  "controlCount": 10,
+  "ablationCount": 5,
+  "results": [
+    {
+      "baseline": "Plain Memory",
+      "episodes": 40,
+      "staleRecallRate": 1,
+      "staleActionRate": 1,
+      "dynamicMemoryRepairRate": 0,
+      "taskSuccessRate": 0,
+      "falseSuppressionRate": 0,
+      "revalidationCalls": 0,
+      "historyPreservationRate": 1
+    },
+    {
+      "baseline": "Prompt Recheck",
+      "episodes": 40,
+      "staleRecallRate": 1,
+      "staleActionRate": 0,
+      "dynamicMemoryRepairRate": 0.95,
+      "taskSuccessRate": 0.95,
+      "falseSuppressionRate": 0,
+      "revalidationCalls": 40,
+      "historyPreservationRate": 1
+    },
+    {
+      "baseline": "TTL Memory",
+      "episodes": 40,
+      "staleRecallRate": 1,
+      "staleActionRate": 1,
+      "dynamicMemoryRepairRate": 0,
+      "taskSuccessRate": 0,
+      "falseSuppressionRate": 0,
+      "revalidationCalls": 0,
+      "historyPreservationRate": 1
+    },
+    {
+      "baseline": "Always Refresh",
+      "episodes": 40,
+      "staleRecallRate": 1,
+      "staleActionRate": 0,
+      "dynamicMemoryRepairRate": 0.95,
+      "taskSuccessRate": 0.95,
+      "falseSuppressionRate": 0,
+      "revalidationCalls": 40,
+      "historyPreservationRate": 1
+    },
+    {
+      "baseline": "PREMiSE Explicit",
+      "episodes": 40,
+      "staleRecallRate": 1,
+      "staleActionRate": 0,
+      "dynamicMemoryRepairRate": 0.95,
+      "taskSuccessRate": 0.95,
+      "falseSuppressionRate": 0,
+      "revalidationCalls": 38,
+      "historyPreservationRate": 1
+    }
+  ],
+  "traceCount": 40,
+  "controls": [
+    {
+      "id": "static-01",
+      "kind": "immutable",
+      "recall": "current",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-02",
+      "kind": "manual",
+      "recall": "current",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-03",
+      "kind": "versioned",
+      "recall": "same-version",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-04",
+      "kind": "ttl",
+      "recall": "before-expiry",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-05",
+      "kind": "immutable",
+      "recall": "after-idle",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-06",
+      "kind": "manual",
+      "recall": "after-reopen",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-07",
+      "kind": "versioned",
+      "recall": "same-token",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-08",
+      "kind": "ttl",
+      "recall": "exact-expiry-boundary",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-09",
+      "kind": "immutable",
+      "recall": "repeated",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    },
+    {
+      "id": "static-10",
+      "kind": "manual",
+      "recall": "after-reopen",
+      "expected": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "observed": {
+        "taskSuccess": true,
+        "falseSuppression": false
+      },
+      "passed": true
+    }
+  ],
+  "ablations": [
+    {
+      "id": "ablation-no-dependency-propagation",
+      "removedCapability": "DEPENDENCY",
+      "expected": "derived-not-invalidated",
+      "observed": "derived-not-invalidated",
+      "passed": true
+    },
+    {
+      "id": "ablation-no-revalidation",
+      "removedCapability": "REVALIDATION",
+      "expected": "unknown-on-change",
+      "observed": "unknown-on-change",
+      "passed": true
+    },
+    {
+      "id": "ablation-no-gate",
+      "removedCapability": "GATE",
+      "expected": "action-decision-external",
+      "observed": "action-decision-external",
+      "passed": true
+    },
+    {
+      "id": "ablation-no-retrieval-label",
+      "removedCapability": "RETRIEVAL",
+      "expected": "content-unchanged",
+      "observed": "content-unchanged",
+      "passed": true
+    },
+    {
+      "id": "ablation-ttl-only",
+      "removedCapability": "VERSIONED",
+      "expected": "ttl-boundary-only",
+      "observed": "ttl-boundary-only",
+      "passed": true
+    }
+  ]
+}

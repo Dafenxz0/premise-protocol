@@ -1,3 +1,4 @@
+import { parseMemoryEnvelope } from "@premise/protocol-types";
 import { parsePremiseEvent } from "../events/index.js";
 import type { MemoryStatus, PremiseEvent } from "@premise/protocol-types";
 
@@ -13,22 +14,47 @@ export interface ReplaySnapshot {
   readonly eventCount: number;
 }
 
-const statusForResult: Record<string, MemoryStatus> = {
-  UNCHANGED: "FRESH",
-  CHANGED: "INVALID",
-  MISSING: "INVALID",
-  UNKNOWN: "UNKNOWN"
-};
+function statusForResult(result: unknown): MemoryStatus {
+  if (result === "UNCHANGED") return "FRESH";
+  if (result === "CHANGED" || result === "MISSING") return "INVALID";
+  return "UNKNOWN";
+}
 
-function statusOf(value: unknown, fallback: MemoryStatus): MemoryStatus {
-  return value === "FRESH" || value === "STALE" || value === "INVALID" || value === "UNKNOWN" ? value : fallback;
+function aggregate(statuses: readonly MemoryStatus[]): MemoryStatus {
+  if (statuses.includes("INVALID")) return "INVALID";
+  if (statuses.includes("UNKNOWN")) return "UNKNOWN";
+  if (statuses.includes("STALE")) return "STALE";
+  return "FRESH";
 }
 
 export function replayEvents(inputs: readonly unknown[]): ReplaySnapshot {
-  const memories = new Map<string, { status: MemoryStatus; dependsOn: string[] }>();
+  const memories = new Map<string, { direct: MemoryStatus; status: MemoryStatus; dependsOn: string[] }>();
   const history = new Map<string, string[]>();
+  const eventIds = new Set<string>();
+  const requireMemory = (memoryId: string): { direct: MemoryStatus; status: MemoryStatus; dependsOn: string[] } => {
+    const memory = memories.get(memoryId);
+    if (!memory) throw new Error(`Replay event references unknown memory: ${memoryId}`);
+    return memory;
+  };
+  const recompute = (): void => {
+    const remaining = new Set(memories.keys());
+    const resolved = new Set<string>();
+    while (remaining.size > 0) {
+      const ready = [...remaining].filter((id) => memories.get(id)!.dependsOn.every((dependency) => resolved.has(dependency))).sort();
+      if (ready.length === 0) throw new Error("Replay dependency graph contains a cycle or unknown dependency");
+      for (const id of ready) {
+        const memory = memories.get(id)!;
+        memory.status = aggregate([memory.direct, ...memory.dependsOn.map((dependency) => memories.get(dependency)!.status)]);
+        remaining.delete(id);
+        resolved.add(id);
+      }
+    }
+  };
+
   for (const input of inputs) {
     const event = parsePremiseEvent(input);
+    if (eventIds.has(event.eventId)) throw new Error(`Duplicate replay eventId: ${event.eventId}`);
+    eventIds.add(event.eventId);
     if (event.memoryId) {
       const ids = history.get(event.memoryId) ?? [];
       ids.push(event.eventId);
@@ -36,46 +62,52 @@ export function replayEvents(inputs: readonly unknown[]): ReplaySnapshot {
     }
     switch (event.type) {
       case "MemoryRegistered": {
-        const envelope = event.payload.envelope as { validity?: { status?: unknown }; dependsOn?: unknown };
-        memories.set(event.memoryId!, { status: statusOf(envelope?.validity?.status, "FRESH"), dependsOn: Array.isArray(envelope?.dependsOn) ? envelope.dependsOn.filter((id): id is string => typeof id === "string") : [] });
+        const envelope = parseMemoryEnvelope(event.payload.envelope);
+        const current = memories.get(event.memoryId!);
+        if (current && (current.direct !== envelope.validity.status || JSON.stringify(current.dependsOn) !== JSON.stringify(envelope.dependsOn))) throw new Error(`Conflicting replay registration: ${event.memoryId}`);
+        memories.set(event.memoryId!, { direct: envelope.validity.status, status: envelope.validity.status, dependsOn: [...envelope.dependsOn] });
         break;
       }
       case "MemoryDerived": {
-        const current = memories.get(event.memoryId!) ?? { status: "FRESH" as MemoryStatus, dependsOn: [] };
-        current.dependsOn = Array.isArray(event.payload.dependsOn) ? event.payload.dependsOn.filter((id): id is string => typeof id === "string") : [];
-        memories.set(event.memoryId!, current);
+        const current = memories.get(event.memoryId!);
+        const dependsOn = event.payload.dependsOn as unknown[];
+        if (dependsOn.some((dependency) => typeof dependency !== "string" || !memories.has(dependency))) throw new Error(`Replay derived event has unknown dependency: ${event.memoryId}`);
+        if (current && JSON.stringify(current.dependsOn) !== JSON.stringify(dependsOn)) throw new Error(`Conflicting replay derivation: ${event.memoryId}`);
+        memories.set(event.memoryId!, { direct: current?.direct ?? "FRESH", status: current?.status ?? "FRESH", dependsOn: [...(dependsOn as string[])] });
         break;
       }
       case "MemoryStaled": {
-        const current = memories.get(event.memoryId!) ?? { status: "STALE" as MemoryStatus, dependsOn: [] };
-        current.status = "STALE";
-        memories.set(event.memoryId!, current);
+        const current = requireMemory(event.memoryId!);
+        if (current.direct !== "INVALID") current.direct = "STALE";
         break;
       }
       case "MemoryInvalidated": {
-        const current = memories.get(event.memoryId!) ?? { status: "INVALID" as MemoryStatus, dependsOn: [] };
-        current.status = "INVALID";
-        memories.set(event.memoryId!, current);
+        const current = requireMemory(event.memoryId!);
+        current.direct = "INVALID";
         break;
       }
       case "MemoryRevalidated": {
-        const current = memories.get(event.memoryId!) ?? { status: "UNKNOWN" as MemoryStatus, dependsOn: [] };
-        current.status = statusOf(event.payload.status, statusForResult[String(event.payload.result)] ?? "UNKNOWN");
-        memories.set(event.memoryId!, current);
+        const current = requireMemory(event.memoryId!);
+        const next = statusForResult(event.payload.result);
+        if (current.direct === "INVALID" && next !== "INVALID") break;
+        current.direct = next;
         break;
       }
       case "MemoryReplaced": {
-        const current = memories.get(event.memoryId!) ?? { status: "INVALID" as MemoryStatus, dependsOn: [] };
-        current.status = "INVALID";
-        memories.set(event.memoryId!, current);
+        const current = requireMemory(event.memoryId!);
+        current.direct = "FRESH";
         break;
       }
       case "SourceChanged":
         break;
     }
+    recompute();
   }
   const memoryRecord: Record<string, ReplayMemory> = {};
-  for (const id of [...memories.keys()].sort()) memoryRecord[id] = { memoryId: id, status: memories.get(id)!.status, dependsOn: [...memories.get(id)!.dependsOn] };
+  for (const id of [...memories.keys()].sort()) {
+    const memory = memories.get(id)!;
+    memoryRecord[id] = { memoryId: id, status: memory.status, dependsOn: [...memory.dependsOn] };
+  }
   const historyRecord: Record<string, readonly string[]> = {};
   for (const id of [...history.keys()].sort()) historyRecord[id] = [...history.get(id)!];
   return { memories: memoryRecord, history: historyRecord, eventCount: inputs.length };

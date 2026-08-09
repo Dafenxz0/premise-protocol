@@ -1,0 +1,16 @@
+{
+  "format": "premise-benchmark-scenarios/0.1",
+  "kind": "filesystem",
+  "scenarios": [
+    {"id":"fs-01","sourceUri":"file:///premise/fs/01.txt","initialContent":"one","mutation":"replace","reopenBeforeRecall":true,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-02","sourceUri":"file:///premise/fs/02.txt","initialContent":"two","mutation":"append","reopenBeforeRecall":true,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-03","sourceUri":"file:///premise/fs/03.txt","initialContent":"three","mutation":"delete","reopenBeforeRecall":false,"expected":{"afterChange":"INVALID","check":"REJECT"}},
+    {"id":"fs-04","sourceUri":"file:///premise/fs/04.txt","initialContent":"four","mutation":"replace","reopenBeforeRecall":true,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-05","sourceUri":"file:///premise/fs/05.txt","initialContent":"five","mutation":"chmod","reopenBeforeRecall":true,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-06","sourceUri":"file:///premise/fs/06.txt","initialContent":"six","mutation":"append","reopenBeforeRecall":false,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-07","sourceUri":"file:///premise/fs/07.txt","initialContent":"seven","mutation":"replace","reopenBeforeRecall":true,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-08","sourceUri":"file:///premise/fs/08.txt","initialContent":"eight","mutation":"delete","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","check":"REJECT"}},
+    {"id":"fs-09","sourceUri":"file:///premise/fs/09.txt","initialContent":"nine","mutation":"append","reopenBeforeRecall":true,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}},
+    {"id":"fs-10","sourceUri":"file:///premise/fs/10.txt","initialContent":"ten","mutation":"replace","reopenBeforeRecall":false,"expected":{"afterChange":"STALE","afterRepair":"FRESH"}}
+  ]
+}

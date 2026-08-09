@@ -9,7 +9,12 @@
       "vectorId": "ttl-expiry-stales-memory",
       "category": "transition",
       "description": "A TTL envelope becomes STALE after its expiry instant.",
-      "steps": [{"operation": "register", "input": {"memoryId": "memory:ttl", "policy": "TTL", "status": "FRESH", "expiresAt": "2026-08-09T20:00:00Z"}}, {"operation": "advanceClock", "input": {"now": "2026-08-09T20:00:01Z"}}, {"operation": "check", "input": {"memoryIds": ["memory:ttl"]}, "expect": {"status": "STALE", "decision": "REVALIDATE"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-ttl", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:ttl", "provenance": [{ "sourceUri": "ttl://resource", "observedAt": "2026-08-09T19:20:00Z" }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "TTL", "expiresAt": "2026-08-09T20:00:00Z" }, "dependsOn": [] } } },
+        { "id": "advance-past-expiry", "operation": "advance_time", "input": { "now": "2026-08-09T20:00:01Z" } },
+        { "id": "check-expired", "operation": "check", "input": { "memoryIds": ["memory:ttl"] }, "expect": { "status": "STALE", "decision": "REVALIDATE" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -17,7 +22,11 @@
       "vectorId": "notification-stales-memory",
       "category": "transition",
       "description": "A source notification marks the affected memory STALE.",
-      "steps": [{"operation": "register", "input": {"memoryId": "memory:notification", "status": "FRESH"}}, {"operation": "signal", "input": {"event": "SourceChanged", "memoryIds": ["memory:notification"]}, "expect": {"status": "STALE", "event": "MemoryStaled"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-notification", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:notification", "provenance": [{ "sourceUri": "notify://resource", "observedAt": "2026-08-09T19:20:00Z", "version": { "scheme": "epoch", "token": "1" }, "validator": { "id": "notify", "operation": "read" } }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "VERSIONED" }, "dependsOn": [] } } },
+        { "id": "signal-notification", "operation": "signal", "input": { "event": { "specVersion": "premise/0.1", "eventId": "source-notification", "type": "SourceChanged", "occurredAt": "2026-08-09T19:20:01Z", "payload": { "sourceUri": "notify://resource", "version": { "scheme": "epoch", "token": "2" } } } }, "expect": { "status": "STALE", "event": "MemoryStaled" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -25,7 +34,11 @@
       "vectorId": "epoch-change-stales-memory",
       "category": "transition",
       "description": "A validator epoch change makes freshness no longer guaranteed.",
-      "steps": [{"operation": "signal", "input": {"event": "SourceChanged", "change": "epoch"}, "expect": {"status": "STALE"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-epoch", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:epoch", "provenance": [{ "sourceUri": "epoch://resource", "observedAt": "2026-08-09T19:20:00Z", "version": { "scheme": "epoch", "token": "1" }, "validator": { "id": "epoch", "operation": "read" } }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "VERSIONED" }, "dependsOn": [] } } },
+        { "id": "signal-epoch", "operation": "signal", "input": { "event": { "specVersion": "premise/0.1", "eventId": "source-epoch", "type": "SourceChanged", "occurredAt": "2026-08-09T19:20:01Z", "payload": { "sourceUri": "epoch://resource", "version": { "scheme": "epoch", "token": "2" } } } }, "expect": { "status": "STALE" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -33,7 +46,11 @@
       "vectorId": "version-change-invalidates-memory",
       "category": "negative",
       "description": "A different opaque version token invalidates the previous memory.",
-      "steps": [{"operation": "validate", "input": {"result": "CHANGED", "previousToken": "v1", "currentToken": "v2"}, "expect": {"status": "INVALID", "decision": "REJECT", "event": "MemoryInvalidated"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-versioned", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:changed", "provenance": [{ "sourceUri": "version://resource", "observedAt": "2026-08-09T19:20:00Z", "version": { "scheme": "opaque", "token": "v1" }, "validator": { "id": "version", "operation": "read" } }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "VERSIONED" }, "dependsOn": [] } } },
+        { "id": "validate-changed", "operation": "validate", "input": { "memoryIds": ["memory:changed"], "results": { "memory:changed": { "memoryId": "memory:changed", "result": "CHANGED", "status": "INVALID", "checkedAt": "2026-08-09T19:20:02Z", "version": { "scheme": "opaque", "token": "v2" } } } }, "expect": { "status": "INVALID", "decision": "REJECT", "event": "MemoryInvalidated" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -41,7 +58,11 @@
       "vectorId": "missing-resource-invalidates-memory",
       "category": "negative",
       "description": "A missing source invalidates the memory.",
-      "steps": [{"operation": "validate", "input": {"result": "MISSING"}, "expect": {"status": "INVALID", "decision": "REJECT", "event": "MemoryInvalidated"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-missing", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:missing", "provenance": [{ "sourceUri": "missing://resource", "observedAt": "2026-08-09T19:20:00Z" }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "MANUAL" }, "dependsOn": [] } } },
+        { "id": "validate-missing", "operation": "validate", "input": { "memoryIds": ["memory:missing"], "results": { "memory:missing": { "memoryId": "memory:missing", "result": "MISSING", "status": "INVALID", "checkedAt": "2026-08-09T19:20:02Z" } } }, "expect": { "status": "INVALID", "decision": "REJECT", "event": "MemoryInvalidated" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -49,7 +70,11 @@
       "vectorId": "validator-unknown-preserves-unknown",
       "category": "transition",
       "description": "An indeterminate validator result produces UNKNOWN.",
-      "steps": [{"operation": "validate", "input": {"result": "UNKNOWN"}, "expect": {"status": "UNKNOWN", "decision": "REVALIDATE"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-unknown", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:unknown", "provenance": [{ "sourceUri": "unknown://resource", "observedAt": "2026-08-09T19:20:00Z" }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "MANUAL" }, "dependsOn": [] } } },
+        { "id": "validate-unknown", "operation": "validate", "input": { "memoryIds": ["memory:unknown"], "results": { "memory:unknown": { "memoryId": "memory:unknown", "result": "UNKNOWN", "status": "UNKNOWN", "checkedAt": "2026-08-09T19:20:02Z" } } }, "expect": { "status": "UNKNOWN", "decision": "REVALIDATE" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -57,7 +82,11 @@
       "vectorId": "same-version-repairs-stale-memory",
       "category": "positive",
       "description": "Revalidation with the same version token restores FRESH.",
-      "steps": [{"operation": "validate", "input": {"result": "UNCHANGED", "token": "v1", "statusBefore": "STALE"}, "expect": {"status": "FRESH", "event": "MemoryRevalidated"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "register-stale", "operation": "register", "input": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:repair", "provenance": [{ "sourceUri": "repair://resource", "observedAt": "2026-08-09T19:20:00Z", "version": { "scheme": "opaque", "token": "v1" }, "validator": { "id": "repair", "operation": "read" } }], "validity": { "status": "STALE", "checkedAt": "2026-08-09T19:20:00Z", "policy": "VERSIONED" }, "dependsOn": [] } } },
+        { "id": "validate-unchanged", "operation": "validate", "input": { "memoryIds": ["memory:repair"], "results": { "memory:repair": { "memoryId": "memory:repair", "result": "UNCHANGED", "status": "FRESH", "checkedAt": "2026-08-09T19:20:02Z", "version": { "scheme": "opaque", "token": "v1" } } } }, "expect": { "status": "FRESH", "event": "MemoryRevalidated" } }
+      ]
     },
     {
       "format": "premise-test-vector/0.1",
@@ -65,7 +94,10 @@
       "vectorId": "check-status-decision-table",
       "category": "transition",
       "description": "Usability decisions follow the normative status table.",
-      "steps": [{"operation": "check", "input": {"statuses": ["FRESH", "STALE", "UNKNOWN", "INVALID"]}, "expect": {"decisions": {"FRESH": "USABLE", "STALE": "REVALIDATE", "UNKNOWN": "REVALIDATE", "INVALID": "REJECT"}}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "check-statuses", "operation": "check", "input": { "statuses": ["FRESH", "STALE", "UNKNOWN", "INVALID"] }, "expect": { "decisions": { "FRESH": "USABLE", "STALE": "REVALIDATE", "UNKNOWN": "REVALIDATE", "INVALID": "REJECT" } } }
+      ]
     }
   ]
 }

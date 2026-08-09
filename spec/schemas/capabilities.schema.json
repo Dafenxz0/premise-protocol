@@ -25,7 +25,8 @@
   },
   "required": [
     "specVersion",
-    "capabilities"
+    "capabilities",
+    "profile"
   ],
   "allOf": [
     {

@@ -1,0 +1,10 @@
+{
+  "format": "premise-benchmark-ablations/0.1",
+  "ablations": [
+    {"id":"ablation-no-dependency-propagation","remove":"DEPENDENCY","expected":"derived-not-invalidated"},
+    {"id":"ablation-no-revalidation","remove":"REVALIDATION","expected":"unknown-on-change"},
+    {"id":"ablation-no-gate","remove":"GATE","expected":"action-decision-external"},
+    {"id":"ablation-no-retrieval-label","remove":"RETRIEVAL","expected":"content-unchanged"},
+    {"id":"ablation-ttl-only","remove":"VERSIONED","expected":"ttl-boundary-only"}
+  ]
+}

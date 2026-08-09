@@ -1,0 +1,16 @@
+{
+  "format": "premise-benchmark-scenarios/0.1",
+  "kind": "git",
+  "scenarios": [
+    {"id":"git-01","sourceUri":"git+file:///premise/git/01#README.md","initialContent":"one","mutation":"new-commit","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-02","sourceUri":"git+file:///premise/git/02#README.md","initialContent":"two","mutation":"new-commit","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-03","sourceUri":"git+file:///premise/git/03#src/app.ts","initialContent":"three","mutation":"tree-change","reopenBeforeRecall":false,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-04","sourceUri":"git+file:///premise/git/04#config.json","initialContent":"four","mutation":"new-commit","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-05","sourceUri":"git+file:///premise/git/05#README.md","initialContent":"five","mutation":"branch-switch","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-06","sourceUri":"git+file:///premise/git/06#README.md","initialContent":"six","mutation":"new-commit","reopenBeforeRecall":false,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-07","sourceUri":"git+file:///premise/git/07#src/lib.ts","initialContent":"seven","mutation":"tree-change","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-08","sourceUri":"git+file:///premise/git/08#README.md","initialContent":"eight","mutation":"file-delete","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","check":"REJECT"}},
+    {"id":"git-09","sourceUri":"git+file:///premise/git/09#package.json","initialContent":"nine","mutation":"new-commit","reopenBeforeRecall":true,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}},
+    {"id":"git-10","sourceUri":"git+file:///premise/git/10#README.md","initialContent":"ten","mutation":"new-commit","reopenBeforeRecall":false,"expected":{"afterChange":"INVALID","afterRepair":"FRESH"}}
+  ]
+}

@@ -21,11 +21,32 @@ importers:
         specifier: workspace:*
         version: link:../../packages/reference-ts
 
-  examples/generic-memory: {}
+  examples/generic-memory:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../../packages/protocol-types
+      '@premise/reference-ts':
+        specifier: workspace:*
+        version: link:../../packages/reference-ts
 
-  examples/mcp-memory: {}
+  examples/mcp-memory:
+    dependencies:
+      '@premise/mcp-bridge':
+        specifier: workspace:*
+        version: link:../../packages/mcp-bridge
+      '@premise/reference-ts':
+        specifier: workspace:*
+        version: link:../../packages/reference-ts
 
-  examples/openai-memory: {}
+  examples/openai-memory:
+    dependencies:
+      '@premise/adapter-openai':
+        specifier: workspace:*
+        version: link:../../packages/adapter-openai
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../../packages/protocol-types
 
   packages/adapter-openai:
     dependencies:
@@ -65,7 +86,14 @@ importers:
         specifier: workspace:*
         version: link:../protocol-types
 
-  packages/testkit: {}
+  packages/testkit:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
+      '@premise/reference-ts':
+        specifier: workspace:*
+        version: link:../reference-ts
 
   packages/validator-filesystem:
     dependencies:

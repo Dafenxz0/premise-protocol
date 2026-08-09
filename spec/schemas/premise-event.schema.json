@@ -474,7 +474,8 @@
         }
       },
       "required": [
-        "result"
+        "result",
+        "status"
       ],
       "allOf": [
         {

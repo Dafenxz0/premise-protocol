@@ -24,8 +24,8 @@ class MutableWorld implements World {
 
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 
-export function createEnvironment(kind: World["kind"], sourceUri = `${kind}://resource`): World { return new MutableWorld(kind, [{ sourceUri, content: { version: "initial" } }]); }
-export function createFilesystemWorld(sourceUri?: string): World { return createEnvironment("filesystem", sourceUri); }
-export function createGitWorld(sourceUri?: string): World { return createEnvironment("git", sourceUri); }
-export function createGithubLikeWorld(sourceUri?: string): World { return createEnvironment("github-like", sourceUri); }
-export function createStaticWorld(sourceUri?: string): World { return createEnvironment("static", sourceUri); }
+export function createEnvironment(kind: World["kind"], sourceUri = `${kind}://resource`, initialContent: unknown = { version: "initial" }): World { return new MutableWorld(kind, [{ sourceUri, content: initialContent }]); }
+export function createFilesystemWorld(sourceUri?: string, initialContent?: unknown): World { return new MutableWorld("filesystem", [{ sourceUri: sourceUri ?? "filesystem://resource", content: initialContent ?? { version: "initial" } }]); }
+export function createGitWorld(sourceUri?: string, initialContent?: unknown): World { return new MutableWorld("git", [{ sourceUri: sourceUri ?? "git://resource", content: initialContent ?? { version: "initial" } }]); }
+export function createGithubLikeWorld(sourceUri?: string, initialContent?: unknown): World { return new MutableWorld("github-like", [{ sourceUri: sourceUri ?? "github-like://resource", content: initialContent ?? { version: "initial" } }]); }
+export function createStaticWorld(sourceUri?: string, initialContent?: unknown): World { return new MutableWorld("static", [{ sourceUri: sourceUri ?? "static://resource", content: initialContent ?? { version: "initial" } }]); }

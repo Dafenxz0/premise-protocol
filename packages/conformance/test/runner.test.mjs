@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { assertConformanceCapabilities, missingRequiredCapabilities, runConformance, validateTestVectors } from "../dist/index.js";
+import { assertConformanceCapabilities, executeTestVectors, missingRequiredCapabilities, runConformance, validateTestVectors } from "../dist/index.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const envelope = { specVersion: "premise/0.1", memoryId: "memory:test", provenance: [{ sourceUri: "memory://test", observedAt: "2026-08-09T19:20:00Z" }], validity: { status: "FRESH", checkedAt: "2026-08-09T19:20:00Z", policy: "IMMUTABLE" }, dependsOn: [] };
 const adapter = {
-  capabilities: { specVersion: "premise/0.1", capabilities: ["RECORD", "DEPENDENCY", "REVALIDATION"] },
+  capabilities: { specVersion: "premise/0.1", capabilities: ["RECORD", "DEPENDENCY", "REVALIDATION"], profile: "PREMiSE-compatible v0.1" },
   async register() {},
   async derive() {},
   async signal() { return { accepted: true }; },
@@ -26,4 +26,7 @@ const suites = Object.fromEntries(await Promise.all(manifest.files.map(async (en
 const vectors = validateTestVectors(manifest, suites);
 assert.equal(vectors.valid, true, vectors.errors.join("; "));
 assert.equal(vectors.vectorCount, 16);
+const execution = executeTestVectors(manifest, suites);
+assert.equal(execution.valid, true, execution.failures.join("; "));
+assert.equal(execution.passedCount, 16);
 console.log("conformance runner tests passed");

@@ -1,0 +1,37 @@
+{
+  "episodeId": "git-02",
+  "kind": "git",
+  "steps": [
+    {
+      "name": "memory-observed",
+      "at": "1",
+      "data": "two"
+    },
+    {
+      "name": "world-mutated",
+      "at": "2",
+      "data": "new-commit"
+    },
+    {
+      "name": "session-reopened",
+      "at": "2"
+    },
+    {
+      "name": "recalled",
+      "at": "1",
+      "data": {
+        "staleRecall": true
+      }
+    }
+  ],
+  "staleRecall": true,
+  "staleAction": true,
+  "actionRequired": true,
+  "repaired": false,
+  "taskSuccess": false,
+  "revalidationCalls": 0,
+  "changeStatus": "STALE",
+  "repairPossible": true,
+  "ttlExpired": false,
+  "historyPreserved": true
+}

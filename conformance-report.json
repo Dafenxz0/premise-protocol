@@ -1,0 +1,31 @@
+{
+  "format": "premise-conformance-report/0.1",
+  "passed": true,
+  "vectorValidation": {
+    "valid": true,
+    "suiteCount": 5,
+    "vectorCount": 16,
+    "errors": []
+  },
+  "vectorExecution": {
+    "valid": true,
+    "vectorCount": 16,
+    "passedCount": 16,
+    "failedCount": 0,
+    "failures": []
+  },
+  "adapterContract": {
+    "format": "premise-conformance-report/0.1",
+    "passed": true,
+    "total": 1,
+    "passedCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "id": "artifact-contract",
+        "passed": true,
+        "failures": []
+      }
+    ]
+  }
+}

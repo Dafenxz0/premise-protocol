@@ -12,7 +12,13 @@
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "typecheck": "tsc -b tsconfig.json --pretty false",
-    "test": "pnpm run typecheck"
+    "test": "pnpm run typecheck && pnpm --recursive --if-present test",
+    "test:properties": "pnpm --filter @premise/testkit test",
+    "conformance": "pnpm --filter @premise/conformance test",
+    "benchmark:smoke": "pnpm --filter @premise/benchmark benchmark:smoke",
+    "benchmark": "pnpm --filter @premise/benchmark benchmark:smoke",
+    "examples:verify": "pnpm --filter @premise/example-generic-memory test && pnpm --filter @premise/example-openai-memory test && pnpm --filter @premise/example-mcp-memory test && node scripts/verify-adapters.mjs",
+    "artifacts:generate": "pnpm build && node scripts/generate-artifacts.mjs"
   },
   "devDependencies": {
     "typescript": "7.0.2"

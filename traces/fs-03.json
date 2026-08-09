@@ -1,0 +1,33 @@
+{
+  "episodeId": "fs-03",
+  "kind": "filesystem",
+  "steps": [
+    {
+      "name": "memory-observed",
+      "at": "1",
+      "data": "three"
+    },
+    {
+      "name": "world-mutated",
+      "at": "2",
+      "data": "delete"
+    },
+    {
+      "name": "recalled",
+      "at": "1",
+      "data": {
+        "staleRecall": true
+      }
+    }
+  ],
+  "staleRecall": true,
+  "staleAction": true,
+  "actionRequired": true,
+  "repaired": false,
+  "taskSuccess": false,
+  "revalidationCalls": 0,
+  "changeStatus": "INVALID",
+  "repairPossible": false,
+  "ttlExpired": false,
+  "historyPreserved": true
+}

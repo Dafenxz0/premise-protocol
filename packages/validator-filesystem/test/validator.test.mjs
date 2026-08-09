@@ -19,6 +19,8 @@ try {
   await rm(file);
   const missing = await validator.validate({ sourceUri: uri, observedAt: "2026-08-09T19:20:00Z", version: first.version, validator: { id: "filesystem", operation: "sha256" } });
   assert.equal(missing.result, "MISSING");
+  const unsupported = await validator.validate({ sourceUri: "https://example.invalid/resource", observedAt: "2026-08-09T19:20:00Z" });
+  assert.equal(unsupported.result, "UNKNOWN");
   console.log("validator-filesystem tests passed");
 } finally {
   await rm(dir, { recursive: true, force: true });

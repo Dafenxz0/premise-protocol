@@ -14,8 +14,13 @@ export interface World {
 export interface EpisodeDefinition {
   readonly id: string;
   readonly sourceUri: string;
+  readonly kind?: World["kind"];
+  readonly initialContent?: unknown;
+  readonly mutation?: string;
+  readonly mutateWorld?: boolean;
   readonly reopenBeforeRecall?: boolean;
   readonly actionRequired?: boolean;
+  readonly ttlExpired?: boolean;
 }
 
 export interface EpisodeTrace {
@@ -24,9 +29,14 @@ export interface EpisodeTrace {
   readonly steps: readonly { readonly name: string; readonly at: string; readonly data?: unknown }[];
   readonly staleRecall: boolean;
   readonly staleAction: boolean;
+  readonly actionRequired: boolean;
   readonly repaired: boolean;
   readonly taskSuccess: boolean;
   readonly revalidationCalls: number;
+  readonly changeStatus: "FRESH" | "STALE" | "INVALID";
+  readonly repairPossible: boolean;
+  readonly ttlExpired: boolean;
+  readonly historyPreserved: boolean;
 }
 
 export type EpisodeRunner = (definition: EpisodeDefinition, world: World) => Promise<EpisodeTrace>;
@@ -43,11 +53,30 @@ export async function runEpisode(definition: EpisodeDefinition, world: World): P
   const steps: { name: string; at: string; data?: unknown }[] = [];
   const observed = await world.read(definition.sourceUri);
   steps.push({ name: "memory-observed", at: observed.version.token, data: observed.content });
-  const changed = await world.mutate(definition.sourceUri, { changed: true, source: definition.id });
-  steps.push({ name: "world-mutated", at: changed.version.token });
+  const shouldMutate = definition.mutateWorld ?? true;
+  const changed = shouldMutate
+    ? await world.mutate(definition.sourceUri, definition.mutation === "delete" ? { deleted: true, source: definition.id } : { changed: true, mutation: definition.mutation ?? "replace", source: definition.id })
+    : observed;
+  steps.push({ name: shouldMutate ? "world-mutated" : "world-unchanged", at: changed.version.token, data: definition.mutation });
   if (definition.reopenBeforeRecall) steps.push({ name: "session-reopened", at: changed.version.token });
   const staleRecall = observed.version.token !== changed.version.token;
+  const changeStatus = !staleRecall ? "FRESH" : definition.mutation === "delete" ? "INVALID" : "STALE";
+  const repairPossible = staleRecall && changeStatus !== "INVALID";
   const staleAction = Boolean(definition.actionRequired && staleRecall);
   steps.push({ name: "recalled", at: observed.version.token, data: { staleRecall } });
-  return { episodeId: definition.id, kind: world.kind, steps, staleRecall, staleAction, repaired: !staleRecall, taskSuccess: !staleAction, revalidationCalls: 0 };
+  return {
+    episodeId: definition.id,
+    kind: world.kind,
+    steps,
+    staleRecall,
+    staleAction,
+    actionRequired: Boolean(definition.actionRequired),
+    repaired: !staleRecall,
+    taskSuccess: !staleAction,
+    revalidationCalls: 0,
+    changeStatus,
+    repairPossible,
+    ttlExpired: definition.ttlExpired ?? false,
+    historyPreserved: steps.some((step) => step.name === "memory-observed") && steps.some((step) => step.name === "recalled")
+  };
 }

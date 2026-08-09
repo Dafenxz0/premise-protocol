@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,6 +19,12 @@ try {
   const validator = new GitValidator();
   const first = await validator.validate({ sourceUri: uri, observedAt: "2026-08-09T19:20:00Z" });
   assert.equal(first.result, "UNCHANGED");
+  await mkdir(path.join(dir, "src"));
+  await writeFile(path.join(dir, "src", "module.ts"), "export const value = 1;\n");
+  execFileSync("git", ["add", "src/module.ts"], { cwd: dir });
+  execFileSync("git", ["commit", "-qm", "tree"], { cwd: dir });
+  const tree = await validator.validate({ sourceUri: `${pathToFileURL(dir).href}#src`.replace("file:", "git+file:"), observedAt: "2026-08-09T19:20:00Z" });
+  assert.equal(tree.version.scheme, "git.tree");
   await writeFile(file, "two");
   execFileSync("git", ["add", "memory.txt"], { cwd: dir });
   execFileSync("git", ["commit", "-qm", "changed"], { cwd: dir });
@@ -26,6 +32,8 @@ try {
   assert.equal(changed.result, "CHANGED");
   const missing = await validator.validate({ sourceUri: `${pathToFileURL(dir).href}#missing.txt`.replace("file:", "git+file:"), observedAt: "2026-08-09T19:20:00Z" });
   assert.equal(missing.result, "MISSING");
+  const missingRepository = await validator.validate({ sourceUri: `${pathToFileURL(path.join(dir, "missing-repository")).href}#README.md`.replace("file:", "git+file:"), observedAt: "2026-08-09T19:20:00Z" });
+  assert.equal(missingRepository.result, "MISSING");
   console.log("validator-git tests passed");
 } finally {
   await rm(dir, { recursive: true, force: true });

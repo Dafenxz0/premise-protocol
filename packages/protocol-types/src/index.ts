@@ -49,6 +49,7 @@ export interface ValidationResult {
   readonly memoryId: string;
   readonly result: ValidatorResult;
   readonly checkedAt: string;
+  readonly status: MemoryStatus;
   readonly sourceUri?: string;
   readonly version?: VersionReference;
 }
@@ -115,7 +116,7 @@ function has(value: Record<string, unknown>, key: string): boolean {
 }
 
 function isDateTime(value: unknown): value is string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && !Number.isNaN(Date.parse(value));
 }
 
 function add(issues: ValidationIssue[], path: string, message: string): void {
@@ -173,10 +174,16 @@ export function validateMemoryEnvelope(input: unknown): ValidationIssue[] {
   for (const key of Object.keys(input)) if (!allowed.has(key)) add(issues, `$.${key}`, "is not a permitted envelope field");
   if (input.specVersion !== SPEC_VERSION) add(issues, "$.specVersion", `must equal ${SPEC_VERSION}`);
   if (typeof input.memoryId !== "string" || input.memoryId.length === 0) add(issues, "$.memoryId", "must be a non-empty string");
-  if (has(input, "contentDigest") && (typeof input.contentDigest !== "string" || !input.contentDigest.startsWith("sha256:"))) add(issues, "$.contentDigest", "must use the sha256: digest prefix");
+  if (has(input, "contentDigest") && (typeof input.contentDigest !== "string" || !/^sha256:.+$/.test(input.contentDigest))) add(issues, "$.contentDigest", "must use the sha256: digest prefix and a non-empty digest");
   if (has(input, "provenance")) {
     if (!Array.isArray(input.provenance)) add(issues, "$.provenance", "must be an array");
-    else input.provenance.forEach((source, index) => validateSource(source, `$.provenance[${index}]`, issues));
+    else {
+      if (input.provenance.length === 0) add(issues, "$.provenance", "must contain at least one source when present");
+      input.provenance.forEach((source, index) => {
+        const validSource = validateSource(source, `$.provenance[${index}]`, issues);
+        if (validSource && input.validity && isRecord(input.validity) && input.validity.policy === "VERSIONED" && (!has(source as unknown as Record<string, unknown>, "version") || !has(source as unknown as Record<string, unknown>, "validator"))) add(issues, `$.provenance[${index}]`, "VERSIONED provenance requires version and validator");
+      });
+    }
   }
   validateValidity(input.validity, "$.validity", issues);
   if (!Array.isArray(input.dependsOn) || input.dependsOn.some((id) => typeof id !== "string" || id.length === 0)) add(issues, "$.dependsOn", "must be an array of non-empty memory ids");
@@ -199,14 +206,19 @@ export function parseMemoryEnvelope(input: unknown): MemoryEnvelope {
 }
 
 export function isValidationResult(input: unknown): input is ValidationResult {
-  if (!isRecord(input) || typeof input.memoryId !== "string" || typeof input.result !== "string" || !validatorResults.has(input.result as ValidatorResult) || !isDateTime(input.checkedAt)) return false;
+  if (!isRecord(input) || typeof input.memoryId !== "string" || input.memoryId.length === 0 || typeof input.result !== "string" || !validatorResults.has(input.result as ValidatorResult) || !isDateTime(input.checkedAt) || typeof input.status !== "string" || !statuses.has(input.status as MemoryStatus)) return false;
+  const expectedStatus: MemoryStatus = input.result === "UNCHANGED" ? "FRESH" : input.result === "CHANGED" || input.result === "MISSING" ? "INVALID" : "UNKNOWN";
+  if (input.status !== expectedStatus) return false;
   if (input.result === "UNCHANGED" || input.result === "CHANGED") return validateVersion(input.version, "$.version", []);
-  return true;
+  return input.version === undefined;
 }
 
 export function isCapabilitiesDeclaration(input: unknown): input is CapabilitiesDeclaration {
   if (!isRecord(input) || input.specVersion !== SPEC_VERSION || !Array.isArray(input.capabilities)) return false;
-  return input.capabilities.every((capability) => typeof capability === "string" && capabilities.has(capability as Capability));
+  const declared = input.capabilities as unknown[];
+  if (new Set(declared).size !== declared.length || !declared.every((capability) => typeof capability === "string" && capabilities.has(capability as Capability))) return false;
+  if (input.profile !== undefined && input.profile !== "PREMiSE-compatible v0.1") return false;
+  return input.profile === undefined || ["RECORD", "DEPENDENCY", "REVALIDATION"].every((required) => declared.includes(required));
 }
 
 export function usabilityForStatus(status: MemoryStatus): UsabilityDecision {

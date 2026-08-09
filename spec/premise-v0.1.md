@@ -89,13 +89,17 @@ una nueva observación/version mediante `MemoryReplaced`.
   una señal o un resultado de validator es necesaria para cambiar la vigencia.
 
 Una notificación de cambio de fuente, un TTL vencido o un cambio de epoch
-produce `STALE`. `CHANGED` y `MISSING` producen `INVALID`; `UNKNOWN` produce
-`UNKNOWN`; `UNCHANGED` con el `version` registrado puede restaurar `FRESH`.
+produce `STALE` cuando el estado directo no es ya `INVALID`. `CHANGED` y
+`MISSING` producen `INVALID`; `UNKNOWN` produce `UNKNOWN`; `UNCHANGED` con el
+`version` registrado puede restaurar `FRESH` desde `STALE` o `UNKNOWN`, pero
+nunca degrada ni repara silenciosamente un `INVALID`.
 Ningún estado permite presentar `INVALID` como soporte actual.
 
 ## 4. Dependencias, propagación y ciclos
 
 Cada relación `A.dependsOn = [B, ...]` es una arista de A hacia sus soportes.
+La propagación de un cambio recorre la relación inversa: desde el soporte
+afectado hacia los nodos que lo declaran en `dependsOn`.
 El grafo de `memoryId` MUST ser un DAG. `derive` MUST rechazar una arista que
 cree un ciclo, incluido un auto-ciclo; una operación rechazada MUST dejar sin
 cambios estado e historia y emitir cero eventos, salvo que el vector indique
@@ -128,7 +132,7 @@ mismo orden. El vocabulario v0.1 es:
 | `SourceChanged` | Señal externa aceptada por `signal`. |
 | `MemoryStaled` | Una memoria pasa a `STALE`. |
 | `MemoryInvalidated` | Una memoria pasa a `INVALID`. |
-| `MemoryRevalidated` | Una memoria vuelve a `FRESH` tras validación/confirmación. |
+| `MemoryRevalidated` | Registra el resultado de una revalidación; `UNCHANGED` produce `FRESH`, `CHANGED`/`MISSING` produce `INVALID` y `UNKNOWN` produce `UNKNOWN`. |
 | `MemoryReplaced` | Una observación/version reemplaza explícitamente otra. |
 
 Un cambio de estado puede producir el evento de transición correspondiente por
@@ -142,7 +146,7 @@ sin exigir acceso al contenido.
 
 `validate` recibe o solicita un `validation-result` para un `memoryId`. El
 resultado MUST ajustarse a `spec/schemas/validation-result.schema.json`:
-`memoryId`, `result` y `checkedAt` son obligatorios; `sourceUri` es opcional;
+`memoryId`, `result`, `status` y `checkedAt` son obligatorios; `sourceUri` es opcional;
 `version` es obligatorio para `UNCHANGED` y `CHANGED`.
 
 Los únicos resultados son:
@@ -167,6 +171,9 @@ propaga el cambio.
 - `derive(envelope)`: exige `dependsOn` existentes, conserva exactamente sus
   `memoryId`, comprueba que no haya ciclo y emite `MemoryDerived`. El derivado
   hereda la prioridad de estados aunque alguno de sus soportes no sea `FRESH`.
+- `replace(envelope)`: registra una nueva observación/version para un
+  `memoryId` previamente `INVALID`, limpia solo el estado directo invalidado y
+  emite `MemoryReplaced`; sus dependientes se recalculan.
 - `signal(event)`: acepta un `SourceChanged` explícito, marca el objetivo
   `STALE` y propaga a sus dependientes. No se puede enviar un estado arbitrario
   para saltarse `INVALID`.
@@ -179,7 +186,7 @@ propaga el cambio.
 
 ## 8. Decisiones y capabilities
 
-`check` DEBE mapear estados exactamente así: `FRESH` ⇒ `USABLE`;
+`check` MUST mapear estados exactamente así: `FRESH` ⇒ `USABLE`;
 `STALE` o `UNKNOWN` ⇒ `REVALIDATE`; `INVALID` ⇒ `REJECT`. `USABLE` permite
 utilizar el recuerdo bajo la política del adapter. `REVALIDATE` exige
 comprobarlo antes de usarlo. `REJECT` prohíbe usarlo como soporte actual.
@@ -200,7 +207,9 @@ declararse explícitamente. Un consumidor v0.1 MUST rechazar otro
 `specVersion`, campos no permitidos por los schemas o capabilities requeridas
 ausentes; MUST NOT degradarlos silenciosamente.
 
-Una implementación es conforme cuando valida los tres schemas canónicos,
+Una implementación es conforme cuando valida los cinco schemas canónicos
+(`memory-envelope`, `source-reference`, `validation-result`, `premise-event` y
+`capabilities`),
 implementa las seis operaciones con estas transiciones, conserva provenance y
 eventos, aplica la prioridad DAG y el rechazo de ciclos, produce decisiones
 exactas `USABLE`/`REVALIDATE`/`REJECT`, deja intactas las ramas no alcanzables,

@@ -45,6 +45,8 @@ try {
 
   assert.deepEqual(index.appendEvent(registered), registered);
   assert.deepEqual(index.appendEvent(staled), staled);
+  assert.throws(() => index.appendEvent({ ...registered, eventId: "event:mismatch", memoryId: "memory:other" }), /IDs must match/);
+  assert.throws(() => index.appendEvent({ specVersion: "premise/0.1", eventId: "event:bad-revalidated", type: "MemoryRevalidated", occurredAt: at, memoryId: envelope.memoryId, payload: { result: "UNCHANGED", version: { scheme: "test", token: "v1" } } }), /status/);
   assert.throws(() => index.appendEvent(registered), /Duplicate eventId/);
   assert.deepEqual(index.listEvents(), [registered, staled]);
   assert.deepEqual(index.history(envelope.memoryId), [registered, staled]);

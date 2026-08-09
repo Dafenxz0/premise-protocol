@@ -1,5 +1,7 @@
 import {
   SPEC_VERSION,
+  isValidationResult,
+  parseMemoryEnvelope,
   type MemoryStatus,
   type SourceReference,
   type ValidationResult,
@@ -11,7 +13,7 @@ import { MemoryStateStore, type UsabilityReportItem } from "../state/index.js";
 
 export interface Validator {
   readonly id: string;
-  validate(source: SourceReference): Promise<ValidationResult> | ValidationResult;
+  validate(source: SourceReference & { readonly memoryId?: string }): Promise<ValidationResult> | ValidationResult;
 }
 
 export interface ValidationReportItem {
@@ -56,17 +58,24 @@ function eventId(prefix: string, memoryId: string, sequence: number): string {
 }
 
 export class ReferenceProtocol {
-  readonly states = new MemoryStateStore();
+  readonly states: MemoryStateStore;
   readonly journal = new EventJournal();
   private readonly validators = new Map<string, Validator>();
   private sequence = 0;
+
+  constructor(now?: () => string) {
+    this.states = new MemoryStateStore(now);
+  }
 
   registerValidator(validator: Validator): void {
     this.validators.set(validator.id, validator);
   }
 
   register(envelope: unknown): void {
-    const state = this.states.register(envelope);
+    const parsed = parseMemoryEnvelope(envelope);
+    const existing = this.states.stateOf(parsed.memoryId);
+    if (existing && JSON.stringify(existing.envelope) === JSON.stringify(parsed)) return;
+    const state = this.states.register(parsed);
     this.journal.append(eventForRegistration(state.envelope, eventId("registered", state.memoryId, this.sequence++), state.envelope.validity.checkedAt));
   }
 
@@ -82,6 +91,11 @@ export class ReferenceProtocol {
     });
   }
 
+  replace(envelope: unknown): void {
+    const state = this.states.replace(envelope);
+    this.journal.append({ specVersion: SPEC_VERSION, eventId: eventId("replaced", state.memoryId, this.sequence++), type: "MemoryReplaced", occurredAt: state.envelope.validity.checkedAt, memoryId: state.memoryId, payload: { replacementMemoryId: state.memoryId } });
+  }
+
   signal(event: { readonly specVersion: typeof SPEC_VERSION; readonly eventId: string; readonly type: "SourceChanged"; readonly occurredAt: string; readonly payload: Readonly<Record<string, unknown>> }): PropagationReport {
     this.journal.append(event);
     const sourceUri = typeof event.payload.sourceUri === "string" ? event.payload.sourceUri : undefined;
@@ -92,7 +106,7 @@ export class ReferenceProtocol {
       const changed = this.states.markStatus(root, "STALE");
       for (const state of changed) {
         affected.add(state.memoryId);
-        this.appendTransition(state.memoryId, before.get(state.memoryId), state.status, state.envelope.validity.checkedAt, "signal");
+        this.appendTransition(state.memoryId, before.get(state.memoryId), state.status, event.occurredAt, "signal");
       }
     }
     const statuses: Record<string, MemoryStatus> = {};
@@ -103,11 +117,16 @@ export class ReferenceProtocol {
   async validate(memoryIds: readonly string[], suppliedResults?: Readonly<Record<string, ValidationResult>>): Promise<ValidationReport> {
     const items: ValidationReportItem[] = [];
     const eventIds: string[] = [];
+    const prepared: { memoryId: string; state: NonNullable<ReturnType<MemoryStateStore["stateOf"]>>; result: ValidationResult }[] = [];
     for (const memoryId of memoryIds) {
       const state = this.states.stateOf(memoryId);
       if (!state) throw new Error(`Unknown memory: ${memoryId}`);
       const source = state.envelope.provenance?.[0];
       const result = suppliedResults?.[memoryId] ?? await this.runValidator(source, memoryId);
+      if (result.memoryId !== memoryId || !isValidationResult(result)) throw new TypeError(`Invalid validation result for ${memoryId}`);
+      prepared.push({ memoryId, state, result });
+    }
+    for (const { memoryId, state, result } of prepared) {
       const previousStatus = state.status;
       const nextStatus = statusForResult(result.result);
       const before = new Map(this.states.states().map((entry) => [entry.memoryId, entry.status]));
@@ -116,10 +135,10 @@ export class ReferenceProtocol {
         const oldStatus = before.get(affected.memoryId);
         if (affected.memoryId === memoryId || oldStatus !== affected.status) {
           const id = this.appendTransition(affected.memoryId, oldStatus, affected.status, result.checkedAt, result.result, affected.memoryId === memoryId ? result.version : undefined);
-          if (affected.memoryId === memoryId) eventIds.push(id);
+          if (affected.memoryId === memoryId && id !== undefined) eventIds.push(id);
         }
       }
-      items.push({ memoryId, result: result.result, previousStatus, status: nextStatus, ...(result.version ? { version: result.version } : {}) });
+      items.push({ memoryId, result: result.result, previousStatus, status: this.states.stateOf(memoryId)?.status ?? nextStatus, ...(result.version ? { version: result.version } : {}) });
     }
     return { items, eventIds };
   }
@@ -147,14 +166,14 @@ export class ReferenceProtocol {
   }
 
   private async runValidator(source: SourceReference | undefined, memoryId: string): Promise<ValidationResult> {
-    if (!source?.validator) return { memoryId, result: "UNKNOWN", checkedAt: new Date().toISOString() };
+    if (!source?.validator) return { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString() };
     const validator = this.validators.get(source.validator.id);
-    if (!validator) return { memoryId, result: "UNKNOWN", checkedAt: new Date().toISOString(), ...(source.version ? { version: source.version } : {}) };
-    return validator.validate(source);
+    if (!validator) return { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString() };
+    return validator.validate({ ...source, memoryId });
   }
 
-  private appendTransition(memoryId: string, previousStatus: MemoryStatus | undefined, nextStatus: MemoryStatus, occurredAt: string, reason: string, version?: VersionReference): string {
-    if (previousStatus === nextStatus && reason !== "UNCHANGED") return `${reason}:${memoryId}:unchanged`;
+  private appendTransition(memoryId: string, previousStatus: MemoryStatus | undefined, nextStatus: MemoryStatus, occurredAt: string, reason: string, version?: VersionReference): string | undefined {
+    if (previousStatus === nextStatus && reason !== "UNCHANGED") return undefined;
     const id = eventId(nextStatus === "INVALID" ? "invalidated" : nextStatus === "STALE" ? "staled" : "revalidated", memoryId, this.sequence++);
     if (nextStatus === "INVALID") this.journal.append({ specVersion: SPEC_VERSION, eventId: id, type: "MemoryInvalidated", occurredAt, memoryId, payload: { reason } });
     else if (nextStatus === "STALE") this.journal.append({ specVersion: SPEC_VERSION, eventId: id, type: "MemoryStaled", occurredAt, memoryId, payload: { reason } });

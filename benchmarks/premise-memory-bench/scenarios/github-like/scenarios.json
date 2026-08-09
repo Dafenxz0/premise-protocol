@@ -1,0 +1,26 @@
+{
+  "format": "premise-benchmark-scenarios/0.1",
+  "kind": "github-like",
+  "scenarios": [
+    {"id":"gh-01","resource":"pull/01/head","mutation":"push-commit","reopenBeforeRecall":true,"expected":"INVALID"},
+    {"id":"gh-02","resource":"pull/02/checks","mutation":"rerun-checks","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-03","resource":"pull/03/reviews","mutation":"new-review","reopenBeforeRecall":false,"expected":"STALE"},
+    {"id":"gh-04","resource":"pull/04/labels","mutation":"label-change","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-05","resource":"pull/05/head","mutation":"force-push","reopenBeforeRecall":true,"expected":"INVALID"},
+    {"id":"gh-06","resource":"pull/06/checks","mutation":"check-completed","reopenBeforeRecall":false,"expected":"STALE"},
+    {"id":"gh-07","resource":"pull/07/reviews","mutation":"review-dismissed","reopenBeforeRecall":true,"expected":"INVALID"},
+    {"id":"gh-08","resource":"pull/08/labels","mutation":"label-removed","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-09","resource":"pull/09/head","mutation":"branch-deleted","reopenBeforeRecall":true,"expected":"INVALID"},
+    {"id":"gh-10","resource":"pull/10/checks","mutation":"check-failed","reopenBeforeRecall":false,"expected":"INVALID"},
+    {"id":"gh-11","resource":"pull/11/reviews","mutation":"approval-added","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-12","resource":"pull/12/labels","mutation":"label-change","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-13","resource":"pull/13/head","mutation":"merge-base-change","reopenBeforeRecall":false,"expected":"INVALID"},
+    {"id":"gh-14","resource":"pull/14/checks","mutation":"workflow-change","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-15","resource":"pull/15/reviews","mutation":"review-edited","reopenBeforeRecall":true,"expected":"STALE"},
+    {"id":"gh-16","resource":"pull/16/labels","mutation":"label-added","reopenBeforeRecall":false,"expected":"STALE"},
+    {"id":"gh-17","resource":"pull/17/head","mutation":"commit-reverted","reopenBeforeRecall":true,"expected":"INVALID"},
+    {"id":"gh-18","resource":"pull/18/checks","mutation":"check-cancelled","reopenBeforeRecall":true,"expected":"UNKNOWN"},
+    {"id":"gh-19","resource":"pull/19/reviews","mutation":"review-requested","reopenBeforeRecall":false,"expected":"STALE"},
+    {"id":"gh-20","resource":"pull/20/head","mutation":"pull-closed","reopenBeforeRecall":true,"expected":"INVALID"}
+  ]
+}

@@ -17,4 +17,31 @@ bridge.signal({ eventId: "mcp-1", sourceUri, version: current.version, occurredA
 assert.equal(protocol.check([envelope.memoryId]).items[0].decision, "REVALIDATE");
 await bridge.reread([envelope.memoryId]);
 assert.equal(protocol.check([envelope.memoryId]).items[0].decision, "REJECT");
+
+const unchangedProtocol = new ReferenceProtocol();
+const unchangedEnvelope = { ...envelope, memoryId: "memory:mcp-unchanged", provenance: [{ ...source, sourceUri: "mcp://demo/unchanged" }] };
+unchangedProtocol.register(unchangedEnvelope);
+const unchangedBridge = new McpBridge(unchangedProtocol, { async read() { return { sourceUri: "mcp://demo/unchanged", version: { scheme: "mcp.epoch", token: "1" } }; } });
+const firstSubscription = unchangedBridge.subscribe("mcp://demo/unchanged", [unchangedEnvelope.memoryId]);
+const secondSubscription = unchangedBridge.subscribe("mcp://demo/unchanged", [unchangedEnvelope.memoryId]);
+firstSubscription.unsubscribe();
+const unchangedReport = await unchangedBridge.reread([unchangedEnvelope.memoryId]);
+assert.equal(unchangedReport.items[0].result, "UNCHANGED");
+secondSubscription.unsubscribe();
+
+const mismatchProtocol = new ReferenceProtocol();
+const mismatchEnvelope = { ...envelope, memoryId: "memory:mcp-mismatch", provenance: [{ ...source, sourceUri: "mcp://demo/mismatch" }] };
+mismatchProtocol.register(mismatchEnvelope);
+const mismatchBridge = new McpBridge(mismatchProtocol, { async read() { return { sourceUri: "mcp://demo/other", version: { scheme: "mcp.epoch", token: "1" } }; } });
+mismatchBridge.subscribe("mcp://demo/mismatch", [mismatchEnvelope.memoryId]);
+const mismatchReport = await mismatchBridge.reread([mismatchEnvelope.memoryId]);
+assert.equal(mismatchReport.items[0].result, "UNKNOWN");
+
+const timeoutProtocol = new ReferenceProtocol();
+const timeoutEnvelope = { ...envelope, memoryId: "memory:mcp-timeout", provenance: [{ ...source, sourceUri: "mcp://demo/timeout" }] };
+timeoutProtocol.register(timeoutEnvelope);
+const timeoutBridge = new McpBridge(timeoutProtocol, { async read() { throw new Error("transport timeout"); } });
+timeoutBridge.subscribe("mcp://demo/timeout", [timeoutEnvelope.memoryId]);
+const timeoutReport = await timeoutBridge.reread([timeoutEnvelope.memoryId]);
+assert.equal(timeoutReport.items[0].result, "UNKNOWN");
 console.log("mcp-bridge tests passed");

@@ -40,7 +40,8 @@
   "required": [
     "memoryId",
     "result",
-    "checkedAt"
+    "checkedAt",
+    "status"
   ],
   "allOf": [
     {

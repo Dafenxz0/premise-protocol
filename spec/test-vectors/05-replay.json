@@ -9,7 +9,15 @@
       "vectorId": "replay-is-deterministic",
       "category": "transition",
       "description": "Replaying the same event log yields the same state and preserves history.",
-      "steps": [{"operation": "recordEvents", "input": {"events": ["MemoryRegistered", "MemoryStaled", "MemoryRevalidated", "MemoryReplaced"]}}, {"operation": "replay", "input": {"runs": 2}, "expect": {"deterministic": true, "sameState": true, "historyPreserved": true, "finalStatus": "FRESH"}}]
+      "initial": { "clock": { "mode": "manual", "now": "2026-08-09T19:20:00Z" }, "memories": [] },
+      "steps": [
+        { "id": "replay-event-log", "operation": "replay", "input": { "events": [
+          { "specVersion": "premise/0.1", "eventId": "replay-registered", "type": "MemoryRegistered", "occurredAt": "2026-08-09T19:20:00Z", "memoryId": "memory:replay", "payload": { "envelope": { "specVersion": "premise/0.1", "memoryId": "memory:replay", "provenance": [{ "sourceUri": "replay://resource", "observedAt": "2026-08-09T19:20:00Z" }], "validity": { "status": "FRESH", "checkedAt": "2026-08-09T19:20:00Z", "policy": "MANUAL" }, "dependsOn": [] } } },
+          { "specVersion": "premise/0.1", "eventId": "replay-staled", "type": "MemoryStaled", "occurredAt": "2026-08-09T19:20:01Z", "memoryId": "memory:replay", "payload": { "reason": "replay-test" } },
+          { "specVersion": "premise/0.1", "eventId": "replay-revalidated", "type": "MemoryRevalidated", "occurredAt": "2026-08-09T19:20:02Z", "memoryId": "memory:replay", "payload": { "result": "UNCHANGED", "status": "FRESH", "version": { "scheme": "replay", "token": "v1" } } },
+          { "specVersion": "premise/0.1", "eventId": "replay-replaced", "type": "MemoryReplaced", "occurredAt": "2026-08-09T19:20:03Z", "memoryId": "memory:replay", "payload": { "replacementMemoryId": "memory:replay:v2" } }
+        ], "runs": 2 }, "expect": { "deterministic": true, "sameState": true, "historyPreserved": true, "finalStatus": "FRESH" } }
+      ]
     }
   ]
 }

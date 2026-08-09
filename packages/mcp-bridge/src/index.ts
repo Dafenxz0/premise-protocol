@@ -24,15 +24,27 @@ export interface McpSubscription {
 }
 
 export class McpBridge {
-  private readonly subscriptions = new Map<string, Set<string>>();
+  private readonly subscriptions = new Map<string, Map<string, number>>();
 
   constructor(readonly protocol: ReferenceProtocol, readonly reader: McpResourceReader) {}
 
   subscribe(sourceUri: string, memoryIds: readonly string[]): McpSubscription {
-    const set = this.subscriptions.get(sourceUri) ?? new Set<string>();
-    for (const memoryId of memoryIds) set.add(memoryId);
-    this.subscriptions.set(sourceUri, set);
-    return { sourceUri, memoryIds: [...set].sort(), unsubscribe: () => { for (const memoryId of memoryIds) set.delete(memoryId); if (set.size === 0) this.subscriptions.delete(sourceUri); } };
+    const counts = this.subscriptions.get(sourceUri) ?? new Map<string, number>();
+    for (const memoryId of memoryIds) {
+      if (memoryId.length === 0) throw new Error("MCP subscription memory IDs must be non-empty");
+      counts.set(memoryId, (counts.get(memoryId) ?? 0) + 1);
+    }
+    this.subscriptions.set(sourceUri, counts);
+    let active = true;
+    return { sourceUri, memoryIds: [...counts.keys()].sort(), unsubscribe: () => {
+      if (!active) return;
+      active = false;
+      for (const memoryId of memoryIds) {
+        const count = counts.get(memoryId) ?? 0;
+        if (count <= 1) counts.delete(memoryId); else counts.set(memoryId, count - 1);
+      }
+      if (counts.size === 0) this.subscriptions.delete(sourceUri);
+    } };
   }
 
   signal(notification: McpSourceChangedNotification) {
@@ -43,13 +55,20 @@ export class McpBridge {
     const supplied: Record<string, ValidationResult> = {};
     for (const memoryId of memoryIds) {
       const state = this.protocol.states.stateOf(memoryId);
-      const source = state?.envelope.provenance?.find((entry) => this.subscriptions.get(entry.sourceUri)?.has(memoryId));
-      if (!state || !source) { supplied[memoryId] = { memoryId, result: "UNKNOWN", checkedAt: new Date().toISOString() }; continue; }
+      const source = state?.envelope.provenance?.find((entry) => (this.subscriptions.get(entry.sourceUri)?.get(memoryId) ?? 0) > 0);
+      if (!state || !source) { supplied[memoryId] = { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString() }; continue; }
       try {
         const current = await this.reader.read(source.sourceUri);
-        supplied[memoryId] = { memoryId, result: source.version?.scheme === current.version.scheme && source.version.token === current.version.token ? "UNCHANGED" : "CHANGED", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri, version: current.version };
-      } catch {
-        supplied[memoryId] = { memoryId, result: "MISSING", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
+        if (current.sourceUri !== source.sourceUri || current.version.scheme.length === 0 || current.version.token.length === 0) {
+          supplied[memoryId] = { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
+          continue;
+        }
+        const result = source.version?.scheme === current.version.scheme && source.version.token === current.version.token ? "UNCHANGED" : "CHANGED";
+        supplied[memoryId] = { memoryId, result, status: result === "UNCHANGED" ? "FRESH" : "INVALID", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri, version: current.version };
+      } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        const missing = (error as { readonly code?: unknown })?.code === "NOT_FOUND" || message.includes("not found") || message.includes("missing");
+        supplied[memoryId] = { memoryId, result: missing ? "MISSING" : "UNKNOWN", status: missing ? "INVALID" : "UNKNOWN", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
       }
     }
     return this.protocol.validate(memoryIds, supplied);

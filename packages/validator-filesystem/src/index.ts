@@ -21,15 +21,16 @@ export class FilesystemValidator {
     try {
       const version = await this.versionFor(source.sourceUri);
       const result = source.version?.token === version.token && source.version.scheme === version.scheme ? "UNCHANGED" : source.version ? "CHANGED" : "UNCHANGED";
-      return { memoryId, result, checkedAt: new Date().toISOString(), sourceUri: source.sourceUri, version };
+      return { memoryId, result, status: result === "UNCHANGED" ? "FRESH" : "INVALID", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri, version };
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-      if (message.includes("enoent") || message.includes("not found")) return { memoryId, result: "MISSING", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
-      return { memoryId, result: "UNKNOWN", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
+      if (message.includes("enoent") || message.includes("not found")) return { memoryId, result: "MISSING", status: "INVALID", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
+      return { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
     }
   }
 
   private toPath(sourceUri: string): string {
-    return sourceUri.startsWith("file:") ? fileURLToPath(sourceUri) : sourceUri;
+    if (!sourceUri.startsWith("file:")) throw new Error("Filesystem validator only accepts file: URIs");
+    return fileURLToPath(sourceUri);
   }
 }

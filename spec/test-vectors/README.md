@@ -52,10 +52,13 @@ unchanged unless its `expect` block explicitly says otherwise.
 
 The harness operations are deliberately small:
 
-- `register` accepts a complete memory envelope.
+- `register` accepts `{ "envelope": <complete memory envelope> }`.
 - `derive` accepts an envelope whose `dependsOn` entries already exist.
-- `signal` accepts a `SourceChanged` event.
-- `advance_time` moves the manual clock and applies TTL expiry.
+- `signal` accepts a canonical `SourceChanged` event or the graph projection
+  `{ "memoryId": "...", "change": "version" }`.
+- `register_graph` loads a dependency graph projection whose edges point from a
+  dependent to its support; `advance_time` moves the manual clock and applies
+  TTL expiry.
 - `validate` supplies a validator result for each requested memory. The
   result outcomes are `UNCHANGED`, `CHANGED`, `MISSING`, and `UNKNOWN`.
 - `check` returns `USABLE`, `REVALIDATE`, or `REJECT` for each memory.
@@ -63,7 +66,11 @@ The harness operations are deliberately small:
   `REVALIDATION`, `RETRIEVAL`, and `GATE`.
 - `replay` applies an ordered event log to an empty state.
 
-These operation names are test-harness vocabulary. The normative protocol
+These operation names are test-harness vocabulary. Every step has a stable
+`id`, every vector has a deterministic `initial` clock/state, and any event
+inside `replay` or `signal` uses the canonical event shape. `expect.events`
+uses the portable projection `{type, memoryId, at}` where `at` is the canonical
+event's `occurredAt`; it is not itself a wire event. The normative protocol
 effects are the resulting statuses, emitted event types, dependency graph, and
 usability decisions.
 
@@ -103,4 +110,3 @@ The vectors encode the v0.1 rules without depending on an implementation:
 10. `RECORD`, `DEPENDENCY`, and `REVALIDATION` are required for the v0.1
     compatibility claim. `RETRIEVAL` and `GATE` remain explicit optional
     capabilities.
-

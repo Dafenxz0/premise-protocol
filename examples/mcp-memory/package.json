@@ -4,6 +4,10 @@
   "private": true,
   "description": "MCP memory PREMiSE example scaffold.",
   "type": "module",
+  "dependencies": {
+    "@premise/mcp-bridge": "workspace:*",
+    "@premise/reference-ts": "workspace:*"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -12,6 +16,7 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/example.test.mjs"
   }
 }

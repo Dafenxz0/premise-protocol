@@ -1,4 +1,4 @@
-import { SPEC_VERSION, type MemoryEnvelope, type PremiseEvent, type PremiseEventType, type ValidationIssue, type ValidatorResult, type VersionReference } from "@premise/protocol-types";
+import { SPEC_VERSION, parseMemoryEnvelope, validateMemoryEnvelope, type MemoryEnvelope, type PremiseEvent, type PremiseEventType, type ValidationIssue, type ValidatorResult, type VersionReference } from "@premise/protocol-types";
 
 const eventTypes = new Set<PremiseEventType>([
   "MemoryRegistered",
@@ -20,7 +20,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isDateTime(value: unknown): value is string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && !Number.isNaN(Date.parse(value));
 }
 
 function isVersion(value: unknown): value is VersionReference {
@@ -34,6 +34,8 @@ function add(issues: ValidationIssue[], path: string, message: string): void {
 export function validatePremiseEvent(input: unknown): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   if (!isRecord(input)) return [{ path: "$", message: "must be an object" }];
+  const allowed = new Set(["specVersion", "eventId", "type", "occurredAt", "memoryId", "payload"]);
+  for (const key of Object.keys(input)) if (!allowed.has(key)) add(issues, `$.${key}`, "is not a permitted event field");
   if (input.specVersion !== SPEC_VERSION) add(issues, "$.specVersion", `must equal ${SPEC_VERSION}`);
   if (typeof input.eventId !== "string" || input.eventId.length === 0) add(issues, "$.eventId", "must be a non-empty string");
   if (typeof input.type !== "string" || !eventTypes.has(input.type as PremiseEventType)) add(issues, "$.type", "must be a PREMiSE event type");
@@ -46,9 +48,13 @@ export function validatePremiseEvent(input: unknown): ValidationIssue[] {
   switch (input.type) {
     case "MemoryRegistered":
       if (!isRecord(input.payload.envelope)) add(issues, "$.payload.envelope", "is required");
+      else {
+        issues.push(...validateMemoryEnvelope(input.payload.envelope).map((issue) => ({ path: `$.payload.envelope${issue.path.slice(1)}`, message: issue.message })));
+        if (isRecord(input.payload.envelope) && input.payload.envelope.memoryId !== input.memoryId) add(issues, "$.memoryId", "must match payload.envelope.memoryId");
+      }
       break;
     case "MemoryDerived":
-      if (!Array.isArray(input.payload.dependsOn) || input.payload.dependsOn.length === 0) add(issues, "$.payload.dependsOn", "must be a non-empty array");
+      if (!Array.isArray(input.payload.dependsOn) || input.payload.dependsOn.length === 0 || input.payload.dependsOn.some((id) => typeof id !== "string" || id.length === 0) || new Set(input.payload.dependsOn).size !== input.payload.dependsOn.length) add(issues, "$.payload.dependsOn", "must be a non-empty array of unique memory IDs");
       break;
     case "SourceChanged":
       if (typeof input.payload.sourceUri !== "string" || input.payload.sourceUri.length === 0) add(issues, "$.payload.sourceUri", "is required");
@@ -61,6 +67,8 @@ export function validatePremiseEvent(input: unknown): ValidationIssue[] {
     case "MemoryRevalidated":
       if (typeof input.payload.result !== "string" || !results.has(input.payload.result as ValidatorResult)) add(issues, "$.payload.result", "is required and must be a validator result");
       if ((input.payload.result === "UNCHANGED" || input.payload.result === "CHANGED") && !isVersion(input.payload.version)) add(issues, "$.payload.version", "is required for this validator result");
+      const expectedStatus = input.payload.result === "UNCHANGED" ? "FRESH" : input.payload.result === "CHANGED" || input.payload.result === "MISSING" ? "INVALID" : "UNKNOWN";
+      if (input.payload.status !== expectedStatus) add(issues, "$.payload.status", `must be ${expectedStatus} for ${String(input.payload.result)}`);
       break;
     case "MemoryReplaced":
       if (typeof input.payload.replacementMemoryId !== "string" || input.payload.replacementMemoryId.length === 0) add(issues, "$.payload.replacementMemoryId", "is required");

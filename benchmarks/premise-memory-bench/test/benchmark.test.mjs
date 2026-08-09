@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { baselines, createFilesystemWorld, evaluate, report, runEpisode } from "../dist/index.js";
+import { baselines, createFilesystemWorld, evaluate, report, runBenchmarkCli, runEpisode } from "../dist/index.js";
 
 const definition = { id: "smoke", sourceUri: "filesystem://resource", reopenBeforeRecall: true, actionRequired: true };
 const trace = await runEpisode(definition, createFilesystemWorld(definition.sourceUri));
@@ -9,4 +9,14 @@ const results = Object.values(baselines).map((baseline) => baseline({ stale: tra
 const output = report(results.map((result) => evaluate(result.name, [trace], [result])));
 assert.equal(output.format, "premise-benchmark-results/0.1");
 assert.equal(output.results.length, 5);
+assert.equal(baselines["Prompt Recheck"]({ stale: true, refresh: () => false }).repaired, false);
+const full = await runBenchmarkCli();
+assert.equal(full.scenarioCount, 40);
+assert.equal(full.traceCount, 40);
+assert.equal(full.controlCount, 10);
+assert.equal(full.ablationCount, 5);
+assert.equal(full.controls.every((control) => control.passed), true);
+assert.equal(full.ablations.every((ablation) => ablation.passed), true);
+assert.equal(full.results.find((result) => result.baseline === "Plain Memory")?.taskSuccessRate, 0);
+assert.equal(full.results.find((result) => result.baseline === "PREMiSE Explicit")?.dynamicMemoryRepairRate > 0, true);
 console.log("benchmark tests passed");

@@ -278,7 +278,6 @@
               "specVersion": "premise/0.1",
               "memoryId": "memory:pr-42-mergeable",
               "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-              "provenance": [],
               "validity": {
                 "status": "FRESH",
                 "checkedAt": "2026-08-09T19:20:00Z",
