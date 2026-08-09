@@ -1,6 +1,6 @@
 # Auditoría de evaluación PREMiSE
 
-Generado: 2026-08-09T21:21:52.367Z
+Generado: 2026-08-09T21:38:25.756Z
 
 ## Conclusión
 

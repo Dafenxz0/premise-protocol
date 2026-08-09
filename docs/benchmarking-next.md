@@ -13,7 +13,7 @@ La auditoría de v0.1 es `PROVISIONALLY-VALID`: tiene decisiones por episodio, r
 La evidencia aplicada está separada en dos campañas adicionales:
 
 - `real-world-bench` usa archivos temporales y repositorios Git con commits reales, además de `FilesystemValidator` y `GitValidator` compilados desde este repositorio.
-- `context-corpus-bench` crea un corpus de documentos en disco, un índice invertido y grafos de 1.000, 10.000 y 50.000 nodos; mide retrieval, decisiones, revalidación, metadata, heap y propagación selectiva.
+- `context-corpus-bench` crea un corpus de documentos en disco, un índice invertido y grafos de 1.000, 10.000, 50.000 y 100.000 nodos opcionales; mide retrieval, decisiones, revalidación, metadata, heap y propagación selectiva.
 
 Ambas campañas tienen un `self-check` que falla si aparece una acción insegura, un falso rechazo, una revalidación incorrecta, una pérdida de aislamiento o un payload de documento dentro del protocolo.
 
@@ -27,9 +27,11 @@ pnpm benchmark:context:full
 pnpm benchmark:evaluate
 pnpm benchmark:next
 pnpm benchmark:production
+pnpm benchmark:context-corpus:full
+pnpm benchmark:tables
 ```
 
-`benchmark:compare` ejecuta los mismos 24 episodios con y sin protocolo. `benchmark:context:full` mide grafos chain, fanout y shared-support en 1.000, 5.000, 10.000 y 25.000 nodos. `benchmark:evaluate` audita el benchmark histórico y escribe `benchmarks/evaluation/`. El comando `benchmark:next` ejecuta la campaña completa.
+`benchmark:compare` ejecuta los mismos 24 episodios con y sin protocolo. `benchmark:context:full` mide grafos chain, fanout y shared-support en 1.000, 5.000, 10.000 y 25.000 nodos. `benchmark:context-corpus:full` añade la campaña aplicada con perfil de 100.000 nodos. `benchmark:evaluate` audita el benchmark histórico y escribe `benchmarks/evaluation/`. El comando `benchmark:next` ejecuta la campaña completa.
 
 Para comparar una ejecución con otra:
 
@@ -51,10 +53,11 @@ Se registran `unsafeActionRate`, recuperación de casos reparables, rechazo de c
 
 ## Resultados de la campaña actual
 
-- En 21 episodios con cambio, el baseline sin protocolo usa memoria no comprobada en el 100% de los casos.
-- PREMiSE registra 0% de acciones inseguras, recupera el 100% de los episodios reparables y rechaza el 100% de los no reparables del conjunto paired.
+- En la campaña paired histórica, el baseline sin protocolo usa memoria no comprobada en el 100% de los casos con cambio.
+- En esa misma campaña, PREMiSE registra 0% de acciones inseguras, recupera el 100% de los episodios reparables y rechaza el 100% de los no reparables del conjunto paired.
 - En la medición local de 25.000 nodos, la cadena pasó de aproximadamente 64 segundos a aproximadamente 0,23 segundos tras evitar comprobaciones de ciclos innecesarias al crear nodos nuevos.
-- En el corpus aplicado, los tres patrones mantienen 100% de precisión, seguridad, ausencia de falsos rechazos y hit-rate hasta 100.000 nodos; el camino de protocolo/query queda en 2,8–3,6 segundos por patrón, separado de los 64,8 segundos de generación de los 100.000 documentos.
+- En el corpus aplicado, los tres patrones mantienen 100% de precisión, seguridad, ausencia de falsos rechazos y hit-rate hasta 100.000 nodos; la última ejecución dejó el camino de protocolo/query en 3,0–3,5 segundos por patrón, separado de los 68,2 segundos de generación de los 100.000 documentos.
+- La optimización derivada del corpus elimina el cierre de dependencias en `check()` cuando no existe ningún TTL y evita ordenaciones temporales en la propagación. En la comparación local before/after de 100.000 nodos, el p95 de `check()` en cadena bajó de 36,91 ms a 0,014 ms; los invariantes de seguridad, recuperación, hit-rate y aislamiento permanecieron aprobados.
 - Las señales se propagan solo por el subgrafo afectado; una rama independiente permanece fresca.
 
 Estos números son evidencia reproducible del conjunto definido, no un SLA. Hay que repetirlos en el hardware de despliegue y con payloads reales.
@@ -67,4 +70,4 @@ Estos números son evidencia reproducible del conjunto definido, no un SLA. Hay 
 4. Medir reemplazos, subgrafos solapados y actualizaciones concurrentes.
 5. Guardar una ejecución aceptada en CI y bloquear regresiones de seguridad, recuperación o escala con `--compare-to`.
 
-Los artefactos detallados están en `benchmarks/comparative-bench/`, `benchmarks/long-context-bench/` y `benchmarks/evaluation/`.
+El informe con tablas legibles se regenera con `pnpm benchmark:tables` y queda en `benchmarks/benchmark-report.md`. Los artefactos detallados están en `benchmarks/comparative-bench/`, `benchmarks/long-context-bench/`, `benchmarks/real-world-bench/`, `benchmarks/context-corpus-bench/` y `benchmarks/evaluation/`.

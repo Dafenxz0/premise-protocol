@@ -61,6 +61,7 @@ export class MemoryStateStore {
   readonly graph = new DependencyGraph();
   private readonly records = new Map<string, StateRecord>();
   private readonly sourceIndex = new Map<string, Set<string>>();
+  private ttlRecordCount = 0;
 
   constructor(readonly now: Clock = () => new Date().toISOString()) {}
 
@@ -74,6 +75,7 @@ export class MemoryStateStore {
     if (envelope.dependsOn.length > 0) throw new Error("Use derive() for envelopes with dependencies");
     this.graph.addNode(envelope.memoryId);
     this.records.set(envelope.memoryId, createRecord(envelope));
+    if (envelope.validity.policy === "TTL") this.ttlRecordCount += 1;
     this.indexSources(envelope);
     return this.stateOf(envelope.memoryId)!;
   }
@@ -86,6 +88,7 @@ export class MemoryStateStore {
     for (const dependencyId of envelope.dependsOn) if (!this.records.has(dependencyId)) throw new Error(`Unknown dependency: ${dependencyId}`);
     this.graph.setDependencies(envelope.memoryId, envelope.dependsOn);
     this.records.set(envelope.memoryId, createRecord(envelope));
+    if (envelope.validity.policy === "TTL") this.ttlRecordCount += 1;
     this.indexSources(envelope);
     this.recompute(envelope.memoryId, this.nowFor([envelope.memoryId]));
     return this.stateOf(envelope.memoryId)!;
@@ -95,6 +98,8 @@ export class MemoryStateStore {
     const envelope = parseMemoryEnvelope(input);
     const current = this.records.get(envelope.memoryId);
     if (!current) throw new Error(`Unknown memory: ${envelope.memoryId}`);
+    const currentIsTtl = current.envelope.validity.policy === "TTL";
+    const nextIsTtl = envelope.validity.policy === "TTL";
     if (envelope.dependsOn.length === 0) this.graph.setDependencies(envelope.memoryId, []);
     else {
       for (const dependencyId of envelope.dependsOn) if (!this.records.has(dependencyId)) throw new Error(`Unknown dependency: ${dependencyId}`);
@@ -106,6 +111,7 @@ export class MemoryStateStore {
     current.directlyInvalid = envelope.validity.status === "INVALID";
     current.ttlExpired = false;
     current.expiresAtMs = envelope.validity.policy === "TTL" && envelope.validity.expiresAt !== undefined ? Date.parse(envelope.validity.expiresAt) : undefined;
+    if (currentIsTtl !== nextIsTtl) this.ttlRecordCount += nextIsTtl ? 1 : -1;
     this.indexSources(envelope);
     this.recomputeAffected(envelope.memoryId);
     return this.stateOf(envelope.memoryId)!;
@@ -143,11 +149,11 @@ export class MemoryStateStore {
 
   check(memoryIds: readonly string[]): readonly UsabilityReportItem[] {
     for (const memoryId of memoryIds) if (!this.records.has(memoryId)) throw new Error(`Unknown memory: ${memoryId}`);
-    const dependencyClosure = this.collectDependencies(memoryIds);
-    const nowMs = this.nowFor(dependencyClosure);
+    const dependencyClosure = this.ttlRecordCount === 0 ? undefined : this.collectDependencies(memoryIds);
+    const nowMs = dependencyClosure === undefined ? undefined : this.nowFor(dependencyClosure);
     if (nowMs !== undefined) {
       const expired = [] as string[];
-      for (const memoryId of dependencyClosure) {
+      for (const memoryId of dependencyClosure!) {
         const record = this.records.get(memoryId)!;
         if (record.envelope.validity.policy !== "TTL") continue;
         const nextExpired = record.expiresAtMs !== undefined && nowMs >= record.expiresAtMs;
@@ -173,15 +179,16 @@ export class MemoryStateStore {
     }
     let status: MemoryStatus = record.directlyInvalid ? "INVALID" : record.ttlExpired && record.baseStatus === "FRESH" ? "STALE" : record.baseStatus;
     if (status !== "INVALID") {
-      for (const dependencyId of this.graph.dependenciesOf(memoryId)) {
+      this.graph.forEachDependency(memoryId, (dependencyId) => {
+        if (status === "INVALID") return;
         const dependencyStatus = this.records.get(dependencyId)?.status ?? "UNKNOWN";
         if (dependencyStatus === "INVALID") {
           status = "INVALID";
-          break;
+          return;
         }
         if (dependencyStatus === "UNKNOWN") status = "UNKNOWN";
         else if (dependencyStatus === "STALE" && status === "FRESH") status = "STALE";
-      }
+      });
     }
     record.status = status;
   }
@@ -197,11 +204,11 @@ export class MemoryStateStore {
     const queue = [...memoryIds];
     for (const memoryId of queue) affected.add(memoryId);
     for (let index = 0; index < queue.length; index += 1) {
-      for (const dependentId of this.graph.dependentsOf(queue[index]!)) {
-        if (affected.has(dependentId)) continue;
+      this.graph.forEachDependent(queue[index]!, (dependentId) => {
+        if (affected.has(dependentId)) return;
         affected.add(dependentId);
         queue.push(dependentId);
-      }
+      });
     }
     return affected;
   }
@@ -211,11 +218,11 @@ export class MemoryStateStore {
     const queue = [...memoryIds];
     for (const memoryId of queue) closure.add(memoryId);
     for (let index = 0; index < queue.length; index += 1) {
-      for (const dependencyId of this.graph.dependenciesOf(queue[index]!)) {
-        if (closure.has(dependencyId)) continue;
+      this.graph.forEachDependency(queue[index]!, (dependencyId) => {
+        if (closure.has(dependencyId)) return;
         closure.add(dependencyId);
         queue.push(dependencyId);
-      }
+      });
     }
     return closure;
   }
@@ -226,7 +233,9 @@ export class MemoryStateStore {
     const queue: string[] = [];
     for (const memoryId of memoryIds) {
       let dependencyCount = 0;
-      for (const dependencyId of this.graph.dependenciesOf(memoryId)) if (memoryIds.has(dependencyId)) dependencyCount += 1;
+      this.graph.forEachDependency(memoryId, (dependencyId) => {
+        if (memoryIds.has(dependencyId)) dependencyCount += 1;
+      });
       pending.set(memoryId, dependencyCount);
       if (dependencyCount === 0) queue.push(memoryId);
     }
@@ -235,18 +244,19 @@ export class MemoryStateStore {
       const memoryId = queue[index]!;
       this.recompute(memoryId, nowMs);
       processed += 1;
-      for (const dependentId of this.graph.dependentsOf(memoryId)) {
+      this.graph.forEachDependent(memoryId, (dependentId) => {
         const dependencyCount = pending.get(dependentId);
-        if (dependencyCount === undefined) continue;
+        if (dependencyCount === undefined) return;
         const nextCount = dependencyCount - 1;
         pending.set(dependentId, nextCount);
         if (nextCount === 0) queue.push(dependentId);
-      }
+      });
     }
     if (processed !== memoryIds.size) throw new Error("Dependency graph contains a cycle");
   }
 
   private nowFor(memoryIds: Iterable<string>): number | undefined {
+    if (this.ttlRecordCount === 0) return undefined;
     for (const memoryId of memoryIds) {
       if (this.records.get(memoryId)?.envelope.validity.policy === "TTL") return Date.parse(this.now());
     }

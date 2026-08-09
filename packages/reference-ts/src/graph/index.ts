@@ -60,6 +60,14 @@ export class DependencyGraph {
     return [...(this.dependents.get(nodeId) ?? [])].sort();
   }
 
+  forEachDependency(nodeId: string, visit: (dependencyId: string) => void): void {
+    for (const dependencyId of this.dependencies.get(nodeId) ?? []) visit(dependencyId);
+  }
+
+  forEachDependent(nodeId: string, visit: (dependentId: string) => void): void {
+    for (const dependentId of this.dependents.get(nodeId) ?? []) visit(dependentId);
+  }
+
   reachableDependents(nodeId: string): readonly string[] {
     const visited = new Set<string>();
     const queue = [...this.dependentsOf(nodeId)];

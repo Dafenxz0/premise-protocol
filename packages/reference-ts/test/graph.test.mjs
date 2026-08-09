@@ -9,6 +9,12 @@ assert.throws(() => graph.addDependency("a", "c"), DependencyCycleError);
 
 graph.setDependencies("c", ["a"]);
 assert.deepEqual(graph.dependenciesOf("c"), ["a"]);
+const iteratedDependencies = [];
+graph.forEachDependency("c", (dependencyId) => iteratedDependencies.push(dependencyId));
+assert.deepEqual(iteratedDependencies, ["a"]);
+const iteratedDependents = [];
+graph.forEachDependent("a", (dependentId) => iteratedDependents.push(dependentId));
+assert.deepEqual(iteratedDependents.sort(), ["b", "c"]);
 assert.throws(() => graph.setDependencies("c", ["c"]), DependencyCycleError);
 assert.deepEqual(graph.dependenciesOf("c"), ["a"], "failed replacement must be atomic");
 
