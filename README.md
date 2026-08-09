@@ -1,7 +1,7 @@
 # PREMiSE Protocol
 
 <p align="center">
-  <img src="assets/premise-logo.svg" alt="PREMiSE Protocol" width="640">
+  <img src="assets/premise-logo.jpg" alt="PREMiSE Memory Validity Protocol" width="760">
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@ Los estados hablan de la evidencia, no de la calidad del texto ni de una “nota
 
 ## Cómo funciona
 
-![Ciclo de validez de una memoria en PREMiSE](assets/premise-flow.svg)
+![Vista general del ciclo de PREMiSE](assets/premise-overview.jpg)
 
 El protocolo conecta cuatro piezas sencillas:
 
@@ -50,6 +50,12 @@ El protocolo conecta cuatro piezas sencillas:
 | **PREMiSE** | Guarda la evidencia, el estado, las dependencias y la historia. |
 | **Validator** | Comprueba si la fuente sigue en la versión esperada. |
 | **Agente o aplicación** | Usa `check()` para decidir si puede actuar con ese recuerdo. |
+
+### La capa de validación, visualmente
+
+Esta ilustración resume la idea central: las memorias y sus fuentes se conectan a una capa de validez; una rama que cambia se marca y pasa por un punto de comprobación antes de poder volver a utilizarse.
+
+![Arquitectura visual de la capa de validez de PREMiSE](assets/premise-validity-architecture.png)
 
 ### Un ejemplo paso a paso
 
@@ -163,7 +169,7 @@ pnpm artifacts:generate
 | [`packages/conformance`](./packages/conformance/) | Valida y ejecuta los test vectors. |
 | [`benchmarks/`](./benchmarks/) | Motor, escenarios, controles y métricas. |
 | [`examples/`](./examples/) | Integraciones pequeñas que se pueden ejecutar. |
-| [`assets/`](./assets/) | Logo y diagrama visual del protocolo. |
+| [`assets/`](./assets/) | Marca, overview del producto y arquitectura visual del protocolo. |
 
 ## Para quien vaya a integrarlo
 
