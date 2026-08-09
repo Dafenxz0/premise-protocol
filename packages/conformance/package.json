@@ -3,6 +3,9 @@
   "version": "0.1.0-rc.1",
   "description": "PREMiSE conformance runner.",
   "type": "module",
+  "dependencies": {
+    "@premise/protocol-types": "workspace:*"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,6 +17,7 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/runner.test.mjs"
   }
 }

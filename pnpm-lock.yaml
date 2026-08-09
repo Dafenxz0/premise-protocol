@@ -22,7 +22,11 @@ importers:
 
   packages/adapter-openai: {}
 
-  packages/conformance: {}
+  packages/conformance:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
 
   packages/index-sqlite: {}
 
@@ -30,7 +34,11 @@ importers:
 
   packages/protocol-types: {}
 
-  packages/reference-ts: {}
+  packages/reference-ts:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
 
   packages/testkit: {}
 
