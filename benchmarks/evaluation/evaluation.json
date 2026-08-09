@@ -1,6 +1,6 @@
 {
   "format": "premise-benchmark-evaluation/0.1",
-  "generatedAt": "2026-08-09T21:38:25.756Z",
+  "generatedAt": "2026-08-09T22:52:58.706Z",
   "command": "node benchmarks/evaluation/runner.mjs",
   "root": "",
   "overallValidity": "provisionally-valid",
@@ -53,7 +53,7 @@
   "v01": {
     "available": true,
     "source": "benchmarks/premise-memory-bench/dist/cli.js",
-    "command": "C:\\Users\\Usuario\\AppData\\Local\\fnm_multishells\\25904_1786311505479\\node.exe C:\\Users\\Usuario\\Documents\\Codex\\2026-08-09\\https-drive-google-com-file-d-2\\benchmarks\\premise-memory-bench\\dist\\cli.js --runner minimal --suite v0.1",
+    "command": "C:\\Users\\Usuario\\AppData\\Local\\Temp\\premise-node24\\node-v24.19.0-win-x64\\node.exe C:\\Users\\Usuario\\Documents\\Codex\\2026-08-09\\https-drive-google-com-file-d-2\\benchmarks\\premise-memory-bench\\dist\\cli.js --runner minimal --suite v0.1",
     "result": {
       "format": "premise-benchmark-results/0.1",
       "suite": "v0.1",
@@ -73,8 +73,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 0,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.004400000000000404,
-          "latencyP95Ms": 0.015100000000000335,
+          "latencyP50Ms": 0.004299999999997084,
+          "latencyP95Ms": 0.013700000000000045,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -410,8 +410,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 40,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.004400000000000404,
-          "latencyP95Ms": 0.015100000000000335,
+          "latencyP50Ms": 0.004299999999997084,
+          "latencyP95Ms": 0.013700000000000045,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -747,8 +747,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 0,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.004400000000000404,
-          "latencyP95Ms": 0.015100000000000335,
+          "latencyP50Ms": 0.004299999999997084,
+          "latencyP95Ms": 0.013700000000000045,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -1084,8 +1084,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 40,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.004400000000000404,
-          "latencyP95Ms": 0.015100000000000335,
+          "latencyP50Ms": 0.004299999999997084,
+          "latencyP95Ms": 0.013700000000000045,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -1421,8 +1421,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 20,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.004400000000000404,
-          "latencyP95Ms": 0.015100000000000335,
+          "latencyP50Ms": 0.004299999999997084,
+          "latencyP95Ms": 0.013700000000000045,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -2160,28 +2160,28 @@
           "latency": [
             {
               "baseline": "Plain Memory",
-              "p50": 0.004400000000000404,
-              "p95": 0.015100000000000335
+              "p50": 0.004299999999997084,
+              "p95": 0.013700000000000045
             },
             {
               "baseline": "Prompt Recheck",
-              "p50": 0.004400000000000404,
-              "p95": 0.015100000000000335
+              "p50": 0.004299999999997084,
+              "p95": 0.013700000000000045
             },
             {
               "baseline": "TTL Memory",
-              "p50": 0.004400000000000404,
-              "p95": 0.015100000000000335
+              "p50": 0.004299999999997084,
+              "p95": 0.013700000000000045
             },
             {
               "baseline": "Always Refresh",
-              "p50": 0.004400000000000404,
-              "p95": 0.015100000000000335
+              "p50": 0.004299999999997084,
+              "p95": 0.013700000000000045
             },
             {
               "baseline": "PREMiSE Explicit",
-              "p50": 0.004400000000000404,
-              "p95": 0.015100000000000335
+              "p50": 0.004299999999997084,
+              "p95": 0.013700000000000045
             }
           ],
           "memory": [
@@ -2264,8 +2264,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 0,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.004400000000000404,
-        "latencyP95Ms": 0.015100000000000335,
+        "latencyP50Ms": 0.004299999999997084,
+        "latencyP95Ms": 0.013700000000000045,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -2601,8 +2601,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 40,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.004400000000000404,
-        "latencyP95Ms": 0.015100000000000335,
+        "latencyP50Ms": 0.004299999999997084,
+        "latencyP95Ms": 0.013700000000000045,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -2938,8 +2938,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 0,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.004400000000000404,
-        "latencyP95Ms": 0.015100000000000335,
+        "latencyP50Ms": 0.004299999999997084,
+        "latencyP95Ms": 0.013700000000000045,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -3275,8 +3275,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 40,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.004400000000000404,
-        "latencyP95Ms": 0.015100000000000335,
+        "latencyP50Ms": 0.004299999999997084,
+        "latencyP95Ms": 0.013700000000000045,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -3612,8 +3612,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 20,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.004400000000000404,
-        "latencyP95Ms": 0.015100000000000335,
+        "latencyP50Ms": 0.004299999999997084,
+        "latencyP95Ms": 0.013700000000000045,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -4001,7 +4001,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.06429999999999936,
+          "durationMs": 0.061700000000001864,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4065,7 +4065,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.014399999999998414,
+          "durationMs": 0.011999999999996902,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4122,7 +4122,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.008600000000001273,
+          "durationMs": 0.00870000000000104,
           "serializedMetadataBytes": 235,
           "revalidationStatus": "INVALID"
         },
@@ -4186,7 +4186,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.015100000000000335,
+          "durationMs": 0.013700000000000045,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4250,7 +4250,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.00859999999999772,
+          "durationMs": 0.008800000000000807,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4307,7 +4307,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.006599999999998829,
+          "durationMs": 0.006800000000001916,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4371,7 +4371,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.009100000000000108,
+          "durationMs": 0.0113999999999983,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4435,7 +4435,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.009199999999999875,
+          "durationMs": 0.008100000000002439,
           "serializedMetadataBytes": 235,
           "revalidationStatus": "INVALID"
         },
@@ -4499,7 +4499,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.010500000000000398,
+          "durationMs": 0.01010000000000133,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4556,7 +4556,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.015999999999998238,
+          "durationMs": 0.015799999999998704,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4620,7 +4620,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.010500000000000398,
+          "durationMs": 0.011199999999998766,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4684,7 +4684,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.008100000000002439,
+          "durationMs": 0.005000000000002558,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4741,7 +4741,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.004700000000003257,
+          "durationMs": 0.0029000000000003467,
           "serializedMetadataBytes": 232,
           "revalidationStatus": "FRESH"
         },
@@ -4869,7 +4869,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0035999999999987153,
+          "durationMs": 0.0034999999999989484,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4990,7 +4990,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0045999999999999375,
+          "durationMs": 0.004300000000000637,
           "serializedMetadataBytes": 232,
           "revalidationStatus": "FRESH"
         },
@@ -5054,7 +5054,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.005199999999998539,
+          "durationMs": 0.005399999999998073,
           "serializedMetadataBytes": 233,
           "revalidationStatus": "INVALID"
         },
@@ -5118,7 +5118,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.00420000000000087,
+          "durationMs": 0.004300000000000637,
           "serializedMetadataBytes": 234,
           "revalidationStatus": "FRESH"
         },
@@ -5175,7 +5175,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.0032000000000032003,
+          "durationMs": 0.0030999999999998806,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -5241,7 +5241,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.005400000000001626,
+          "durationMs": 0.005199999999998539,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -5366,7 +5366,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.0036999999999984823,
+          "durationMs": 0.003500000000002501,
           "serializedMetadataBytes": 242,
           "revalidationStatus": "FRESH"
         },
@@ -5432,7 +5432,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.004399999999996851,
+          "durationMs": 0.004199999999997317,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5557,7 +5557,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.006199999999999761,
+          "durationMs": 0.006200000000003314,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5623,7 +5623,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.004400000000000404,
+          "durationMs": 0.004299999999997084,
           "serializedMetadataBytes": 246,
           "revalidationStatus": "INVALID"
         },
@@ -5689,7 +5689,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.006299999999999528,
+          "durationMs": 0.006199999999999761,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5755,7 +5755,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003700000000002035,
+          "durationMs": 0.003800000000001802,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -5814,7 +5814,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.00280000000000058,
+          "durationMs": 0.002600000000001046,
           "serializedMetadataBytes": 245,
           "revalidationStatus": "INVALID"
         },
@@ -5880,7 +5880,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003900000000001569,
+          "durationMs": 0.003800000000001802,
           "serializedMetadataBytes": 242,
           "revalidationStatus": "FRESH"
         },
@@ -6005,7 +6005,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.002700000000000813,
+          "durationMs": 0.002500000000001279,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -6071,7 +6071,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003899999999998016,
+          "durationMs": 0.003600000000002268,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -6196,7 +6196,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.00280000000000058,
+          "durationMs": 0.002600000000001046,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -6262,7 +6262,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0035999999999987153,
+          "durationMs": 0.003900000000001569,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -6328,7 +6328,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0035999999999987153,
+          "durationMs": 0.0037999999999982492,
           "serializedMetadataBytes": 245,
           "revalidationStatus": "UNKNOWN"
         },
@@ -6453,7 +6453,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.00590000000000046,
+          "durationMs": 0.00560000000000116,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -8594,8 +8594,8 @@
       "files": [
         {
           "path": "benchmarks/comparative-bench/results.json",
-          "bytes": 22539,
-          "sha256": "bbfd949e6887306acd2b5c8b9cbc4a64d379912958988f7a65bc93e464ec168d",
+          "bytes": 22536,
+          "sha256": "ab67c3d1c0ef8fd9fd2e7c3e033c83f5280bb45215d3117101747ccce33a6358",
           "status": "parsed",
           "format": "premise-comparative-benchmark/0.1"
         }
@@ -8610,7 +8610,7 @@
             "recoveryRate": 1,
             "revalidationCalls": 0,
             "latencyP50Ms": 0.04230000000000089,
-            "latencyP95Ms": 0.34720000000000084,
+            "latencyP95Ms": 0.345600000000001,
             "memoryP50Bytes": 1151,
             "memoryP95Bytes": 1421,
             "historyPreservationRate": 1
@@ -8626,7 +8626,7 @@
             "recoveryRate": 0,
             "revalidationCalls": 0,
             "latencyP50Ms": 0.00009999999999976694,
-            "latencyP95Ms": 0.0004999999999988347,
+            "latencyP95Ms": 0.0005999999999986017,
             "memoryP50Bytes": 31,
             "memoryP95Bytes": 32,
             "historyPreservationRate": 0
@@ -8648,7 +8648,7 @@
             "recoveryRate": 1,
             "revalidationCalls": 21,
             "latencyP50Ms": 0.04230000000000089,
-            "latencyP95Ms": 0.34720000000000084,
+            "latencyP95Ms": 0.345600000000001,
             "memoryP50Bytes": 1151,
             "memoryP95Bytes": 1421,
             "historyPreservationRate": 1
@@ -9139,8 +9139,8 @@
       "files": [
         {
           "path": "benchmarks/long-context-bench/results.json",
-          "bytes": 12482,
-          "sha256": "388d98a2b066c22216d1994c4c23e9fe422c4f68828f2ec175dfe9d10d63c0b1",
+          "bytes": 19340,
+          "sha256": "44133d4e96bf8c5b73fbb7b97e0e0c7c72246cfb3003e9d84890156a940f67d4",
           "status": "parsed",
           "format": "premise-long-context-benchmark/0.1"
         }
@@ -9151,17 +9151,17 @@
           "path": "$",
           "label": "$",
           "metrics": {
-            "registerMs": 0.031300000000101136,
-            "deriveMs": 108.05959999998936,
-            "checkMs": 0.012200000000120781,
-            "signalMs": 104.94799999999987,
-            "validateMs": 93.16380000000004,
-            "latencyP50Ms": 0.003500000000030923,
-            "latencyP95Ms": 0.005599999999958527,
-            "heapDeltaBytes": 0,
-            "serializedMetadataBytes": 10315249,
+            "registerMs": 0.028400000000033288,
+            "deriveMs": 76.04959999999687,
+            "checkMs": 0.006399999999985084,
+            "signalMs": 27.93769999999995,
+            "validateMs": 29.6708000000001,
+            "latencyP50Ms": 0.002599999999915781,
+            "latencyP95Ms": 0.003199999999992542,
+            "heapDeltaBytes": 23977208,
+            "serializedMetadataBytes": 10315227,
             "externalPayloadBytes": 65536,
-            "totalMs": 347.5611000000001
+            "totalMs": 171.54719999999998
           },
           "denominators": {}
         },
@@ -9170,17 +9170,17 @@
           "path": "$.results[0]",
           "label": "PREMiSE:chain:1000",
           "metrics": {
-            "registerMs": 0.8708999999999989,
-            "deriveMs": 8.107799999999937,
-            "checkMs": 0.5831000000000017,
-            "signalMs": 4.6569999999999965,
-            "validateMs": 4.592399999999998,
-            "latencyP50Ms": 0.006399999999999295,
-            "latencyP95Ms": 0.017600000000001614,
-            "heapDeltaBytes": 5703392,
+            "registerMs": 0.4660999999999973,
+            "deriveMs": 6.014400000000023,
+            "checkMs": 0.12100000000000222,
+            "signalMs": 3.398700000000005,
+            "validateMs": 3.3699999999999974,
+            "latencyP50Ms": 0.0040000000000048885,
+            "latencyP95Ms": 0.008099999999998886,
+            "heapDeltaBytes": 5187848,
             "serializedMetadataBytes": 391652,
             "externalPayloadBytes": 65536,
-            "totalMs": 24.3131
+            "totalMs": 16.227800000000002
           },
           "denominators": {
             "count": 1000,
@@ -9192,17 +9192,17 @@
           "path": "$.results[1]",
           "label": "PREMiSE:fanout:1000",
           "metrics": {
-            "registerMs": 0.06710000000000349,
-            "deriveMs": 6.230899999999984,
-            "checkMs": 0.09559999999999746,
-            "signalMs": 4.0733999999999995,
-            "validateMs": 3.378,
-            "latencyP50Ms": 0.004899999999999238,
-            "latencyP95Ms": 0.006399999999999295,
-            "heapDeltaBytes": 7757504,
+            "registerMs": 0.055999999999997385,
+            "deriveMs": 4.570500000000067,
+            "checkMs": 0.008000000000002672,
+            "signalMs": 2.1410999999999945,
+            "validateMs": 2.429699999999997,
+            "latencyP50Ms": 0.003099999999996328,
+            "latencyP95Ms": 0.006300000000003081,
+            "heapDeltaBytes": 8130168,
             "serializedMetadataBytes": 395763,
             "externalPayloadBytes": 65536,
-            "totalMs": 16.571199999999997
+            "totalMs": 11.138399999999997
           },
           "denominators": {
             "count": 1000,
@@ -9214,17 +9214,17 @@
           "path": "$.results[2]",
           "label": "PREMiSE:shared:1000",
           "metrics": {
-            "registerMs": 0.02599999999999625,
-            "deriveMs": 4.857200000000304,
-            "checkMs": 0.010199999999997544,
-            "signalMs": 2.673000000000002,
-            "validateMs": 2.7246999999999986,
-            "latencyP50Ms": 0.004099999999993997,
-            "latencyP95Ms": 0.0069000000000016826,
-            "heapDeltaBytes": 3919080,
-            "serializedMetadataBytes": 409249,
+            "registerMs": 0.02499999999999858,
+            "deriveMs": 3.2754999999998944,
+            "checkMs": 0.005099999999998772,
+            "signalMs": 1.779600000000002,
+            "validateMs": 1.0762,
+            "latencyP50Ms": 0.0030000000000001137,
+            "latencyP95Ms": 0.004800000000003024,
+            "heapDeltaBytes": 0,
+            "serializedMetadataBytes": 409227,
             "externalPayloadBytes": 65536,
-            "totalMs": 12.120400000000004
+            "totalMs": 8.177699999999994
           },
           "denominators": {
             "count": 1000,
@@ -9236,17 +9236,17 @@
           "path": "$.results[3]",
           "label": "PREMiSE:chain:5000",
           "metrics": {
-            "registerMs": 0.04240000000000066,
-            "deriveMs": 26.14449999999968,
-            "checkMs": 0.8713000000000051,
-            "signalMs": 16.863200000000006,
-            "validateMs": 15.104299999999995,
-            "latencyP50Ms": 0.004500000000007276,
-            "latencyP95Ms": 0.006799999999998363,
-            "heapDeltaBytes": 12177880,
+            "registerMs": 0.02940000000000964,
+            "deriveMs": 17.803000000000026,
+            "checkMs": 0.017499999999998295,
+            "signalMs": 15.148799999999994,
+            "validateMs": 11.693300000000008,
+            "latencyP50Ms": 0.002899999999996794,
+            "latencyP95Ms": 0.004199999999997317,
+            "heapDeltaBytes": 7557952,
             "serializedMetadataBytes": 1971651,
             "externalPayloadBytes": 65536,
-            "totalMs": 71.78999999999999
+            "totalMs": 53.83619999999999
           },
           "denominators": {
             "count": 5000,
@@ -9258,17 +9258,17 @@
           "path": "$.results[4]",
           "label": "PREMiSE:fanout:5000",
           "metrics": {
-            "registerMs": 0.03360000000000696,
-            "deriveMs": 20.505899999999883,
-            "checkMs": 0.020000000000010232,
-            "signalMs": 14.207999999999998,
-            "validateMs": 15.965699999999998,
-            "latencyP50Ms": 0.0030999999999892225,
-            "latencyP95Ms": 0.00570000000001869,
-            "heapDeltaBytes": 5955736,
+            "registerMs": 0.030600000000006844,
+            "deriveMs": 15.074699999999453,
+            "checkMs": 0.0056000000000153705,
+            "signalMs": 9.8219,
+            "validateMs": 10.778199999999998,
+            "latencyP50Ms": 0.002600000000001046,
+            "latencyP95Ms": 0.004400000000003956,
+            "heapDeltaBytes": 28621664,
             "serializedMetadataBytes": 1987763,
             "externalPayloadBytes": 65536,
-            "totalMs": 59.122600000000006
+            "totalMs": 47.480000000000004
           },
           "denominators": {
             "count": 5000,
@@ -9280,17 +9280,17 @@
           "path": "$.results[5]",
           "label": "PREMiSE:shared:5000",
           "metrics": {
-            "registerMs": 0.03109999999998081,
-            "deriveMs": 19.323600000000624,
-            "checkMs": 0.015200000000021419,
-            "signalMs": 11.46210000000002,
-            "validateMs": 13.230600000000038,
-            "latencyP50Ms": 0.0027000000000043656,
-            "latencyP95Ms": 0.004200000000025739,
-            "heapDeltaBytes": 41493616,
-            "serializedMetadataBytes": 2055249,
+            "registerMs": 0.030100000000004457,
+            "deriveMs": 12.903599999999443,
+            "checkMs": 0.004500000000007276,
+            "signalMs": 7.877600000000001,
+            "validateMs": 5.446899999999999,
+            "latencyP50Ms": 0.0024000000000228283,
+            "latencyP95Ms": 0.0028000000000076852,
+            "heapDeltaBytes": 19261912,
+            "serializedMetadataBytes": 2055227,
             "externalPayloadBytes": 65536,
-            "totalMs": 52.5368
+            "totalMs": 33.16660000000002
           },
           "denominators": {
             "count": 5000,
@@ -9302,17 +9302,17 @@
           "path": "$.results[6]",
           "label": "PREMiSE:chain:10000",
           "metrics": {
-            "registerMs": 0.026099999999985357,
-            "deriveMs": 31.207100000001674,
-            "checkMs": 1.9026999999999816,
-            "signalMs": 26.61779999999999,
-            "validateMs": 26.303499999999985,
-            "latencyP50Ms": 0.0026000000000294676,
-            "latencyP95Ms": 0.00380000000001246,
+            "registerMs": 0.028400000000004866,
+            "deriveMs": 27.32140000000001,
+            "checkMs": 0.009600000000006048,
+            "signalMs": 27.71489999999997,
+            "validateMs": 32.594299999999976,
+            "latencyP50Ms": 0.0023999999999944066,
+            "latencyP95Ms": 0.0028000000000076852,
             "heapDeltaBytes": 0,
             "serializedMetadataBytes": 3946651,
             "externalPayloadBytes": 65536,
-            "totalMs": 103.0609
+            "totalMs": 102.68810000000002
           },
           "denominators": {
             "count": 10000,
@@ -9324,17 +9324,17 @@
           "path": "$.results[7]",
           "label": "PREMiSE:fanout:10000",
           "metrics": {
-            "registerMs": 0.02600000000001046,
-            "deriveMs": 37.55279999999743,
-            "checkMs": 0.009500000000002728,
-            "signalMs": 24.42579999999998,
-            "validateMs": 25.250599999999963,
-            "latencyP50Ms": 0.002599999999972624,
-            "latencyP95Ms": 0.003999999999962256,
-            "heapDeltaBytes": 1494192,
+            "registerMs": 0.035699999999962984,
+            "deriveMs": 25.219500000000494,
+            "checkMs": 0.004599999999982174,
+            "signalMs": 25.087999999999965,
+            "validateMs": 22.308400000000006,
+            "latencyP50Ms": 0.002399999999965985,
+            "latencyP95Ms": 0.0027000000000043656,
+            "heapDeltaBytes": 52911992,
             "serializedMetadataBytes": 3977763,
             "externalPayloadBytes": 65536,
-            "totalMs": 102.13940000000002
+            "totalMs": 87.07820000000004
           },
           "denominators": {
             "count": 10000,
@@ -9346,17 +9346,17 @@
           "path": "$.results[8]",
           "label": "PREMiSE:shared:10000",
           "metrics": {
-            "registerMs": 0.04169999999999163,
-            "deriveMs": 36.46589999999878,
-            "checkMs": 0.01599999999996271,
-            "signalMs": 33.98810000000003,
-            "validateMs": 25.217300000000023,
-            "latencyP50Ms": 0.002900000000011005,
-            "latencyP95Ms": 0.00479999999993197,
-            "heapDeltaBytes": 22793928,
-            "serializedMetadataBytes": 4112749,
+            "registerMs": 0.029200000000003,
+            "deriveMs": 31.557500000001767,
+            "checkMs": 0.006100000000003547,
+            "signalMs": 14.958699999999965,
+            "validateMs": 10.266300000000001,
+            "latencyP50Ms": 0.002599999999972624,
+            "latencyP95Ms": 0.0039000000000442014,
+            "heapDeltaBytes": 0,
+            "serializedMetadataBytes": 4112727,
             "externalPayloadBytes": 65536,
-            "totalMs": 113.00690000000003
+            "totalMs": 71.30810000000002
           },
           "denominators": {
             "count": 10000,
@@ -9368,17 +9368,17 @@
           "path": "$.results[9]",
           "label": "PREMiSE:chain:25000",
           "metrics": {
-            "registerMs": 0.040300000000002,
-            "deriveMs": 80.2395000000048,
-            "checkMs": 3.7011999999999716,
-            "signalMs": 58.16249999999991,
-            "validateMs": 59.663599999999974,
-            "latencyP50Ms": 0.002599999999915781,
-            "latencyP95Ms": 0.0038000000000693035,
-            "heapDeltaBytes": 82088104,
+            "registerMs": 0.021700000000009823,
+            "deriveMs": 69.74129999999474,
+            "checkMs": 0.008199999999987995,
+            "signalMs": 57.20410000000004,
+            "validateMs": 58.077999999999975,
+            "latencyP50Ms": 0.002499999999940883,
+            "latencyP95Ms": 0.002900000000011005,
+            "heapDeltaBytes": 77009944,
             "serializedMetadataBytes": 9916650,
             "externalPayloadBytes": 65536,
-            "totalMs": 240.5494
+            "totalMs": 228.41420000000005
           },
           "denominators": {
             "count": 25000,
@@ -9390,17 +9390,17 @@
           "path": "$.results[10]",
           "label": "PREMiSE:fanout:25000",
           "metrics": {
-            "registerMs": 0.030799999999999272,
-            "deriveMs": 80.21919999999818,
-            "checkMs": 0.00980000000004111,
-            "signalMs": 63.90860000000009,
-            "validateMs": 61.13869999999997,
-            "latencyP50Ms": 0.0026000000000294676,
-            "latencyP95Ms": 0.003200000000106229,
+            "registerMs": 0.024699999999938882,
+            "deriveMs": 76.19429999999704,
+            "checkMs": 0.008100000000013097,
+            "signalMs": 68.39570000000003,
+            "validateMs": 55.95049999999992,
+            "latencyP50Ms": 0.002499999999940883,
+            "latencyP95Ms": 0.003100000000017644,
             "heapDeltaBytes": 0,
             "serializedMetadataBytes": 9977763,
             "externalPayloadBytes": 65536,
-            "totalMs": 241.0335
+            "totalMs": 241.30010000000004
           },
           "denominators": {
             "count": 25000,
@@ -9412,17 +9412,17 @@
           "path": "$.results[11]",
           "label": "PREMiSE:shared:25000",
           "metrics": {
-            "registerMs": 0.031300000000101136,
-            "deriveMs": 108.05959999998936,
-            "checkMs": 0.012200000000120781,
-            "signalMs": 104.94799999999987,
-            "validateMs": 93.16380000000004,
-            "latencyP50Ms": 0.003500000000030923,
-            "latencyP95Ms": 0.005599999999958527,
-            "heapDeltaBytes": 0,
-            "serializedMetadataBytes": 10315249,
+            "registerMs": 0.028400000000033288,
+            "deriveMs": 76.04959999999687,
+            "checkMs": 0.006399999999985084,
+            "signalMs": 27.93769999999995,
+            "validateMs": 29.6708000000001,
+            "latencyP50Ms": 0.002599999999915781,
+            "latencyP95Ms": 0.003199999999992542,
+            "heapDeltaBytes": 23977208,
+            "serializedMetadataBytes": 10315227,
             "externalPayloadBytes": 65536,
-            "totalMs": 347.5611000000001
+            "totalMs": 171.54719999999998
           },
           "denominators": {
             "count": 25000,
@@ -9552,8 +9552,8 @@
       "files": [
         {
           "path": "benchmarks/real-world-bench/results.json",
-          "bytes": 56552,
-          "sha256": "5699b668c2532cdbe47dafdeafa270b5f572b78c59add5c08ac91dfecf2f3bee",
+          "bytes": 56553,
+          "sha256": "ddb8b09c63e502c8daae5e345541da101465475a3c2cfe8571c06b10723ee038",
           "status": "parsed",
           "format": "premise-real-world-benchmark/0.1"
         }
@@ -9573,8 +9573,8 @@
             "protocolValidateCalls": 12,
             "versionForCalls": 4,
             "validateCalls": 1,
-            "p50": 0.374,
-            "p95": 65.756,
+            "p50": 0.365,
+            "p95": 65.028,
             "episodesWithHistory": 14,
             "preservationRate": 1,
             "totalTargetEvents": 34,
@@ -9599,7 +9599,7 @@
             "protocolValidateCalls": 0,
             "versionForCalls": 0,
             "validateCalls": 0,
-            "p50": 0.002,
+            "p50": 0.001,
             "p95": 0.004,
             "episodesWithHistory": 0,
             "preservationRate": 0,
@@ -9696,7 +9696,7 @@
           "path": "$.pairedMetrics[0].latencyMs",
           "label": "$.pairedMetrics[0].latencyMs",
           "metrics": {
-            "p50": 0.002,
+            "p50": 0.001,
             "p95": 0.004
           },
           "denominators": {}
@@ -9727,8 +9727,8 @@
             "protocolValidateCalls": 12,
             "versionForCalls": 52,
             "validateCalls": 12,
-            "p50": 0.374,
-            "p95": 65.756,
+            "p50": 0.365,
+            "p95": 65.028,
             "episodesWithHistory": 14,
             "preservationRate": 1,
             "totalTargetEvents": 34,
@@ -9824,8 +9824,8 @@
           "path": "$.pairedMetrics[1].latencyMs",
           "label": "$.pairedMetrics[1].latencyMs",
           "metrics": {
-            "p50": 0.374,
-            "p95": 65.756
+            "p50": 0.365,
+            "p95": 65.028
           },
           "denominators": {}
         },
@@ -11080,8 +11080,8 @@
       "files": [
         {
           "path": "benchmarks/context-corpus-bench/results.json",
-          "bytes": 74843,
-          "sha256": "1b2c3b08ac0936d09000cec2b80e00a7e758e9a2666da88cf1c1fcfe84dbbe9a",
+          "bytes": 82119,
+          "sha256": "7b090574cade6d168cbce570e764c15521b9bdf15d76b2a6a6dbbbaa2ac4e8fd",
           "status": "parsed",
           "format": "premise-context-corpus-benchmark/0.1"
         }
@@ -11097,8 +11097,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 80191048,
-            "totalMs": 2998.5637
+            "serializedMetadataBytes": 80191137,
+            "totalMs": 2755.8215
           },
           "denominators": {}
         },
@@ -11112,8 +11112,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 785097,
-            "totalMs": 42.2693
+            "serializedMetadataBytes": 785186,
+            "totalMs": 46.0355
           },
           "denominators": {
             "nodes": 1000
@@ -11131,7 +11131,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[0].queries",
-          "label": "[object Object]",
+          "label": "$.results[0].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11139,13 +11139,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[0].queries.baseline",
-          "label": "$.results[0].queries.baseline",
+          "path": "$.results[0].queries.preMutation",
+          "label": "$.results[0].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11153,7 +11153,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11162,12 +11162,12 @@
           "label": "$.results[0].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.111111,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11181,7 +11181,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].checks",
+          "label": "$.results[0].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].checks.afterRepairAffected",
+          "label": "$.results[0].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 1000
           }
         },
         {
@@ -11193,7 +11213,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 785097
+            "serializedMetadataBytes": 785186
           },
           "denominators": {}
         },
@@ -11202,7 +11222,7 @@
           "path": "$.results[0].metrics.metadata",
           "label": "$.results[0].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 785097
+            "serializedMetadataBytes": 785186
           },
           "denominators": {}
         },
@@ -11211,7 +11231,7 @@
           "path": "$.results[0].timings",
           "label": "$.results[0].timings",
           "metrics": {
-            "totalMs": 42.2693
+            "totalMs": 46.0355
           },
           "denominators": {}
         },
@@ -11225,8 +11245,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 787097,
-            "totalMs": 25.9454
+            "serializedMetadataBytes": 787186,
+            "totalMs": 27.0888
           },
           "denominators": {
             "nodes": 1000
@@ -11244,7 +11264,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[1].queries",
-          "label": "[object Object]",
+          "label": "$.results[1].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11252,13 +11272,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[1].queries.baseline",
-          "label": "$.results[1].queries.baseline",
+          "path": "$.results[1].queries.preMutation",
+          "label": "$.results[1].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11266,7 +11286,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11275,12 +11295,12 @@
           "label": "$.results[1].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.111111,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11294,7 +11314,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].checks",
+          "label": "$.results[1].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].checks.afterRepairAffected",
+          "label": "$.results[1].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 1000
           }
         },
         {
@@ -11306,7 +11346,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 787097
+            "serializedMetadataBytes": 787186
           },
           "denominators": {}
         },
@@ -11315,7 +11355,7 @@
           "path": "$.results[1].metrics.metadata",
           "label": "$.results[1].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 787097
+            "serializedMetadataBytes": 787186
           },
           "denominators": {}
         },
@@ -11324,7 +11364,7 @@
           "path": "$.results[1].timings",
           "label": "$.results[1].timings",
           "metrics": {
-            "totalMs": 25.9454
+            "totalMs": 27.0888
           },
           "denominators": {}
         },
@@ -11338,8 +11378,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 800046,
-            "totalMs": 23.0243
+            "serializedMetadataBytes": 800135,
+            "totalMs": 27.559
           },
           "denominators": {
             "nodes": 1000
@@ -11357,7 +11397,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[2].queries",
-          "label": "[object Object]",
+          "label": "$.results[2].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11365,13 +11405,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[2].queries.baseline",
-          "label": "$.results[2].queries.baseline",
+          "path": "$.results[2].queries.preMutation",
+          "label": "$.results[2].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11379,7 +11419,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11388,12 +11428,12 @@
           "label": "$.results[2].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0.515625,
+            "retrievalHitRate": 0.569444,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11407,7 +11447,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].checks",
+          "label": "$.results[2].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].checks.afterRepairAffected",
+          "label": "$.results[2].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 501
           }
         },
         {
@@ -11419,7 +11479,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 800046
+            "serializedMetadataBytes": 800135
           },
           "denominators": {}
         },
@@ -11428,7 +11488,7 @@
           "path": "$.results[2].metrics.metadata",
           "label": "$.results[2].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 800046
+            "serializedMetadataBytes": 800135
           },
           "denominators": {}
         },
@@ -11437,7 +11497,7 @@
           "path": "$.results[2].timings",
           "label": "$.results[2].timings",
           "metrics": {
-            "totalMs": 23.0243
+            "totalMs": 27.559
           },
           "denominators": {}
         },
@@ -11451,8 +11511,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 7851098,
-            "totalMs": 254.0527
+            "serializedMetadataBytes": 7851187,
+            "totalMs": 288.7066
           },
           "denominators": {
             "nodes": 10000
@@ -11470,7 +11530,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[3].queries",
-          "label": "[object Object]",
+          "label": "$.results[3].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11478,13 +11538,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[3].queries.baseline",
-          "label": "$.results[3].queries.baseline",
+          "path": "$.results[3].queries.preMutation",
+          "label": "$.results[3].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11492,7 +11552,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11501,12 +11561,12 @@
           "label": "$.results[3].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.111111,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11520,7 +11580,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].checks",
+          "label": "$.results[3].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].checks.afterRepairAffected",
+          "label": "$.results[3].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 10000
           }
         },
         {
@@ -11532,7 +11612,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 7851098
+            "serializedMetadataBytes": 7851187
           },
           "denominators": {}
         },
@@ -11541,7 +11621,7 @@
           "path": "$.results[3].metrics.metadata",
           "label": "$.results[3].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 7851098
+            "serializedMetadataBytes": 7851187
           },
           "denominators": {}
         },
@@ -11550,7 +11630,7 @@
           "path": "$.results[3].timings",
           "label": "$.results[3].timings",
           "metrics": {
-            "totalMs": 254.0527
+            "totalMs": 288.7066
           },
           "denominators": {}
         },
@@ -11564,8 +11644,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 7871098,
-            "totalMs": 206.6362
+            "serializedMetadataBytes": 7871187,
+            "totalMs": 207.3865
           },
           "denominators": {
             "nodes": 10000
@@ -11583,7 +11663,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[4].queries",
-          "label": "[object Object]",
+          "label": "$.results[4].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11591,13 +11671,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[4].queries.baseline",
-          "label": "$.results[4].queries.baseline",
+          "path": "$.results[4].queries.preMutation",
+          "label": "$.results[4].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11605,7 +11685,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11614,12 +11694,12 @@
           "label": "$.results[4].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.111111,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11633,7 +11713,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].checks",
+          "label": "$.results[4].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].checks.afterRepairAffected",
+          "label": "$.results[4].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 10000
           }
         },
         {
@@ -11645,7 +11745,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 7871098
+            "serializedMetadataBytes": 7871187
           },
           "denominators": {}
         },
@@ -11654,7 +11754,7 @@
           "path": "$.results[4].metrics.metadata",
           "label": "$.results[4].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 7871098
+            "serializedMetadataBytes": 7871187
           },
           "denominators": {}
         },
@@ -11663,7 +11763,7 @@
           "path": "$.results[4].timings",
           "label": "$.results[4].timings",
           "metrics": {
-            "totalMs": 206.6362
+            "totalMs": 207.3865
           },
           "denominators": {}
         },
@@ -11677,8 +11777,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 8001047,
-            "totalMs": 215.9024
+            "serializedMetadataBytes": 8001136,
+            "totalMs": 200.202
           },
           "denominators": {
             "nodes": 10000
@@ -11696,7 +11796,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[5].queries",
-          "label": "[object Object]",
+          "label": "$.results[5].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11704,13 +11804,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[5].queries.baseline",
-          "label": "$.results[5].queries.baseline",
+          "path": "$.results[5].queries.preMutation",
+          "label": "$.results[5].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11718,7 +11818,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11727,12 +11827,12 @@
           "label": "$.results[5].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0.53125,
+            "retrievalHitRate": 0.583333,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
@@ -11746,7 +11846,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].checks",
+          "label": "$.results[5].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].checks.afterRepairAffected",
+          "label": "$.results[5].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 5001
           }
         },
         {
@@ -11758,7 +11878,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 8001047
+            "serializedMetadataBytes": 8001136
           },
           "denominators": {}
         },
@@ -11767,7 +11887,7 @@
           "path": "$.results[5].metrics.metadata",
           "label": "$.results[5].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 8001047
+            "serializedMetadataBytes": 8001136
           },
           "denominators": {}
         },
@@ -11776,7 +11896,7 @@
           "path": "$.results[5].timings",
           "label": "$.results[5].timings",
           "metrics": {
-            "totalMs": 215.9024
+            "totalMs": 200.202
           },
           "denominators": {}
         },
@@ -11790,8 +11910,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 39291098,
-            "totalMs": 1396.6472
+            "serializedMetadataBytes": 39291187,
+            "totalMs": 1468.4863
           },
           "denominators": {
             "nodes": 50000
@@ -11809,7 +11929,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[6].queries",
-          "label": "[object Object]",
+          "label": "$.results[6].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11817,13 +11937,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 200
+            "count": 208
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[6].queries.baseline",
-          "label": "$.results[6].queries.baseline",
+          "path": "$.results[6].queries.preMutation",
+          "label": "$.results[6].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11831,7 +11951,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
@@ -11840,12 +11960,12 @@
           "label": "$.results[6].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.038462,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
@@ -11859,7 +11979,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].checks",
+          "label": "$.results[6].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].checks.afterRepairAffected",
+          "label": "$.results[6].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 50000
           }
         },
         {
@@ -11871,7 +12011,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 39291098
+            "serializedMetadataBytes": 39291187
           },
           "denominators": {}
         },
@@ -11880,7 +12020,7 @@
           "path": "$.results[6].metrics.metadata",
           "label": "$.results[6].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 39291098
+            "serializedMetadataBytes": 39291187
           },
           "denominators": {}
         },
@@ -11889,7 +12029,7 @@
           "path": "$.results[6].timings",
           "label": "$.results[6].timings",
           "metrics": {
-            "totalMs": 1396.6472
+            "totalMs": 1468.4863
           },
           "denominators": {}
         },
@@ -11903,8 +12043,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 39391098,
-            "totalMs": 1284.1156
+            "serializedMetadataBytes": 39391187,
+            "totalMs": 1430.0459
           },
           "denominators": {
             "nodes": 50000
@@ -11922,7 +12062,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[7].queries",
-          "label": "[object Object]",
+          "label": "$.results[7].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11930,13 +12070,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 200
+            "count": 208
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[7].queries.baseline",
-          "label": "$.results[7].queries.baseline",
+          "path": "$.results[7].queries.preMutation",
+          "label": "$.results[7].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -11944,7 +12084,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
@@ -11953,12 +12093,12 @@
           "label": "$.results[7].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.038462,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
@@ -11972,7 +12112,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].checks",
+          "label": "$.results[7].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].checks.afterRepairAffected",
+          "label": "$.results[7].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 50000
           }
         },
         {
@@ -11984,7 +12144,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 39391098
+            "serializedMetadataBytes": 39391187
           },
           "denominators": {}
         },
@@ -11993,7 +12153,7 @@
           "path": "$.results[7].metrics.metadata",
           "label": "$.results[7].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 39391098
+            "serializedMetadataBytes": 39391187
           },
           "denominators": {}
         },
@@ -12002,7 +12162,7 @@
           "path": "$.results[7].timings",
           "label": "$.results[7].timings",
           "metrics": {
-            "totalMs": 1284.1156
+            "totalMs": 1430.0459
           },
           "denominators": {}
         },
@@ -12016,8 +12176,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 40041047,
-            "totalMs": 1192.9295
+            "serializedMetadataBytes": 40041136,
+            "totalMs": 1280.7487
           },
           "denominators": {
             "nodes": 50000
@@ -12035,7 +12195,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[8].queries",
-          "label": "[object Object]",
+          "label": "$.results[8].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12043,13 +12203,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 200
+            "count": 208
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[8].queries.baseline",
-          "label": "$.results[8].queries.baseline",
+          "path": "$.results[8].queries.preMutation",
+          "label": "$.results[8].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12057,7 +12217,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
@@ -12066,12 +12226,12 @@
           "label": "$.results[8].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0.515,
+            "retrievalHitRate": 0.533654,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
@@ -12085,7 +12245,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 200
+            "queries": 208
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].checks",
+          "label": "$.results[8].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].checks.afterRepairAffected",
+          "label": "$.results[8].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 25001
           }
         },
         {
@@ -12097,7 +12277,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 40041047
+            "serializedMetadataBytes": 40041136
           },
           "denominators": {}
         },
@@ -12106,7 +12286,7 @@
           "path": "$.results[8].metrics.metadata",
           "label": "$.results[8].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 40041047
+            "serializedMetadataBytes": 40041136
           },
           "denominators": {}
         },
@@ -12115,7 +12295,7 @@
           "path": "$.results[8].timings",
           "label": "$.results[8].timings",
           "metrics": {
-            "totalMs": 1192.9295
+            "totalMs": 1280.7487
           },
           "denominators": {}
         },
@@ -12129,8 +12309,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 78691099,
-            "totalMs": 3472.2016
+            "serializedMetadataBytes": 78691188,
+            "totalMs": 3379.5123
           },
           "denominators": {
             "nodes": 100000
@@ -12148,7 +12328,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[9].queries",
-          "label": "[object Object]",
+          "label": "$.results[9].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12156,13 +12336,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 256
+            "count": 264
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[9].queries.baseline",
-          "label": "$.results[9].queries.baseline",
+          "path": "$.results[9].queries.preMutation",
+          "label": "$.results[9].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12170,7 +12350,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
@@ -12179,12 +12359,12 @@
           "label": "$.results[9].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.030303,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
@@ -12198,7 +12378,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].checks",
+          "label": "$.results[9].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].checks.afterRepairAffected",
+          "label": "$.results[9].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 100000
           }
         },
         {
@@ -12210,7 +12410,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 78691099
+            "serializedMetadataBytes": 78691188
           },
           "denominators": {}
         },
@@ -12219,7 +12419,7 @@
           "path": "$.results[9].metrics.metadata",
           "label": "$.results[9].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 78691099
+            "serializedMetadataBytes": 78691188
           },
           "denominators": {}
         },
@@ -12228,7 +12428,7 @@
           "path": "$.results[9].timings",
           "label": "$.results[9].timings",
           "metrics": {
-            "totalMs": 3472.2016
+            "totalMs": 3379.5123
           },
           "denominators": {}
         },
@@ -12242,8 +12442,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 78891099,
-            "totalMs": 3099.2294
+            "serializedMetadataBytes": 78891188,
+            "totalMs": 3175.3303
           },
           "denominators": {
             "nodes": 100000
@@ -12261,7 +12461,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[10].queries",
-          "label": "[object Object]",
+          "label": "$.results[10].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12269,13 +12469,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 256
+            "count": 264
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[10].queries.baseline",
-          "label": "$.results[10].queries.baseline",
+          "path": "$.results[10].queries.preMutation",
+          "label": "$.results[10].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12283,7 +12483,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
@@ -12292,12 +12492,12 @@
           "label": "$.results[10].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0,
+            "retrievalHitRate": 0.030303,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
@@ -12311,7 +12511,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].checks",
+          "label": "$.results[10].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].checks.afterRepairAffected",
+          "label": "$.results[10].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 100000
           }
         },
         {
@@ -12323,7 +12543,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 78891099
+            "serializedMetadataBytes": 78891188
           },
           "denominators": {}
         },
@@ -12332,7 +12552,7 @@
           "path": "$.results[10].metrics.metadata",
           "label": "$.results[10].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 78891099
+            "serializedMetadataBytes": 78891188
           },
           "denominators": {}
         },
@@ -12341,7 +12561,7 @@
           "path": "$.results[10].timings",
           "label": "$.results[10].timings",
           "metrics": {
-            "totalMs": 3099.2294
+            "totalMs": 3175.3303
           },
           "denominators": {}
         },
@@ -12355,8 +12575,8 @@
             "retrievalHitRate": 1,
             "safety": 1,
             "falseRejectRate": 0,
-            "serializedMetadataBytes": 80191048,
-            "totalMs": 2998.5637
+            "serializedMetadataBytes": 80191137,
+            "totalMs": 2755.8215
           },
           "denominators": {
             "nodes": 100000
@@ -12374,7 +12594,7 @@
         {
           "file": "benchmarks/context-corpus-bench/results.json",
           "path": "$.results[11].queries",
-          "label": "[object Object]",
+          "label": "$.results[11].queries",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12382,13 +12602,13 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "count": 256
+            "count": 264
           }
         },
         {
           "file": "benchmarks/context-corpus-bench/results.json",
-          "path": "$.results[11].queries.baseline",
-          "label": "$.results[11].queries.baseline",
+          "path": "$.results[11].queries.preMutation",
+          "label": "$.results[11].queries.preMutation",
           "metrics": {
             "precision": 1,
             "retrievalHitRate": 1,
@@ -12396,7 +12616,7 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
@@ -12405,12 +12625,12 @@
           "label": "$.results[11].queries.postSignal",
           "metrics": {
             "precision": 1,
-            "retrievalHitRate": 0.523438,
+            "retrievalHitRate": 0.537879,
             "safety": 1,
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
@@ -12424,7 +12644,27 @@
             "falseRejectRate": 0
           },
           "denominators": {
-            "queries": 256
+            "queries": 264
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].checks",
+          "label": "$.results[11].checks",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].checks.afterRepairAffected",
+          "label": "$.results[11].checks.afterRepairAffected",
+          "metrics": {
+            "safety": 1
+          },
+          "denominators": {
+            "total": 50001
           }
         },
         {
@@ -12436,7 +12676,7 @@
             "safety": 1,
             "falseRejectRate": 0,
             "retrievalHitRate": 1,
-            "serializedMetadataBytes": 80191048
+            "serializedMetadataBytes": 80191137
           },
           "denominators": {}
         },
@@ -12445,7 +12685,7 @@
           "path": "$.results[11].metrics.metadata",
           "label": "$.results[11].metrics.metadata",
           "metrics": {
-            "serializedMetadataBytes": 80191048
+            "serializedMetadataBytes": 80191137
           },
           "denominators": {}
         },
@@ -12454,7 +12694,7 @@
           "path": "$.results[11].timings",
           "label": "$.results[11].timings",
           "metrics": {
-            "totalMs": 2998.5637
+            "totalMs": 2755.8215
           },
           "denominators": {}
         }
@@ -12478,30 +12718,37 @@
         },
         {
           "path": "$.results[0].queries",
-          "label": "[object Object]",
+          "label": "$.results[0].queries",
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
-          "path": "$.results[0].queries.baseline",
-          "label": "$.results[0].queries.baseline",
+          "path": "$.results[0].queries.preMutation",
+          "label": "$.results[0].queries.preMutation",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[0].queries.postSignal",
           "label": "$.results[0].queries.postSignal",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[0].queries.final",
           "label": "$.results[0].queries.final",
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "path": "$.results[0].checks.afterRepairAffected",
+          "label": "$.results[0].checks.afterRepairAffected",
+          "denominators": {
+            "total": 1000
           }
         },
         {
@@ -12513,30 +12760,37 @@
         },
         {
           "path": "$.results[1].queries",
-          "label": "[object Object]",
+          "label": "$.results[1].queries",
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
-          "path": "$.results[1].queries.baseline",
-          "label": "$.results[1].queries.baseline",
+          "path": "$.results[1].queries.preMutation",
+          "label": "$.results[1].queries.preMutation",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[1].queries.postSignal",
           "label": "$.results[1].queries.postSignal",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[1].queries.final",
           "label": "$.results[1].queries.final",
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "path": "$.results[1].checks.afterRepairAffected",
+          "label": "$.results[1].checks.afterRepairAffected",
+          "denominators": {
+            "total": 1000
           }
         },
         {
@@ -12548,30 +12802,37 @@
         },
         {
           "path": "$.results[2].queries",
-          "label": "[object Object]",
+          "label": "$.results[2].queries",
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
-          "path": "$.results[2].queries.baseline",
-          "label": "$.results[2].queries.baseline",
+          "path": "$.results[2].queries.preMutation",
+          "label": "$.results[2].queries.preMutation",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[2].queries.postSignal",
           "label": "$.results[2].queries.postSignal",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[2].queries.final",
           "label": "$.results[2].queries.final",
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "path": "$.results[2].checks.afterRepairAffected",
+          "label": "$.results[2].checks.afterRepairAffected",
+          "denominators": {
+            "total": 501
           }
         },
         {
@@ -12583,30 +12844,37 @@
         },
         {
           "path": "$.results[3].queries",
-          "label": "[object Object]",
+          "label": "$.results[3].queries",
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
-          "path": "$.results[3].queries.baseline",
-          "label": "$.results[3].queries.baseline",
+          "path": "$.results[3].queries.preMutation",
+          "label": "$.results[3].queries.preMutation",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[3].queries.postSignal",
           "label": "$.results[3].queries.postSignal",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[3].queries.final",
           "label": "$.results[3].queries.final",
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "path": "$.results[3].checks.afterRepairAffected",
+          "label": "$.results[3].checks.afterRepairAffected",
+          "denominators": {
+            "total": 10000
           }
         },
         {
@@ -12618,30 +12886,37 @@
         },
         {
           "path": "$.results[4].queries",
-          "label": "[object Object]",
+          "label": "$.results[4].queries",
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
-          "path": "$.results[4].queries.baseline",
-          "label": "$.results[4].queries.baseline",
+          "path": "$.results[4].queries.preMutation",
+          "label": "$.results[4].queries.preMutation",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[4].queries.postSignal",
           "label": "$.results[4].queries.postSignal",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[4].queries.final",
           "label": "$.results[4].queries.final",
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "path": "$.results[4].checks.afterRepairAffected",
+          "label": "$.results[4].checks.afterRepairAffected",
+          "denominators": {
+            "total": 10000
           }
         },
         {
@@ -12653,30 +12928,37 @@
         },
         {
           "path": "$.results[5].queries",
-          "label": "[object Object]",
+          "label": "$.results[5].queries",
           "denominators": {
-            "count": 64
+            "count": 72
           }
         },
         {
-          "path": "$.results[5].queries.baseline",
-          "label": "$.results[5].queries.baseline",
+          "path": "$.results[5].queries.preMutation",
+          "label": "$.results[5].queries.preMutation",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[5].queries.postSignal",
           "label": "$.results[5].queries.postSignal",
           "denominators": {
-            "queries": 64
+            "queries": 72
           }
         },
         {
           "path": "$.results[5].queries.final",
           "label": "$.results[5].queries.final",
           "denominators": {
-            "queries": 64
+            "queries": 72
+          }
+        },
+        {
+          "path": "$.results[5].checks.afterRepairAffected",
+          "label": "$.results[5].checks.afterRepairAffected",
+          "denominators": {
+            "total": 5001
           }
         },
         {
@@ -12688,30 +12970,37 @@
         },
         {
           "path": "$.results[6].queries",
-          "label": "[object Object]",
+          "label": "$.results[6].queries",
           "denominators": {
-            "count": 200
+            "count": 208
           }
         },
         {
-          "path": "$.results[6].queries.baseline",
-          "label": "$.results[6].queries.baseline",
+          "path": "$.results[6].queries.preMutation",
+          "label": "$.results[6].queries.preMutation",
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
           "path": "$.results[6].queries.postSignal",
           "label": "$.results[6].queries.postSignal",
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
           "path": "$.results[6].queries.final",
           "label": "$.results[6].queries.final",
           "denominators": {
-            "queries": 200
+            "queries": 208
+          }
+        },
+        {
+          "path": "$.results[6].checks.afterRepairAffected",
+          "label": "$.results[6].checks.afterRepairAffected",
+          "denominators": {
+            "total": 50000
           }
         },
         {
@@ -12723,30 +13012,37 @@
         },
         {
           "path": "$.results[7].queries",
-          "label": "[object Object]",
+          "label": "$.results[7].queries",
           "denominators": {
-            "count": 200
+            "count": 208
           }
         },
         {
-          "path": "$.results[7].queries.baseline",
-          "label": "$.results[7].queries.baseline",
+          "path": "$.results[7].queries.preMutation",
+          "label": "$.results[7].queries.preMutation",
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
           "path": "$.results[7].queries.postSignal",
           "label": "$.results[7].queries.postSignal",
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
           "path": "$.results[7].queries.final",
           "label": "$.results[7].queries.final",
           "denominators": {
-            "queries": 200
+            "queries": 208
+          }
+        },
+        {
+          "path": "$.results[7].checks.afterRepairAffected",
+          "label": "$.results[7].checks.afterRepairAffected",
+          "denominators": {
+            "total": 50000
           }
         },
         {
@@ -12758,30 +13054,37 @@
         },
         {
           "path": "$.results[8].queries",
-          "label": "[object Object]",
+          "label": "$.results[8].queries",
           "denominators": {
-            "count": 200
+            "count": 208
           }
         },
         {
-          "path": "$.results[8].queries.baseline",
-          "label": "$.results[8].queries.baseline",
+          "path": "$.results[8].queries.preMutation",
+          "label": "$.results[8].queries.preMutation",
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
           "path": "$.results[8].queries.postSignal",
           "label": "$.results[8].queries.postSignal",
           "denominators": {
-            "queries": 200
+            "queries": 208
           }
         },
         {
           "path": "$.results[8].queries.final",
           "label": "$.results[8].queries.final",
           "denominators": {
-            "queries": 200
+            "queries": 208
+          }
+        },
+        {
+          "path": "$.results[8].checks.afterRepairAffected",
+          "label": "$.results[8].checks.afterRepairAffected",
+          "denominators": {
+            "total": 25001
           }
         },
         {
@@ -12793,30 +13096,37 @@
         },
         {
           "path": "$.results[9].queries",
-          "label": "[object Object]",
+          "label": "$.results[9].queries",
           "denominators": {
-            "count": 256
+            "count": 264
           }
         },
         {
-          "path": "$.results[9].queries.baseline",
-          "label": "$.results[9].queries.baseline",
+          "path": "$.results[9].queries.preMutation",
+          "label": "$.results[9].queries.preMutation",
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
           "path": "$.results[9].queries.postSignal",
           "label": "$.results[9].queries.postSignal",
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
           "path": "$.results[9].queries.final",
           "label": "$.results[9].queries.final",
           "denominators": {
-            "queries": 256
+            "queries": 264
+          }
+        },
+        {
+          "path": "$.results[9].checks.afterRepairAffected",
+          "label": "$.results[9].checks.afterRepairAffected",
+          "denominators": {
+            "total": 100000
           }
         },
         {
@@ -12828,30 +13138,37 @@
         },
         {
           "path": "$.results[10].queries",
-          "label": "[object Object]",
+          "label": "$.results[10].queries",
           "denominators": {
-            "count": 256
+            "count": 264
           }
         },
         {
-          "path": "$.results[10].queries.baseline",
-          "label": "$.results[10].queries.baseline",
+          "path": "$.results[10].queries.preMutation",
+          "label": "$.results[10].queries.preMutation",
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
           "path": "$.results[10].queries.postSignal",
           "label": "$.results[10].queries.postSignal",
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
           "path": "$.results[10].queries.final",
           "label": "$.results[10].queries.final",
           "denominators": {
-            "queries": 256
+            "queries": 264
+          }
+        },
+        {
+          "path": "$.results[10].checks.afterRepairAffected",
+          "label": "$.results[10].checks.afterRepairAffected",
+          "denominators": {
+            "total": 100000
           }
         },
         {
@@ -12863,30 +13180,37 @@
         },
         {
           "path": "$.results[11].queries",
-          "label": "[object Object]",
+          "label": "$.results[11].queries",
           "denominators": {
-            "count": 256
+            "count": 264
           }
         },
         {
-          "path": "$.results[11].queries.baseline",
-          "label": "$.results[11].queries.baseline",
+          "path": "$.results[11].queries.preMutation",
+          "label": "$.results[11].queries.preMutation",
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
           "path": "$.results[11].queries.postSignal",
           "label": "$.results[11].queries.postSignal",
           "denominators": {
-            "queries": 256
+            "queries": 264
           }
         },
         {
           "path": "$.results[11].queries.final",
           "label": "$.results[11].queries.final",
           "denominators": {
-            "queries": 256
+            "queries": 264
+          }
+        },
+        {
+          "path": "$.results[11].checks.afterRepairAffected",
+          "label": "$.results[11].checks.afterRepairAffected",
+          "denominators": {
+            "total": 50001
           }
         }
       ],

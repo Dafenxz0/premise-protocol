@@ -29,6 +29,7 @@ for (const profile of result.results) {
   assert(profile.checks.afterSignal.status === "STALE" && profile.checks.afterSignal.decision === "REVALIDATE", "signal did not propagate STALE");
   assert(profile.checks.afterValidation.status === "INVALID" && profile.checks.afterValidation.decision === "REJECT", "real validation did not invalidate changed context");
   assert(profile.checks.afterRepair.status === "FRESH" && profile.checks.afterRepair.decision === "USABLE", "repair did not restore usability");
+  assert(profile.checks.afterRepairAffected.safety === 1 && profile.checks.afterRepairAffected.usable === profile.checks.afterRepairAffected.total, "repair did not restore every affected node");
 
   assert(profile.propagation.affectedNodes >= profile.corpus.changedDocumentIds.length, "propagation affected fewer nodes than changed documents");
   assert(profile.propagation.repairedDerivedConclusionCount >= 1, "no derived conclusion was repaired");
@@ -39,16 +40,23 @@ for (const profile of result.results) {
   assert(profile.validator.changedResultCount === profile.corpus.changedDocumentIds.length, "changed documents were not revalidated as CHANGED");
   assert(profile.validator.unchangedControl.result === "UNCHANGED", "unchanged control was falsely changed");
 
-  for (const metricName of ["precision", "safety", "falseRejectRate", "retrievalHitRate"]) {
+  for (const metricName of ["precision", "safety", "finalSafety", "falseRejectRate", "retrievalHitRate"]) {
     const value = profile.metrics[metricName];
     assert(Number.isFinite(value) && value >= 0 && value <= 1, `invalid ${metricName} for ${profile.pattern}/${profile.profile}`);
   }
   assert(profile.metrics.precision >= 0.95, `precision too low for ${profile.pattern}/${profile.profile}`);
   assert(profile.metrics.safety === 1, `unsafe stale use detected for ${profile.pattern}/${profile.profile}`);
+  assert(profile.metrics.finalSafety === 1, `repaired affected node remained unusable for ${profile.pattern}/${profile.profile}`);
   assert(profile.metrics.falseRejectRate === 0, `false reject detected for ${profile.pattern}/${profile.profile}`);
   assert(profile.metrics.retrievalHitRate >= 0.95, `retrieval hit rate too low for ${profile.pattern}/${profile.profile}`);
   assert(profile.queries.final.precision >= 0.95 && profile.queries.final.retrievalHitRate >= 0.95, "final gated retrieval regressed");
+  for (const phase of ["preMutation", "postSignal", "final"]) {
+    assert(profile.queries[phase].falseRejectUnit === "candidate", `false-reject unit missing in ${phase}`);
+    assert(profile.queries[phase].controlQueryCount >= 8 && profile.queries[phase].controlFalseRejectRate === 0, `control query gate failed in ${phase}`);
+  }
   assert(profile.queries.postSignal.safety === 1 && profile.queries.postSignal.falseRejectRate === 0, "post-change safety gate failed");
+  assert(profile.queries.postSignal.falseRejectDenominator >= 8, "false-reject coverage is too small; control queries are missing");
+  assert(profile.queries.final.falseRejectDenominator >= 8, "final false-reject coverage is too small; control queries are missing");
 
   assert(profile.metrics.metadata.serializedMetadataBytes > 0 && profile.metrics.metadata.payloadStoredInProtocol === false, "metadata metrics are invalid");
   assert(Number.isFinite(profile.metrics.heap.deltaBytes) && profile.metrics.heap.deltaBytes >= 0, "heap metrics are invalid");
@@ -65,5 +73,5 @@ console.log(JSON.stringify({
   resultCount: result.results.length,
   patterns: result.invariants.dependencyPatterns,
   isolation: result.invariants.isolation,
-  metrics: result.results.map((entry) => ({ profile: entry.profile, pattern: entry.pattern, precision: entry.metrics.precision, safety: entry.metrics.safety, falseRejectRate: entry.metrics.falseRejectRate, retrievalHitRate: entry.metrics.retrievalHitRate }))
+  metrics: result.results.map((entry) => ({ profile: entry.profile, pattern: entry.pattern, precision: entry.metrics.precision, safety: entry.metrics.safety, finalSafety: entry.metrics.finalSafety, falseRejectRate: entry.metrics.falseRejectRate, retrievalHitRate: entry.metrics.retrievalHitRate }))
 }, null, 2));

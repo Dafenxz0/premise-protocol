@@ -122,15 +122,30 @@ export class MemoryStateStore {
   }
 
   markStatusWithPrevious(memoryId: string, status: MemoryStatus): readonly StatusChange[] {
-    const record = this.records.get(memoryId);
-    if (!record) throw new Error(`Unknown memory: ${memoryId}`);
-    if (record.directlyInvalid && status !== "INVALID") status = "INVALID";
-    record.baseStatus = status;
-    if (status === "INVALID") record.directlyInvalid = true;
-    const affected = this.collectDependents([memoryId]);
+    return this.markStatusesWithPrevious([memoryId], status);
+  }
+
+  markStatusesWithPrevious(memoryIds: readonly string[], status: MemoryStatus): readonly StatusChange[] {
+    const roots = [...new Set(memoryIds)];
+    const effectiveStatuses = new Map<string, MemoryStatus>();
+    let alreadyStale = true;
+    for (const memoryId of roots) {
+      const record = this.records.get(memoryId);
+      if (!record) throw new Error(`Unknown memory: ${memoryId}`);
+      const nextStatus = record.directlyInvalid && status !== "INVALID" ? "INVALID" : status;
+      effectiveStatuses.set(memoryId, nextStatus);
+      if (nextStatus !== "STALE" || record.status !== "STALE") alreadyStale = false;
+    }
+    for (const [memoryId, nextStatus] of effectiveStatuses) {
+      const record = this.records.get(memoryId)!;
+      record.baseStatus = nextStatus;
+      if (nextStatus === "INVALID") record.directlyInvalid = true;
+    }
+    const affected = this.collectDependents(roots);
     const previous = new Map<string, MemoryStatus>();
     for (const id of affected) previous.set(id, this.records.get(id)!.status);
-    this.recomputeSet(affected, this.nowFor(affected));
+    const nowMs = this.nowFor(affected);
+    if (!alreadyStale || nowMs !== undefined) this.recomputeSet(affected, nowMs);
     return [...affected].sort().map((id) => ({ state: this.stateOf(id)!, previousStatus: previous.get(id)! }));
   }
 

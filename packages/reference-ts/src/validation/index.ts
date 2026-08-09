@@ -101,12 +101,10 @@ export class ReferenceProtocol {
     const sourceUri = typeof event.payload.sourceUri === "string" ? event.payload.sourceUri : undefined;
     const roots = sourceUri === undefined ? [] : this.states.memoryIdsForSource(sourceUri);
     const affected = new Set<string>();
-    for (const root of roots) {
-      const changed = this.states.markStatusWithPrevious(root, "STALE");
-      for (const { state, previousStatus } of changed) {
-        affected.add(state.memoryId);
-        this.appendTransition(state.memoryId, previousStatus, state.status, event.occurredAt, "signal");
-      }
+    const changed = this.states.markStatusesWithPrevious(roots, "STALE");
+    for (const { state, previousStatus } of changed) {
+      affected.add(state.memoryId);
+      this.appendTransition(state.memoryId, previousStatus, state.status, event.occurredAt, "signal");
     }
     const statuses: Record<string, MemoryStatus> = {};
     for (const memoryId of [...affected].sort()) statuses[memoryId] = this.states.stateOf(memoryId)!.status;
@@ -114,10 +112,11 @@ export class ReferenceProtocol {
   }
 
   async validate(memoryIds: readonly string[], suppliedResults?: Readonly<Record<string, ValidationResult>>): Promise<ValidationReport> {
-    const items: ValidationReportItem[] = [];
     const eventIds: string[] = [];
     const prepared: { memoryId: string; previousStatus: MemoryStatus; result: ValidationResult }[] = [];
-    for (const memoryId of memoryIds) {
+    const preparedReportItems = new Map<string, ValidationReportItem>();
+    const order = this.validationOrder(memoryIds);
+    for (const memoryId of order) {
       const state = this.states.stateOf(memoryId);
       if (!state) throw new Error(`Unknown memory: ${memoryId}`);
       const source = state.envelope.provenance?.[0];
@@ -134,9 +133,9 @@ export class ReferenceProtocol {
           if (state.memoryId === memoryId && id !== undefined) eventIds.push(id);
         }
       }
-      items.push({ memoryId, result: result.result, previousStatus, status: this.states.stateOf(memoryId)?.status ?? nextStatus, ...(result.version ? { version: result.version } : {}) });
+      preparedReportItems.set(memoryId, { memoryId, result: result.result, previousStatus, status: this.states.stateOf(memoryId)?.status ?? nextStatus, ...(result.version ? { version: result.version } : {}) });
     }
-    return { items, eventIds };
+    return { items: memoryIds.map((memoryId) => preparedReportItems.get(memoryId)!), eventIds };
   }
 
   check(memoryIds: readonly string[]): UsabilityReport {
@@ -169,6 +168,24 @@ export class ReferenceProtocol {
     const validator = this.validators.get(source.validator.id);
     if (!validator) return { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString() };
     return validator.validate({ ...source, memoryId });
+  }
+
+  private validationOrder(memoryIds: readonly string[]): readonly string[] {
+    const requested = new Set(memoryIds);
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+    const order: string[] = [];
+    const visit = (memoryId: string): void => {
+      if (visited.has(memoryId)) return;
+      if (visiting.has(memoryId)) throw new Error(`Dependency graph contains a cycle at ${memoryId}`);
+      visiting.add(memoryId);
+      for (const dependencyId of this.states.graph.dependenciesOf(memoryId)) if (requested.has(dependencyId)) visit(dependencyId);
+      visiting.delete(memoryId);
+      visited.add(memoryId);
+      order.push(memoryId);
+    };
+    for (const memoryId of memoryIds) visit(memoryId);
+    return order;
   }
 
   private appendTransition(memoryId: string, previousStatus: MemoryStatus | undefined, nextStatus: MemoryStatus, occurredAt: string, reason: string, version?: VersionReference): string | undefined {

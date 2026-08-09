@@ -52,6 +52,7 @@ function checkDeadline(deadline, label) {
 }
 
 function dependenciesFor(index, topology) {
+  if (index < 2 && topology === "shared") return [];
   if (index === 0) return [];
   if (topology === "chain") return [`memory:${topology}:${index - 1}`];
   if (topology === "fanout") return ["memory:fanout:root"];
@@ -92,13 +93,19 @@ async function runProfile(count, topology, options) {
     if (index % 250 === 0) checkDeadline(deadline, `${topology} build`);
   }
 
-  const targetId = envelopes[envelopes.length - 1].memoryId;
+  const targetIndex = topology === "shared" ? (nodeCount % 2 === 0 ? nodeCount - 2 : nodeCount - 1) : nodeCount - 1;
+  const targetId = envelopes[targetIndex].memoryId;
   const checkStarted = performance.now();
   const beforeChange = protocol.check([targetId]).items[0];
   const checkMs = performance.now() - checkStarted;
+  const expectedAffectedIds = new Set(
+    topology === "shared"
+      ? envelopes.filter((_, index) => index === 1 || (index >= 2 && index % 2 === 0)).map((value) => value.memoryId)
+      : envelopes.map((value) => value.memoryId)
+  );
 
   const signalStarted = performance.now();
-  const signalSource = sourceFor(0, topology);
+  const signalSource = sourceFor(topology === "shared" ? 1 : 0, topology);
   const signalResult = protocol.signal({
     specVersion: SPEC_VERSION,
     eventId: `long-signal:${topology}:${count}`,
@@ -110,12 +117,17 @@ async function runProfile(count, topology, options) {
   const afterSignalStatus = protocol.states.stateOf(targetId)?.status ?? "UNKNOWN";
 
   const validateStarted = performance.now();
-  const rootId = rootIds[0];
+  const rootId = topology === "shared" ? rootIds[1] : rootIds[0];
   await protocol.validate([rootId], {
     [rootId]: { memoryId: rootId, result: "UNCHANGED", status: "FRESH", checkedAt: "2026-08-09T20:40:02Z", version: { scheme: SOURCE_SCHEME, token: "v2" } }
   });
   const validateMs = performance.now() - validateStarted;
   const afterChange = protocol.check([targetId]).items[0];
+  const unaffectedIds = envelopes.filter((value) => !expectedAffectedIds.has(value.memoryId)).slice(0, 3).map((value) => value.memoryId);
+  const unaffectedAfterValidate = protocol.check(unaffectedIds).items.map((item) => ({ memoryId: item.memoryId, status: item.status, decision: item.decision }));
+  const affectedIds = new Set(signalResult.affected);
+  const unexpectedAffectedNodes = signalResult.affected.filter((memoryId) => !expectedAffectedIds.has(memoryId)).length;
+  const missingAffectedNodes = [...expectedAffectedIds].filter((memoryId) => !affectedIds.has(memoryId)).length;
   const afterHeap = process.memoryUsage().heapUsed;
   checkDeadline(deadline, `${topology} profile`);
   const operationSamples = [...registerSamples, ...deriveSamples, checkMs, signalMs, validateMs];
@@ -140,10 +152,17 @@ async function runProfile(count, topology, options) {
     serializedMetadataBytes: metadataBytes,
     externalPayloadBytes: options.payloadBytes,
     externalPayloadStoredInProtocol: false,
+    signalSource,
+    validatedRootId: rootId,
     beforeChangeStatus: beforeChange.status,
     afterSignalStatus,
     afterValidateStatus: afterChange.status,
     affectedNodes: signalResult.affected.length,
+    expectedAffectedNodes: expectedAffectedIds.size,
+    unexpectedAffectedNodes,
+    missingAffectedNodes,
+    unaffectedAfterValidate,
+    affectedSample: [...signalResult.affected].sort().slice(0, 3).concat([...signalResult.affected].sort().slice(-3)),
     historyLength: protocol.history(targetId).length,
     totalMs: performance.now() - startedAt
   };

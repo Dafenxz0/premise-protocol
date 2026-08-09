@@ -4,8 +4,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const benchmarksDir = path.dirname(fileURLToPath(import.meta.url));
 const sources = {
+  comparative: path.join(benchmarksDir, "comparative-bench", "results.json"),
   realWorld: path.join(benchmarksDir, "real-world-bench", "results.json"),
-  contextCorpus: path.join(benchmarksDir, "context-corpus-bench", "results.json")
+  contextCorpus: path.join(benchmarksDir, "context-corpus-bench", "results.json"),
+  longContext: path.join(benchmarksDir, "long-context-bench", "results.json")
 };
 const output = path.join(benchmarksDir, "benchmark-report.md");
 
@@ -25,7 +27,9 @@ async function readJson(file) {
   }
 }
 
-function validateInputs(realWorld, contextCorpus) {
+function validateInputs(comparative, realWorld, contextCorpus, longContext) {
+  assertInput(comparative?.format, "falta format en comparative-bench/results.json");
+  assertInput(Array.isArray(comparative.pairedMetrics) && comparative.pairedMetrics.length > 0, "falta pairedMetrics en comparative-bench/results.json");
   assertInput(realWorld?.format, "falta format en real-world-bench/results.json");
   assertInput(Array.isArray(realWorld.scenarios), "falta scenarios en real-world-bench/results.json");
   assertInput(Array.isArray(realWorld.pairedMetrics), "falta pairedMetrics en real-world-bench/results.json");
@@ -34,6 +38,9 @@ function validateInputs(realWorld, contextCorpus) {
   assertInput(Array.isArray(contextCorpus.setups), "falta setups en context-corpus-bench/results.json");
   assertInput(Array.isArray(contextCorpus.results), "falta results en context-corpus-bench/results.json");
   assertInput(contextCorpus.results.length > 0, "results está vacío en context-corpus-bench/results.json");
+  assertInput(longContext?.format, "falta format en long-context-bench/results.json");
+  assertInput(Array.isArray(longContext.profiles) && longContext.profiles.length > 0, "falta profiles en long-context-bench/results.json");
+  assertInput(Array.isArray(longContext.results) && longContext.results.length > 0, "results está vacío en long-context-bench/results.json");
 }
 
 function unique(values) {
@@ -121,13 +128,14 @@ function strategyMetrics(realWorld, name) {
 
 function strategyRow(metric) {
   const denominators = metric.denominators;
+  const validated = metric.validatorCalls?.validate > 0;
   return [
     metric.strategy,
     `${statusIcon("one", metric.security.correctDecisionRate)} ${formatPercent(metric.security.correctDecisionRate)} (${formatInteger(metric.security.correctDecisions)}/${formatInteger(metric.episodes)})`,
-    rateCell(metric.security.unsafeActionRate, metric.security.unsafeActions, denominators.unsafeToUse, "zero"),
+    rateCell(metric.security.unsafeActionRate, metric.security.unsafeActions, metric.episodes, "zero"),
     rateCell(metric.security.falseRejectionRate, metric.security.falseRejections, denominators.safeToUse, "zero"),
-    rateCell(metric.validation.resultMatchRate, metric.validation.resultMatches, denominators.validationCases),
-    rateCell(metric.recovery.validatedRecoveryRate, metric.recovery.validatedRecoveries, denominators.recoveryCandidates),
+    validated ? rateCell(metric.validation.resultMatchRate, metric.validation.resultMatches, denominators.validationCases) : "ℹ️ no medido",
+    validated ? rateCell(metric.recovery.validatedRecoveryRate, metric.recovery.validatedRecoveries, denominators.recoveryCandidates) : "ℹ️ no medido",
     metric.isolation?.measured ? rateCell(metric.isolation.passRate, metric.isolation.passed, metric.isolation.cases) : "ℹ️ no medido",
     latencyCell(metric.latencyMs)
   ];
@@ -188,15 +196,19 @@ function patternLabel(pattern) {
 
 function contextQualityRow(result) {
   const postSignal = result.queries.postSignal;
+  const afterRepairAffected = result.checks.afterRepairAffected;
   const affectedRate = result.nodes ? result.propagation.affectedNodes / result.nodes : null;
   return [
     formatInteger(result.nodes),
     patternLabel(result.pattern),
     `${formatInteger(result.propagation.affectedNodes)} / ${formatInteger(result.nodes)} (${formatPercent(affectedRate)})`,
     `${statusIcon("one", result.metrics.precision)} ${formatPercent(result.metrics.precision)}`,
+    `${statusIcon("one", postSignal.retrievalHitRate)} ${formatPercent(postSignal.retrievalHitRate)}`,
     `${statusIcon("one", result.metrics.retrievalHitRate)} ${formatPercent(result.metrics.retrievalHitRate)}`,
-    `${statusIcon("one", postSignal.safety)} ${formatPercent(postSignal.safety)}`,
-    `${statusIcon("zero", postSignal.falseRejectRate)} ${formatPercent(postSignal.falseRejectRate)}`,
+    rateCell(postSignal.safety, postSignal.affectedCandidates - postSignal.unsafeUses, postSignal.affectedCandidates),
+    rateCell(postSignal.falseRejectRate, postSignal.falseRejects, postSignal.falseRejectDenominator, "zero"),
+    rateCell(postSignal.controlFalseRejectRate, postSignal.controlFalseRejects, postSignal.controlQueryCount, "zero"),
+    rateCell(result.metrics.finalSafety, afterRepairAffected.usable, afterRepairAffected.total),
     formatInteger(postSignal.blockedCandidates)
   ];
 }
@@ -262,9 +274,9 @@ function contextCorpusSection(contextCorpus) {
     "### Calidad y seguridad",
     "",
     markdownTable(
-      ["Nodos", "Patrón", "Propagación afectada", "Precisión", "Hit final", "Seguridad tras señal", "Falso rechazo tras señal", "Bloqueadas tras señal"],
+      ["Nodos", "Patrón", "Propagación afectada", "Precisión final", "Hit tras señal", "Hit tras reparación", "Seguridad tras señal (candidatos)", "Falso rechazo candidatos", "Falso rechazo controles", "Seguridad tras reparación", "Bloqueadas tras señal"],
       results.map(contextQualityRow),
-      [0, 2, 3, 4, 5, 6, 7]
+      [0, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     ),
     "",
     "### Coste y latencia",
@@ -275,7 +287,7 @@ function contextCorpusSection(contextCorpus) {
       [0, 2, 3, 4, 5, 6, 7]
     ),
     "",
-    "`Señal` y `Consulta` son latencias p50/p95 del resultado; `Heap Δ firmado` conserva el signo del artefacto. MB se presenta en base 1024.",
+    "`Tras señal` muestra la ventana en la que el protocolo bloquea memorias potencialmente obsoletas; `tras reparación` comprueba todos los nodos afectados, no solo el target. La seguridad y los falsos rechazos de candidatos usan denominadores de candidatos; los controles usan denominadores de consultas y se muestran por separado. Las latencias son p50/p95; `Heap Δ firmado` conserva el signo del artefacto. MB se presenta en base 1024.",
     "",
     "### Coste de preparación por tamaño",
     "",
@@ -291,7 +303,98 @@ function contextCorpusSection(contextCorpus) {
   ].join("\n");
 }
 
-function sourceSection(realWorld, contextCorpus) {
+function statusMark(status) {
+  const icons = { FRESH: "✅", STALE: "⚠️", INVALID: "❌", UNKNOWN: "ℹ️" };
+  return `${icons[status] ?? "ℹ️"} \`${status ?? "—"}\``;
+}
+
+function longContextQualityRow(profile) {
+  const affectedRate = profile.nodes ? profile.affectedNodes / profile.nodes : null;
+  return [
+    formatInteger(profile.nodes),
+    patternLabel(profile.topology),
+    `${formatInteger(profile.affectedNodes)} / ${formatInteger(profile.nodes)} (${formatPercent(affectedRate)})`,
+    `${statusMark(profile.beforeChangeStatus)} → ${statusMark(profile.afterSignalStatus)} → ${statusMark(profile.afterValidateStatus)}`
+  ];
+}
+
+function longContextCostRow(profile) {
+  return [
+    formatInteger(profile.nodes),
+    patternLabel(profile.topology),
+    formatMs(profile.signalMs),
+    formatMs(profile.validateMs),
+    formatMs(profile.totalMs),
+    formatMb(profile.heapDeltaBytes),
+    formatMb(profile.externalPayloadBytes)
+  ];
+}
+
+function longContextSection(longContext) {
+  const results = [...longContext.results].sort((left, right) => left.nodes - right.nodes || left.topology.localeCompare(right.topology));
+  const patterns = unique(results.map((result) => result.topology));
+  const largest = results.reduce((current, result) => result.nodes > current.nodes ? result : current, results[0]);
+  return [
+    "## Contexto largo y propagación selectiva",
+    "",
+    `El benchmark de grafo contiene **${formatInteger(longContext.profiles.length)} perfiles de tamaño** y **${formatInteger(patterns.length)} topologías** (${patterns.map(patternLabel).join(", ")}). Mide el ciclo completo: construir metadatos, detectar cambio, propagar obsolescencia y reparar la raíz validada.`,
+    "",
+    "### Correctitud de propagación",
+    "",
+    markdownTable(
+      ["Nodos", "Topología", "Afectados", "Ciclo de estado"],
+      results.map(longContextQualityRow),
+      [0, 2]
+    ),
+    "",
+    "### Coste de señal y reparación",
+    "",
+    markdownTable(
+      ["Nodos", "Topología", "Señal", "Validación", "Tiempo total", "Heap Δ", "Payload externo"],
+      results.map(longContextCostRow),
+      [0, 2, 3, 4, 5, 6]
+    ),
+    "",
+    `En el perfil máximo (${formatInteger(largest.nodes)} nodos, ${patternLabel(largest.topology)}), la señal afecta ${formatInteger(largest.affectedNodes)} nodos y la reparación termina en ${statusMark(largest.afterValidateStatus)}. Aislamiento: ${longContext.invariants?.isolation?.passed ? "✅ superado" : "❌ no superado"}.`,
+    "",
+    "Las topologías chain/fanout deben propagar el cambio por toda la rama; shared debe afectar solo la rama que comparte la fuente señalada."
+  ].join("\n");
+}
+
+function comparativeMetricRow(metric) {
+  const denominators = metric.denominators ?? {};
+  return [
+    metric.strategy,
+    formatInteger(metric.episodes),
+    `${formatPercent(metric.unsafeActionRate)} (n=${formatInteger(denominators.dynamic)})`,
+    `${formatPercent(metric.recoveryRate)} (n=${formatInteger(denominators.repairable)})`,
+    `${formatPercent(metric.nonRepairableRejectRate)} (n=${formatInteger(denominators.guarded)})`,
+    formatInteger(metric.revalidationCalls),
+    formatNumber(metric.episodes ? metric.readCalls / metric.episodes : null, 2),
+    `p50 ${formatMs(metric.latencyP50Ms)} / p95 ${formatMs(metric.latencyP95Ms)}`,
+    `p50 ${formatInteger(metric.memoryP50Bytes)} B / p95 ${formatInteger(metric.memoryP95Bytes)} B`,
+    formatPercent(metric.historyPreservationRate)
+  ];
+}
+
+function comparativeSection(comparative) {
+  const metrics = [...comparative.pairedMetrics].sort((left, right) => left.strategy.localeCompare(right.strategy));
+  return [
+    "## Comparativa emparejada: baseline frente a PREMiSE",
+    "",
+    `La suite **${comparative.suite}** compara ${formatInteger(comparative.scenarios.length)} episodios con el mismo oráculo. Los denominadores aparecen por métrica para evitar que una tasa de seguridad se confunda con una tasa de recuperación.`,
+    "",
+    markdownTable(
+      ["Estrategia", "Episodios", "Uso inseguro", "Recuperación", "Rechazo no reparable", "Revalidaciones", "Lecturas/episodio", "Latencia", "Memoria", "Historial"],
+      metrics.map(comparativeMetricRow),
+      [1, 5, 6]
+    ),
+    "",
+    "Interpretación: primero se aplica el gate de seguridad (uso inseguro = 0%); después se comparan recuperación, relecturas, latencia, memoria e historial. El baseline es más barato porque no revalida: esa cifra no constituye una mejora si permite usar memoria obsoleta."
+  ].join("\n");
+}
+
+function sourceSection(comparative, realWorld, contextCorpus, longContext) {
   const realDeterminism = realWorld.determinism ?? {};
   return [
     "## Fuentes y reproducibilidad",
@@ -299,6 +402,13 @@ function sourceSection(realWorld, contextCorpus) {
     markdownTable(
       ["Artefacto", "Formato", "Runner", "Seed", "Determinismo / ejecución"],
       [
+        [
+          "`benchmarks/comparative-bench/results.json`",
+          comparative.format,
+          comparative.runner,
+          comparative.seed,
+          `episodios emparejados ${comparative.scenarios.length > 0 ? "✅" : "⚠️"}`
+        ],
         [
           "`benchmarks/real-world-bench/results.json`",
           realWorld.format,
@@ -312,18 +422,25 @@ function sourceSection(realWorld, contextCorpus) {
           contextCorpus.runner,
           contextCorpus.seed,
           `offline ${contextCorpus.offline ? "✅" : "⚠️"}; determinista ${contextCorpus.deterministic ? "✅" : "⚠️"}`
+        ],
+        [
+          "`benchmarks/long-context-bench/results.json`",
+          longContext.format,
+          longContext.runner,
+          `${longContext.profiles.length} perfiles`,
+          `payload externo ${longContext.payloadBytes > 0 ? "✅" : "⚠️"}; aislamiento ${longContext.invariants?.isolation?.passed ? "✅" : "❌"}`
         ]
       ]
     ),
     "",
     `El runtime reportado para fixtures reales es Node ${realWorld.runtime?.node ?? "—"} y Git ${realWorld.runtime?.git ?? "—"}. Tiempos fijos declarados: protocolo ${realDeterminism.fixedProtocolTime ?? "—"}; cambio ${realDeterminism.fixedChangeTime ?? "—"}.`,
     "",
-    `El informe se genera sin reloj actual ni valores de benchmark embebidos: lee ambos JSON, conserva sus tasas, contadores, estados, latencias y tamaños, y escribe ` +
+    `El informe se genera sin reloj actual ni valores de benchmark embebidos: lee los cuatro JSON, conserva sus tasas, contadores, estados, latencias y tamaños, y escribe ` +
       "`benchmarks/benchmark-report.md`."
   ].join("\n");
 }
 
-function methodologySection(realWorld, contextCorpus) {
+function methodologySection(comparative, realWorld, contextCorpus, longContext) {
   const contextResult = contextCorpus.results[0];
   const changedDocuments = contextResult.propagation?.changedDocumentCount;
   const queryCount = contextResult.queries?.count;
@@ -333,18 +450,23 @@ function methodologySection(realWorld, contextCorpus) {
     "",
     `- **Fixtures reales:** se leen las expectativas y episodios de ${formatInteger(realWorld.scenarioCount)} escenarios con almacenamiento y mutaciones declarados en el artefacto. La tabla de seguridad usa ` +
       "`pairedMetrics`; la cobertura de casos usa `scenarios`.",
+    `- **Comparativa emparejada:** se muestran las ${formatInteger(comparative.scenarios.length)} situaciones compartidas por ` +
+      "`No protocol` y `PREMiSE`; uso inseguro, recuperación y rechazo no reparable conservan sus denominadores propios.",
     `- **Corpus de contexto:** se muestran todos los resultados disponibles (${formatInteger(contextCorpus.results.length)} combinaciones de tamaño/patrón), incluyendo propagación, precisión, recuperación de consultas y latencias registradas en cada fila.`,
     `- **Consulta:** el resultado de referencia usa ${formatInteger(queryCount)} consultas y top-k ${formatInteger(topK)} en la primera fila disponible; el informe conserva el conteo de cada fila cuando puede variar.`,
     `- **Mutación y validación:** cada fila de corpus registra ${formatInteger(changedDocuments)} documentos cambiados en su escenario; el validador declarado es el que figura en validator y no se sustituye por una simulación.`,
+    `- **Contexto largo:** se conservan las ${formatInteger(longContext.results.length)} combinaciones de tamaño/topología del artefacto, con estado antes de señal, después de señal y después de reparación, además de latencias y memoria.`,
     "- **Comparabilidad:** las comparaciones directas se limitan a estrategias y fases presentes en los JSON. No se inventan benchmarks before/after, mejoras porcentuales ni puntos de escalado que no estén registrados.",
     "- **Formato:** porcentajes son tasas del artefacto con su conteo; tiempos son milisegundos; memoria se expresa en MB base 1024."
   ].join("\n");
 }
 
-function limitationsSection(realWorld, contextCorpus) {
+function limitationsSection(comparative, realWorld, contextCorpus, longContext) {
   const limitations = unique([
+    ...(comparative.limitations ?? []).map((limitation) => `Comparativa emparejada: ${limitation}`),
     ...(realWorld.limitations ?? []).map((limitation) => `Fixtures reales: ${limitation}`),
-    ...(contextCorpus.limitations ?? []).map((limitation) => `Corpus de contexto: ${limitation}`)
+    ...(contextCorpus.limitations ?? []).map((limitation) => `Corpus de contexto: ${limitation}`),
+    ...(longContext.limitations ?? []).map((limitation) => `Contexto largo: ${limitation}`)
   ]);
   return [
     "## Limitaciones",
@@ -355,16 +477,23 @@ function limitationsSection(realWorld, contextCorpus) {
   ].join("\n");
 }
 
-function summarySection(realWorld, contextCorpus) {
+function summarySection(comparative, realWorld, contextCorpus, longContext) {
   const premise = strategyMetrics(realWorld, "PREMiSE");
+  const pairedPremise = strategyMetrics(comparative, "PREMiSE");
   const largest = contextCorpus.results.reduce((current, result) => result.nodes > current.nodes ? result : current, contextCorpus.results[0]);
   const finalQuality = largest.metrics.retrievalHitRate;
+  const largestLong = longContext.results.reduce((current, result) => result.nodes > current.nodes ? result : current, longContext.results[0]);
   return [
     "## Resumen ejecutivo",
     "",
     markdownTable(
       ["Área", "Lectura del artefacto", "Estado"],
       [
+        [
+          "Gate de seguridad emparejado",
+          `${formatInteger(pairedPremise.episodes)} episodios · ${formatPercent(pairedPremise.unsafeActionRate)} uso inseguro PREMiSE`,
+          pairedPremise.unsafeActionRate === 0 ? "✅ superado" : "❌ no superado"
+        ],
         [
           "Seguridad en fixtures reales",
           `${formatInteger(premise.security.unsafeActions)} acciones inseguras en ${formatInteger(premise.denominators.unsafeToUse)} casos inseguros`,
@@ -384,37 +513,48 @@ function summarySection(realWorld, contextCorpus) {
           "Aislamiento del corpus",
           `${formatInteger(contextCorpus.invariants?.isolation?.affected?.length ?? 0)} afectados en la comprobación declarada`,
           contextCorpus.invariants?.isolation?.passed ? "✅ superado" : "❌ no superado"
+        ],
+        [
+          "Propagación de contexto largo",
+          `${formatInteger(largestLong.nodes)} nodos · ${patternLabel(largestLong.topology)} · ${formatInteger(largestLong.affectedNodes)} afectados`,
+          statusMark(largestLong.afterValidateStatus)
         ]
       ]
     ),
     "",
-    "> Las conclusiones anteriores son resúmenes de campos existentes en los dos artefactos; el detalle completo y sus denominadores aparecen en las tablas siguientes."
+    "> Las conclusiones anteriores son resúmenes de campos existentes en los cuatro artefactos; el detalle completo y sus denominadores aparecen en las tablas siguientes."
   ].join("\n");
 }
 
 async function main() {
-  const [realWorld, contextCorpus] = await Promise.all([
+  const [comparative, realWorld, contextCorpus, longContext] = await Promise.all([
+    readJson(sources.comparative),
     readJson(sources.realWorld),
-    readJson(sources.contextCorpus)
+    readJson(sources.contextCorpus),
+    readJson(sources.longContext)
   ]);
-  validateInputs(realWorld, contextCorpus);
+  validateInputs(comparative, realWorld, contextCorpus, longContext);
 
   const report = [
     "# Informe de benchmarks",
     "",
     "> Informe Markdown reproducible generado desde resultados JSON reales.",
     "",
-    summarySection(realWorld, contextCorpus),
+    summarySection(comparative, realWorld, contextCorpus, longContext),
+    "",
+    comparativeSection(comparative),
     "",
     realWorldSection(realWorld),
     "",
     contextCorpusSection(contextCorpus),
     "",
-    sourceSection(realWorld, contextCorpus),
+    longContextSection(longContext),
     "",
-    methodologySection(realWorld, contextCorpus),
+    sourceSection(comparative, realWorld, contextCorpus, longContext),
     "",
-    limitationsSection(realWorld, contextCorpus),
+    methodologySection(comparative, realWorld, contextCorpus, longContext),
+    "",
+    limitationsSection(comparative, realWorld, contextCorpus, longContext),
     ""
   ].join("\n");
 

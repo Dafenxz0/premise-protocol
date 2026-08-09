@@ -32,6 +32,24 @@ ordered.markStatus("root", "FRESH");
 assert.equal(ordered.stateOf("root").status, "INVALID");
 ordered.replace(envelope("root"));
 assert.equal(ordered.stateOf("a").status, "FRESH");
+const repeated = new MemoryStateStore();
+repeated.register(envelope("repeat-root"));
+repeated.derive(envelope("repeat-child", "FRESH", ["repeat-root"]));
+repeated.markStatus("repeat-root", "STALE");
+assert.deepEqual(
+  repeated.markStatusWithPrevious("repeat-root", "STALE").map(({ state, previousStatus }) => [state.memoryId, previousStatus, state.status]),
+  [["repeat-child", "STALE", "STALE"], ["repeat-root", "STALE", "STALE"]]
+);
+repeated.markStatus("repeat-root", "FRESH");
+assert.equal(repeated.stateOf("repeat-child").status, "FRESH");
+const batched = new MemoryStateStore();
+batched.register(envelope("batch-a"));
+batched.register(envelope("batch-b"));
+batched.derive(envelope("batch-a-child", "FRESH", ["batch-a"]));
+batched.derive(envelope("batch-b-child", "FRESH", ["batch-b"]));
+const batchChanges = batched.markStatusesWithPrevious(["batch-a", "batch-b"], "STALE");
+assert.deepEqual(batchChanges.map(({ state }) => state.memoryId), ["batch-a", "batch-a-child", "batch-b", "batch-b-child"]);
+assert.deepEqual(batched.check(["batch-a-child", "batch-b-child"]).map((item) => item.decision), ["REVALIDATE", "REVALIDATE"]);
 let now = "2026-08-09T19:20:00Z";
 const ttl = new MemoryStateStore(() => now);
 ttl.register({ ...envelope("ttl"), validity: { status: "FRESH", checkedAt: at, policy: "TTL", expiresAt: "2026-08-09T20:00:00Z" } });

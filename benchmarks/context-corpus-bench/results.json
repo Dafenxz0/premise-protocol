@@ -14,31 +14,31 @@
   "setups": [
     {
       "nodes": 1000,
-      "corpusGenerationMs": 602.6455,
-      "indexBuildMs": 14.0153,
+      "corpusGenerationMs": 1219.5587,
+      "indexBuildMs": 14.3382,
       "payloadBytes": 104854,
-      "indexMetadataBytes": 158516
+      "indexMetadataBytes": 158605
     },
     {
       "nodes": 10000,
-      "corpusGenerationMs": 5839.7273,
-      "indexBuildMs": 168.1557,
+      "corpusGenerationMs": 12645.5031,
+      "indexBuildMs": 177.2086,
       "payloadBytes": 1058012,
-      "indexMetadataBytes": 1580516
+      "indexMetadataBytes": 1580605
     },
     {
       "nodes": 50000,
-      "corpusGenerationMs": 41032.3415,
-      "indexBuildMs": 879.3154,
+      "corpusGenerationMs": 70500.9393,
+      "indexBuildMs": 890.5557,
       "payloadBytes": 5334262,
-      "indexMetadataBytes": 7940516
+      "indexMetadataBytes": 7940605
     },
     {
       "nodes": 100000,
-      "corpusGenerationMs": 68222.6014,
-      "indexBuildMs": 1825.1705,
+      "corpusGenerationMs": 124096.6039,
+      "indexBuildMs": 1813.6658,
       "payloadBytes": 10679580,
-      "indexMetadataBytes": 15890516
+      "indexMetadataBytes": 15890605
     }
   ],
   "results": [
@@ -64,10 +64,10 @@
         ]
       },
       "queries": {
-        "count": 64,
+        "count": 72,
         "topK": 10,
-        "baseline": {
-          "queries": 64,
+        "preMutation": {
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -77,33 +77,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.023,
-            "p95Ms": 0.0703
+            "count": 72,
+            "p50Ms": 0.0145,
+            "p95Ms": 0.0554
           }
         },
         "postSignal": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.111111,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 613,
           "affectedCandidates": 613,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.0147,
-            "p95Ms": 0.0466
+            "count": 72,
+            "p50Ms": 0.02,
+            "p95Ms": 0.0708
           }
         },
         "final": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -113,11 +121,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.0153,
-            "p95Ms": 0.0427
+            "count": 72,
+            "p50Ms": 0.0144,
+            "p95Ms": 0.0413
           }
         }
       },
@@ -138,6 +150,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 1000,
+          "usable": 1000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -203,74 +220,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0399,
-            "p95Ms": 0.517
+            "p50Ms": 0.0359,
+            "p95Ms": 0.533
           },
           "derive": {
             "count": 999,
-            "p50Ms": 0.0051,
-            "p95Ms": 0.0093
+            "p50Ms": 0.0046,
+            "p95Ms": 0.0074
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.3269,
-            "p95Ms": 3.1011
+            "p50Ms": 0.2022,
+            "p95Ms": 3.0967
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0031,
-            "p95Ms": 0.071
+            "p50Ms": 0.0017,
+            "p95Ms": 0.0753
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.3179,
-            "p95Ms": 3.2826
+            "p50Ms": 0.2217,
+            "p95Ms": 3.2274
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.2867,
-            "p95Ms": 0.6425
+            "p50Ms": 0.2961,
+            "p95Ms": 0.5756
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1034,
-            "p95Ms": 0.2215
+            "p50Ms": 0.078,
+            "p95Ms": 0.1801
           },
           "query": {
-            "count": 64,
-            "p50Ms": 0.0153,
-            "p95Ms": 0.0427
+            "count": 72,
+            "p50Ms": 0.0144,
+            "p95Ms": 0.0413
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 626565,
-          "indexMetadataBytes": 158532,
-          "serializedMetadataBytes": 785097,
-          "bytesPerNode": 785.097,
+          "indexMetadataBytes": 158621,
+          "serializedMetadataBytes": 785186,
+          "bytesPerNode": 785.186,
           "journalEvents": 3009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 12748664,
-          "afterHeapUsedBytes": 14013008,
-          "deltaBytes": 1264344,
-          "signedDeltaBytes": 1264344,
-          "beforeRssBytes": 58806272,
-          "afterRssBytes": 70332416,
+          "beforeHeapUsedBytes": 15507608,
+          "afterHeapUsedBytes": 14527312,
+          "deltaBytes": 0,
+          "signedDeltaBytes": -980296,
+          "beforeRssBytes": 62144512,
+          "afterRssBytes": 70057984,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 602.6455,
-        "mutationMs": 7.2969,
-        "indexUpdateMs": 0.4102,
-        "restoreMs": 5.2747,
-        "totalMs": 42.2693
+        "corpusGenerationMs": 1219.5587,
+        "mutationMs": 10.8804,
+        "indexUpdateMs": 0.3272,
+        "restoreMs": 7.3643,
+        "totalMs": 46.0355
       }
     },
     {
@@ -295,10 +313,10 @@
         ]
       },
       "queries": {
-        "count": 64,
+        "count": 72,
         "topK": 10,
-        "baseline": {
-          "queries": 64,
+        "preMutation": {
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -308,33 +326,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
+            "count": 72,
             "p50Ms": 0.0132,
-            "p95Ms": 0.0268
+            "p95Ms": 0.0269
           }
         },
         "postSignal": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.111111,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 613,
           "affectedCandidates": 613,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.013,
-            "p95Ms": 0.0291
+            "count": 72,
+            "p50Ms": 0.0138,
+            "p95Ms": 0.0482
           }
         },
         "final": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -344,11 +370,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.0203,
-            "p95Ms": 0.0459
+            "count": 72,
+            "p50Ms": 0.0139,
+            "p95Ms": 0.0295
           }
         }
       },
@@ -369,6 +399,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 1000,
+          "usable": 1000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -434,74 +469,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0169,
-            "p95Ms": 0.0448
+            "p50Ms": 0.0136,
+            "p95Ms": 0.0464
           },
           "derive": {
             "count": 999,
             "p50Ms": 0.0038,
-            "p95Ms": 0.0045
+            "p95Ms": 0.0047
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0131,
-            "p95Ms": 2.324
+            "p50Ms": 0.0176,
+            "p95Ms": 2.3279
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.002,
-            "p95Ms": 0.0025
+            "p50Ms": 0.0013,
+            "p95Ms": 0.0027
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1632,
-            "p95Ms": 2.7166
+            "p50Ms": 0.1781,
+            "p95Ms": 2.1036
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0159,
-            "p95Ms": 0.3646
+            "p50Ms": 0.0149,
+            "p95Ms": 0.477
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0654,
-            "p95Ms": 0.0857
+            "p50Ms": 0.124,
+            "p95Ms": 0.1557
           },
           "query": {
-            "count": 64,
-            "p50Ms": 0.0203,
-            "p95Ms": 0.0459
+            "count": 72,
+            "p50Ms": 0.0139,
+            "p95Ms": 0.0295
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 628565,
-          "indexMetadataBytes": 158532,
-          "serializedMetadataBytes": 787097,
-          "bytesPerNode": 787.097,
+          "indexMetadataBytes": 158621,
+          "serializedMetadataBytes": 787186,
+          "bytesPerNode": 787.186,
           "journalEvents": 3009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 12151304,
-          "afterHeapUsedBytes": 17118952,
-          "deltaBytes": 4967648,
-          "signedDeltaBytes": 4967648,
-          "beforeRssBytes": 71671808,
-          "afterRssBytes": 73404416,
+          "beforeHeapUsedBytes": 12203872,
+          "afterHeapUsedBytes": 23204000,
+          "deltaBytes": 11000128,
+          "signedDeltaBytes": 11000128,
+          "beforeRssBytes": 71778304,
+          "afterRssBytes": 76226560,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 602.6455,
-        "mutationMs": 1.5754,
-        "indexUpdateMs": 0.2164,
-        "restoreMs": 1.9251,
-        "totalMs": 25.9454
+        "corpusGenerationMs": 1219.5587,
+        "mutationMs": 3.7974,
+        "indexUpdateMs": 0.3607,
+        "restoreMs": 2.7336,
+        "totalMs": 27.0888
       }
     },
     {
@@ -526,10 +562,10 @@
         ]
       },
       "queries": {
-        "count": 64,
+        "count": 72,
         "topK": 10,
-        "baseline": {
-          "queries": 64,
+        "preMutation": {
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -539,33 +575,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.0202,
-            "p95Ms": 0.0475
+            "count": 72,
+            "p50Ms": 0.0151,
+            "p95Ms": 0.0318
           }
         },
         "postSignal": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0.515625,
+          "retrievalHitRate": 0.569444,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 303,
           "affectedCandidates": 303,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 311,
+          "falseRejectDenominator": 318,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.0154,
-            "p95Ms": 0.0314
+            "count": 72,
+            "p50Ms": 0.0201,
+            "p95Ms": 0.051
           }
         },
         "final": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -575,11 +619,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.0163,
-            "p95Ms": 0.0319
+            "count": 72,
+            "p50Ms": 0.0115,
+            "p95Ms": 0.0237
           }
         }
       },
@@ -600,6 +648,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 501,
+          "usable": 501,
+          "safety": 1
         }
       },
       "propagation": {
@@ -665,74 +718,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0164,
-            "p95Ms": 0.0284
+            "p50Ms": 0.0188,
+            "p95Ms": 0.0267
           },
           "derive": {
             "count": 998,
-            "p50Ms": 0.004,
-            "p95Ms": 0.006
+            "p50Ms": 0.0038,
+            "p95Ms": 0.0055
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0386,
-            "p95Ms": 1.7799
+            "p50Ms": 0.0115,
+            "p95Ms": 1.4467
           },
           "check": {
             "count": 4,
             "p50Ms": 0.0011,
-            "p95Ms": 0.008
+            "p95Ms": 0.0069
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1895,
-            "p95Ms": 1.331
+            "p50Ms": 0.1935,
+            "p95Ms": 2.3406
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0211,
-            "p95Ms": 0.2823
+            "p50Ms": 0.0117,
+            "p95Ms": 0.1991
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0995,
-            "p95Ms": 0.1073
+            "p50Ms": 0.0855,
+            "p95Ms": 0.0883
           },
           "query": {
-            "count": 64,
-            "p50Ms": 0.0163,
-            "p95Ms": 0.0319
+            "count": 72,
+            "p50Ms": 0.0115,
+            "p95Ms": 0.0237
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 641514,
-          "indexMetadataBytes": 158532,
-          "serializedMetadataBytes": 800046,
-          "bytesPerNode": 800.046,
+          "indexMetadataBytes": 158621,
+          "serializedMetadataBytes": 800135,
+          "bytesPerNode": 800.135,
           "journalEvents": 2011,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 22220632,
-          "afterHeapUsedBytes": 26311704,
-          "deltaBytes": 4091072,
-          "signedDeltaBytes": 4091072,
-          "beforeRssBytes": 75603968,
-          "afterRssBytes": 88031232,
+          "beforeHeapUsedBytes": 12975272,
+          "afterHeapUsedBytes": 18420536,
+          "deltaBytes": 5445264,
+          "signedDeltaBytes": 5445264,
+          "beforeRssBytes": 80932864,
+          "afterRssBytes": 89501696,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 602.6455,
-        "mutationMs": 1.5957,
-        "indexUpdateMs": 0.282,
-        "restoreMs": 1.6483,
-        "totalMs": 23.0243
+        "corpusGenerationMs": 1219.5587,
+        "mutationMs": 2.5723,
+        "indexUpdateMs": 0.2436,
+        "restoreMs": 6.6423,
+        "totalMs": 27.559
       }
     },
     {
@@ -757,10 +811,10 @@
         ]
       },
       "queries": {
-        "count": 64,
+        "count": 72,
         "topK": 10,
-        "baseline": {
-          "queries": 64,
+        "preMutation": {
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -770,33 +824,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1813,
-            "p95Ms": 0.4829
+            "count": 72,
+            "p50Ms": 0.1708,
+            "p95Ms": 0.4432
           }
         },
         "postSignal": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.111111,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 613,
           "affectedCandidates": 613,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1403,
-            "p95Ms": 0.3842
+            "count": 72,
+            "p50Ms": 0.1225,
+            "p95Ms": 0.3583
           }
         },
         "final": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -806,11 +868,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1022,
-            "p95Ms": 0.2723
+            "count": 72,
+            "p50Ms": 0.0993,
+            "p95Ms": 0.3181
           }
         }
       },
@@ -831,6 +897,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 10000,
+          "usable": 10000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -896,74 +967,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0453,
-            "p95Ms": 0.0636
+            "p50Ms": 0.0299,
+            "p95Ms": 0.0674
           },
           "derive": {
             "count": 9999,
-            "p50Ms": 0.0056,
-            "p95Ms": 0.0075
+            "p50Ms": 0.0055,
+            "p95Ms": 0.0071
           },
           "signal": {
             "count": 3,
-            "p50Ms": 3.3706,
-            "p95Ms": 31.7517
+            "p50Ms": 2.3144,
+            "p95Ms": 28.3623
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0024,
-            "p95Ms": 0.0046
+            "p50Ms": 0.0027,
+            "p95Ms": 0.0035
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2521,
-            "p95Ms": 29.4673
+            "p50Ms": 0.369,
+            "p95Ms": 32.111
           },
           "repair": {
             "count": 4,
-            "p50Ms": 1.929,
-            "p95Ms": 3.483
+            "p50Ms": 2.3808,
+            "p95Ms": 4.514
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0847,
-            "p95Ms": 0.101
+            "p50Ms": 0.0902,
+            "p95Ms": 0.1354
           },
           "query": {
-            "count": 64,
-            "p50Ms": 0.1022,
-            "p95Ms": 0.2723
+            "count": 72,
+            "p50Ms": 0.0993,
+            "p95Ms": 0.3181
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 6270566,
-          "indexMetadataBytes": 1580532,
-          "serializedMetadataBytes": 7851098,
-          "bytesPerNode": 785.1098,
+          "indexMetadataBytes": 1580621,
+          "serializedMetadataBytes": 7851187,
+          "bytesPerNode": 785.1187,
           "journalEvents": 30009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 52640856,
-          "afterHeapUsedBytes": 100865096,
-          "deltaBytes": 48224240,
-          "signedDeltaBytes": 48224240,
-          "beforeRssBytes": 133619712,
-          "afterRssBytes": 239652864,
+          "beforeHeapUsedBytes": 47550312,
+          "afterHeapUsedBytes": 97845144,
+          "deltaBytes": 50294832,
+          "signedDeltaBytes": 50294832,
+          "beforeRssBytes": 132632576,
+          "afterRssBytes": 236843008,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 5839.7273,
-        "mutationMs": 6.9988,
-        "indexUpdateMs": 0.2718,
-        "restoreMs": 8.7466,
-        "totalMs": 254.0527
+        "corpusGenerationMs": 12645.5031,
+        "mutationMs": 20.5052,
+        "indexUpdateMs": 0.3072,
+        "restoreMs": 9.3585,
+        "totalMs": 288.7066
       }
     },
     {
@@ -988,10 +1060,10 @@
         ]
       },
       "queries": {
-        "count": 64,
+        "count": 72,
         "topK": 10,
-        "baseline": {
-          "queries": 64,
+        "preMutation": {
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1001,33 +1073,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1008,
-            "p95Ms": 0.323
+            "count": 72,
+            "p50Ms": 0.0987,
+            "p95Ms": 0.2758
           }
         },
         "postSignal": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.111111,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 613,
           "affectedCandidates": 613,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1,
-            "p95Ms": 0.2757
+            "count": 72,
+            "p50Ms": 0.1582,
+            "p95Ms": 0.3345
           }
         },
         "final": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1037,11 +1117,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1663,
-            "p95Ms": 0.3485
+            "count": 72,
+            "p50Ms": 0.0964,
+            "p95Ms": 0.339
           }
         }
       },
@@ -1062,6 +1146,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 10000,
+          "usable": 10000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -1127,74 +1216,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0205,
-            "p95Ms": 0.0604
+            "p50Ms": 0.0187,
+            "p95Ms": 0.0641
           },
           "derive": {
             "count": 9999,
-            "p50Ms": 0.0031,
-            "p95Ms": 0.0053
+            "p50Ms": 0.0046,
+            "p95Ms": 0.0055
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0377,
-            "p95Ms": 24.0693
+            "p50Ms": 0.0515,
+            "p95Ms": 25.3617
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0019,
-            "p95Ms": 0.0033
+            "p50Ms": 0.0029,
+            "p95Ms": 0.0036
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1777,
-            "p95Ms": 25.9155
+            "p50Ms": 0.2604,
+            "p95Ms": 27.6034
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0293,
-            "p95Ms": 4.2149
+            "p50Ms": 0.0308,
+            "p95Ms": 3.8484
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.2152,
-            "p95Ms": 0.2167
+            "p50Ms": 0.1563,
+            "p95Ms": 0.1868
           },
           "query": {
-            "count": 64,
-            "p50Ms": 0.1663,
-            "p95Ms": 0.3485
+            "count": 72,
+            "p50Ms": 0.0964,
+            "p95Ms": 0.339
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 6290566,
-          "indexMetadataBytes": 1580532,
-          "serializedMetadataBytes": 7871098,
-          "bytesPerNode": 787.1098,
+          "indexMetadataBytes": 1580621,
+          "serializedMetadataBytes": 7871187,
+          "bytesPerNode": 787.1187,
           "journalEvents": 30009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 61788584,
-          "afterHeapUsedBytes": 107949456,
-          "deltaBytes": 46160872,
-          "signedDeltaBytes": 46160872,
-          "beforeRssBytes": 243724288,
-          "afterRssBytes": 265211904,
+          "beforeHeapUsedBytes": 62389096,
+          "afterHeapUsedBytes": 110462272,
+          "deltaBytes": 48073176,
+          "signedDeltaBytes": 48073176,
+          "beforeRssBytes": 242163712,
+          "afterRssBytes": 266604544,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 5839.7273,
-        "mutationMs": 8.0347,
-        "indexUpdateMs": 0.6464,
-        "restoreMs": 2.6045,
-        "totalMs": 206.6362
+        "corpusGenerationMs": 12645.5031,
+        "mutationMs": 3.8182,
+        "indexUpdateMs": 0.4687,
+        "restoreMs": 2.9456,
+        "totalMs": 207.3865
       }
     },
     {
@@ -1219,10 +1309,10 @@
         ]
       },
       "queries": {
-        "count": 64,
+        "count": 72,
         "topK": 10,
-        "baseline": {
-          "queries": 64,
+        "preMutation": {
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1232,33 +1322,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1615,
-            "p95Ms": 0.3377
+            "count": 72,
+            "p50Ms": 0.0914,
+            "p95Ms": 0.2604
           }
         },
         "postSignal": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0.53125,
+          "retrievalHitRate": 0.583333,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 303,
           "affectedCandidates": 303,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 311,
+          "falseRejectDenominator": 318,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1024,
-            "p95Ms": 0.3224
+            "count": 72,
+            "p50Ms": 0.1559,
+            "p95Ms": 0.3325
           }
         },
         "final": {
-          "queries": 64,
+          "queries": 72,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1268,11 +1366,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 614,
+          "falseRejectDenominator": 621,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 64,
-            "p50Ms": 0.1097,
-            "p95Ms": 0.3209
+            "count": 72,
+            "p50Ms": 0.1564,
+            "p95Ms": 0.3279
           }
         }
       },
@@ -1293,6 +1395,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 5001,
+          "usable": 5001,
+          "safety": 1
         }
       },
       "propagation": {
@@ -1358,74 +1465,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0254,
-            "p95Ms": 0.0426
+            "p50Ms": 0.0192,
+            "p95Ms": 0.0372
           },
           "derive": {
             "count": 9998,
-            "p50Ms": 0.0053,
-            "p95Ms": 0.0062
+            "p50Ms": 0.0048,
+            "p95Ms": 0.0061
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0464,
-            "p95Ms": 17.9764
+            "p50Ms": 0.0189,
+            "p95Ms": 13.6128
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0023,
-            "p95Ms": 0.003
+            "p50Ms": 0.0011,
+            "p95Ms": 0.0025
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.4809,
-            "p95Ms": 13.9588
+            "p50Ms": 0.1218,
+            "p95Ms": 14.4437
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0077,
-            "p95Ms": 1.4159
+            "p50Ms": 0.013,
+            "p95Ms": 2.2686
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0883,
-            "p95Ms": 0.2348
+            "p50Ms": 0.0897,
+            "p95Ms": 0.1344
           },
           "query": {
-            "count": 64,
-            "p50Ms": 0.1097,
-            "p95Ms": 0.3209
+            "count": 72,
+            "p50Ms": 0.1564,
+            "p95Ms": 0.3279
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 6420515,
-          "indexMetadataBytes": 1580532,
-          "serializedMetadataBytes": 8001047,
-          "bytesPerNode": 800.1047,
+          "indexMetadataBytes": 1580621,
+          "serializedMetadataBytes": 8001136,
+          "bytesPerNode": 800.1136,
           "journalEvents": 20011,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 136572456,
-          "afterHeapUsedBytes": 144764032,
-          "deltaBytes": 8191576,
-          "signedDeltaBytes": 8191576,
-          "beforeRssBytes": 274984960,
-          "afterRssBytes": 284418048,
+          "beforeHeapUsedBytes": 139659416,
+          "afterHeapUsedBytes": 159130600,
+          "deltaBytes": 19471184,
+          "signedDeltaBytes": 19471184,
+          "beforeRssBytes": 275845120,
+          "afterRssBytes": 285290496,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 5839.7273,
-        "mutationMs": 6.1103,
-        "indexUpdateMs": 0.4044,
-        "restoreMs": 8.7453,
-        "totalMs": 215.9024
+        "corpusGenerationMs": 12645.5031,
+        "mutationMs": 11.8868,
+        "indexUpdateMs": 0.306,
+        "restoreMs": 8.7529,
+        "totalMs": 200.202
       }
     },
     {
@@ -1450,10 +1558,10 @@
         ]
       },
       "queries": {
-        "count": 200,
+        "count": 208,
         "topK": 10,
-        "baseline": {
-          "queries": 200,
+        "preMutation": {
+          "queries": 208,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1463,33 +1571,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1974,
+          "falseRejectDenominator": 1981,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.5114,
-            "p95Ms": 1.637
+            "count": 208,
+            "p50Ms": 0.518,
+            "p95Ms": 1.5446
           }
         },
         "postSignal": {
-          "queries": 200,
+          "queries": 208,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.038462,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 1973,
           "affectedCandidates": 1973,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.5078,
-            "p95Ms": 1.2661
+            "count": 208,
+            "p50Ms": 0.5203,
+            "p95Ms": 1.702
           }
         },
         "final": {
-          "queries": 200,
+          "queries": 208,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1499,11 +1615,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1974,
+          "falseRejectDenominator": 1981,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.5147,
-            "p95Ms": 1.6289
+            "count": 208,
+            "p50Ms": 0.4985,
+            "p95Ms": 1.1104
           }
         }
       },
@@ -1524,6 +1644,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 50000,
+          "usable": 50000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -1589,74 +1714,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.024,
-            "p95Ms": 0.052
+            "p50Ms": 0.028,
+            "p95Ms": 0.0689
           },
           "derive": {
             "count": 49999,
-            "p50Ms": 0.0047,
-            "p95Ms": 0.0061
+            "p50Ms": 0.004,
+            "p95Ms": 0.0066
           },
           "signal": {
             "count": 3,
-            "p50Ms": 21.5563,
-            "p95Ms": 161.8648
+            "p50Ms": 8.5743,
+            "p95Ms": 192.2493
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0032,
-            "p95Ms": 0.0043
+            "p50Ms": 0.0038,
+            "p95Ms": 0.0175
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.4512,
-            "p95Ms": 123.3954
+            "p50Ms": 0.5202,
+            "p95Ms": 118.5084
           },
           "repair": {
             "count": 4,
-            "p50Ms": 11.8803,
-            "p95Ms": 28.231
+            "p50Ms": 13.5735,
+            "p95Ms": 30.9188
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.2683,
-            "p95Ms": 0.3306
+            "p50Ms": 0.088,
+            "p95Ms": 0.1368
           },
           "query": {
-            "count": 200,
-            "p50Ms": 0.5147,
-            "p95Ms": 1.6289
+            "count": 208,
+            "p50Ms": 0.4985,
+            "p95Ms": 1.1104
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 31350566,
-          "indexMetadataBytes": 7940532,
-          "serializedMetadataBytes": 39291098,
-          "bytesPerNode": 785.82196,
+          "indexMetadataBytes": 7940621,
+          "serializedMetadataBytes": 39291187,
+          "bytesPerNode": 785.82374,
           "journalEvents": 150009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 181392968,
-          "afterHeapUsedBytes": 309275704,
-          "deltaBytes": 127882736,
-          "signedDeltaBytes": 127882736,
-          "beforeRssBytes": 340279296,
-          "afterRssBytes": 462938112,
+          "beforeHeapUsedBytes": 177178328,
+          "afterHeapUsedBytes": 313598816,
+          "deltaBytes": 136420488,
+          "signedDeltaBytes": 136420488,
+          "beforeRssBytes": 298954752,
+          "afterRssBytes": 478027776,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 41032.3415,
-        "mutationMs": 8.7217,
-        "indexUpdateMs": 0.8489,
-        "restoreMs": 6.4764,
-        "totalMs": 1396.6472
+        "corpusGenerationMs": 70500.9393,
+        "mutationMs": 16.891,
+        "indexUpdateMs": 0.3057,
+        "restoreMs": 12.7238,
+        "totalMs": 1468.4863
       }
     },
     {
@@ -1681,10 +1807,10 @@
         ]
       },
       "queries": {
-        "count": 200,
+        "count": 208,
         "topK": 10,
-        "baseline": {
-          "queries": 200,
+        "preMutation": {
+          "queries": 208,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1694,33 +1820,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1974,
+          "falseRejectDenominator": 1981,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.5294,
-            "p95Ms": 1.6627
+            "count": 208,
+            "p50Ms": 0.6562,
+            "p95Ms": 1.7429
           }
         },
         "postSignal": {
-          "queries": 200,
+          "queries": 208,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.038462,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 1973,
           "affectedCandidates": 1973,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.4955,
-            "p95Ms": 1.6458
+            "count": 208,
+            "p50Ms": 0.579,
+            "p95Ms": 1.7294
           }
         },
         "final": {
-          "queries": 200,
+          "queries": 208,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1730,11 +1864,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1974,
+          "falseRejectDenominator": 1981,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.4983,
-            "p95Ms": 1.634
+            "count": 208,
+            "p50Ms": 0.8281,
+            "p95Ms": 1.742
           }
         }
       },
@@ -1755,6 +1893,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 50000,
+          "usable": 50000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -1820,74 +1963,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0229,
-            "p95Ms": 0.0527
+            "p50Ms": 0.0257,
+            "p95Ms": 0.0491
           },
           "derive": {
             "count": 49999,
-            "p50Ms": 0.0035,
-            "p95Ms": 0.006
+            "p50Ms": 0.0051,
+            "p95Ms": 0.0065
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.1025,
-            "p95Ms": 146.1872
+            "p50Ms": 0.0839,
+            "p95Ms": 156.7619
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0026,
-            "p95Ms": 0.0045
+            "p50Ms": 0.0031,
+            "p95Ms": 0.0403
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2298,
-            "p95Ms": 133.0826
+            "p50Ms": 0.4169,
+            "p95Ms": 124.4488
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0408,
-            "p95Ms": 29.2055
+            "p50Ms": 0.0654,
+            "p95Ms": 31.5347
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0946,
-            "p95Ms": 0.1387
+            "p50Ms": 0.1018,
+            "p95Ms": 0.1341
           },
           "query": {
-            "count": 200,
-            "p50Ms": 0.4983,
-            "p95Ms": 1.634
+            "count": 208,
+            "p50Ms": 0.8281,
+            "p95Ms": 1.742
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 31450566,
-          "indexMetadataBytes": 7940532,
-          "serializedMetadataBytes": 39391098,
-          "bytesPerNode": 787.82196,
+          "indexMetadataBytes": 7940621,
+          "serializedMetadataBytes": 39391187,
+          "bytesPerNode": 787.82374,
           "journalEvents": 150009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 371769800,
-          "afterHeapUsedBytes": 486340344,
-          "deltaBytes": 114570544,
-          "signedDeltaBytes": 114570544,
-          "beforeRssBytes": 518033408,
-          "afterRssBytes": 670035968,
+          "beforeHeapUsedBytes": 376569592,
+          "afterHeapUsedBytes": 465271568,
+          "deltaBytes": 88701976,
+          "signedDeltaBytes": 88701976,
+          "beforeRssBytes": 530866176,
+          "afterRssBytes": 652750848,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 41032.3415,
-        "mutationMs": 2.4263,
-        "indexUpdateMs": 0.3203,
-        "restoreMs": 2.2145,
-        "totalMs": 1284.1156
+        "corpusGenerationMs": 70500.9393,
+        "mutationMs": 3.2415,
+        "indexUpdateMs": 0.3236,
+        "restoreMs": 3.3983,
+        "totalMs": 1430.0459
       }
     },
     {
@@ -1912,10 +2056,10 @@
         ]
       },
       "queries": {
-        "count": 200,
+        "count": 208,
         "topK": 10,
-        "baseline": {
-          "queries": 200,
+        "preMutation": {
+          "queries": 208,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1925,33 +2069,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1974,
+          "falseRejectDenominator": 1981,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.6628,
-            "p95Ms": 1.683
+            "count": 208,
+            "p50Ms": 0.5292,
+            "p95Ms": 1.6953
           }
         },
         "postSignal": {
-          "queries": 200,
+          "queries": 208,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0.515,
+          "retrievalHitRate": 0.533654,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 983,
           "affectedCandidates": 983,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 991,
+          "falseRejectDenominator": 998,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.5139,
-            "p95Ms": 1.6075
+            "count": 208,
+            "p50Ms": 0.5862,
+            "p95Ms": 1.7178
           }
         },
         "final": {
-          "queries": 200,
+          "queries": 208,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -1961,11 +2113,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1974,
+          "falseRejectDenominator": 1981,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 200,
-            "p50Ms": 0.4914,
-            "p95Ms": 1.6975
+            "count": 208,
+            "p50Ms": 0.8388,
+            "p95Ms": 1.7163
           }
         }
       },
@@ -1986,6 +2142,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 25001,
+          "usable": 25001,
+          "safety": 1
         }
       },
       "propagation": {
@@ -2051,74 +2212,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0293,
-            "p95Ms": 0.0574
+            "p50Ms": 0.0211,
+            "p95Ms": 0.0507
           },
           "derive": {
             "count": 49998,
-            "p50Ms": 0.0051,
-            "p95Ms": 0.0068
+            "p50Ms": 0.0047,
+            "p95Ms": 0.0063
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0462,
-            "p95Ms": 94.9722
+            "p50Ms": 0.0713,
+            "p95Ms": 78.4072
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0024,
-            "p95Ms": 0.0038
+            "p50Ms": 0.0035,
+            "p95Ms": 0.0046
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2747,
-            "p95Ms": 52.1433
+            "p50Ms": 0.1995,
+            "p95Ms": 54.6734
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0275,
-            "p95Ms": 14.5367
+            "p50Ms": 0.0295,
+            "p95Ms": 15.6698
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1362,
-            "p95Ms": 0.1897
+            "p50Ms": 0.1096,
+            "p95Ms": 0.132
           },
           "query": {
-            "count": 200,
-            "p50Ms": 0.4914,
-            "p95Ms": 1.6975
+            "count": 208,
+            "p50Ms": 0.8388,
+            "p95Ms": 1.7163
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 32100515,
-          "indexMetadataBytes": 7940532,
-          "serializedMetadataBytes": 40041047,
-          "bytesPerNode": 800.82094,
+          "indexMetadataBytes": 7940621,
+          "serializedMetadataBytes": 40041136,
+          "bytesPerNode": 800.82272,
           "journalEvents": 100011,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 550261352,
-          "afterHeapUsedBytes": 674892072,
-          "deltaBytes": 124630720,
-          "signedDeltaBytes": 124630720,
-          "beforeRssBytes": 723329024,
-          "afterRssBytes": 844865536,
+          "beforeHeapUsedBytes": 533105216,
+          "afterHeapUsedBytes": 669918264,
+          "deltaBytes": 136813048,
+          "signedDeltaBytes": 136813048,
+          "beforeRssBytes": 703545344,
+          "afterRssBytes": 831250432,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 41032.3415,
-        "mutationMs": 7.2278,
-        "indexUpdateMs": 0.4419,
-        "restoreMs": 5.9157,
-        "totalMs": 1192.9295
+        "corpusGenerationMs": 70500.9393,
+        "mutationMs": 8.832,
+        "indexUpdateMs": 0.3405,
+        "restoreMs": 8.1517,
+        "totalMs": 1280.7487
       }
     },
     {
@@ -2143,10 +2305,10 @@
         ]
       },
       "queries": {
-        "count": 256,
+        "count": 264,
         "topK": 10,
-        "baseline": {
-          "queries": 256,
+        "preMutation": {
+          "queries": 264,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -2156,33 +2318,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 2534,
+          "falseRejectDenominator": 2541,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.255,
-            "p95Ms": 3.5523
+            "count": 264,
+            "p50Ms": 1.3908,
+            "p95Ms": 3.4637
           }
         },
         "postSignal": {
-          "queries": 256,
+          "queries": 264,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.030303,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 2533,
           "affectedCandidates": 2533,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.6877,
-            "p95Ms": 3.4854
+            "count": 264,
+            "p50Ms": 1.2265,
+            "p95Ms": 3.4645
           }
         },
         "final": {
-          "queries": 256,
+          "queries": 264,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -2192,11 +2362,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 2534,
+          "falseRejectDenominator": 2541,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.6444,
-            "p95Ms": 3.4948
+            "count": 264,
+            "p50Ms": 1.0652,
+            "p95Ms": 2.8989
           }
         }
       },
@@ -2217,6 +2391,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 100000,
+          "usable": 100000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -2282,74 +2461,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0278,
-            "p95Ms": 0.066
+            "p50Ms": 0.0248,
+            "p95Ms": 0.0566
           },
           "derive": {
             "count": 99999,
-            "p50Ms": 0.0051,
-            "p95Ms": 0.0067
+            "p50Ms": 0.004,
+            "p95Ms": 0.0066
           },
           "signal": {
             "count": 3,
-            "p50Ms": 39.264,
-            "p95Ms": 341.6531
+            "p50Ms": 21.1932,
+            "p95Ms": 374.8528
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0046,
-            "p95Ms": 0.0142
+            "p50Ms": 0.0027,
+            "p95Ms": 0.016
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.3604,
-            "p95Ms": 309.5096
+            "p50Ms": 0.6926,
+            "p95Ms": 284.5356
           },
           "repair": {
             "count": 4,
-            "p50Ms": 29.1847,
-            "p95Ms": 55.453
+            "p50Ms": 35.2116,
+            "p95Ms": 67.0725
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0961,
-            "p95Ms": 0.1539
+            "p50Ms": 0.0919,
+            "p95Ms": 0.1486
           },
           "query": {
-            "count": 256,
-            "p50Ms": 1.6444,
-            "p95Ms": 3.4948
+            "count": 264,
+            "p50Ms": 1.0652,
+            "p95Ms": 2.8989
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 62800567,
-          "indexMetadataBytes": 15890532,
-          "serializedMetadataBytes": 78691099,
-          "bytesPerNode": 786.91099,
+          "indexMetadataBytes": 15890621,
+          "serializedMetadataBytes": 78691188,
+          "bytesPerNode": 786.91188,
           "journalEvents": 300009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 305036208,
-          "afterHeapUsedBytes": 561365528,
-          "deltaBytes": 256329320,
-          "signedDeltaBytes": 256329320,
-          "beforeRssBytes": 457269248,
-          "afterRssBytes": 744755200,
+          "beforeHeapUsedBytes": 310693464,
+          "afterHeapUsedBytes": 573076056,
+          "deltaBytes": 262382592,
+          "signedDeltaBytes": 262382592,
+          "beforeRssBytes": 468946944,
+          "afterRssBytes": 755257344,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 68222.6014,
-        "mutationMs": 45.5629,
-        "indexUpdateMs": 0.3392,
-        "restoreMs": 12.3829,
-        "totalMs": 3472.2016
+        "corpusGenerationMs": 124096.6039,
+        "mutationMs": 16.5603,
+        "indexUpdateMs": 0.3336,
+        "restoreMs": 13.2085,
+        "totalMs": 3379.5123
       }
     },
     {
@@ -2374,10 +2554,10 @@
         ]
       },
       "queries": {
-        "count": 256,
+        "count": 264,
         "topK": 10,
-        "baseline": {
-          "queries": 256,
+        "preMutation": {
+          "queries": 264,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -2387,33 +2567,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 2534,
+          "falseRejectDenominator": 2541,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.1809,
-            "p95Ms": 3.4399
+            "count": 264,
+            "p50Ms": 1.1903,
+            "p95Ms": 3.4735
           }
         },
         "postSignal": {
-          "queries": 256,
+          "queries": 264,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0,
+          "retrievalHitRate": 0.030303,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 2533,
           "affectedCandidates": 2533,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1,
+          "falseRejectDenominator": 8,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.3244,
-            "p95Ms": 3.5069
+            "count": 264,
+            "p50Ms": 1.0753,
+            "p95Ms": 2.8492
           }
         },
         "final": {
-          "queries": 256,
+          "queries": 264,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -2423,11 +2611,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 2534,
+          "falseRejectDenominator": 2541,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.1251,
-            "p95Ms": 3.285
+            "count": 264,
+            "p50Ms": 1.068,
+            "p95Ms": 3.3692
           }
         }
       },
@@ -2448,6 +2640,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 100000,
+          "usable": 100000,
+          "safety": 1
         }
       },
       "propagation": {
@@ -2513,74 +2710,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0266,
-            "p95Ms": 0.0636
+            "p50Ms": 0.0231,
+            "p95Ms": 0.052
           },
           "derive": {
             "count": 99999,
-            "p50Ms": 0.0041,
+            "p50Ms": 0.0051,
             "p95Ms": 0.0066
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0937,
-            "p95Ms": 369.7851
+            "p50Ms": 0.0793,
+            "p95Ms": 344.6135
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0044,
-            "p95Ms": 0.0055
+            "p50Ms": 0.0026,
+            "p95Ms": 0.0486
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1839,
-            "p95Ms": 267.7945
+            "p50Ms": 0.1945,
+            "p95Ms": 309.2548
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0769,
-            "p95Ms": 43.8887
+            "p50Ms": 0.0509,
+            "p95Ms": 64.8838
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.084,
-            "p95Ms": 0.1076
+            "p50Ms": 0.0943,
+            "p95Ms": 0.1409
           },
           "query": {
-            "count": 256,
-            "p50Ms": 1.1251,
-            "p95Ms": 3.285
+            "count": 264,
+            "p50Ms": 1.068,
+            "p95Ms": 3.3692
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 63000567,
-          "indexMetadataBytes": 15890532,
-          "serializedMetadataBytes": 78891099,
-          "bytesPerNode": 788.91099,
+          "indexMetadataBytes": 15890621,
+          "serializedMetadataBytes": 78891188,
+          "bytesPerNode": 788.91188,
           "journalEvents": 300009,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 641061456,
-          "afterHeapUsedBytes": 964233200,
-          "deltaBytes": 323171744,
-          "signedDeltaBytes": 323171744,
-          "beforeRssBytes": 828706816,
-          "afterRssBytes": 1165950976,
+          "beforeHeapUsedBytes": 709222936,
+          "afterHeapUsedBytes": 1016409288,
+          "deltaBytes": 307186352,
+          "signedDeltaBytes": 307186352,
+          "beforeRssBytes": 861577216,
+          "afterRssBytes": 1222987776,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 68222.6014,
-        "mutationMs": 1.8057,
-        "indexUpdateMs": 0.2738,
-        "restoreMs": 6.8191,
-        "totalMs": 3099.2294
+        "corpusGenerationMs": 124096.6039,
+        "mutationMs": 3.7284,
+        "indexUpdateMs": 0.3208,
+        "restoreMs": 8.2834,
+        "totalMs": 3175.3303
       }
     },
     {
@@ -2605,10 +2803,10 @@
         ]
       },
       "queries": {
-        "count": 256,
+        "count": 264,
         "topK": 10,
-        "baseline": {
-          "queries": 256,
+        "preMutation": {
+          "queries": 264,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -2618,33 +2816,41 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 2534,
+          "falseRejectDenominator": 2541,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.5828,
-            "p95Ms": 3.4727
+            "count": 264,
+            "p50Ms": 1.0953,
+            "p95Ms": 2.4624
           }
         },
         "postSignal": {
-          "queries": 256,
+          "queries": 264,
           "topK": 10,
           "precision": 1,
-          "retrievalHitRate": 0.523438,
+          "retrievalHitRate": 0.537879,
           "safety": 1,
           "falseRejectRate": 0,
           "blockedCandidates": 1262,
           "affectedCandidates": 1262,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 1272,
+          "falseRejectDenominator": 1279,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.5068,
-            "p95Ms": 3.4876
+            "count": 264,
+            "p50Ms": 1.6981,
+            "p95Ms": 3.4836
           }
         },
         "final": {
-          "queries": 256,
+          "queries": 264,
           "topK": 10,
           "precision": 1,
           "retrievalHitRate": 1,
@@ -2654,11 +2860,15 @@
           "affectedCandidates": 0,
           "unsafeUses": 0,
           "falseRejects": 0,
-          "falseRejectDenominator": 2534,
+          "falseRejectDenominator": 2541,
+          "falseRejectUnit": "candidate",
+          "controlFalseRejects": 0,
+          "controlFalseRejectRate": 0,
+          "controlQueryCount": 8,
           "queryLatency": {
-            "count": 256,
-            "p50Ms": 1.0971,
-            "p95Ms": 3.4157
+            "count": 264,
+            "p50Ms": 1.0545,
+            "p95Ms": 2.3812
           }
         }
       },
@@ -2679,6 +2889,11 @@
         "afterRepair": {
           "status": "FRESH",
           "decision": "USABLE"
+        },
+        "afterRepairAffected": {
+          "total": 50001,
+          "usable": 50001,
+          "safety": 1
         }
       },
       "propagation": {
@@ -2744,74 +2959,75 @@
       "metrics": {
         "precision": 1,
         "safety": 1,
+        "finalSafety": 1,
         "falseRejectRate": 0,
         "retrievalHitRate": 1,
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0308,
-            "p95Ms": 0.0751
+            "p50Ms": 0.025,
+            "p95Ms": 0.0492
           },
           "derive": {
             "count": 99998,
-            "p50Ms": 0.0051,
-            "p95Ms": 0.0074
+            "p50Ms": 0.005,
+            "p95Ms": 0.0069
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0803,
-            "p95Ms": 176.9896
+            "p50Ms": 0.0454,
+            "p95Ms": 166.5786
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0029,
-            "p95Ms": 0.0038
+            "p50Ms": 0.0037,
+            "p95Ms": 0.0091
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2285,
-            "p95Ms": 164.27
+            "p50Ms": 0.3169,
+            "p95Ms": 133.0576
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0606,
-            "p95Ms": 43.2192
+            "p50Ms": 0.021,
+            "p95Ms": 39.6442
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.2173,
-            "p95Ms": 0.2927
+            "p50Ms": 0.2019,
+            "p95Ms": 0.2344
           },
           "query": {
-            "count": 256,
-            "p50Ms": 1.0971,
-            "p95Ms": 3.4157
+            "count": 264,
+            "p50Ms": 1.0545,
+            "p95Ms": 2.3812
           }
         },
         "metadata": {
           "protocolEnvelopeBytes": 64300516,
-          "indexMetadataBytes": 15890532,
-          "serializedMetadataBytes": 80191048,
-          "bytesPerNode": 801.91048,
+          "indexMetadataBytes": 15890621,
+          "serializedMetadataBytes": 80191137,
+          "bytesPerNode": 801.91137,
           "journalEvents": 200011,
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 1049333240,
-          "afterHeapUsedBytes": 1349372928,
-          "deltaBytes": 300039688,
-          "signedDeltaBytes": 300039688,
-          "beforeRssBytes": 1249746944,
-          "afterRssBytes": 1521561600,
+          "beforeHeapUsedBytes": 467165312,
+          "afterHeapUsedBytes": 778800648,
+          "deltaBytes": 311635336,
+          "signedDeltaBytes": 311635336,
+          "beforeRssBytes": 1007472640,
+          "afterRssBytes": 1090498560,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 68222.6014,
-        "mutationMs": 8.1476,
-        "indexUpdateMs": 0.6409,
-        "restoreMs": 10.9674,
-        "totalMs": 2998.5637
+        "corpusGenerationMs": 124096.6039,
+        "mutationMs": 8.2913,
+        "indexUpdateMs": 0.5663,
+        "restoreMs": 8.9563,
+        "totalMs": 2755.8215
       }
     }
   ],

@@ -16,4 +16,26 @@ const report = await protocol.validate(["a"], { a: { memoryId: "a", result: "UNC
 assert.equal(report.items[0].status, "FRESH");
 assert.equal(protocol.check(["b"]).items[0].decision, "USABLE");
 assert.ok(protocol.history("a").length >= 3);
+const shared = new ReferenceProtocol();
+const sharedEnvelope = (memoryId, dependsOn = []) => ({
+  ...base(memoryId, "FRESH", dependsOn),
+  provenance: [{ sourceUri: "file://shared", observedAt: at, version: { scheme: "test", token: "v1" }, validator: { id: "test", operation: "read" } }]
+});
+shared.register(sharedEnvelope("shared-a"));
+shared.register(sharedEnvelope("shared-b"));
+shared.derive({ ...sharedEnvelope("shared-a-child", ["shared-a"]), validity: { status: "FRESH", checkedAt: at, policy: "MANUAL" } });
+shared.derive({ ...sharedEnvelope("shared-b-child", ["shared-b"]), validity: { status: "FRESH", checkedAt: at, policy: "MANUAL" } });
+const sharedSignal = shared.signal({ specVersion: "premise/0.1", eventId: "shared-source-1", type: "SourceChanged", occurredAt: at, payload: { sourceUri: "file://shared", version: { scheme: "test", token: "v2" } } });
+assert.deepEqual(sharedSignal.roots, ["shared-a", "shared-a-child", "shared-b", "shared-b-child"]);
+assert.deepEqual(sharedSignal.affected, ["shared-a", "shared-a-child", "shared-b", "shared-b-child"]);
+const orderedValidation = new ReferenceProtocol();
+orderedValidation.register(base("ordered-root"));
+orderedValidation.derive({ ...base("ordered-child"), validity: { status: "FRESH", checkedAt: at, policy: "MANUAL" }, dependsOn: ["ordered-root"] });
+orderedValidation.signal({ specVersion: "premise/0.1", eventId: "ordered-signal", type: "SourceChanged", occurredAt: at, payload: { sourceUri: "file://ordered-root", version: { scheme: "test", token: "v2" } } });
+const orderedReport = await orderedValidation.validate(["ordered-child", "ordered-root"], {
+  "ordered-root": { memoryId: "ordered-root", result: "UNCHANGED", status: "FRESH", checkedAt: at, version: { scheme: "test", token: "v2" } },
+  "ordered-child": { memoryId: "ordered-child", result: "UNCHANGED", status: "FRESH", checkedAt: at, version: { scheme: "test", token: "v1" } }
+});
+assert.deepEqual(orderedReport.items.map((item) => [item.memoryId, item.status]), [["ordered-child", "FRESH"], ["ordered-root", "FRESH"]]);
+assert.equal(orderedValidation.history("ordered-child").some((event) => event.type === "MemoryStaled" && event.payload.reason === "UNCHANGED"), false);
 console.log("reference-ts validation tests passed");

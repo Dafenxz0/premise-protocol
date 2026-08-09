@@ -1,6 +1,6 @@
 # Auditoría de evaluación PREMiSE
 
-Generado: 2026-08-09T21:38:25.756Z
+Generado: 2026-08-09T22:52:58.706Z
 
 ## Conclusión
 
@@ -112,9 +112,9 @@ La decisión de producto debe aplicar primero el gate de seguridad y después op
 - **real-world-bench**: present; 1 ficheros, 133 filas métricas reconocidas
   - Métricas reconocidas: `averageTargetEvents`, `correctDecisionRate`, `episodesWithHistory`, `falseRejectionRate`, `memoryReadCalls`, `p50`, `p95`, `preservationRate`, `protocolValidateCalls`, `resultMatchRate`, `safeRecoveryRate`, `totalTargetEvents`, `unsafeActionRate`, `validateCalls`, `validatedRecoveryRate`, `versionForCalls`.
   - Denominadores observados por fila (sin combinar): `scenarios`, `episodes`, `safeToUse`, `unsafeToUse`, `recoveryCandidates`, `validationCases`, `isolationCases`, `cases`, `total`.
-- **context-corpus-bench**: present; 1 ficheros, 109 filas métricas reconocidas
+- **context-corpus-bench**: present; 1 ficheros, 133 filas métricas reconocidas
   - Métricas reconocidas: `externalPayloadBytes`, `falseRejectRate`, `precision`, `retrievalHitRate`, `safety`, `serializedMetadataBytes`, `totalMs`.
-  - Denominadores observados por fila (sin combinar): `nodes`, `count`, `queries`.
+  - Denominadores observados por fila (sin combinar): `nodes`, `count`, `queries`, `total`.
 
 El runner descubre `comparative-bench`, `long-context-bench`, `real-world-bench` y `context-corpus-bench`, guarda hashes, parsea filas métricas reconocibles y conserva los casos no reconocidos como limitación. No mezcla denominadores automáticamente.
 

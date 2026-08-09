@@ -14,6 +14,7 @@ const REPAIR_TIME = "2026-08-09T22:00:02Z";
 const DEFAULT_PROFILES = [1000, 10000, 50000];
 const PATTERNS = ["chain", "fanout", "shared"];
 const TOP_K = 10;
+const CONTROL_QUERY_COUNT = 8;
 const BATCH_SIZE = 128;
 const BODY_MARKER = "external-body-marker";
 
@@ -252,6 +253,11 @@ function targetIndexFor(pattern, nodes) {
 }
 
 function buildQueries(nodes, changedIndices) {
+  const controlQueries = Array.from({ length: CONTROL_QUERY_COUNT }, (_, index) => ({
+    id: `control-${String(index).padStart(2, "0")}`,
+    terms: [index % 2 === 0 ? "control" : "isolated"],
+    expectedTarget: "control"
+  }));
   const queries = changedIndices.map((index, ordinal) => ({
     id: `changed-${ordinal}`,
     terms: [`docid${docIdFor(index)}`],
@@ -266,7 +272,7 @@ function buildQueries(nodes, changedIndices) {
       terms: queryIndex % 3 === 0 ? [terms[1]] : queryIndex % 3 === 1 ? [terms[1], terms[2]] : [terms[3], terms[1]]
     });
   }
-  return queries;
+  return [...controlQueries, ...queries];
 }
 
 function memoryIdsForDocIds(pattern, docIds) {
@@ -283,6 +289,8 @@ async function runQueries({ index, queries, protocol, pattern, affected, control
   let unsafeUses = 0;
   let falseRejects = 0;
   let falseRejectDenominator = 0;
+  let controlFalseRejects = 0;
+  let controlQueryCount = 0;
 
   for (const query of queries) {
     const started = performance.now();
@@ -310,12 +318,13 @@ async function runQueries({ index, queries, protocol, pattern, affected, control
     returned += usableDocIds.length;
     const hit = query.expectedTarget ? usableDocIds.includes(query.expectedTarget) : relevant.length > 0;
     if (hit) hits += 1;
+    if (query.expectedTarget === "control") {
+      controlQueryCount += 1;
+      if (!usableDocIds.includes(query.expectedTarget)) controlFalseRejects += 1;
+    }
     durations.push(performance.now() - started);
   }
 
-  const controlCheck = protocol.check([controlMemoryId]).items[0];
-  falseRejectDenominator += 1;
-  if (controlCheck.decision !== "USABLE") falseRejects += 1;
   const precision = returned === 0 ? 1 : relevantReturned / returned;
   const safety = affectedCandidates === 0 ? 1 : 1 - unsafeUses / affectedCandidates;
   return {
@@ -330,6 +339,10 @@ async function runQueries({ index, queries, protocol, pattern, affected, control
     unsafeUses,
     falseRejects,
     falseRejectDenominator,
+    falseRejectUnit: "candidate",
+    controlFalseRejects,
+    controlFalseRejectRate: round(controlFalseRejects / controlQueryCount),
+    controlQueryCount,
     queryLatency: latencySummary(durations)
   };
 }
@@ -407,7 +420,7 @@ async function runPattern({ nodes, pattern, corpus, index, deadline }) {
   const queries = buildQueries(nodes, changedIndices);
   const targetMemoryId = memoryIdFor(pattern, targetIndexFor(pattern, nodes));
   const before = timedCheck(protocol, targetMemoryId, checkSamples);
-  const baseline = await runQueries({ index, queries, protocol, pattern, affected: new Set(), controlMemoryId });
+  const preMutation = await runQueries({ index, queries, protocol, pattern, affected: new Set(), controlMemoryId });
 
   const mutationStarted = performance.now();
   for (const indexNumber of changedIndices) await writeFile(corpus.files[indexNumber].path, documentText(indexNumber, 1), "utf8");
@@ -478,6 +491,9 @@ async function runPattern({ nodes, pattern, corpus, index, deadline }) {
 
   const afterRepair = timedCheck(protocol, targetMemoryId, checkSamples);
   const final = await runQueries({ index, queries, protocol, pattern, affected: new Set(), controlMemoryId });
+  const afterRepairAffected = protocol.check([...affected]).items;
+  const finalAffectedUsable = afterRepairAffected.filter((item) => item.status === "FRESH" && item.decision === "USABLE").length;
+  const finalSafety = affected.size === 0 ? 1 : finalAffectedUsable / affected.size;
   const afterHeap = heapSample();
   const serializedEnvelopes = JSON.stringify(protocol.states.states().map((state) => state.envelope));
   assert(!serializedEnvelopes.includes(BODY_MARKER), "external payload leaked into PREMiSE envelopes");
@@ -507,13 +523,14 @@ async function runPattern({ nodes, pattern, corpus, index, deadline }) {
       externalPayloadStoredInProtocol: false,
       changedDocumentIds: changedIndices.map((indexNumber) => corpus.files[indexNumber].docId)
     },
-    queries: { count: queries.length, topK: TOP_K, baseline, postSignal, final },
+    queries: { count: queries.length, topK: TOP_K, preMutation, postSignal, final },
     checks: {
       targetMemoryId,
       before: { status: before.status, decision: before.decision },
       afterSignal: { status: afterSignal.status, decision: afterSignal.decision },
       afterValidation: { status: afterValidation.status, decision: afterValidation.decision },
-      afterRepair: { status: afterRepair.status, decision: afterRepair.decision }
+      afterRepair: { status: afterRepair.status, decision: afterRepair.decision },
+      afterRepairAffected: { total: affected.size, usable: finalAffectedUsable, safety: round(finalSafety) }
     },
     propagation: {
       changedDocumentCount: changedIndices.length,
@@ -535,6 +552,7 @@ async function runPattern({ nodes, pattern, corpus, index, deadline }) {
     metrics: {
       precision: final.precision,
       safety: postSignal.safety,
+      finalSafety: round(finalSafety),
       falseRejectRate: postSignal.falseRejectRate,
       retrievalHitRate: final.retrievalHitRate,
       latency: {
@@ -619,6 +637,7 @@ export async function run(options = parseArgs(process.argv.slice(2))) {
       const index = new InvertedIndex();
       const indexBuildStarted = performance.now();
       const indexBuildMs = await index.load(corpus.files, deadline);
+      index.upsert(corpus.control.docId, controlText());
       setups.push({ nodes, corpusGenerationMs: corpus.generationMs, indexBuildMs, payloadBytes: corpus.payloadBytes, indexMetadataBytes: index.serializedMetadataBytes() });
       for (const pattern of PATTERNS) results.push(await runPattern({ nodes, pattern, corpus, index, deadline }));
       if (!isolation) isolation = await isolationCheck(corpus);
