@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { McpBridge } from "../dist/index.js";
+import { ReferenceProtocol } from "../../reference-ts/dist/index.js";
+
+const at = "2026-08-09T19:20:00Z";
+const sourceUri = "mcp://demo/resource";
+const source = { sourceUri, observedAt: at, version: { scheme: "mcp.epoch", token: "1" }, validator: { id: "mcp", operation: "read" } };
+const envelope = { specVersion: "premise/0.1", memoryId: "memory:mcp", provenance: [source], validity: { status: "FRESH", checkedAt: at, policy: "VERSIONED" }, dependsOn: [] };
+let current = { sourceUri, version: { scheme: "mcp.epoch", token: "1" } };
+const reader = { async read(uri) { if (uri !== sourceUri) throw new Error("missing"); return current; } };
+const protocol = new ReferenceProtocol();
+protocol.register(envelope);
+const bridge = new McpBridge(protocol, reader);
+bridge.subscribe(sourceUri, [envelope.memoryId]);
+current = { sourceUri, version: { scheme: "mcp.epoch", token: "2" } };
+bridge.signal({ eventId: "mcp-1", sourceUri, version: current.version, occurredAt: at });
+assert.equal(protocol.check([envelope.memoryId]).items[0].decision, "REVALIDATE");
+await bridge.reread([envelope.memoryId]);
+assert.equal(protocol.check([envelope.memoryId]).items[0].decision, "REJECT");
+console.log("mcp-bridge tests passed");

@@ -20,7 +20,14 @@ importers:
 
   examples/openai-memory: {}
 
-  packages/adapter-openai: {}
+  packages/adapter-openai:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
+      '@premise/reference-ts':
+        specifier: workspace:*
+        version: link:../reference-ts
 
   packages/conformance:
     dependencies:
@@ -34,7 +41,14 @@ importers:
         specifier: workspace:*
         version: link:../protocol-types
 
-  packages/mcp-bridge: {}
+  packages/mcp-bridge:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
+      '@premise/reference-ts':
+        specifier: workspace:*
+        version: link:../reference-ts
 
   packages/protocol-types: {}
 
