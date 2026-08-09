@@ -6,6 +6,7 @@ import type {
   ValidationResult,
   UsabilityDecision
 } from "@premise/protocol-types";
+export * from "./vectors.js";
 
 export const REQUIRED_CAPABILITIES = ["RECORD", "DEPENDENCY", "REVALIDATION"] as const satisfies readonly Capability[];
 
