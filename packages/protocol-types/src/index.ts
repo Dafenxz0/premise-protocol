@@ -63,10 +63,12 @@ export type PremiseEventType =
   | "MemoryReplaced";
 
 export interface PremiseEventBase {
+  readonly specVersion: SpecVersion;
   readonly type: PremiseEventType;
   readonly eventId: string;
   readonly occurredAt: string;
-  readonly memoryId: string;
+  readonly memoryId?: string;
+  readonly payload: Readonly<Record<string, unknown>>;
 }
 
 export interface PremiseEvent extends PremiseEventBase {
