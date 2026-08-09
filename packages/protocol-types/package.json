@@ -11,6 +11,7 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/parser.test.mjs"
   }
 }
