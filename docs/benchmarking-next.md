@@ -10,6 +10,13 @@ La campaña de evaluación ya está ejecutable y deja separadas tres preguntas:
 
 La auditoría de v0.1 es `PROVISIONALLY-VALID`: tiene decisiones por episodio, relecturas, reparaciones observables, latencia, metadata serializada, controles y ablations. No se presenta como una prueba universal de producción porque los adapters externos y el hardware real todavía deben medirse por separado.
 
+La evidencia aplicada está separada en dos campañas adicionales:
+
+- `real-world-bench` usa archivos temporales y repositorios Git con commits reales, además de `FilesystemValidator` y `GitValidator` compilados desde este repositorio.
+- `context-corpus-bench` crea un corpus de documentos en disco, un índice invertido y grafos de 1.000, 10.000 y 50.000 nodos; mide retrieval, decisiones, revalidación, metadata, heap y propagación selectiva.
+
+Ambas campañas tienen un `self-check` que falla si aparece una acción insegura, un falso rechazo, una revalidación incorrecta, una pérdida de aislamiento o un payload de documento dentro del protocolo.
+
 ## Cómo reproducirlo
 
 Desde la raíz del repositorio:
@@ -19,6 +26,7 @@ pnpm benchmark:compare
 pnpm benchmark:context:full
 pnpm benchmark:evaluate
 pnpm benchmark:next
+pnpm benchmark:production
 ```
 
 `benchmark:compare` ejecuta los mismos 24 episodios con y sin protocolo. `benchmark:context:full` mide grafos chain, fanout y shared-support en 1.000, 5.000, 10.000 y 25.000 nodos. `benchmark:evaluate` audita el benchmark histórico y escribe `benchmarks/evaluation/`. El comando `benchmark:next` ejecuta la campaña completa.
@@ -46,6 +54,7 @@ Se registran `unsafeActionRate`, recuperación de casos reparables, rechazo de c
 - En 21 episodios con cambio, el baseline sin protocolo usa memoria no comprobada en el 100% de los casos.
 - PREMiSE registra 0% de acciones inseguras, recupera el 100% de los episodios reparables y rechaza el 100% de los no reparables del conjunto paired.
 - En la medición local de 25.000 nodos, la cadena pasó de aproximadamente 64 segundos a aproximadamente 0,23 segundos tras evitar comprobaciones de ciclos innecesarias al crear nodos nuevos.
+- En el corpus aplicado, los tres patrones mantienen 100% de precisión, seguridad, ausencia de falsos rechazos y hit-rate hasta 100.000 nodos; el camino de protocolo/query queda en 2,8–3,6 segundos por patrón, separado de los 64,8 segundos de generación de los 100.000 documentos.
 - Las señales se propagan solo por el subgrafo afectado; una rama independiente permanece fresca.
 
 Estos números son evidencia reproducible del conjunto definido, no un SLA. Hay que repetirlos en el hardware de despliegue y con payloads reales.
@@ -54,7 +63,7 @@ Estos números son evidencia reproducible del conjunto definido, no un SLA. Hay 
 
 1. Repetir la campaña en hardware objetivo con límites de memoria y CPU fijados.
 2. Añadir retrieval/adapters reales y medir por separado el contenido externo del sidecar de metadata.
-3. Conectar validators de filesystem, Git y GitHub cuando estén disponibles, conservando los mundos deterministas como control.
+3. Conectar un validator remoto de GitHub cuando esté disponible, conservando filesystem/Git y los mundos deterministas como controles.
 4. Medir reemplazos, subgrafos solapados y actualizaciones concurrentes.
 5. Guardar una ejecución aceptada en CI y bloquear regresiones de seguridad, recuperación o escala con `--compare-to`.
 

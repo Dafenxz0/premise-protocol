@@ -1,0 +1,2857 @@
+{
+  "format": "premise-context-corpus-benchmark/0.1",
+  "runner": "node24",
+  "seed": "premise-context-corpus-2026-08-09",
+  "deterministic": true,
+  "offline": true,
+  "profiles": [
+    1000,
+    10000,
+    50000,
+    100000
+  ],
+  "maxMs": 900000,
+  "setups": [
+    {
+      "nodes": 1000,
+      "corpusGenerationMs": 616.3252,
+      "indexBuildMs": 12.8499,
+      "payloadBytes": 104854,
+      "indexMetadataBytes": 158516
+    },
+    {
+      "nodes": 10000,
+      "corpusGenerationMs": 5885.7661,
+      "indexBuildMs": 171.4009,
+      "payloadBytes": 1058012,
+      "indexMetadataBytes": 1580516
+    },
+    {
+      "nodes": 50000,
+      "corpusGenerationMs": 30483.3965,
+      "indexBuildMs": 899.2172,
+      "payloadBytes": 5334262,
+      "indexMetadataBytes": 7940516
+    },
+    {
+      "nodes": 100000,
+      "corpusGenerationMs": 64826.9531,
+      "indexBuildMs": 1872.3077,
+      "payloadBytes": 10679580,
+      "indexMetadataBytes": 15890516
+    }
+  ],
+  "results": [
+    {
+      "profile": 1000,
+      "nodes": 1000,
+      "pattern": "chain",
+      "seed": "context-corpus-1000-chain",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 999,
+        "sourceBackedNodeCount": 1000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 104789,
+        "externalPayloadBytes": 104854,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc000500",
+          "doc000999"
+        ]
+      },
+      "queries": {
+        "count": 64,
+        "topK": 10,
+        "baseline": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0632,
+            "p95Ms": 0.1657
+          }
+        },
+        "postSignal": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 613,
+          "affectedCandidates": 613,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0546,
+            "p95Ms": 0.0872
+          }
+        },
+        "final": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0521,
+            "p95Ms": 0.0717
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:chain:doc000999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:chain:doc000000",
+          "memory:chain:doc000500",
+          "memory:chain:doc000999"
+        ],
+        "affectedNodes": 1000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:chain:doc000000",
+          "memory:chain:doc000001",
+          "memory:chain:doc000002",
+          "memory:chain:doc000997",
+          "memory:chain:doc000998",
+          "memory:chain:doc000999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 1000
+          },
+          {
+            "documentId": "doc000500",
+            "affectedNodes": 500
+          },
+          {
+            "documentId": "doc000999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:chain:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc000500",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc000999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0575,
+            "p95Ms": 0.5113
+          },
+          "derive": {
+            "count": 999,
+            "p50Ms": 0.0048,
+            "p95Ms": 0.0084
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.3448,
+            "p95Ms": 3.0937
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0736,
+            "p95Ms": 0.4748
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.1195,
+            "p95Ms": 3.0604
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.239,
+            "p95Ms": 0.6749
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.0772,
+            "p95Ms": 0.1706
+          },
+          "query": {
+            "count": 64,
+            "p50Ms": 0.0521,
+            "p95Ms": 0.0717
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 626565,
+          "indexMetadataBytes": 158532,
+          "serializedMetadataBytes": 785097,
+          "bytesPerNode": 785.097,
+          "journalEvents": 3009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 14506832,
+          "afterHeapUsedBytes": 13982968,
+          "deltaBytes": 0,
+          "signedDeltaBytes": -523864,
+          "beforeRssBytes": 60076032,
+          "afterRssBytes": 70684672,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 616.3252,
+        "mutationMs": 6.0991,
+        "indexUpdateMs": 0.3175,
+        "restoreMs": 6.1319,
+        "totalMs": 47.92
+      }
+    },
+    {
+      "profile": 1000,
+      "nodes": 1000,
+      "pattern": "fanout",
+      "seed": "context-corpus-1000-fanout",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 999,
+        "sourceBackedNodeCount": 1000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 104789,
+        "externalPayloadBytes": 104854,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc000500",
+          "doc000999"
+        ]
+      },
+      "queries": {
+        "count": 64,
+        "topK": 10,
+        "baseline": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0131,
+            "p95Ms": 0.0259
+          }
+        },
+        "postSignal": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 613,
+          "affectedCandidates": 613,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0209,
+            "p95Ms": 0.0576
+          }
+        },
+        "final": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0245,
+            "p95Ms": 0.0607
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:fanout:doc000999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc000500",
+          "memory:fanout:doc000999"
+        ],
+        "affectedNodes": 1000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc000001",
+          "memory:fanout:doc000002",
+          "memory:fanout:doc000997",
+          "memory:fanout:doc000998",
+          "memory:fanout:doc000999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 1000
+          },
+          {
+            "documentId": "doc000500",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc000999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:fanout:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc000500",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc000999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0232,
+            "p95Ms": 0.0428
+          },
+          "derive": {
+            "count": 999,
+            "p50Ms": 0.0038,
+            "p95Ms": 0.0045
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0161,
+            "p95Ms": 2.4931
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.003,
+            "p95Ms": 0.0033
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.0957,
+            "p95Ms": 2.3535
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0153,
+            "p95Ms": 0.4428
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.0695,
+            "p95Ms": 0.0908
+          },
+          "query": {
+            "count": 64,
+            "p50Ms": 0.0245,
+            "p95Ms": 0.0607
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 628565,
+          "indexMetadataBytes": 158532,
+          "serializedMetadataBytes": 787097,
+          "bytesPerNode": 787.097,
+          "journalEvents": 3009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 12233320,
+          "afterHeapUsedBytes": 24913952,
+          "deltaBytes": 12680632,
+          "signedDeltaBytes": 12680632,
+          "beforeRssBytes": 71249920,
+          "afterRssBytes": 76992512,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 616.3252,
+        "mutationMs": 2.1584,
+        "indexUpdateMs": 0.2278,
+        "restoreMs": 6.7746,
+        "totalMs": 30.8208
+      }
+    },
+    {
+      "profile": 1000,
+      "nodes": 1000,
+      "pattern": "shared",
+      "seed": "context-corpus-1000-shared",
+      "graph": {
+        "rootSourceMemoryCount": 2,
+        "derivedConclusionCount": 998,
+        "sourceBackedNodeCount": 1000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 104789,
+        "externalPayloadBytes": 104854,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000001",
+          "doc000500",
+          "doc000999"
+        ]
+      },
+      "queries": {
+        "count": 64,
+        "topK": 10,
+        "baseline": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0191,
+            "p95Ms": 0.0331
+          }
+        },
+        "postSignal": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0.515625,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 303,
+          "affectedCandidates": 303,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 311,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0136,
+            "p95Ms": 0.0261
+          }
+        },
+        "final": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0139,
+            "p95Ms": 0.0267
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:shared:doc000999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:shared:doc000001",
+          "memory:shared:doc000500",
+          "memory:shared:doc000999"
+        ],
+        "affectedNodes": 501,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:shared:doc000001",
+          "memory:shared:doc000002",
+          "memory:shared:doc000004",
+          "memory:shared:doc000996",
+          "memory:shared:doc000998",
+          "memory:shared:doc000999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000001",
+            "affectedNodes": 500
+          },
+          {
+            "documentId": "doc000500",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc000999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:shared:doc000001",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc000500",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc000999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 3,
+            "p50Ms": 0.015,
+            "p95Ms": 0.0336
+          },
+          "derive": {
+            "count": 998,
+            "p50Ms": 0.0039,
+            "p95Ms": 0.0058
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0207,
+            "p95Ms": 1.2152
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0026,
+            "p95Ms": 0.0081
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.2357,
+            "p95Ms": 1.1878
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0119,
+            "p95Ms": 0.2771
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.124,
+            "p95Ms": 0.1394
+          },
+          "query": {
+            "count": 64,
+            "p50Ms": 0.0139,
+            "p95Ms": 0.0267
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 641514,
+          "indexMetadataBytes": 158532,
+          "serializedMetadataBytes": 800046,
+          "bytesPerNode": 800.046,
+          "journalEvents": 2011,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 14307936,
+          "afterHeapUsedBytes": 24801016,
+          "deltaBytes": 10493080,
+          "signedDeltaBytes": 10493080,
+          "beforeRssBytes": 80932864,
+          "afterRssBytes": 87891968,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 616.3252,
+        "mutationMs": 5.4631,
+        "indexUpdateMs": 0.3868,
+        "restoreMs": 1.511,
+        "totalMs": 24.2516
+      }
+    },
+    {
+      "profile": 10000,
+      "nodes": 10000,
+      "pattern": "chain",
+      "seed": "context-corpus-10000-chain",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 9999,
+        "sourceBackedNodeCount": 10000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 1057947,
+        "externalPayloadBytes": 1058012,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc005000",
+          "doc009999"
+        ]
+      },
+      "queries": {
+        "count": 64,
+        "topK": 10,
+        "baseline": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.2938,
+            "p95Ms": 0.646
+          }
+        },
+        "postSignal": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 613,
+          "affectedCandidates": 613,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.3109,
+            "p95Ms": 0.4641
+          }
+        },
+        "final": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.2136,
+            "p95Ms": 0.4125
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:chain:doc009999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:chain:doc000000",
+          "memory:chain:doc005000",
+          "memory:chain:doc009999"
+        ],
+        "affectedNodes": 10000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:chain:doc000000",
+          "memory:chain:doc000001",
+          "memory:chain:doc000002",
+          "memory:chain:doc009997",
+          "memory:chain:doc009998",
+          "memory:chain:doc009999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 10000
+          },
+          {
+            "documentId": "doc005000",
+            "affectedNodes": 5000
+          },
+          {
+            "documentId": "doc009999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:chain:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc005000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc009999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0215,
+            "p95Ms": 0.066
+          },
+          "derive": {
+            "count": 9999,
+            "p50Ms": 0.0053,
+            "p95Ms": 0.0073
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 3.2589,
+            "p95Ms": 25.2477
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 1.3902,
+            "p95Ms": 2.4395
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.2307,
+            "p95Ms": 20.6553
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 2.6526,
+            "p95Ms": 4.3386
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.0958,
+            "p95Ms": 0.1099
+          },
+          "query": {
+            "count": 64,
+            "p50Ms": 0.2136,
+            "p95Ms": 0.4125
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 6270566,
+          "indexMetadataBytes": 1580532,
+          "serializedMetadataBytes": 7851098,
+          "bytesPerNode": 785.1098,
+          "journalEvents": 30009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 53129952,
+          "afterHeapUsedBytes": 123999352,
+          "deltaBytes": 70869400,
+          "signedDeltaBytes": 70869400,
+          "beforeRssBytes": 132308992,
+          "afterRssBytes": 243859456,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 5885.7661,
+        "mutationMs": 6.6674,
+        "indexUpdateMs": 0.2897,
+        "restoreMs": 6.6596,
+        "totalMs": 260.3151
+      }
+    },
+    {
+      "profile": 10000,
+      "nodes": 10000,
+      "pattern": "fanout",
+      "seed": "context-corpus-10000-fanout",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 9999,
+        "sourceBackedNodeCount": 10000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 1057947,
+        "externalPayloadBytes": 1058012,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc005000",
+          "doc009999"
+        ]
+      },
+      "queries": {
+        "count": 64,
+        "topK": 10,
+        "baseline": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.0963,
+            "p95Ms": 0.2652
+          }
+        },
+        "postSignal": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 613,
+          "affectedCandidates": 613,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.1014,
+            "p95Ms": 0.2434
+          }
+        },
+        "final": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.1004,
+            "p95Ms": 0.3241
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:fanout:doc009999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc005000",
+          "memory:fanout:doc009999"
+        ],
+        "affectedNodes": 10000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc000001",
+          "memory:fanout:doc000002",
+          "memory:fanout:doc009997",
+          "memory:fanout:doc009998",
+          "memory:fanout:doc009999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 10000
+          },
+          {
+            "documentId": "doc005000",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc009999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:fanout:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc005000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc009999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0197,
+            "p95Ms": 0.0651
+          },
+          "derive": {
+            "count": 9999,
+            "p50Ms": 0.0031,
+            "p95Ms": 0.0051
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0348,
+            "p95Ms": 27.7844
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.003,
+            "p95Ms": 0.0043
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.1773,
+            "p95Ms": 19.902
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0291,
+            "p95Ms": 3.7275
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.117,
+            "p95Ms": 0.18
+          },
+          "query": {
+            "count": 64,
+            "p50Ms": 0.1004,
+            "p95Ms": 0.3241
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 6290566,
+          "indexMetadataBytes": 1580532,
+          "serializedMetadataBytes": 7871098,
+          "bytesPerNode": 787.1098,
+          "journalEvents": 30009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 61804632,
+          "afterHeapUsedBytes": 106389784,
+          "deltaBytes": 44585152,
+          "signedDeltaBytes": 44585152,
+          "beforeRssBytes": 241410048,
+          "afterRssBytes": 262074368,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 5885.7661,
+        "mutationMs": 1.8998,
+        "indexUpdateMs": 0.4098,
+        "restoreMs": 2.1484,
+        "totalMs": 183.7453
+      }
+    },
+    {
+      "profile": 10000,
+      "nodes": 10000,
+      "pattern": "shared",
+      "seed": "context-corpus-10000-shared",
+      "graph": {
+        "rootSourceMemoryCount": 2,
+        "derivedConclusionCount": 9998,
+        "sourceBackedNodeCount": 10000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 1057947,
+        "externalPayloadBytes": 1058012,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000001",
+          "doc005000",
+          "doc009999"
+        ]
+      },
+      "queries": {
+        "count": 64,
+        "topK": 10,
+        "baseline": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.1578,
+            "p95Ms": 0.3351
+          }
+        },
+        "postSignal": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0.53125,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 303,
+          "affectedCandidates": 303,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 311,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.1678,
+            "p95Ms": 0.365
+          }
+        },
+        "final": {
+          "queries": 64,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 614,
+          "queryLatency": {
+            "count": 64,
+            "p50Ms": 0.1528,
+            "p95Ms": 0.3332
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:shared:doc009999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:shared:doc000001",
+          "memory:shared:doc005000",
+          "memory:shared:doc009999"
+        ],
+        "affectedNodes": 5001,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:shared:doc000001",
+          "memory:shared:doc000002",
+          "memory:shared:doc000004",
+          "memory:shared:doc009996",
+          "memory:shared:doc009998",
+          "memory:shared:doc009999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000001",
+            "affectedNodes": 5000
+          },
+          {
+            "documentId": "doc005000",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc009999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:shared:doc000001",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc005000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc009999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 3,
+            "p50Ms": 0.0242,
+            "p95Ms": 0.0333
+          },
+          "derive": {
+            "count": 9998,
+            "p50Ms": 0.0048,
+            "p95Ms": 0.0064
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0671,
+            "p95Ms": 15.2361
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0043,
+            "p95Ms": 0.0056
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.2602,
+            "p95Ms": 16.6407
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.013,
+            "p95Ms": 2.504
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.1331,
+            "p95Ms": 0.1661
+          },
+          "query": {
+            "count": 64,
+            "p50Ms": 0.1528,
+            "p95Ms": 0.3332
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 6420515,
+          "indexMetadataBytes": 1580532,
+          "serializedMetadataBytes": 8001047,
+          "bytesPerNode": 800.1047,
+          "journalEvents": 20011,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 135006480,
+          "afterHeapUsedBytes": 136674936,
+          "deltaBytes": 1668456,
+          "signedDeltaBytes": 1668456,
+          "beforeRssBytes": 271945728,
+          "afterRssBytes": 289636352,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 5885.7661,
+        "mutationMs": 13.2294,
+        "indexUpdateMs": 0.4078,
+        "restoreMs": 6.3054,
+        "totalMs": 213.7008
+      }
+    },
+    {
+      "profile": 50000,
+      "nodes": 50000,
+      "pattern": "chain",
+      "seed": "context-corpus-50000-chain",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 49999,
+        "sourceBackedNodeCount": 50000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 5334197,
+        "externalPayloadBytes": 5334262,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc025000",
+          "doc049999"
+        ]
+      },
+      "queries": {
+        "count": 200,
+        "topK": 10,
+        "baseline": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1974,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.6395,
+            "p95Ms": 1.7449
+          }
+        },
+        "postSignal": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 1973,
+          "affectedCandidates": 1973,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.9403,
+            "p95Ms": 1.8053
+          }
+        },
+        "final": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1974,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.6148,
+            "p95Ms": 1.3108
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:chain:doc049999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:chain:doc000000",
+          "memory:chain:doc025000",
+          "memory:chain:doc049999"
+        ],
+        "affectedNodes": 50000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:chain:doc000000",
+          "memory:chain:doc000001",
+          "memory:chain:doc000002",
+          "memory:chain:doc049997",
+          "memory:chain:doc049998",
+          "memory:chain:doc049999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 50000
+          },
+          {
+            "documentId": "doc025000",
+            "affectedNodes": 25000
+          },
+          {
+            "documentId": "doc049999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:chain:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc025000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc049999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0197,
+            "p95Ms": 0.0711
+          },
+          "derive": {
+            "count": 49999,
+            "p50Ms": 0.0047,
+            "p95Ms": 0.0067
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 16.7035,
+            "p95Ms": 165.2499
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 7.118,
+            "p95Ms": 11.784
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 4.7578,
+            "p95Ms": 125.6768
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 13.1347,
+            "p95Ms": 36.2955
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.2016,
+            "p95Ms": 0.2137
+          },
+          "query": {
+            "count": 200,
+            "p50Ms": 0.6148,
+            "p95Ms": 1.3108
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 31350566,
+          "indexMetadataBytes": 7940532,
+          "serializedMetadataBytes": 39291098,
+          "bytesPerNode": 785.82196,
+          "journalEvents": 150009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 164251432,
+          "afterHeapUsedBytes": 308416872,
+          "deltaBytes": 144165440,
+          "signedDeltaBytes": 144165440,
+          "beforeRssBytes": 299220992,
+          "afterRssBytes": 466071552,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 30483.3965,
+        "mutationMs": 8.7023,
+        "indexUpdateMs": 0.5581,
+        "restoreMs": 7.2086,
+        "totalMs": 1593.061
+      }
+    },
+    {
+      "profile": 50000,
+      "nodes": 50000,
+      "pattern": "fanout",
+      "seed": "context-corpus-50000-fanout",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 49999,
+        "sourceBackedNodeCount": 50000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 5334197,
+        "externalPayloadBytes": 5334262,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc025000",
+          "doc049999"
+        ]
+      },
+      "queries": {
+        "count": 200,
+        "topK": 10,
+        "baseline": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1974,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.6338,
+            "p95Ms": 1.436
+          }
+        },
+        "postSignal": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 1973,
+          "affectedCandidates": 1973,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.8401,
+            "p95Ms": 1.7156
+          }
+        },
+        "final": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1974,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.8347,
+            "p95Ms": 1.7095
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:fanout:doc049999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc025000",
+          "memory:fanout:doc049999"
+        ],
+        "affectedNodes": 50000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc000001",
+          "memory:fanout:doc000002",
+          "memory:fanout:doc049997",
+          "memory:fanout:doc049998",
+          "memory:fanout:doc049999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 50000
+          },
+          {
+            "documentId": "doc025000",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc049999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:fanout:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc025000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc049999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0199,
+            "p95Ms": 0.0531
+          },
+          "derive": {
+            "count": 49999,
+            "p50Ms": 0.0051,
+            "p95Ms": 0.0062
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.1538,
+            "p95Ms": 186.3973
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0072,
+            "p95Ms": 0.0074
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.2825,
+            "p95Ms": 164.1041
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0354,
+            "p95Ms": 36.115
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.1978,
+            "p95Ms": 0.2628
+          },
+          "query": {
+            "count": 200,
+            "p50Ms": 0.8347,
+            "p95Ms": 1.7095
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 31450566,
+          "indexMetadataBytes": 7940532,
+          "serializedMetadataBytes": 39391098,
+          "bytesPerNode": 787.82196,
+          "journalEvents": 150009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 369190600,
+          "afterHeapUsedBytes": 488589136,
+          "deltaBytes": 119398536,
+          "signedDeltaBytes": 119398536,
+          "beforeRssBytes": 520581120,
+          "afterRssBytes": 676651008,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 30483.3965,
+        "mutationMs": 2.0428,
+        "indexUpdateMs": 0.6453,
+        "restoreMs": 2.3453,
+        "totalMs": 1518.1851
+      }
+    },
+    {
+      "profile": 50000,
+      "nodes": 50000,
+      "pattern": "shared",
+      "seed": "context-corpus-50000-shared",
+      "graph": {
+        "rootSourceMemoryCount": 2,
+        "derivedConclusionCount": 49998,
+        "sourceBackedNodeCount": 50000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 5334197,
+        "externalPayloadBytes": 5334262,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000001",
+          "doc025000",
+          "doc049999"
+        ]
+      },
+      "queries": {
+        "count": 200,
+        "topK": 10,
+        "baseline": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1974,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.6763,
+            "p95Ms": 1.6551
+          }
+        },
+        "postSignal": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0.515,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 983,
+          "affectedCandidates": 983,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 991,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.5658,
+            "p95Ms": 1.6893
+          }
+        },
+        "final": {
+          "queries": 200,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1974,
+          "queryLatency": {
+            "count": 200,
+            "p50Ms": 0.836,
+            "p95Ms": 1.7083
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:shared:doc049999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:shared:doc000001",
+          "memory:shared:doc025000",
+          "memory:shared:doc049999"
+        ],
+        "affectedNodes": 25001,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:shared:doc000001",
+          "memory:shared:doc000002",
+          "memory:shared:doc000004",
+          "memory:shared:doc049996",
+          "memory:shared:doc049998",
+          "memory:shared:doc049999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000001",
+            "affectedNodes": 25000
+          },
+          {
+            "documentId": "doc025000",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc049999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:shared:doc000001",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc025000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc049999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 3,
+            "p50Ms": 0.0196,
+            "p95Ms": 0.0476
+          },
+          "derive": {
+            "count": 49998,
+            "p50Ms": 0.0045,
+            "p95Ms": 0.0066
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0747,
+            "p95Ms": 76.6087
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0061,
+            "p95Ms": 0.0118
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.1226,
+            "p95Ms": 84.1775
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0349,
+            "p95Ms": 24.4907
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.0985,
+            "p95Ms": 0.1141
+          },
+          "query": {
+            "count": 200,
+            "p50Ms": 0.836,
+            "p95Ms": 1.7083
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 32100515,
+          "indexMetadataBytes": 7940532,
+          "serializedMetadataBytes": 40041047,
+          "bytesPerNode": 800.82094,
+          "journalEvents": 100011,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 552165736,
+          "afterHeapUsedBytes": 694634344,
+          "deltaBytes": 142468608,
+          "signedDeltaBytes": 142468608,
+          "beforeRssBytes": 727912448,
+          "afterRssBytes": 854167552,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 30483.3965,
+        "mutationMs": 7.3106,
+        "indexUpdateMs": 0.2974,
+        "restoreMs": 6.7295,
+        "totalMs": 1341.3877
+      }
+    },
+    {
+      "profile": 100000,
+      "nodes": 100000,
+      "pattern": "chain",
+      "seed": "context-corpus-100000-chain",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 99999,
+        "sourceBackedNodeCount": 100000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 10679515,
+        "externalPayloadBytes": 10679580,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc050000",
+          "doc099999"
+        ]
+      },
+      "queries": {
+        "count": 256,
+        "topK": 10,
+        "baseline": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 2534,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.7054,
+            "p95Ms": 3.7359
+          }
+        },
+        "postSignal": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 2533,
+          "affectedCandidates": 2533,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.2187,
+            "p95Ms": 3.5493
+          }
+        },
+        "final": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 2534,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.2244,
+            "p95Ms": 3.4626
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:chain:doc099999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:chain:doc000000",
+          "memory:chain:doc050000",
+          "memory:chain:doc099999"
+        ],
+        "affectedNodes": 100000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:chain:doc000000",
+          "memory:chain:doc000001",
+          "memory:chain:doc000002",
+          "memory:chain:doc099997",
+          "memory:chain:doc099998",
+          "memory:chain:doc099999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 100000
+          },
+          {
+            "documentId": "doc050000",
+            "affectedNodes": 50000
+          },
+          {
+            "documentId": "doc099999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:chain:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc050000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:chain:doc099999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0269,
+            "p95Ms": 0.0676
+          },
+          "derive": {
+            "count": 99999,
+            "p50Ms": 0.0043,
+            "p95Ms": 0.0065
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 48.8632,
+            "p95Ms": 328.5179
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 23.6918,
+            "p95Ms": 36.9076
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.3792,
+            "p95Ms": 297.806
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 34.672,
+            "p95Ms": 62.0938
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.164,
+            "p95Ms": 0.1672
+          },
+          "query": {
+            "count": 256,
+            "p50Ms": 1.2244,
+            "p95Ms": 3.4626
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 62800567,
+          "indexMetadataBytes": 15890532,
+          "serializedMetadataBytes": 78691099,
+          "bytesPerNode": 786.91099,
+          "journalEvents": 300009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 311293040,
+          "afterHeapUsedBytes": 573779288,
+          "deltaBytes": 262486248,
+          "signedDeltaBytes": 262486248,
+          "beforeRssBytes": 465772544,
+          "afterRssBytes": 722608128,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 64826.9531,
+        "mutationMs": 8.0933,
+        "indexUpdateMs": 0.4401,
+        "restoreMs": 10.0065,
+        "totalMs": 3595.9051
+      }
+    },
+    {
+      "profile": 100000,
+      "nodes": 100000,
+      "pattern": "fanout",
+      "seed": "context-corpus-100000-fanout",
+      "graph": {
+        "rootSourceMemoryCount": 1,
+        "derivedConclusionCount": 99999,
+        "sourceBackedNodeCount": 100000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 10679515,
+        "externalPayloadBytes": 10679580,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000000",
+          "doc050000",
+          "doc099999"
+        ]
+      },
+      "queries": {
+        "count": 256,
+        "topK": 10,
+        "baseline": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 2534,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.1444,
+            "p95Ms": 3.5176
+          }
+        },
+        "postSignal": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 2533,
+          "affectedCandidates": 2533,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.7346,
+            "p95Ms": 3.5599
+          }
+        },
+        "final": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 2534,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.085,
+            "p95Ms": 2.6564
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:fanout:doc099999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc050000",
+          "memory:fanout:doc099999"
+        ],
+        "affectedNodes": 100000,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:fanout:doc000000",
+          "memory:fanout:doc000001",
+          "memory:fanout:doc000002",
+          "memory:fanout:doc099997",
+          "memory:fanout:doc099998",
+          "memory:fanout:doc099999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000000",
+            "affectedNodes": 100000
+          },
+          {
+            "documentId": "doc050000",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc099999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:fanout:doc000000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc050000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:fanout:doc099999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 2,
+            "p50Ms": 0.0333,
+            "p95Ms": 0.0519
+          },
+          "derive": {
+            "count": 99999,
+            "p50Ms": 0.0045,
+            "p95Ms": 0.0066
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0693,
+            "p95Ms": 373.3196
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0049,
+            "p95Ms": 0.008
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.1326,
+            "p95Ms": 309.512
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0408,
+            "p95Ms": 82.1616
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.1507,
+            "p95Ms": 0.1786
+          },
+          "query": {
+            "count": 256,
+            "p50Ms": 1.085,
+            "p95Ms": 2.6564
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 63000567,
+          "indexMetadataBytes": 15890532,
+          "serializedMetadataBytes": 78891099,
+          "bytesPerNode": 788.91099,
+          "journalEvents": 300009,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 615561360,
+          "afterHeapUsedBytes": 579944512,
+          "deltaBytes": 0,
+          "signedDeltaBytes": -35616848,
+          "beforeRssBytes": 805183488,
+          "afterRssBytes": 863920128,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 64826.9531,
+        "mutationMs": 2.4727,
+        "indexUpdateMs": 0.4211,
+        "restoreMs": 5.4995,
+        "totalMs": 3171.3277
+      }
+    },
+    {
+      "profile": 100000,
+      "nodes": 100000,
+      "pattern": "shared",
+      "seed": "context-corpus-100000-shared",
+      "graph": {
+        "rootSourceMemoryCount": 2,
+        "derivedConclusionCount": 99998,
+        "sourceBackedNodeCount": 100000,
+        "controlMemoryCount": 1
+      },
+      "corpus": {
+        "documentPayloadBytes": 10679515,
+        "externalPayloadBytes": 10679580,
+        "externalPayloadStoredInProtocol": false,
+        "changedDocumentIds": [
+          "doc000001",
+          "doc050000",
+          "doc099999"
+        ]
+      },
+      "queries": {
+        "count": 256,
+        "topK": 10,
+        "baseline": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 2534,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.2154,
+            "p95Ms": 3.5092
+          }
+        },
+        "postSignal": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 0.523438,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 1262,
+          "affectedCandidates": 1262,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 1272,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.0885,
+            "p95Ms": 2.6371
+          }
+        },
+        "final": {
+          "queries": 256,
+          "topK": 10,
+          "precision": 1,
+          "retrievalHitRate": 1,
+          "safety": 1,
+          "falseRejectRate": 0,
+          "blockedCandidates": 0,
+          "affectedCandidates": 0,
+          "unsafeUses": 0,
+          "falseRejects": 0,
+          "falseRejectDenominator": 2534,
+          "queryLatency": {
+            "count": 256,
+            "p50Ms": 1.2704,
+            "p95Ms": 3.4935
+          }
+        }
+      },
+      "checks": {
+        "targetMemoryId": "memory:shared:doc099999",
+        "before": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        "afterSignal": {
+          "status": "STALE",
+          "decision": "REVALIDATE"
+        },
+        "afterValidation": {
+          "status": "INVALID",
+          "decision": "REJECT"
+        },
+        "afterRepair": {
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      },
+      "propagation": {
+        "changedDocumentCount": 3,
+        "changedMemoryIds": [
+          "memory:shared:doc000001",
+          "memory:shared:doc050000",
+          "memory:shared:doc099999"
+        ],
+        "affectedNodes": 50001,
+        "repairedNodes": 4,
+        "repairedDerivedConclusionCount": 3,
+        "affectedSample": [
+          "memory:shared:doc000001",
+          "memory:shared:doc000002",
+          "memory:shared:doc000004",
+          "memory:shared:doc099996",
+          "memory:shared:doc099998",
+          "memory:shared:doc099999"
+        ],
+        "signalReports": [
+          {
+            "documentId": "doc000001",
+            "affectedNodes": 50000
+          },
+          {
+            "documentId": "doc050000",
+            "affectedNodes": 1
+          },
+          {
+            "documentId": "doc099999",
+            "affectedNodes": 1
+          }
+        ]
+      },
+      "validator": {
+        "id": "filesystem",
+        "operation": "sha256",
+        "realFilesystemValidator": true,
+        "changedChecks": [
+          {
+            "memoryId": "memory:shared:doc000001",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc050000",
+            "result": "CHANGED",
+            "status": "INVALID"
+          },
+          {
+            "memoryId": "memory:shared:doc099999",
+            "result": "CHANGED",
+            "status": "INVALID"
+          }
+        ],
+        "changedResultCount": 3,
+        "unchangedControl": {
+          "result": "UNCHANGED",
+          "status": "FRESH"
+        }
+      },
+      "metrics": {
+        "precision": 1,
+        "safety": 1,
+        "falseRejectRate": 0,
+        "retrievalHitRate": 1,
+        "latency": {
+          "register": {
+            "count": 3,
+            "p50Ms": 0.0262,
+            "p95Ms": 0.0438
+          },
+          "derive": {
+            "count": 99998,
+            "p50Ms": 0.0044,
+            "p95Ms": 0.0071
+          },
+          "signal": {
+            "count": 3,
+            "p50Ms": 0.0744,
+            "p95Ms": 213.1945
+          },
+          "check": {
+            "count": 4,
+            "p50Ms": 0.0058,
+            "p95Ms": 0.0068
+          },
+          "validate": {
+            "count": 4,
+            "p50Ms": 0.3202,
+            "p95Ms": 153.9019
+          },
+          "repair": {
+            "count": 4,
+            "p50Ms": 0.0311,
+            "p95Ms": 67.8297
+          },
+          "indexUpdate": {
+            "count": 3,
+            "p50Ms": 0.1105,
+            "p95Ms": 0.1901
+          },
+          "query": {
+            "count": 256,
+            "p50Ms": 1.2704,
+            "p95Ms": 3.4935
+          }
+        },
+        "metadata": {
+          "protocolEnvelopeBytes": 64300516,
+          "indexMetadataBytes": 15890532,
+          "serializedMetadataBytes": 80191048,
+          "bytesPerNode": 801.91048,
+          "journalEvents": 200011,
+          "payloadStoredInProtocol": false
+        },
+        "heap": {
+          "beforeHeapUsedBytes": 616213560,
+          "afterHeapUsedBytes": 892081048,
+          "deltaBytes": 275867488,
+          "signedDeltaBytes": 275867488,
+          "beforeRssBytes": 935206912,
+          "afterRssBytes": 1094565888,
+          "gcAvailable": false
+        }
+      },
+      "timings": {
+        "corpusGenerationMs": 64826.9531,
+        "mutationMs": 6.7285,
+        "indexUpdateMs": 0.3943,
+        "restoreMs": 10.6686,
+        "totalMs": 2806.7047
+      }
+    }
+  ],
+  "invariants": {
+    "dependencyPatterns": [
+      "chain",
+      "fanout",
+      "shared"
+    ],
+    "topologyCount": 3,
+    "isolation": {
+      "passed": true,
+      "affected": [
+        "memory:isolation:a",
+        "memory:isolation:a-child"
+      ],
+      "unrelated": [
+        {
+          "memoryId": "memory:isolation:b",
+          "status": "FRESH",
+          "decision": "USABLE"
+        },
+        {
+          "memoryId": "memory:isolation:b-child",
+          "status": "FRESH",
+          "decision": "USABLE"
+        }
+      ]
+    },
+    "requiredProfiles": true
+  },
+  "corpus": {
+    "temporary": true,
+    "cleanedUp": true,
+    "externalPayloadStoredInProtocol": false,
+    "payloadBoundary": "document bodies live only in temporary files; envelopes contain URI/version metadata"
+  },
+  "limitations": [
+    "Latency and heap values are local process measurements and vary by machine and garbage collection.",
+    "The default run keeps 100k optional; use --include-100k when the host has enough time and memory.",
+    "Retrieval indexes tokens and metadata, never document bodies in PREMiSE envelopes."
+  ]
+}

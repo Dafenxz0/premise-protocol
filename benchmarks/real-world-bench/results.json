@@ -1,0 +1,2166 @@
+{
+  "format": "premise-real-world-benchmark/0.1",
+  "suite": "paired-real-fixtures-v1",
+  "runner": "node24",
+  "runtime": {
+    "node": "24.19.0",
+    "git": "git version 2.49.0.windows.1"
+  },
+  "seed": "premise-real-world-2026-08-09",
+  "determinism": {
+    "networkAccess": false,
+    "fixedProtocolTime": "2026-08-09T19:20:00Z",
+    "fixedChangeTime": "2026-08-09T19:20:01Z",
+    "fixedGitDates": [
+      "2026-08-09T19:20:00+0000",
+      "2026-08-09T19:20:01+0000"
+    ],
+    "temporaryFixturesCleaned": true,
+    "stableScenarioOrder": true
+  },
+  "integrations": {
+    "referenceProtocol": "packages/reference-ts/dist/index.js",
+    "validators": {
+      "filesystem": "packages/validator-filesystem/dist/index.js",
+      "git": "packages/validator-git/dist/index.js"
+    },
+    "fixtures": [
+      "temporary real files",
+      "temporary Git repository with deterministic commits"
+    ]
+  },
+  "scenarioCount": 14,
+  "scenarios": [
+    {
+      "id": "fs-control",
+      "storage": "filesystem",
+      "category": "control",
+      "mutation": "none",
+      "signal": "none",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": null,
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "fs-content-changed",
+      "storage": "filesystem",
+      "category": "content-changed",
+      "mutation": "content",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": false,
+        "decision": "REJECT",
+        "targetStatus": "INVALID",
+        "revalidationResult": "CHANGED",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "fs-deleted",
+      "storage": "filesystem",
+      "category": "deleted",
+      "mutation": "delete",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": false,
+        "decision": "REJECT",
+        "targetStatus": "INVALID",
+        "revalidationResult": "MISSING",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "fs-unrelated-change",
+      "storage": "filesystem",
+      "category": "unrelated-change",
+      "mutation": "unrelated",
+      "signal": "unrelated",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": "CHANGED",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "fs-false-source-changed",
+      "storage": "filesystem",
+      "category": "false-SourceChanged",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": "UNCHANGED",
+        "recoveryCandidate": true
+      }
+    },
+    {
+      "id": "fs-derived-content-changed",
+      "storage": "filesystem",
+      "category": "derived-dependency",
+      "mutation": "content",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "expected": {
+        "safeToUse": false,
+        "decision": "REJECT",
+        "targetStatus": "INVALID",
+        "revalidationResult": "CHANGED",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "fs-derived-false-source-changed",
+      "storage": "filesystem",
+      "category": "derived-dependency",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": "UNCHANGED",
+        "recoveryCandidate": true
+      }
+    },
+    {
+      "id": "git-control",
+      "storage": "git",
+      "category": "control",
+      "mutation": "none",
+      "signal": "none",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": null,
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "git-content-changed",
+      "storage": "git",
+      "category": "content-changed",
+      "mutation": "content",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": false,
+        "decision": "REJECT",
+        "targetStatus": "INVALID",
+        "revalidationResult": "CHANGED",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "git-deleted",
+      "storage": "git",
+      "category": "deleted",
+      "mutation": "delete",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": false,
+        "decision": "REJECT",
+        "targetStatus": "INVALID",
+        "revalidationResult": "MISSING",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "git-unrelated-change",
+      "storage": "git",
+      "category": "unrelated-change",
+      "mutation": "unrelated",
+      "signal": "unrelated",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": "CHANGED",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "git-false-source-changed",
+      "storage": "git",
+      "category": "false-SourceChanged",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": "UNCHANGED",
+        "recoveryCandidate": true
+      }
+    },
+    {
+      "id": "git-derived-content-changed",
+      "storage": "git",
+      "category": "derived-dependency",
+      "mutation": "content",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "expected": {
+        "safeToUse": false,
+        "decision": "REJECT",
+        "targetStatus": "INVALID",
+        "revalidationResult": "CHANGED",
+        "recoveryCandidate": false
+      }
+    },
+    {
+      "id": "git-derived-false-source-changed",
+      "storage": "git",
+      "category": "derived-dependency",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "expected": {
+        "safeToUse": true,
+        "decision": "USE",
+        "targetStatus": "FRESH",
+        "revalidationResult": "UNCHANGED",
+        "recoveryCandidate": true
+      }
+    }
+  ],
+  "pairedMetrics": [
+    {
+      "strategy": "No protocol",
+      "episodes": 14,
+      "denominators": {
+        "safeToUse": 8,
+        "unsafeToUse": 6,
+        "recoveryCandidates": 4,
+        "validationCases": 12,
+        "isolationCases": 0
+      },
+      "security": {
+        "unsafeActions": 6,
+        "unsafeActionRate": 0.42857142857142855,
+        "falseRejections": 0,
+        "falseRejectionRate": 0,
+        "correctDecisions": 8,
+        "correctDecisionRate": 0.5714285714285714
+      },
+      "recovery": {
+        "candidates": 4,
+        "safeRecoveries": 4,
+        "safeRecoveryRate": 1,
+        "validatedRecoveries": 0,
+        "validatedRecoveryRate": 0
+      },
+      "validation": {
+        "cases": 12,
+        "resultMatches": 0,
+        "resultMatchRate": 0,
+        "protocolValidateCalls": 0
+      },
+      "validatorCalls": {
+        "byValidator": {
+          "filesystem": {
+            "versionFor": 0,
+            "validate": 0
+          },
+          "git": {
+            "versionFor": 0,
+            "validate": 0
+          }
+        },
+        "versionFor": 0,
+        "validate": 0,
+        "total": 0
+      },
+      "latencyMs": {
+        "p50": 0.001,
+        "p95": 0.004
+      },
+      "history": {
+        "episodesWithHistory": 0,
+        "preservationRate": 0,
+        "totalTargetEvents": 0,
+        "averageTargetEvents": 0
+      },
+      "isolation": {
+        "cases": 0,
+        "measured": false,
+        "passed": null,
+        "passRate": null
+      },
+      "memoryReadCalls": 14
+    },
+    {
+      "strategy": "PREMiSE",
+      "episodes": 14,
+      "denominators": {
+        "safeToUse": 8,
+        "unsafeToUse": 6,
+        "recoveryCandidates": 4,
+        "validationCases": 12,
+        "isolationCases": 14
+      },
+      "security": {
+        "unsafeActions": 0,
+        "unsafeActionRate": 0,
+        "falseRejections": 0,
+        "falseRejectionRate": 0,
+        "correctDecisions": 14,
+        "correctDecisionRate": 1
+      },
+      "recovery": {
+        "candidates": 4,
+        "safeRecoveries": 4,
+        "safeRecoveryRate": 1,
+        "validatedRecoveries": 4,
+        "validatedRecoveryRate": 1
+      },
+      "validation": {
+        "cases": 12,
+        "resultMatches": 12,
+        "resultMatchRate": 1,
+        "protocolValidateCalls": 12
+      },
+      "validatorCalls": {
+        "byValidator": {
+          "filesystem": {
+            "versionFor": 26,
+            "validate": 6
+          },
+          "git": {
+            "versionFor": 26,
+            "validate": 6
+          }
+        },
+        "versionFor": 52,
+        "validate": 12,
+        "total": 64
+      },
+      "latencyMs": {
+        "p50": 0.274,
+        "p95": 67.411
+      },
+      "history": {
+        "episodesWithHistory": 14,
+        "preservationRate": 1,
+        "totalTargetEvents": 34,
+        "averageTargetEvents": 2.429
+      },
+      "isolation": {
+        "cases": 14,
+        "measured": true,
+        "passed": 14,
+        "passRate": 1
+      },
+      "memoryReadCalls": 14
+    }
+  ],
+  "perEpisode": [
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-control",
+      "storage": "filesystem",
+      "category": "control",
+      "mutation": "none",
+      "signal": "none",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": false,
+        "expectedResult": null,
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-content-changed",
+      "storage": "filesystem",
+      "category": "content-changed",
+      "mutation": "content",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": true,
+      "falseRejection": false,
+      "correctDecision": false,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-deleted",
+      "storage": "filesystem",
+      "category": "deleted",
+      "mutation": "delete",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": true,
+      "falseRejection": false,
+      "correctDecision": false,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "MISSING",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.002,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-unrelated-change",
+      "storage": "filesystem",
+      "category": "unrelated-change",
+      "mutation": "unrelated",
+      "signal": "unrelated",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.002,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-false-source-changed",
+      "storage": "filesystem",
+      "category": "false-SourceChanged",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-derived-content-changed",
+      "storage": "filesystem",
+      "category": "derived-dependency",
+      "mutation": "content",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": true,
+      "falseRejection": false,
+      "correctDecision": false,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.002,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "fs-derived-false-source-changed",
+      "storage": "filesystem",
+      "category": "derived-dependency",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.002,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-control",
+      "storage": "git",
+      "category": "control",
+      "mutation": "none",
+      "signal": "none",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": false,
+        "expectedResult": null,
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-content-changed",
+      "storage": "git",
+      "category": "content-changed",
+      "mutation": "content",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": true,
+      "falseRejection": false,
+      "correctDecision": false,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.004,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-deleted",
+      "storage": "git",
+      "category": "deleted",
+      "mutation": "delete",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": true,
+      "falseRejection": false,
+      "correctDecision": false,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "MISSING",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.003,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-unrelated-change",
+      "storage": "git",
+      "category": "unrelated-change",
+      "mutation": "unrelated",
+      "signal": "unrelated",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-false-source-changed",
+      "storage": "git",
+      "category": "false-SourceChanged",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-derived-content-changed",
+      "storage": "git",
+      "category": "derived-dependency",
+      "mutation": "content",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": true,
+      "falseRejection": false,
+      "correctDecision": false,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "No protocol",
+      "scenarioId": "git-derived-false-source-changed",
+      "storage": "git",
+      "category": "derived-dependency",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "USE",
+      "targetStatus": "NOT_TRACKED",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.001,
+      "history": {
+        "preserved": false,
+        "length": 0,
+        "eventTypes": []
+      },
+      "isolation": null,
+      "sourceVersions": {
+        "initial": null,
+        "event": null
+      },
+      "note": "cached content is used without source validation"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-control",
+      "storage": "filesystem",
+      "category": "control",
+      "mutation": "none",
+      "signal": "none",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": false,
+        "expectedResult": null,
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 2,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.004,
+      "history": {
+        "preserved": true,
+        "length": 1,
+        "eventTypes": [
+          "MemoryRegistered"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": null
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-content-changed",
+      "storage": "filesystem",
+      "category": "content-changed",
+      "mutation": "content",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "REJECT",
+      "targetStatus": "INVALID",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": "CHANGED",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:fs-content-changed:root"
+        ],
+        "eventIds": [
+          "invalidated:memory:fs-content-changed:root:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 4,
+          "validate": 1
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 1.306,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryRegistered",
+          "MemoryStaled",
+          "MemoryInvalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:fs-content-changed:root"
+        ],
+        "targetStatusAfter": "INVALID",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": {
+          "scheme": "filesystem.sha256",
+          "token": "1d44a4745da663cadc12f7d1b464d6cce83ce827889f3e3c4aefe3f9b67ddf36"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-deleted",
+      "storage": "filesystem",
+      "category": "deleted",
+      "mutation": "delete",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "REJECT",
+      "targetStatus": "INVALID",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "MISSING",
+        "result": "MISSING",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:fs-deleted:root"
+        ],
+        "eventIds": [
+          "invalidated:memory:fs-deleted:root:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 4,
+          "validate": 1
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.163,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryRegistered",
+          "MemoryStaled",
+          "MemoryInvalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:fs-deleted:root"
+        ],
+        "targetStatusAfter": "INVALID",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": {
+          "scheme": "filesystem.sha256",
+          "token": "missing:94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-unrelated-change",
+      "storage": "filesystem",
+      "category": "unrelated-change",
+      "mutation": "unrelated",
+      "signal": "unrelated",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": "CHANGED",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:fs-unrelated-change:unrelated"
+        ],
+        "eventIds": [
+          "invalidated:memory:fs-unrelated-change:unrelated:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 4,
+          "validate": 1
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.24,
+      "history": {
+        "preserved": true,
+        "length": 1,
+        "eventTypes": [
+          "MemoryRegistered"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:fs-unrelated-change:unrelated"
+        ],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "INVALID"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": {
+          "scheme": "filesystem.sha256",
+          "token": "52d294772225d8b6153463d2bb648cae00be2102a9c788f43f9ae9e82e8ec338"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-false-source-changed",
+      "storage": "filesystem",
+      "category": "false-SourceChanged",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": true,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": "UNCHANGED",
+        "status": "FRESH",
+        "memoryIds": [
+          "memory:fs-false-source-changed:root"
+        ],
+        "eventIds": [
+          "revalidated:memory:fs-false-source-changed:root:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 4,
+          "validate": 1
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.274,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryRegistered",
+          "MemoryStaled",
+          "MemoryRevalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:fs-false-source-changed:root"
+        ],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-derived-content-changed",
+      "storage": "filesystem",
+      "category": "derived-dependency",
+      "mutation": "content",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "REJECT",
+      "targetStatus": "INVALID",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": "CHANGED",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:fs-derived-content-changed:root"
+        ],
+        "eventIds": [
+          "invalidated:memory:fs-derived-content-changed:root:6"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 4,
+          "validate": 1
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.239,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryDerived",
+          "MemoryStaled",
+          "MemoryInvalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:fs-derived-content-changed:derived",
+          "memory:fs-derived-content-changed:root"
+        ],
+        "targetStatusAfter": "INVALID",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": {
+          "scheme": "filesystem.sha256",
+          "token": "1d44a4745da663cadc12f7d1b464d6cce83ce827889f3e3c4aefe3f9b67ddf36"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "fs-derived-false-source-changed",
+      "storage": "filesystem",
+      "category": "derived-dependency",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": true,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": "UNCHANGED",
+        "status": "FRESH",
+        "memoryIds": [
+          "memory:fs-derived-false-source-changed:root"
+        ],
+        "eventIds": [
+          "revalidated:memory:fs-derived-false-source-changed:root:6"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 4,
+          "validate": 1
+        },
+        "git": {
+          "versionFor": 0,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.19,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryDerived",
+          "MemoryStaled",
+          "MemoryRevalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:fs-derived-false-source-changed:derived",
+          "memory:fs-derived-false-source-changed:root"
+        ],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        },
+        "event": {
+          "scheme": "filesystem.sha256",
+          "token": "94e5c924e95943b5e0e9864d317ce4c60a19a7fcde49853435b7444c8920bfa7"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-control",
+      "storage": "git",
+      "category": "control",
+      "mutation": "none",
+      "signal": "none",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": false,
+        "expectedResult": null,
+        "result": null,
+        "status": null,
+        "memoryIds": [],
+        "eventIds": [],
+        "calls": 0
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 2,
+          "validate": 0
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 0.005,
+      "history": {
+        "preserved": true,
+        "length": 1,
+        "eventTypes": [
+          "MemoryRegistered"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": null
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-content-changed",
+      "storage": "git",
+      "category": "content-changed",
+      "mutation": "content",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "REJECT",
+      "targetStatus": "INVALID",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": "CHANGED",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:git-content-changed:root"
+        ],
+        "eventIds": [
+          "invalidated:memory:git-content-changed:root:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 4,
+          "validate": 1
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 66.017,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryRegistered",
+          "MemoryStaled",
+          "MemoryInvalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:git-content-changed:root"
+        ],
+        "targetStatusAfter": "INVALID",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": {
+          "scheme": "git.blob",
+          "token": "77d3b84409681f3994b13be441a86678c6cb7c77"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-deleted",
+      "storage": "git",
+      "category": "deleted",
+      "mutation": "delete",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "REJECT",
+      "targetStatus": "INVALID",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "MISSING",
+        "result": "MISSING",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:git-deleted:root"
+        ],
+        "eventIds": [
+          "invalidated:memory:git-deleted:root:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 4,
+          "validate": 1
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 44.401,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryRegistered",
+          "MemoryStaled",
+          "MemoryInvalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:git-deleted:root"
+        ],
+        "targetStatusAfter": "INVALID",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": {
+          "scheme": "git.blob",
+          "token": "missing:ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-unrelated-change",
+      "storage": "git",
+      "category": "unrelated-change",
+      "mutation": "unrelated",
+      "signal": "unrelated",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": "CHANGED",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:git-unrelated-change:unrelated"
+        ],
+        "eventIds": [
+          "invalidated:memory:git-unrelated-change:unrelated:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 4,
+          "validate": 1
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 66.423,
+      "history": {
+        "preserved": true,
+        "length": 1,
+        "eventTypes": [
+          "MemoryRegistered"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:git-unrelated-change:unrelated"
+        ],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "INVALID"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": {
+          "scheme": "git.blob",
+          "token": "09a093860b4caebdd853b74815bd3ff7633af653"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-false-source-changed",
+      "storage": "git",
+      "category": "false-SourceChanged",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "root",
+      "derived": false,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": true,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": "UNCHANGED",
+        "status": "FRESH",
+        "memoryIds": [
+          "memory:git-false-source-changed:root"
+        ],
+        "eventIds": [
+          "revalidated:memory:git-false-source-changed:root:3"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 4,
+          "validate": 1
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 65.326,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryRegistered",
+          "MemoryStaled",
+          "MemoryRevalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:git-false-source-changed:root"
+        ],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-derived-content-changed",
+      "storage": "git",
+      "category": "derived-dependency",
+      "mutation": "content",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "REJECT",
+      "targetStatus": "INVALID",
+      "expectedDecision": "REJECT",
+      "expectedTargetStatus": "INVALID",
+      "safeToUse": false,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": false,
+      "recovered": false,
+      "validatedRecovery": false,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "CHANGED",
+        "result": "CHANGED",
+        "status": "INVALID",
+        "memoryIds": [
+          "memory:git-derived-content-changed:root"
+        ],
+        "eventIds": [
+          "invalidated:memory:git-derived-content-changed:root:6"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 4,
+          "validate": 1
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 65.275,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryDerived",
+          "MemoryStaled",
+          "MemoryInvalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:git-derived-content-changed:derived",
+          "memory:git-derived-content-changed:root"
+        ],
+        "targetStatusAfter": "INVALID",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": {
+          "scheme": "git.blob",
+          "token": "77d3b84409681f3994b13be441a86678c6cb7c77"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    },
+    {
+      "strategy": "PREMiSE",
+      "scenarioId": "git-derived-false-source-changed",
+      "storage": "git",
+      "category": "derived-dependency",
+      "mutation": "unrelated",
+      "signal": "target",
+      "target": "derived",
+      "derived": true,
+      "decision": "USE",
+      "targetStatus": "FRESH",
+      "expectedDecision": "USE",
+      "expectedTargetStatus": "FRESH",
+      "safeToUse": true,
+      "unsafeAction": false,
+      "falseRejection": false,
+      "correctDecision": true,
+      "recoveryCandidate": true,
+      "recovered": true,
+      "validatedRecovery": true,
+      "revalidation": {
+        "requested": true,
+        "expectedResult": "UNCHANGED",
+        "result": "UNCHANGED",
+        "status": "FRESH",
+        "memoryIds": [
+          "memory:git-derived-false-source-changed:root"
+        ],
+        "eventIds": [
+          "revalidated:memory:git-derived-false-source-changed:root:6"
+        ],
+        "calls": 1
+      },
+      "validatorCalls": {
+        "filesystem": {
+          "versionFor": 0,
+          "validate": 0
+        },
+        "git": {
+          "versionFor": 4,
+          "validate": 1
+        }
+      },
+      "memoryReadCalls": 1,
+      "latencyMs": 67.411,
+      "history": {
+        "preserved": true,
+        "length": 3,
+        "eventTypes": [
+          "MemoryDerived",
+          "MemoryStaled",
+          "MemoryRevalidated"
+        ]
+      },
+      "isolation": {
+        "expected": true,
+        "passed": true,
+        "affected": [
+          "memory:git-derived-false-source-changed:derived",
+          "memory:git-derived-false-source-changed:root"
+        ],
+        "targetStatusAfter": "FRESH",
+        "outsideStatusAfter": "FRESH"
+      },
+      "sourceVersions": {
+        "initial": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        },
+        "event": {
+          "scheme": "git.blob",
+          "token": "ee20d307ed61d349b083b7b90e77086c1d69a7ba"
+        }
+      },
+      "note": "real validator result gates protocol.check before use"
+    }
+  ],
+  "limitations": [
+    "The baseline intentionally uses cached content without a source validator.",
+    "Latency is local decision-path latency; temporary fixture creation is excluded.",
+    "Validator versionFor calls include initial registration, event version observation, and reads performed inside validate()."
+  ]
+}

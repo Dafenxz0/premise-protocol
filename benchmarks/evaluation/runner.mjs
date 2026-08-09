@@ -20,6 +20,7 @@ const sourceFiles = [
   join(root, "benchmarks", "premise-memory-bench", "src", "evaluators", "index.ts"),
   join(root, "benchmarks", "premise-memory-bench", "src", "baselines", "index.ts")
 ];
+const externalBenchmarkNames = ["comparative-bench", "long-context-bench", "real-world-bench", "context-corpus-bench"];
 
 const thresholds = {
   safety: { maxUnsafeActionRate: 0, maxIncreasePp: 0.005 },
@@ -35,6 +36,42 @@ const metricAliases = new Map([
   ["unsafeactionrate", "unsafeActionRate"],
   ["actionsafetyrate", "actionSafetyRate"],
   ["safetyrate", "actionSafetyRate"],
+  ["stalerecallrate", "staleRecallRate"],
+  ["staleactionrate", "staleActionRate"],
+  ["dynamicmemoryrepairrate", "dynamicMemoryRepairRate"],
+  ["tasksuccessrate", "taskSuccessRate"],
+  ["successrate", "successRate"],
+  ["falserejectionrate", "falseRejectionRate"],
+  ["correctdecisionrate", "correctDecisionRate"],
+  ["saferecoveryrate", "safeRecoveryRate"],
+  ["validatedrecoveryrate", "validatedRecoveryRate"],
+  ["resultmatchrate", "resultMatchRate"],
+  ["protocolvalidatecalls", "protocolValidateCalls"],
+  ["memoryreadcalls", "memoryReadCalls"],
+  ["preservationrate", "preservationRate"],
+  ["isolationpassrate", "isolationPassRate"],
+  ["averagetargetevents", "averageTargetEvents"],
+  ["totaltargetevents", "totalTargetEvents"],
+  ["episodeswithhistory", "episodesWithHistory"],
+  ["versionfor", "versionForCalls"],
+  ["validate", "validateCalls"],
+  ["p50", "p50"],
+  ["p95", "p95"],
+  ["accuracy", "accuracy"],
+  ["precision", "precision"],
+  ["recall", "recall"],
+  ["f1", "f1Score"],
+  ["f1score", "f1Score"],
+  ["answeraccuracy", "answerAccuracy"],
+  ["citationaccuracy", "citationAccuracy"],
+  ["retrievalprecision", "retrievalPrecision"],
+  ["retrievalrecall", "retrievalRecall"],
+  ["retrievalhitrate", "retrievalHitRate"],
+  ["contextprecision", "contextPrecision"],
+  ["contextrecall", "contextRecall"],
+  ["groundingrate", "groundingRate"],
+  ["safety", "safety"],
+  ["coverage", "coverage"],
   ["repairrate", "repairSuccessRate"],
   ["repairsuccessrate", "repairSuccessRate"],
   ["recoveryrate", "recoveryRate"],
@@ -62,6 +99,39 @@ const metricAliases = new Map([
   ["heapdeltabytes", "heapDeltaBytes"],
   ["serializedmetadatabytes", "serializedMetadataBytes"],
   ["externalpayloadbytes", "externalPayloadBytes"]
+]);
+
+const denominatorAliases = new Map([
+  ["count", "count"],
+  ["total", "total"],
+  ["episodes", "episodes"],
+  ["episodecount", "episodes"],
+  ["scenarios", "scenarios"],
+  ["scenariocount", "scenarios"],
+  ["tasks", "tasks"],
+  ["taskcount", "tasks"],
+  ["cases", "cases"],
+  ["casecount", "cases"],
+  ["examples", "examples"],
+  ["examplecount", "examples"],
+  ["documents", "documents"],
+  ["documentcount", "documents"],
+  ["chunks", "chunks"],
+  ["chunkcount", "chunks"],
+  ["queries", "queries"],
+  ["querycount", "queries"],
+  ["samples", "samples"],
+  ["samplecount", "samples"],
+  ["records", "records"],
+  ["recordcount", "records"],
+  ["nodes", "nodes"],
+  ["nodecount", "nodes"],
+  ["tokens", "tokens"],
+  ["tokencount", "tokens"],
+  ["controls", "controls"],
+  ["controlcount", "controls"],
+  ["ablations", "ablations"],
+  ["ablationcount", "ablations"]
 ]);
 
 function argValue(name) {
@@ -164,9 +234,33 @@ function flattenMetrics(value, output = {}) {
     if (typeof child === "number" && Number.isFinite(child)) {
       const alias = metricAliases.get(normalizedMetricKey(key));
       if (alias) output[alias] = child;
-    } else if (child && typeof child === "object") flattenMetrics(child, output);
+    } else if (child && typeof child === "object" && !["denominator", "denominators"].includes(normalizedMetricKey(key))) flattenMetrics(child, output);
   }
   return output;
+}
+
+function flattenDenominators(value, output = {}, prefix = "") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return output;
+  for (const [key, child] of Object.entries(value)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (typeof child === "number" && Number.isFinite(child)) output[path] = child;
+    else if (child && typeof child === "object") flattenDenominators(child, output, path);
+  }
+  return output;
+}
+
+function collectDenominators(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const denominators = {};
+  for (const [key, child] of Object.entries(value)) {
+    const normalized = normalizedMetricKey(key);
+    const alias = denominatorAliases.get(normalized);
+    if (alias && typeof child === "number" && Number.isFinite(child)) denominators[alias] = child;
+    if (["denominator", "denominators"].includes(normalized) && child && typeof child === "object") {
+      Object.assign(denominators, flattenDenominators(child));
+    }
+  }
+  return denominators;
 }
 
 function collectRows(value, path = "$", rows = []) {
@@ -177,11 +271,11 @@ function collectRows(value, path = "$", rows = []) {
   if (!value || typeof value !== "object") return rows;
   const metrics = flattenMetrics(value);
   if (Object.keys(metrics).length > 0) {
-    const label = value.baseline ?? value.strategy ?? value.model ?? value.variant ?? value.name ?? value.id ?? path;
-    rows.push({ path, label: String(label), metrics });
+    const label = value.baseline ?? value.strategy ?? value.model ?? value.variant ?? value.name ?? value.label ?? value.profile ?? value.id ?? path;
+    rows.push({ path, label: String(label), metrics, denominators: collectDenominators(value) });
   }
   for (const [key, child] of Object.entries(value)) {
-    if (child && typeof child === "object") collectRows(child, `${path}.${key}`, rows);
+    if (child && typeof child === "object" && !["denominator", "denominators"].includes(normalizedMetricKey(key))) collectRows(child, `${path}.${key}`, rows);
   }
   return rows;
 }
@@ -196,7 +290,7 @@ async function externalSource(name) {
   for (const directory of directories) files.push(...(await walk(directory)).filter((path) => /\.(json|jsonl|ndjson)$/i.test(path)));
   const uniqueFiles = [...new Set(files)].sort();
   if (uniqueFiles.length === 0) {
-    return { name, status: "absent", directories: directories.map(relativePath), files: [], recognizedRows: [], limitation: `No se encontró ${name}; no hay comparación externa disponible.` };
+    return { name, status: "absent", directories: directories.map(relativePath), files: [], recognizedRows: [], recognizedMetricNames: [], denominatorScopes: [], limitation: `No se encontró ${name}; no hay comparación externa disponible.` };
   }
   const parsedFiles = [];
   const recognizedRows = [];
@@ -213,7 +307,16 @@ async function externalSource(name) {
       parsedFiles.push({ ...file, status: "invalid", error: error.message });
     }
   }
-  return { name, status: "present", directories: directories.map(relativePath), files: parsedFiles, recognizedRows, limitation: recognizedRows.length === 0 ? "Los ficheros existen, pero no contienen métricas reconocibles por este adaptador; se conserva su hash y estado." : null };
+  return {
+    name,
+    status: "present",
+    directories: directories.map(relativePath),
+    files: parsedFiles,
+    recognizedRows,
+    recognizedMetricNames: [...new Set(recognizedRows.flatMap((row) => Object.keys(row.metrics)))].sort(),
+    denominatorScopes: recognizedRows.filter((row) => Object.keys(row.denominators).length > 0).map((row) => ({ path: row.path, label: row.label, denominators: row.denominators })),
+    limitation: recognizedRows.length === 0 ? "Los ficheros existen, pero no contienen métricas reconocibles por este adaptador; se conserva su hash y estado." : null
+  };
 }
 
 function check(id, status, summary, evidence = {}) {
@@ -428,11 +531,14 @@ function buildMarkdown(report) {
     `- Comparativas externas: ${report.externalSources.map((source) => `${source.name}=${source.status}`).join(", ")}.`,
     "- La evaluación no convierte una métrica aislada en una victoria universal: primero exige seguridad, luego recuperación y finalmente coste.",
     "- La campaña paired ya exporta decisiones por episodio y compara PREMiSE con un baseline sin protocolo y con perfiles de contexto largo.",
+    "- `real-world-bench` y `context-corpus-bench` se reportan por separado: sus métricas no se agregan a los denominadores de v0.1 ni entre sí.",
     "",
     "## Comandos reproducibles",
     "",
     "```text",
     "node benchmarks/premise-memory-bench/test/benchmark.test.mjs",
+    "pnpm benchmark:real-world",
+    "pnpm benchmark:context-corpus",
     "node benchmarks/evaluation/runner.mjs",
     "node benchmarks/evaluation/runner.mjs --compare-to benchmarks/evaluation/evaluation.json",
     "```",
@@ -477,6 +583,7 @@ function buildMarkdown(report) {
     "- La memoria medida en v0.1 es metadata serializada; el benchmark de contexto largo añade también un muestreo de heap de proceso.",
     "- Los perfiles largos son mediciones locales de Node 24 y deben repetirse en el hardware objetivo antes de usarse como SLA.",
     "- Los escenarios GitHub-like siguen siendo mundos deterministas locales; no sustituyen un adapter real conectado a GitHub.",
+    "- `real-world-bench` y `context-corpus-bench` son fuentes opcionales; si están presentes, el auditor conserva sus métricas y denominadores por fila sin combinarlos.",
     "",
     "## Comparación paired por episodio (oráculo conservador)",
     "",
@@ -490,12 +597,18 @@ function buildMarkdown(report) {
     "",
     "## Fuentes externas",
     "",
-    ...report.externalSources.map((source) => {
+    ...report.externalSources.flatMap((source) => {
       const detail = source.status === "absent" ? source.limitation : `${source.files.length} ficheros, ${source.recognizedRows.length} filas métricas reconocidas`;
-      return `- **${source.name}**: ${source.status}; ${detail}`;
+      const metricNames = source.recognizedMetricNames ?? [...new Set(source.recognizedRows.flatMap((row) => Object.keys(row.metrics ?? {})))];
+      const denominatorNames = [...new Set((source.denominatorScopes ?? []).flatMap((scope) => Object.keys(scope.denominators ?? {})))];
+      return [
+        `- **${source.name}**: ${source.status}; ${detail}`,
+        `  - Métricas reconocidas: ${metricNames.length > 0 ? metricNames.map((name) => `\`${name}\``).join(", ") : "ninguna"}.`,
+        `  - Denominadores observados por fila (sin combinar): ${denominatorNames.length > 0 ? denominatorNames.map((name) => `\`${name}\``).join(", ") : "no declarados"}.`
+      ];
     }),
     "",
-    "El runner descubre `comparative-bench` y `long-context-bench`, guarda hashes, parsea filas métricas reconocibles y conserva los casos no reconocidos como limitación. No mezcla denominadores automáticamente.",
+    "El runner descubre `comparative-bench`, `long-context-bench`, `real-world-bench` y `context-corpus-bench`, guarda hashes, parsea filas métricas reconocibles y conserva los casos no reconocidos como limitación. No mezcla denominadores automáticamente.",
     "",
     "## Umbrales de regresión",
     "",
@@ -525,11 +638,10 @@ function buildMarkdown(report) {
 async function main() {
   await mkdir(evaluationDir, { recursive: true });
   const capturedAt = new Date().toISOString();
-  const [capture, staticAuditResult, externalComparative, externalLongContext] = await Promise.all([
+  const [capture, staticAuditResult, ...externalSources] = await Promise.all([
     hasArg("--no-run-v01") && argValue("--v01-input") === undefined ? { available: false, source: "disabled", command: null, error: "Ejecución v0.1 desactivada por --no-run-v01." } : captureV01(),
     staticAudit(),
-    externalSource("comparative-bench"),
-    externalSource("long-context-bench")
+    ...externalBenchmarkNames.map((name) => externalSource(name))
   ]);
   const catalogs = [];
   for (const [kind, path] of scenarioRoots) {
@@ -568,7 +680,7 @@ async function main() {
     staticAudit: staticAuditResult,
     validity,
     pairedEpisodeAudit: paired,
-    externalSources: [externalComparative, externalLongContext],
+    externalSources,
     regressionGate
   };
   await writeJson(join(evaluationDir, "evaluation.json"), report);

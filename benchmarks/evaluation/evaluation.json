@@ -1,6 +1,6 @@
 {
   "format": "premise-benchmark-evaluation/0.1",
-  "generatedAt": "2026-08-09T20:41:55.118Z",
+  "generatedAt": "2026-08-09T21:21:52.367Z",
   "command": "node benchmarks/evaluation/runner.mjs",
   "root": "",
   "overallValidity": "provisionally-valid",
@@ -53,7 +53,7 @@
   "v01": {
     "available": true,
     "source": "benchmarks/premise-memory-bench/dist/cli.js",
-    "command": "C:\\Users\\Usuario\\AppData\\Local\\fnm_multishells\\11332_1786308114822\\node.exe C:\\Users\\Usuario\\Documents\\Codex\\2026-08-09\\https-drive-google-com-file-d-2\\benchmarks\\premise-memory-bench\\dist\\cli.js --runner minimal --suite v0.1",
+    "command": "C:\\Users\\Usuario\\AppData\\Local\\fnm_multishells\\20288_1786310512284\\node.exe C:\\Users\\Usuario\\Documents\\Codex\\2026-08-09\\https-drive-google-com-file-d-2\\benchmarks\\premise-memory-bench\\dist\\cli.js --runner minimal --suite v0.1",
     "result": {
       "format": "premise-benchmark-results/0.1",
       "suite": "v0.1",
@@ -73,8 +73,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 0,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.00420000000000087,
-          "latencyP95Ms": 0.01419999999999888,
+          "latencyP50Ms": 0.004400000000000404,
+          "latencyP95Ms": 0.013799999999999812,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -410,8 +410,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 40,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.00420000000000087,
-          "latencyP95Ms": 0.01419999999999888,
+          "latencyP50Ms": 0.004400000000000404,
+          "latencyP95Ms": 0.013799999999999812,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -747,8 +747,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 0,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.00420000000000087,
-          "latencyP95Ms": 0.01419999999999888,
+          "latencyP50Ms": 0.004400000000000404,
+          "latencyP95Ms": 0.013799999999999812,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -1084,8 +1084,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 40,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.00420000000000087,
-          "latencyP95Ms": 0.01419999999999888,
+          "latencyP50Ms": 0.004400000000000404,
+          "latencyP95Ms": 0.013799999999999812,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -1421,8 +1421,8 @@
           "falseSuppressionRate": 0,
           "revalidationCalls": 20,
           "historyPreservationRate": 1,
-          "latencyP50Ms": 0.00420000000000087,
-          "latencyP95Ms": 0.01419999999999888,
+          "latencyP50Ms": 0.004400000000000404,
+          "latencyP95Ms": 0.013799999999999812,
           "memoryP50Bytes": 235,
           "memoryP95Bytes": 245,
           "decisionTrace": [
@@ -2160,28 +2160,28 @@
           "latency": [
             {
               "baseline": "Plain Memory",
-              "p50": 0.00420000000000087,
-              "p95": 0.01419999999999888
+              "p50": 0.004400000000000404,
+              "p95": 0.013799999999999812
             },
             {
               "baseline": "Prompt Recheck",
-              "p50": 0.00420000000000087,
-              "p95": 0.01419999999999888
+              "p50": 0.004400000000000404,
+              "p95": 0.013799999999999812
             },
             {
               "baseline": "TTL Memory",
-              "p50": 0.00420000000000087,
-              "p95": 0.01419999999999888
+              "p50": 0.004400000000000404,
+              "p95": 0.013799999999999812
             },
             {
               "baseline": "Always Refresh",
-              "p50": 0.00420000000000087,
-              "p95": 0.01419999999999888
+              "p50": 0.004400000000000404,
+              "p95": 0.013799999999999812
             },
             {
               "baseline": "PREMiSE Explicit",
-              "p50": 0.00420000000000087,
-              "p95": 0.01419999999999888
+              "p50": 0.004400000000000404,
+              "p95": 0.013799999999999812
             }
           ],
           "memory": [
@@ -2264,8 +2264,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 0,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.00420000000000087,
-        "latencyP95Ms": 0.01419999999999888,
+        "latencyP50Ms": 0.004400000000000404,
+        "latencyP95Ms": 0.013799999999999812,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -2601,8 +2601,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 40,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.00420000000000087,
-        "latencyP95Ms": 0.01419999999999888,
+        "latencyP50Ms": 0.004400000000000404,
+        "latencyP95Ms": 0.013799999999999812,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -2938,8 +2938,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 0,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.00420000000000087,
-        "latencyP95Ms": 0.01419999999999888,
+        "latencyP50Ms": 0.004400000000000404,
+        "latencyP95Ms": 0.013799999999999812,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -3275,8 +3275,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 40,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.00420000000000087,
-        "latencyP95Ms": 0.01419999999999888,
+        "latencyP50Ms": 0.004400000000000404,
+        "latencyP95Ms": 0.013799999999999812,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -3612,8 +3612,8 @@
         "falseSuppressionRate": 0,
         "revalidationCalls": 20,
         "historyPreservationRate": 1,
-        "latencyP50Ms": 0.00420000000000087,
-        "latencyP95Ms": 0.01419999999999888,
+        "latencyP50Ms": 0.004400000000000404,
+        "latencyP95Ms": 0.013799999999999812,
         "memoryP50Bytes": 235,
         "memoryP95Bytes": 245,
         "decisionTrace": [
@@ -4001,7 +4001,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.07000000000000028,
+          "durationMs": 0.07489999999999952,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4065,7 +4065,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.013000000000001677,
+          "durationMs": 0.012500000000002842,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4122,7 +4122,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.00840000000000174,
+          "durationMs": 0.008800000000000807,
           "serializedMetadataBytes": 235,
           "revalidationStatus": "INVALID"
         },
@@ -4186,7 +4186,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.01419999999999888,
+          "durationMs": 0.013799999999999812,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4250,7 +4250,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.008900000000000574,
+          "durationMs": 0.008800000000000807,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4307,7 +4307,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.006799999999998363,
+          "durationMs": 0.00689999999999813,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4371,7 +4371,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.009000000000000341,
+          "durationMs": 0.008800000000000807,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4556,7 +4556,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.016500000000000625,
+          "durationMs": 0.016100000000001558,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4620,7 +4620,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.012699999999998823,
+          "durationMs": 0.0113999999999983,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4684,7 +4684,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0057000000000009265,
+          "durationMs": 0.004700000000003257,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4741,7 +4741,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.0029000000000003467,
+          "durationMs": 0.00280000000000058,
           "serializedMetadataBytes": 232,
           "revalidationStatus": "FRESH"
         },
@@ -4805,7 +4805,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0035999999999987153,
+          "durationMs": 0.0037999999999982492,
           "serializedMetadataBytes": 233,
           "revalidationStatus": "FRESH"
         },
@@ -4869,7 +4869,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003600000000002268,
+          "durationMs": 0.003500000000002501,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -4990,7 +4990,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.00420000000000087,
+          "durationMs": 0.00689999999999813,
           "serializedMetadataBytes": 232,
           "revalidationStatus": "FRESH"
         },
@@ -5054,7 +5054,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.005299999999998306,
+          "durationMs": 0.005400000000001626,
           "serializedMetadataBytes": 233,
           "revalidationStatus": "INVALID"
         },
@@ -5118,7 +5118,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.004100000000001103,
+          "durationMs": 0.004400000000000404,
           "serializedMetadataBytes": 234,
           "revalidationStatus": "FRESH"
         },
@@ -5175,7 +5175,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.0031000000000034333,
+          "durationMs": 0.0030999999999998806,
           "serializedMetadataBytes": 231,
           "revalidationStatus": "FRESH"
         },
@@ -5241,7 +5241,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.005500000000001393,
+          "durationMs": 0.005199999999998539,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -5307,7 +5307,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.005099999999998772,
+          "durationMs": 0.004900000000002791,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5432,7 +5432,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.004400000000000404,
+          "durationMs": 0.004300000000000637,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5498,7 +5498,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0033999999999991815,
+          "durationMs": 0.004199999999997317,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -5557,7 +5557,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.006600000000002382,
+          "durationMs": 0.0057000000000009265,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5623,7 +5623,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.004400000000000404,
+          "durationMs": 0.0045000000000001705,
           "serializedMetadataBytes": 246,
           "revalidationStatus": "INVALID"
         },
@@ -5689,7 +5689,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.006000000000000227,
+          "durationMs": 0.006199999999999761,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -5755,7 +5755,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003700000000002035,
+          "durationMs": 0.0035999999999987153,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -5814,7 +5814,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.002500000000001279,
+          "durationMs": 0.0024999999999977263,
           "serializedMetadataBytes": 245,
           "revalidationStatus": "INVALID"
         },
@@ -5880,7 +5880,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003900000000001569,
+          "durationMs": 0.0036999999999984823,
           "serializedMetadataBytes": 242,
           "revalidationStatus": "FRESH"
         },
@@ -5946,7 +5946,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.0034999999999989484,
+          "durationMs": 0.003600000000002268,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -6005,7 +6005,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.0024999999999977263,
+          "durationMs": 0.002600000000001046,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -6071,7 +6071,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003500000000002501,
+          "durationMs": 0.0036999999999984823,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -6137,7 +6137,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003700000000002035,
+          "durationMs": 0.003600000000002268,
           "serializedMetadataBytes": 242,
           "revalidationStatus": "FRESH"
         },
@@ -6196,7 +6196,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.002599999999997493,
+          "durationMs": 0.002600000000001046,
           "serializedMetadataBytes": 241,
           "revalidationStatus": "FRESH"
         },
@@ -6262,7 +6262,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003600000000002268,
+          "durationMs": 0.0036999999999984823,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -6328,7 +6328,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.003600000000002268,
+          "durationMs": 0.003800000000001802,
           "serializedMetadataBytes": 245,
           "revalidationStatus": "UNKNOWN"
         },
@@ -6387,7 +6387,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 2,
-          "durationMs": 0.002599999999997493,
+          "durationMs": 0.002799999999997027,
           "serializedMetadataBytes": 242,
           "revalidationStatus": "FRESH"
         },
@@ -6453,7 +6453,7 @@
           "ttlExpired": false,
           "historyPreserved": true,
           "readCalls": 3,
-          "durationMs": 0.005400000000001626,
+          "durationMs": 0.0057000000000009265,
           "serializedMetadataBytes": 243,
           "revalidationStatus": "INVALID"
         },
@@ -8614,7 +8614,8 @@
             "memoryP50Bytes": 1151,
             "memoryP95Bytes": 1421,
             "historyPreservationRate": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8629,6 +8630,13 @@
             "memoryP50Bytes": 31,
             "memoryP95Bytes": 32,
             "historyPreservationRate": 0
+          },
+          "denominators": {
+            "episodes": 24,
+            "dynamic": 21,
+            "repairable": 12,
+            "guarded": 9,
+            "controls": 3
           }
         },
         {
@@ -8644,6 +8652,13 @@
             "memoryP50Bytes": 1151,
             "memoryP95Bytes": 1421,
             "historyPreservationRate": 1
+          },
+          "denominators": {
+            "episodes": 24,
+            "dynamic": 21,
+            "repairable": 12,
+            "guarded": 9,
+            "controls": 3
           }
         },
         {
@@ -8652,7 +8667,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8660,7 +8676,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8668,7 +8685,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8676,7 +8694,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8684,7 +8703,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8692,7 +8712,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8700,7 +8721,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8708,7 +8730,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8716,7 +8739,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8724,7 +8748,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8732,7 +8757,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8740,7 +8766,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8748,7 +8775,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8756,7 +8784,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8764,7 +8793,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8772,7 +8802,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8780,7 +8811,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8788,7 +8820,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8796,7 +8829,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8804,7 +8838,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8812,7 +8847,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8820,7 +8856,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8828,7 +8865,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8836,7 +8874,8 @@
           "label": "No protocol",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8844,7 +8883,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8852,7 +8892,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8860,7 +8901,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8868,7 +8910,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8876,7 +8919,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8884,7 +8928,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8892,7 +8937,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8900,7 +8946,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8908,7 +8955,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8916,7 +8964,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8924,7 +8973,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8932,7 +8982,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8940,7 +8991,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8948,7 +9000,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8956,7 +9009,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8964,7 +9018,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8972,7 +9027,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8980,7 +9036,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8988,7 +9045,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -8996,7 +9054,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -9004,7 +9063,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 1
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -9012,7 +9072,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -9020,7 +9081,8 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 0
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/comparative-bench/results.json",
@@ -9028,6 +9090,41 @@
           "label": "PREMiSE",
           "metrics": {
             "revalidationCalls": 0
+          },
+          "denominators": {}
+        }
+      ],
+      "recognizedMetricNames": [
+        "historyPreservationRate",
+        "latencyP50Ms",
+        "latencyP95Ms",
+        "memoryP50Bytes",
+        "memoryP95Bytes",
+        "recoveryRate",
+        "revalidationCalls",
+        "unsafeActionRate"
+      ],
+      "denominatorScopes": [
+        {
+          "path": "$.pairedMetrics[0]",
+          "label": "No protocol",
+          "denominators": {
+            "episodes": 24,
+            "dynamic": 21,
+            "repairable": 12,
+            "guarded": 9,
+            "controls": 3
+          }
+        },
+        {
+          "path": "$.pairedMetrics[1]",
+          "label": "PREMiSE",
+          "denominators": {
+            "episodes": 24,
+            "dynamic": 21,
+            "repairable": 12,
+            "guarded": 9,
+            "controls": 3
           }
         }
       ],
@@ -9065,7 +9162,8 @@
             "serializedMetadataBytes": 10315249,
             "externalPayloadBytes": 65536,
             "totalMs": 347.5611000000001
-          }
+          },
+          "denominators": {}
         },
         {
           "file": "benchmarks/long-context-bench/results.json",
@@ -9083,6 +9181,10 @@
             "serializedMetadataBytes": 391652,
             "externalPayloadBytes": 65536,
             "totalMs": 24.3131
+          },
+          "denominators": {
+            "count": 1000,
+            "nodes": 1000
           }
         },
         {
@@ -9101,6 +9203,10 @@
             "serializedMetadataBytes": 395763,
             "externalPayloadBytes": 65536,
             "totalMs": 16.571199999999997
+          },
+          "denominators": {
+            "count": 1000,
+            "nodes": 1000
           }
         },
         {
@@ -9119,6 +9225,10 @@
             "serializedMetadataBytes": 409249,
             "externalPayloadBytes": 65536,
             "totalMs": 12.120400000000004
+          },
+          "denominators": {
+            "count": 1000,
+            "nodes": 1000
           }
         },
         {
@@ -9137,6 +9247,10 @@
             "serializedMetadataBytes": 1971651,
             "externalPayloadBytes": 65536,
             "totalMs": 71.78999999999999
+          },
+          "denominators": {
+            "count": 5000,
+            "nodes": 5000
           }
         },
         {
@@ -9155,6 +9269,10 @@
             "serializedMetadataBytes": 1987763,
             "externalPayloadBytes": 65536,
             "totalMs": 59.122600000000006
+          },
+          "denominators": {
+            "count": 5000,
+            "nodes": 5000
           }
         },
         {
@@ -9173,6 +9291,10 @@
             "serializedMetadataBytes": 2055249,
             "externalPayloadBytes": 65536,
             "totalMs": 52.5368
+          },
+          "denominators": {
+            "count": 5000,
+            "nodes": 5000
           }
         },
         {
@@ -9191,6 +9313,10 @@
             "serializedMetadataBytes": 3946651,
             "externalPayloadBytes": 65536,
             "totalMs": 103.0609
+          },
+          "denominators": {
+            "count": 10000,
+            "nodes": 10000
           }
         },
         {
@@ -9209,6 +9335,10 @@
             "serializedMetadataBytes": 3977763,
             "externalPayloadBytes": 65536,
             "totalMs": 102.13940000000002
+          },
+          "denominators": {
+            "count": 10000,
+            "nodes": 10000
           }
         },
         {
@@ -9227,6 +9357,10 @@
             "serializedMetadataBytes": 4112749,
             "externalPayloadBytes": 65536,
             "totalMs": 113.00690000000003
+          },
+          "denominators": {
+            "count": 10000,
+            "nodes": 10000
           }
         },
         {
@@ -9245,6 +9379,10 @@
             "serializedMetadataBytes": 9916650,
             "externalPayloadBytes": 65536,
             "totalMs": 240.5494
+          },
+          "denominators": {
+            "count": 25000,
+            "nodes": 25000
           }
         },
         {
@@ -9263,6 +9401,10 @@
             "serializedMetadataBytes": 9977763,
             "externalPayloadBytes": 65536,
             "totalMs": 241.0335
+          },
+          "denominators": {
+            "count": 25000,
+            "nodes": 25000
           }
         },
         {
@@ -9281,6 +9423,3470 @@
             "serializedMetadataBytes": 10315249,
             "externalPayloadBytes": 65536,
             "totalMs": 347.5611000000001
+          },
+          "denominators": {
+            "count": 25000,
+            "nodes": 25000
+          }
+        }
+      ],
+      "recognizedMetricNames": [
+        "checkMs",
+        "deriveMs",
+        "externalPayloadBytes",
+        "heapDeltaBytes",
+        "latencyP50Ms",
+        "latencyP95Ms",
+        "registerMs",
+        "serializedMetadataBytes",
+        "signalMs",
+        "totalMs",
+        "validateMs"
+      ],
+      "denominatorScopes": [
+        {
+          "path": "$.results[0]",
+          "label": "PREMiSE:chain:1000",
+          "denominators": {
+            "count": 1000,
+            "nodes": 1000
+          }
+        },
+        {
+          "path": "$.results[1]",
+          "label": "PREMiSE:fanout:1000",
+          "denominators": {
+            "count": 1000,
+            "nodes": 1000
+          }
+        },
+        {
+          "path": "$.results[2]",
+          "label": "PREMiSE:shared:1000",
+          "denominators": {
+            "count": 1000,
+            "nodes": 1000
+          }
+        },
+        {
+          "path": "$.results[3]",
+          "label": "PREMiSE:chain:5000",
+          "denominators": {
+            "count": 5000,
+            "nodes": 5000
+          }
+        },
+        {
+          "path": "$.results[4]",
+          "label": "PREMiSE:fanout:5000",
+          "denominators": {
+            "count": 5000,
+            "nodes": 5000
+          }
+        },
+        {
+          "path": "$.results[5]",
+          "label": "PREMiSE:shared:5000",
+          "denominators": {
+            "count": 5000,
+            "nodes": 5000
+          }
+        },
+        {
+          "path": "$.results[6]",
+          "label": "PREMiSE:chain:10000",
+          "denominators": {
+            "count": 10000,
+            "nodes": 10000
+          }
+        },
+        {
+          "path": "$.results[7]",
+          "label": "PREMiSE:fanout:10000",
+          "denominators": {
+            "count": 10000,
+            "nodes": 10000
+          }
+        },
+        {
+          "path": "$.results[8]",
+          "label": "PREMiSE:shared:10000",
+          "denominators": {
+            "count": 10000,
+            "nodes": 10000
+          }
+        },
+        {
+          "path": "$.results[9]",
+          "label": "PREMiSE:chain:25000",
+          "denominators": {
+            "count": 25000,
+            "nodes": 25000
+          }
+        },
+        {
+          "path": "$.results[10]",
+          "label": "PREMiSE:fanout:25000",
+          "denominators": {
+            "count": 25000,
+            "nodes": 25000
+          }
+        },
+        {
+          "path": "$.results[11]",
+          "label": "PREMiSE:shared:25000",
+          "denominators": {
+            "count": 25000,
+            "nodes": 25000
+          }
+        }
+      ],
+      "limitation": null
+    },
+    {
+      "name": "real-world-bench",
+      "status": "present",
+      "directories": [
+        "benchmarks/real-world-bench"
+      ],
+      "files": [
+        {
+          "path": "benchmarks/real-world-bench/results.json",
+          "bytes": 56551,
+          "sha256": "265849c7675dd8b4faa50dfcc764578eabbe34e034d5003d2edda9eed420408f",
+          "status": "parsed",
+          "format": "premise-real-world-benchmark/0.1"
+        }
+      ],
+      "recognizedRows": [
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$",
+          "label": "$",
+          "metrics": {
+            "unsafeActionRate": 0,
+            "falseRejectionRate": 0,
+            "correctDecisionRate": 1,
+            "safeRecoveryRate": 1,
+            "validatedRecoveryRate": 1,
+            "resultMatchRate": 1,
+            "protocolValidateCalls": 12,
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "p50": 0.274,
+            "p95": 67.411,
+            "episodesWithHistory": 14,
+            "preservationRate": 1,
+            "totalTargetEvents": 34,
+            "averageTargetEvents": 2.429,
+            "memoryReadCalls": 1
+          },
+          "denominators": {
+            "scenarios": 14
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0]",
+          "label": "No protocol",
+          "metrics": {
+            "unsafeActionRate": 0.42857142857142855,
+            "falseRejectionRate": 0,
+            "correctDecisionRate": 0.5714285714285714,
+            "safeRecoveryRate": 1,
+            "validatedRecoveryRate": 0,
+            "resultMatchRate": 0,
+            "protocolValidateCalls": 0,
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "p50": 0.001,
+            "p95": 0.004,
+            "episodesWithHistory": 0,
+            "preservationRate": 0,
+            "totalTargetEvents": 0,
+            "averageTargetEvents": 0,
+            "memoryReadCalls": 14
+          },
+          "denominators": {
+            "episodes": 14,
+            "safeToUse": 8,
+            "unsafeToUse": 6,
+            "recoveryCandidates": 4,
+            "validationCases": 12,
+            "isolationCases": 0
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].security",
+          "label": "$.pairedMetrics[0].security",
+          "metrics": {
+            "unsafeActionRate": 0.42857142857142855,
+            "falseRejectionRate": 0,
+            "correctDecisionRate": 0.5714285714285714
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].recovery",
+          "label": "$.pairedMetrics[0].recovery",
+          "metrics": {
+            "safeRecoveryRate": 1,
+            "validatedRecoveryRate": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].validation",
+          "label": "$.pairedMetrics[0].validation",
+          "metrics": {
+            "resultMatchRate": 0,
+            "protocolValidateCalls": 0
+          },
+          "denominators": {
+            "cases": 12
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].validatorCalls",
+          "label": "$.pairedMetrics[0].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {
+            "total": 0
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].validatorCalls.byValidator",
+          "label": "$.pairedMetrics[0].validatorCalls.byValidator",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].validatorCalls.byValidator.filesystem",
+          "label": "$.pairedMetrics[0].validatorCalls.byValidator.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].validatorCalls.byValidator.git",
+          "label": "$.pairedMetrics[0].validatorCalls.byValidator.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].latencyMs",
+          "label": "$.pairedMetrics[0].latencyMs",
+          "metrics": {
+            "p50": 0.001,
+            "p95": 0.004
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[0].history",
+          "label": "$.pairedMetrics[0].history",
+          "metrics": {
+            "episodesWithHistory": 0,
+            "preservationRate": 0,
+            "totalTargetEvents": 0,
+            "averageTargetEvents": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1]",
+          "label": "PREMiSE",
+          "metrics": {
+            "unsafeActionRate": 0,
+            "falseRejectionRate": 0,
+            "correctDecisionRate": 1,
+            "safeRecoveryRate": 1,
+            "validatedRecoveryRate": 1,
+            "resultMatchRate": 1,
+            "protocolValidateCalls": 12,
+            "versionForCalls": 52,
+            "validateCalls": 12,
+            "p50": 0.274,
+            "p95": 67.411,
+            "episodesWithHistory": 14,
+            "preservationRate": 1,
+            "totalTargetEvents": 34,
+            "averageTargetEvents": 2.429,
+            "memoryReadCalls": 14
+          },
+          "denominators": {
+            "episodes": 14,
+            "safeToUse": 8,
+            "unsafeToUse": 6,
+            "recoveryCandidates": 4,
+            "validationCases": 12,
+            "isolationCases": 14
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].security",
+          "label": "$.pairedMetrics[1].security",
+          "metrics": {
+            "unsafeActionRate": 0,
+            "falseRejectionRate": 0,
+            "correctDecisionRate": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].recovery",
+          "label": "$.pairedMetrics[1].recovery",
+          "metrics": {
+            "safeRecoveryRate": 1,
+            "validatedRecoveryRate": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].validation",
+          "label": "$.pairedMetrics[1].validation",
+          "metrics": {
+            "resultMatchRate": 1,
+            "protocolValidateCalls": 12
+          },
+          "denominators": {
+            "cases": 12
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].validatorCalls",
+          "label": "$.pairedMetrics[1].validatorCalls",
+          "metrics": {
+            "versionForCalls": 52,
+            "validateCalls": 12
+          },
+          "denominators": {
+            "total": 64
+          }
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].validatorCalls.byValidator",
+          "label": "$.pairedMetrics[1].validatorCalls.byValidator",
+          "metrics": {
+            "versionForCalls": 26,
+            "validateCalls": 6
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].validatorCalls.byValidator.filesystem",
+          "label": "$.pairedMetrics[1].validatorCalls.byValidator.filesystem",
+          "metrics": {
+            "versionForCalls": 26,
+            "validateCalls": 6
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].validatorCalls.byValidator.git",
+          "label": "$.pairedMetrics[1].validatorCalls.byValidator.git",
+          "metrics": {
+            "versionForCalls": 26,
+            "validateCalls": 6
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].latencyMs",
+          "label": "$.pairedMetrics[1].latencyMs",
+          "metrics": {
+            "p50": 0.274,
+            "p95": 67.411
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.pairedMetrics[1].history",
+          "label": "$.pairedMetrics[1].history",
+          "metrics": {
+            "episodesWithHistory": 14,
+            "preservationRate": 1,
+            "totalTargetEvents": 34,
+            "averageTargetEvents": 2.429
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[0]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[0].validatorCalls",
+          "label": "$.perEpisode[0].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[0].validatorCalls.filesystem",
+          "label": "$.perEpisode[0].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[0].validatorCalls.git",
+          "label": "$.perEpisode[0].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[1]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[1].validatorCalls",
+          "label": "$.perEpisode[1].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[1].validatorCalls.filesystem",
+          "label": "$.perEpisode[1].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[1].validatorCalls.git",
+          "label": "$.perEpisode[1].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[2]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[2].validatorCalls",
+          "label": "$.perEpisode[2].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[2].validatorCalls.filesystem",
+          "label": "$.perEpisode[2].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[2].validatorCalls.git",
+          "label": "$.perEpisode[2].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[3]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[3].validatorCalls",
+          "label": "$.perEpisode[3].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[3].validatorCalls.filesystem",
+          "label": "$.perEpisode[3].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[3].validatorCalls.git",
+          "label": "$.perEpisode[3].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[4]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[4].validatorCalls",
+          "label": "$.perEpisode[4].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[4].validatorCalls.filesystem",
+          "label": "$.perEpisode[4].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[4].validatorCalls.git",
+          "label": "$.perEpisode[4].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[5]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[5].validatorCalls",
+          "label": "$.perEpisode[5].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[5].validatorCalls.filesystem",
+          "label": "$.perEpisode[5].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[5].validatorCalls.git",
+          "label": "$.perEpisode[5].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[6]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[6].validatorCalls",
+          "label": "$.perEpisode[6].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[6].validatorCalls.filesystem",
+          "label": "$.perEpisode[6].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[6].validatorCalls.git",
+          "label": "$.perEpisode[6].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[7]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[7].validatorCalls",
+          "label": "$.perEpisode[7].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[7].validatorCalls.filesystem",
+          "label": "$.perEpisode[7].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[7].validatorCalls.git",
+          "label": "$.perEpisode[7].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[8]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[8].validatorCalls",
+          "label": "$.perEpisode[8].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[8].validatorCalls.filesystem",
+          "label": "$.perEpisode[8].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[8].validatorCalls.git",
+          "label": "$.perEpisode[8].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[9]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[9].validatorCalls",
+          "label": "$.perEpisode[9].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[9].validatorCalls.filesystem",
+          "label": "$.perEpisode[9].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[9].validatorCalls.git",
+          "label": "$.perEpisode[9].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[10]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[10].validatorCalls",
+          "label": "$.perEpisode[10].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[10].validatorCalls.filesystem",
+          "label": "$.perEpisode[10].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[10].validatorCalls.git",
+          "label": "$.perEpisode[10].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[11]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[11].validatorCalls",
+          "label": "$.perEpisode[11].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[11].validatorCalls.filesystem",
+          "label": "$.perEpisode[11].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[11].validatorCalls.git",
+          "label": "$.perEpisode[11].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[12]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[12].validatorCalls",
+          "label": "$.perEpisode[12].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[12].validatorCalls.filesystem",
+          "label": "$.perEpisode[12].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[12].validatorCalls.git",
+          "label": "$.perEpisode[12].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[13]",
+          "label": "No protocol",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[13].validatorCalls",
+          "label": "$.perEpisode[13].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[13].validatorCalls.filesystem",
+          "label": "$.perEpisode[13].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[13].validatorCalls.git",
+          "label": "$.perEpisode[13].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[14]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[14].validatorCalls",
+          "label": "$.perEpisode[14].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[14].validatorCalls.filesystem",
+          "label": "$.perEpisode[14].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 2,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[14].validatorCalls.git",
+          "label": "$.perEpisode[14].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[15]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[15].validatorCalls",
+          "label": "$.perEpisode[15].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[15].validatorCalls.filesystem",
+          "label": "$.perEpisode[15].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[15].validatorCalls.git",
+          "label": "$.perEpisode[15].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[16]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[16].validatorCalls",
+          "label": "$.perEpisode[16].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[16].validatorCalls.filesystem",
+          "label": "$.perEpisode[16].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[16].validatorCalls.git",
+          "label": "$.perEpisode[16].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[17]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[17].validatorCalls",
+          "label": "$.perEpisode[17].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[17].validatorCalls.filesystem",
+          "label": "$.perEpisode[17].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[17].validatorCalls.git",
+          "label": "$.perEpisode[17].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[18]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[18].validatorCalls",
+          "label": "$.perEpisode[18].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[18].validatorCalls.filesystem",
+          "label": "$.perEpisode[18].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[18].validatorCalls.git",
+          "label": "$.perEpisode[18].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[19]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[19].validatorCalls",
+          "label": "$.perEpisode[19].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[19].validatorCalls.filesystem",
+          "label": "$.perEpisode[19].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[19].validatorCalls.git",
+          "label": "$.perEpisode[19].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[20]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[20].validatorCalls",
+          "label": "$.perEpisode[20].validatorCalls",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[20].validatorCalls.filesystem",
+          "label": "$.perEpisode[20].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[20].validatorCalls.git",
+          "label": "$.perEpisode[20].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[21]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 2,
+            "validateCalls": 0,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[21].validatorCalls",
+          "label": "$.perEpisode[21].validatorCalls",
+          "metrics": {
+            "versionForCalls": 2,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[21].validatorCalls.filesystem",
+          "label": "$.perEpisode[21].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[21].validatorCalls.git",
+          "label": "$.perEpisode[21].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 2,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[22]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[22].validatorCalls",
+          "label": "$.perEpisode[22].validatorCalls",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[22].validatorCalls.filesystem",
+          "label": "$.perEpisode[22].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[22].validatorCalls.git",
+          "label": "$.perEpisode[22].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[23]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[23].validatorCalls",
+          "label": "$.perEpisode[23].validatorCalls",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[23].validatorCalls.filesystem",
+          "label": "$.perEpisode[23].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[23].validatorCalls.git",
+          "label": "$.perEpisode[23].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[24]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[24].validatorCalls",
+          "label": "$.perEpisode[24].validatorCalls",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[24].validatorCalls.filesystem",
+          "label": "$.perEpisode[24].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[24].validatorCalls.git",
+          "label": "$.perEpisode[24].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[25]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[25].validatorCalls",
+          "label": "$.perEpisode[25].validatorCalls",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[25].validatorCalls.filesystem",
+          "label": "$.perEpisode[25].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[25].validatorCalls.git",
+          "label": "$.perEpisode[25].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[26]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[26].validatorCalls",
+          "label": "$.perEpisode[26].validatorCalls",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[26].validatorCalls.filesystem",
+          "label": "$.perEpisode[26].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[26].validatorCalls.git",
+          "label": "$.perEpisode[26].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[27]",
+          "label": "PREMiSE",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1,
+            "memoryReadCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[27].validatorCalls",
+          "label": "$.perEpisode[27].validatorCalls",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[27].validatorCalls.filesystem",
+          "label": "$.perEpisode[27].validatorCalls.filesystem",
+          "metrics": {
+            "versionForCalls": 0,
+            "validateCalls": 0
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/real-world-bench/results.json",
+          "path": "$.perEpisode[27].validatorCalls.git",
+          "label": "$.perEpisode[27].validatorCalls.git",
+          "metrics": {
+            "versionForCalls": 4,
+            "validateCalls": 1
+          },
+          "denominators": {}
+        }
+      ],
+      "recognizedMetricNames": [
+        "averageTargetEvents",
+        "correctDecisionRate",
+        "episodesWithHistory",
+        "falseRejectionRate",
+        "memoryReadCalls",
+        "p50",
+        "p95",
+        "preservationRate",
+        "protocolValidateCalls",
+        "resultMatchRate",
+        "safeRecoveryRate",
+        "totalTargetEvents",
+        "unsafeActionRate",
+        "validateCalls",
+        "validatedRecoveryRate",
+        "versionForCalls"
+      ],
+      "denominatorScopes": [
+        {
+          "path": "$",
+          "label": "$",
+          "denominators": {
+            "scenarios": 14
+          }
+        },
+        {
+          "path": "$.pairedMetrics[0]",
+          "label": "No protocol",
+          "denominators": {
+            "episodes": 14,
+            "safeToUse": 8,
+            "unsafeToUse": 6,
+            "recoveryCandidates": 4,
+            "validationCases": 12,
+            "isolationCases": 0
+          }
+        },
+        {
+          "path": "$.pairedMetrics[0].validation",
+          "label": "$.pairedMetrics[0].validation",
+          "denominators": {
+            "cases": 12
+          }
+        },
+        {
+          "path": "$.pairedMetrics[0].validatorCalls",
+          "label": "$.pairedMetrics[0].validatorCalls",
+          "denominators": {
+            "total": 0
+          }
+        },
+        {
+          "path": "$.pairedMetrics[1]",
+          "label": "PREMiSE",
+          "denominators": {
+            "episodes": 14,
+            "safeToUse": 8,
+            "unsafeToUse": 6,
+            "recoveryCandidates": 4,
+            "validationCases": 12,
+            "isolationCases": 14
+          }
+        },
+        {
+          "path": "$.pairedMetrics[1].validation",
+          "label": "$.pairedMetrics[1].validation",
+          "denominators": {
+            "cases": 12
+          }
+        },
+        {
+          "path": "$.pairedMetrics[1].validatorCalls",
+          "label": "$.pairedMetrics[1].validatorCalls",
+          "denominators": {
+            "total": 64
+          }
+        }
+      ],
+      "limitation": null
+    },
+    {
+      "name": "context-corpus-bench",
+      "status": "present",
+      "directories": [
+        "benchmarks/context-corpus-bench"
+      ],
+      "files": [
+        {
+          "path": "benchmarks/context-corpus-bench/results.json",
+          "bytes": 74837,
+          "sha256": "82fec3a6536119c27d8a1443cb6a7c1f05d1a51a2253d79b0acd1c1e6069340a",
+          "status": "parsed",
+          "format": "premise-context-corpus-benchmark/0.1"
+        }
+      ],
+      "recognizedRows": [
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$",
+          "label": "$",
+          "metrics": {
+            "externalPayloadBytes": 10679580,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 80191048,
+            "totalMs": 2806.7047
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0]",
+          "label": "1000",
+          "metrics": {
+            "externalPayloadBytes": 104854,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 785097,
+            "totalMs": 47.92
+          },
+          "denominators": {
+            "nodes": 1000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].corpus",
+          "label": "$.results[0].corpus",
+          "metrics": {
+            "externalPayloadBytes": 104854
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].queries.baseline",
+          "label": "$.results[0].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].queries.postSignal",
+          "label": "$.results[0].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].queries.final",
+          "label": "$.results[0].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].metrics",
+          "label": "$.results[0].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 785097
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].metrics.metadata",
+          "label": "$.results[0].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 785097
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[0].timings",
+          "label": "$.results[0].timings",
+          "metrics": {
+            "totalMs": 47.92
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1]",
+          "label": "1000",
+          "metrics": {
+            "externalPayloadBytes": 104854,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 787097,
+            "totalMs": 30.8208
+          },
+          "denominators": {
+            "nodes": 1000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].corpus",
+          "label": "$.results[1].corpus",
+          "metrics": {
+            "externalPayloadBytes": 104854
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].queries.baseline",
+          "label": "$.results[1].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].queries.postSignal",
+          "label": "$.results[1].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].queries.final",
+          "label": "$.results[1].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].metrics",
+          "label": "$.results[1].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 787097
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].metrics.metadata",
+          "label": "$.results[1].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 787097
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[1].timings",
+          "label": "$.results[1].timings",
+          "metrics": {
+            "totalMs": 30.8208
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2]",
+          "label": "1000",
+          "metrics": {
+            "externalPayloadBytes": 104854,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 800046,
+            "totalMs": 24.2516
+          },
+          "denominators": {
+            "nodes": 1000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].corpus",
+          "label": "$.results[2].corpus",
+          "metrics": {
+            "externalPayloadBytes": 104854
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].queries.baseline",
+          "label": "$.results[2].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].queries.postSignal",
+          "label": "$.results[2].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0.515625,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].queries.final",
+          "label": "$.results[2].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].metrics",
+          "label": "$.results[2].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 800046
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].metrics.metadata",
+          "label": "$.results[2].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 800046
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[2].timings",
+          "label": "$.results[2].timings",
+          "metrics": {
+            "totalMs": 24.2516
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3]",
+          "label": "10000",
+          "metrics": {
+            "externalPayloadBytes": 1058012,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 7851098,
+            "totalMs": 260.3151
+          },
+          "denominators": {
+            "nodes": 10000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].corpus",
+          "label": "$.results[3].corpus",
+          "metrics": {
+            "externalPayloadBytes": 1058012
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].queries.baseline",
+          "label": "$.results[3].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].queries.postSignal",
+          "label": "$.results[3].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].queries.final",
+          "label": "$.results[3].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].metrics",
+          "label": "$.results[3].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 7851098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].metrics.metadata",
+          "label": "$.results[3].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 7851098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[3].timings",
+          "label": "$.results[3].timings",
+          "metrics": {
+            "totalMs": 260.3151
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4]",
+          "label": "10000",
+          "metrics": {
+            "externalPayloadBytes": 1058012,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 7871098,
+            "totalMs": 183.7453
+          },
+          "denominators": {
+            "nodes": 10000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].corpus",
+          "label": "$.results[4].corpus",
+          "metrics": {
+            "externalPayloadBytes": 1058012
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].queries.baseline",
+          "label": "$.results[4].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].queries.postSignal",
+          "label": "$.results[4].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].queries.final",
+          "label": "$.results[4].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].metrics",
+          "label": "$.results[4].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 7871098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].metrics.metadata",
+          "label": "$.results[4].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 7871098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[4].timings",
+          "label": "$.results[4].timings",
+          "metrics": {
+            "totalMs": 183.7453
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5]",
+          "label": "10000",
+          "metrics": {
+            "externalPayloadBytes": 1058012,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 8001047,
+            "totalMs": 213.7008
+          },
+          "denominators": {
+            "nodes": 10000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].corpus",
+          "label": "$.results[5].corpus",
+          "metrics": {
+            "externalPayloadBytes": 1058012
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].queries.baseline",
+          "label": "$.results[5].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].queries.postSignal",
+          "label": "$.results[5].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0.53125,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].queries.final",
+          "label": "$.results[5].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].metrics",
+          "label": "$.results[5].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 8001047
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].metrics.metadata",
+          "label": "$.results[5].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 8001047
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[5].timings",
+          "label": "$.results[5].timings",
+          "metrics": {
+            "totalMs": 213.7008
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6]",
+          "label": "50000",
+          "metrics": {
+            "externalPayloadBytes": 5334262,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 39291098,
+            "totalMs": 1593.061
+          },
+          "denominators": {
+            "nodes": 50000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].corpus",
+          "label": "$.results[6].corpus",
+          "metrics": {
+            "externalPayloadBytes": 5334262
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].queries.baseline",
+          "label": "$.results[6].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].queries.postSignal",
+          "label": "$.results[6].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].queries.final",
+          "label": "$.results[6].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].metrics",
+          "label": "$.results[6].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 39291098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].metrics.metadata",
+          "label": "$.results[6].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 39291098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[6].timings",
+          "label": "$.results[6].timings",
+          "metrics": {
+            "totalMs": 1593.061
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7]",
+          "label": "50000",
+          "metrics": {
+            "externalPayloadBytes": 5334262,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 39391098,
+            "totalMs": 1518.1851
+          },
+          "denominators": {
+            "nodes": 50000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].corpus",
+          "label": "$.results[7].corpus",
+          "metrics": {
+            "externalPayloadBytes": 5334262
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].queries.baseline",
+          "label": "$.results[7].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].queries.postSignal",
+          "label": "$.results[7].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].queries.final",
+          "label": "$.results[7].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].metrics",
+          "label": "$.results[7].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 39391098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].metrics.metadata",
+          "label": "$.results[7].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 39391098
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[7].timings",
+          "label": "$.results[7].timings",
+          "metrics": {
+            "totalMs": 1518.1851
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8]",
+          "label": "50000",
+          "metrics": {
+            "externalPayloadBytes": 5334262,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 40041047,
+            "totalMs": 1341.3877
+          },
+          "denominators": {
+            "nodes": 50000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].corpus",
+          "label": "$.results[8].corpus",
+          "metrics": {
+            "externalPayloadBytes": 5334262
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].queries.baseline",
+          "label": "$.results[8].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].queries.postSignal",
+          "label": "$.results[8].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0.515,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].queries.final",
+          "label": "$.results[8].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].metrics",
+          "label": "$.results[8].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 40041047
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].metrics.metadata",
+          "label": "$.results[8].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 40041047
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[8].timings",
+          "label": "$.results[8].timings",
+          "metrics": {
+            "totalMs": 1341.3877
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9]",
+          "label": "100000",
+          "metrics": {
+            "externalPayloadBytes": 10679580,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 78691099,
+            "totalMs": 3595.9051
+          },
+          "denominators": {
+            "nodes": 100000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].corpus",
+          "label": "$.results[9].corpus",
+          "metrics": {
+            "externalPayloadBytes": 10679580
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].queries.baseline",
+          "label": "$.results[9].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].queries.postSignal",
+          "label": "$.results[9].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].queries.final",
+          "label": "$.results[9].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].metrics",
+          "label": "$.results[9].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 78691099
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].metrics.metadata",
+          "label": "$.results[9].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 78691099
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[9].timings",
+          "label": "$.results[9].timings",
+          "metrics": {
+            "totalMs": 3595.9051
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10]",
+          "label": "100000",
+          "metrics": {
+            "externalPayloadBytes": 10679580,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 78891099,
+            "totalMs": 3171.3277
+          },
+          "denominators": {
+            "nodes": 100000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].corpus",
+          "label": "$.results[10].corpus",
+          "metrics": {
+            "externalPayloadBytes": 10679580
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].queries.baseline",
+          "label": "$.results[10].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].queries.postSignal",
+          "label": "$.results[10].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].queries.final",
+          "label": "$.results[10].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].metrics",
+          "label": "$.results[10].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 78891099
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].metrics.metadata",
+          "label": "$.results[10].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 78891099
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[10].timings",
+          "label": "$.results[10].timings",
+          "metrics": {
+            "totalMs": 3171.3277
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11]",
+          "label": "100000",
+          "metrics": {
+            "externalPayloadBytes": 10679580,
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "serializedMetadataBytes": 80191048,
+            "totalMs": 2806.7047
+          },
+          "denominators": {
+            "nodes": 100000
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].corpus",
+          "label": "$.results[11].corpus",
+          "metrics": {
+            "externalPayloadBytes": 10679580
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].queries",
+          "label": "[object Object]",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "count": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].queries.baseline",
+          "label": "$.results[11].queries.baseline",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].queries.postSignal",
+          "label": "$.results[11].queries.postSignal",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 0.523438,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].queries.final",
+          "label": "$.results[11].queries.final",
+          "metrics": {
+            "precision": 1,
+            "retrievalHitRate": 1,
+            "safety": 1,
+            "falseRejectRate": 0
+          },
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].metrics",
+          "label": "$.results[11].metrics",
+          "metrics": {
+            "precision": 1,
+            "safety": 1,
+            "falseRejectRate": 0,
+            "retrievalHitRate": 1,
+            "serializedMetadataBytes": 80191048
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].metrics.metadata",
+          "label": "$.results[11].metrics.metadata",
+          "metrics": {
+            "serializedMetadataBytes": 80191048
+          },
+          "denominators": {}
+        },
+        {
+          "file": "benchmarks/context-corpus-bench/results.json",
+          "path": "$.results[11].timings",
+          "label": "$.results[11].timings",
+          "metrics": {
+            "totalMs": 2806.7047
+          },
+          "denominators": {}
+        }
+      ],
+      "recognizedMetricNames": [
+        "externalPayloadBytes",
+        "falseRejectRate",
+        "precision",
+        "retrievalHitRate",
+        "safety",
+        "serializedMetadataBytes",
+        "totalMs"
+      ],
+      "denominatorScopes": [
+        {
+          "path": "$.results[0]",
+          "label": "1000",
+          "denominators": {
+            "nodes": 1000
+          }
+        },
+        {
+          "path": "$.results[0].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "path": "$.results[0].queries.baseline",
+          "label": "$.results[0].queries.baseline",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[0].queries.postSignal",
+          "label": "$.results[0].queries.postSignal",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[0].queries.final",
+          "label": "$.results[0].queries.final",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[1]",
+          "label": "1000",
+          "denominators": {
+            "nodes": 1000
+          }
+        },
+        {
+          "path": "$.results[1].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "path": "$.results[1].queries.baseline",
+          "label": "$.results[1].queries.baseline",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[1].queries.postSignal",
+          "label": "$.results[1].queries.postSignal",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[1].queries.final",
+          "label": "$.results[1].queries.final",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[2]",
+          "label": "1000",
+          "denominators": {
+            "nodes": 1000
+          }
+        },
+        {
+          "path": "$.results[2].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "path": "$.results[2].queries.baseline",
+          "label": "$.results[2].queries.baseline",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[2].queries.postSignal",
+          "label": "$.results[2].queries.postSignal",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[2].queries.final",
+          "label": "$.results[2].queries.final",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[3]",
+          "label": "10000",
+          "denominators": {
+            "nodes": 10000
+          }
+        },
+        {
+          "path": "$.results[3].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "path": "$.results[3].queries.baseline",
+          "label": "$.results[3].queries.baseline",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[3].queries.postSignal",
+          "label": "$.results[3].queries.postSignal",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[3].queries.final",
+          "label": "$.results[3].queries.final",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[4]",
+          "label": "10000",
+          "denominators": {
+            "nodes": 10000
+          }
+        },
+        {
+          "path": "$.results[4].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "path": "$.results[4].queries.baseline",
+          "label": "$.results[4].queries.baseline",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[4].queries.postSignal",
+          "label": "$.results[4].queries.postSignal",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[4].queries.final",
+          "label": "$.results[4].queries.final",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[5]",
+          "label": "10000",
+          "denominators": {
+            "nodes": 10000
+          }
+        },
+        {
+          "path": "$.results[5].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 64
+          }
+        },
+        {
+          "path": "$.results[5].queries.baseline",
+          "label": "$.results[5].queries.baseline",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[5].queries.postSignal",
+          "label": "$.results[5].queries.postSignal",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[5].queries.final",
+          "label": "$.results[5].queries.final",
+          "denominators": {
+            "queries": 64
+          }
+        },
+        {
+          "path": "$.results[6]",
+          "label": "50000",
+          "denominators": {
+            "nodes": 50000
+          }
+        },
+        {
+          "path": "$.results[6].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 200
+          }
+        },
+        {
+          "path": "$.results[6].queries.baseline",
+          "label": "$.results[6].queries.baseline",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[6].queries.postSignal",
+          "label": "$.results[6].queries.postSignal",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[6].queries.final",
+          "label": "$.results[6].queries.final",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[7]",
+          "label": "50000",
+          "denominators": {
+            "nodes": 50000
+          }
+        },
+        {
+          "path": "$.results[7].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 200
+          }
+        },
+        {
+          "path": "$.results[7].queries.baseline",
+          "label": "$.results[7].queries.baseline",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[7].queries.postSignal",
+          "label": "$.results[7].queries.postSignal",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[7].queries.final",
+          "label": "$.results[7].queries.final",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[8]",
+          "label": "50000",
+          "denominators": {
+            "nodes": 50000
+          }
+        },
+        {
+          "path": "$.results[8].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 200
+          }
+        },
+        {
+          "path": "$.results[8].queries.baseline",
+          "label": "$.results[8].queries.baseline",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[8].queries.postSignal",
+          "label": "$.results[8].queries.postSignal",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[8].queries.final",
+          "label": "$.results[8].queries.final",
+          "denominators": {
+            "queries": 200
+          }
+        },
+        {
+          "path": "$.results[9]",
+          "label": "100000",
+          "denominators": {
+            "nodes": 100000
+          }
+        },
+        {
+          "path": "$.results[9].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 256
+          }
+        },
+        {
+          "path": "$.results[9].queries.baseline",
+          "label": "$.results[9].queries.baseline",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[9].queries.postSignal",
+          "label": "$.results[9].queries.postSignal",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[9].queries.final",
+          "label": "$.results[9].queries.final",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[10]",
+          "label": "100000",
+          "denominators": {
+            "nodes": 100000
+          }
+        },
+        {
+          "path": "$.results[10].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 256
+          }
+        },
+        {
+          "path": "$.results[10].queries.baseline",
+          "label": "$.results[10].queries.baseline",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[10].queries.postSignal",
+          "label": "$.results[10].queries.postSignal",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[10].queries.final",
+          "label": "$.results[10].queries.final",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[11]",
+          "label": "100000",
+          "denominators": {
+            "nodes": 100000
+          }
+        },
+        {
+          "path": "$.results[11].queries",
+          "label": "[object Object]",
+          "denominators": {
+            "count": 256
+          }
+        },
+        {
+          "path": "$.results[11].queries.baseline",
+          "label": "$.results[11].queries.baseline",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[11].queries.postSignal",
+          "label": "$.results[11].queries.postSignal",
+          "denominators": {
+            "queries": 256
+          }
+        },
+        {
+          "path": "$.results[11].queries.final",
+          "label": "$.results[11].queries.final",
+          "denominators": {
+            "queries": 256
           }
         }
       ],

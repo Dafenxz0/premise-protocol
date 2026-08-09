@@ -26,6 +26,8 @@ jobs:
       - run: pnpm test:properties
       - run: pnpm conformance
       - run: pnpm benchmark:smoke
+      - run: pnpm benchmark:real-world
+      - run: pnpm benchmark:context-corpus
       - run: pnpm benchmark:compare
       - run: pnpm benchmark:context
       - run: pnpm benchmark:evaluate

@@ -1,19 +1,22 @@
 # Auditoría de evaluación PREMiSE
 
-Generado: 2026-08-09T20:41:55.118Z
+Generado: 2026-08-09T21:21:52.367Z
 
 ## Conclusión
 
 - Estado de validez de v0.1: **PROVISIONALLY-VALID**.
 - Ejecución actual: disponible; 40 escenarios, 40 trazas, 10 controles y 5 ablations.
-- Comparativas externas: comparative-bench=present, long-context-bench=present.
+- Comparativas externas: comparative-bench=present, long-context-bench=present, real-world-bench=present, context-corpus-bench=present.
 - La evaluación no convierte una métrica aislada en una victoria universal: primero exige seguridad, luego recuperación y finalmente coste.
 - La campaña paired ya exporta decisiones por episodio y compara PREMiSE con un baseline sin protocolo y con perfiles de contexto largo.
+- `real-world-bench` y `context-corpus-bench` se reportan por separado: sus métricas no se agregan a los denominadores de v0.1 ni entre sí.
 
 ## Comandos reproducibles
 
 ```text
 node benchmarks/premise-memory-bench/test/benchmark.test.mjs
+pnpm benchmark:real-world
+pnpm benchmark:context-corpus
 node benchmarks/evaluation/runner.mjs
 node benchmarks/evaluation/runner.mjs --compare-to benchmarks/evaluation/evaluation.json
 ```
@@ -82,6 +85,7 @@ Caveats que permanecen explícitos:
 - La memoria medida en v0.1 es metadata serializada; el benchmark de contexto largo añade también un muestreo de heap de proceso.
 - Los perfiles largos son mediciones locales de Node 24 y deben repetirse en el hardware objetivo antes de usarse como SLA.
 - Los escenarios GitHub-like siguen siendo mundos deterministas locales; no sustituyen un adapter real conectado a GitHub.
+- `real-world-bench` y `context-corpus-bench` son fuentes opcionales; si están presentes, el auditor conserva sus métricas y denominadores por fila sin combinarlos.
 
 ## Comparación paired por episodio (oráculo conservador)
 
@@ -100,9 +104,19 @@ La decisión de producto debe aplicar primero el gate de seguridad y después op
 ## Fuentes externas
 
 - **comparative-bench**: present; 1 ficheros, 51 filas métricas reconocidas
+  - Métricas reconocidas: `historyPreservationRate`, `latencyP50Ms`, `latencyP95Ms`, `memoryP50Bytes`, `memoryP95Bytes`, `recoveryRate`, `revalidationCalls`, `unsafeActionRate`.
+  - Denominadores observados por fila (sin combinar): `episodes`, `dynamic`, `repairable`, `guarded`, `controls`.
 - **long-context-bench**: present; 1 ficheros, 13 filas métricas reconocidas
+  - Métricas reconocidas: `checkMs`, `deriveMs`, `externalPayloadBytes`, `heapDeltaBytes`, `latencyP50Ms`, `latencyP95Ms`, `registerMs`, `serializedMetadataBytes`, `signalMs`, `totalMs`, `validateMs`.
+  - Denominadores observados por fila (sin combinar): `count`, `nodes`.
+- **real-world-bench**: present; 1 ficheros, 133 filas métricas reconocidas
+  - Métricas reconocidas: `averageTargetEvents`, `correctDecisionRate`, `episodesWithHistory`, `falseRejectionRate`, `memoryReadCalls`, `p50`, `p95`, `preservationRate`, `protocolValidateCalls`, `resultMatchRate`, `safeRecoveryRate`, `totalTargetEvents`, `unsafeActionRate`, `validateCalls`, `validatedRecoveryRate`, `versionForCalls`.
+  - Denominadores observados por fila (sin combinar): `scenarios`, `episodes`, `safeToUse`, `unsafeToUse`, `recoveryCandidates`, `validationCases`, `isolationCases`, `cases`, `total`.
+- **context-corpus-bench**: present; 1 ficheros, 109 filas métricas reconocidas
+  - Métricas reconocidas: `externalPayloadBytes`, `falseRejectRate`, `precision`, `retrievalHitRate`, `safety`, `serializedMetadataBytes`, `totalMs`.
+  - Denominadores observados por fila (sin combinar): `nodes`, `count`, `queries`.
 
-El runner descubre `comparative-bench` y `long-context-bench`, guarda hashes, parsea filas métricas reconocibles y conserva los casos no reconocidos como limitación. No mezcla denominadores automáticamente.
+El runner descubre `comparative-bench`, `long-context-bench`, `real-world-bench` y `context-corpus-bench`, guarda hashes, parsea filas métricas reconocibles y conserva los casos no reconocidos como limitación. No mezcla denominadores automáticamente.
 
 ## Umbrales de regresión
 

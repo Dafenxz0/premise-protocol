@@ -115,6 +115,8 @@ La siguiente iteración ya incluye una medición emparejada para no confundir un
 - **Sin protocolo**: en 21 episodios con cambios, usa el recuerdo sin comprobar y alcanza un `unsafeActionRate` del **100%**.
 - **Con PREMiSE**: llega a **0%** de acciones inseguras, recupera el **100%** de los casos reparables, rechaza el **100%** de los casos no reparables y conserva la historia.
 - En contexto grande, una cadena de **25.000** memorias pasó de unos **64 s** a unos **0,23 s** después de eliminar el chequeo de ciclos innecesario al añadir nodos nuevos. Fanout y shared-support también terminan por debajo de un segundo en la medición local.
+- En integración con fixtures reales de filesystem y Git, PREMiSE mantiene **0%** de uso inseguro, **0%** de falsos rechazos y acierta el **100%** de las revalidaciones, usando los validators compilados del repositorio.
+- En el workload de corpus, retrieval y dependencias, mantiene **100%** de precisión, seguridad y hit-rate hasta **100.000 nodos**, con tres patrones de grafo y documentos reales en disco cuyo payload no entra en los envelopes. En esa escala, el camino de protocolo/query tarda **2,8–3,6 s** por patrón y la generación del corpus de 100.000 documentos tarda **64,8 s** en esta máquina.
 
 Estos resultados son locales y reproducibles; no son una promesa de producción. La auditoría del benchmark histórico queda en `PROVISIONALLY-VALID`: ya exporta decisiones y costes observables, pero conserva límites explícitos sobre hardware, payload real y validators externos.
 
@@ -122,11 +124,15 @@ Estos resultados son locales y reproducibles; no son una promesa de producción.
 pnpm benchmark:compare       # protocolo vs. baseline sin protocolo
 pnpm benchmark:context       # 1k y 5k nodos, apto para CI
 pnpm benchmark:context:full  # 1k, 5k, 10k y 25k; stress test
+pnpm benchmark:real-world    # filesystem/Git reales, cambios y validators
+pnpm benchmark:context-corpus # corpus, retrieval y 1k/10k/50k nodos
+pnpm benchmark:context-corpus:full # añade el perfil de 100k
+pnpm benchmark:production    # ejecuta ambos benchmarks aplicados
 pnpm benchmark:evaluate      # auditoría paired y gate de regresión
 pnpm benchmark:next          # ejecuta la campaña completa
 ```
 
-Resultados de investigación: [`comparative-bench`](./benchmarks/comparative-bench/), [`long-context-bench`](./benchmarks/long-context-bench/) y [`evaluation`](./benchmarks/evaluation/).
+Resultados de investigación: [`comparative-bench`](./benchmarks/comparative-bench/), [`long-context-bench`](./benchmarks/long-context-bench/), [`real-world-bench`](./benchmarks/real-world-bench/), [`context-corpus-bench`](./benchmarks/context-corpus-bench/) y [`evaluation`](./benchmarks/evaluation/).
 
 ## Empezar sin complicaciones
 
