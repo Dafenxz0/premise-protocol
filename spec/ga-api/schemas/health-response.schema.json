@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/health-response.schema.json",
+  "title": "PREMiSE health response",
+  "type": "object",
+  "required": [
+    "ok",
+    "specVersion",
+    "memories",
+    "events"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "specVersion": {
+      "const": "premise/2"
+    },
+    "memories": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "events": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": true
+}

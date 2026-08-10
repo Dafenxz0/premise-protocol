@@ -1,0 +1,17 @@
+{
+  "name": "@premise/connector-webhook",
+  "version": "0.2.0-rc.1",
+  "description": "Generic PREMiSE webhook connector with HMAC verification, replay protection, deduplication and retries.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/webhook.test.mjs"
+  }
+}

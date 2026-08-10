@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/query-request.schema.json",
+  "title": "PREMiSE query request",
+  "type": "object",
+  "required": [
+    "query"
+  ],
+  "properties": {
+    "query": {
+      "type": "string"
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lexicalWeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "vectorWeight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "minScore": {
+          "type": "number"
+        },
+        "filter": {
+          "type": "object"
+        },
+        "filters": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "maxTokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pageSize": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pageToken": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@premise/security-core",
+  "version": "0.1.0-rc.1",
+  "description": "Dependency-free PREMiSE v2 security primitives and policy controls.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/security.test.mjs"
+  }
+}

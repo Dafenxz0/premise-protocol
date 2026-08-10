@@ -1,6 +1,6 @@
 {
   "name": "premise-protocol",
-  "version": "0.2.0-rc.1",
+  "version": "2.0.0-rc.1",
   "private": true,
   "description": "PREMiSE protocol workspace with the additive v2 runtime and evaluation stack.",
   "type": "module",
@@ -32,6 +32,14 @@
     "benchmark:v2:live": "node benchmarks/real-world-v2/runner.mjs --live && node benchmarks/real-world-v2/report.mjs && node benchmarks/real-world-v2/self-check.mjs",
     "benchmark:v2:giant": "node benchmarks/giant-context-v2/runner.mjs --profiles=10000,100000 && node benchmarks/giant-context-v2/self-check.mjs",
     "benchmark:v2:giant:full": "node benchmarks/giant-context-v2/runner.mjs --include-1m --profiles=100000,1000000 && node benchmarks/giant-context-v2/self-check.mjs",
+    "ga:gate": "node scripts/ga-gate.mjs",
+    "ga:gate:strict": "node scripts/ga-gate.mjs --strict",
+    "ga:security": "pnpm --filter @premise/security-core test && node scripts/verify-security.mjs",
+    "ga:connector": "pnpm --filter @premise/connector-webhook test",
+    "ga:sdk": "pnpm --filter @premise/sdk test",
+    "ga:evaluation": "node benchmarks/ga-evaluation/runner.mjs --split all && node benchmarks/ga-evaluation/self-check.mjs",
+    "ga:load": "node benchmarks/ga-load/runner.mjs --profile ci && node benchmarks/ga-load/self-check.mjs",
+    "ga:syntax": "node --check ops/auth.mjs && node ops/auth.test.mjs && node --check ops/backup.mjs && node --check ops/restore.mjs && node --check ops/healthcheck.mjs && node --check ops/smoke.mjs",
     "examples:verify": "pnpm --filter @premise/example-generic-memory test && pnpm --filter @premise/example-openai-memory test && pnpm --filter @premise/example-mcp-memory test && node scripts/verify-adapters.mjs",
     "artifacts:generate": "pnpm build && node scripts/generate-artifacts.mjs"
   },

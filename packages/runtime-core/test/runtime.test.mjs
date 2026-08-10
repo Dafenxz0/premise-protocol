@@ -30,6 +30,7 @@ assert.equal(runtime.get("memory:source").content.value, "source");
 
 const event = runtime.history("memory:source")[0];
 assert.ok(event);
+assert.match(event.requestDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.equal(runtime.applyEvent(event), false);
 assert.throws(() => runtime.register({ envelope: envelope("memory:source"), content: {} }), /already registered/);
 assert.equal(runtime.get("memory:other", { tenantId: "tenant:other" }), undefined);

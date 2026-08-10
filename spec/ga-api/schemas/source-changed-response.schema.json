@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/source-changed-response.schema.json",
+  "title": "PREMiSE source changed response",
+  "type": "object",
+  "required": [
+    "affected"
+  ],
+  "properties": {
+    "affected": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "nextPageToken": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

@@ -17,6 +17,26 @@ function stable(value) {
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(",")}}`;
 }
 
+function comparableGithub(value, key = "") {
+  if (key === "temp_clone_token") return "[EPHEMERAL]";
+  if (typeof value === "string" && key === "download_url") {
+    try {
+      const url = new URL(value);
+      url.searchParams.delete("token");
+      return url.toString();
+    } catch {
+      return value;
+    }
+  }
+  if (Array.isArray(value)) return value.map((item) => comparableGithub(item));
+  if (value !== null && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, comparableGithub(childValue, childKey)]));
+  return value;
+}
+
+function answersMatch(actual, expected) {
+  return stable(comparableGithub(actual)) === stable(comparableGithub(expected));
+}
+
 function measure(strategy, tasks, truthForTask, runTask) {
   const latencies = [];
   const traces = [];
@@ -40,8 +60,8 @@ function measure(strategy, tasks, truthForTask, runTask) {
     const latencyMs = performance.now() - started;
     latencies.push(latencyMs);
     const expected = truthForTask(task);
-    if (error === undefined && stable(answer) === stable(expected)) correct += 1;
-    traces.push({ strategy, taskId: task.id, source: task.source, correct: error === undefined && stable(answer) === stable(expected), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)), ...(error ? { error } : {}) });
+    if (error === undefined && answersMatch(answer, expected)) correct += 1;
+    traces.push({ strategy, taskId: task.id, source: task.source, correct: error === undefined && answersMatch(answer, expected), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)), ...(error ? { error } : {}) });
   }
   return {
     strategy,
@@ -209,11 +229,11 @@ async function runLive(repetitions) {
           if (response.status === 304 && cached !== undefined) answer = cached.body;
           else { answer = response.body; cache.set(task.key, { body: response.body, etag: response.etag, at: task.index }); }
         }
-        if (stable(answer) === stable(truth.get(task.key))) correct += 1;
+        if (answersMatch(answer, truth.get(task.key))) correct += 1;
       } catch (error) { errors += 1; traces.push({ strategy: strategyName, taskId: task.id, error: error instanceof Error ? error.message : String(error) }); }
       const latencyMs = performance.now() - started;
       latencies.push(latencyMs);
-      traces.push({ strategy: strategyName, taskId: task.id, correct: stable(answer) === stable(truth.get(task.key)), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)) });
+      traces.push({ strategy: strategyName, taskId: task.id, correct: answersMatch(answer, truth.get(task.key)), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)) });
     }
     strategies.push({ strategy: strategyName, tasks: tasks.length, correct, correctPer100: Number((correct * 100 / tasks.length).toFixed(2)), errors, errorsPer100: Number((errors * 100 / tasks.length).toFixed(2)), requests, requestsPer100: Number((requests * 100 / tasks.length).toFixed(2)), p50Ms: Number(percentile(latencies, 0.5).toFixed(3)), p95Ms: Number(percentile(latencies, 0.95).toFixed(3)), traces: traces.filter((trace) => trace.strategy === strategyName) });
   }
@@ -224,7 +244,7 @@ async function runLive(repetitions) {
     tasks: tasks.length,
     repetitions,
     tokenProvided: Boolean(token),
-    limitations: ["Read-only campaign: no public repository mutation is performed.", "Answers are exact API payload equality, not model quality.", "Conditional requests are counted as requests even when GitHub returns 304.", "A release claim requires repeated runs and a separate changed-source campaign."],
+    limitations: ["Read-only campaign: no public repository mutation is performed.", "Answers are exact API payload equality after removing only GitHub's ephemeral download_url query token and temp_clone_token metadata.", "Conditional requests are counted as requests even when GitHub returns 304.", "A release claim requires repeated runs and a separate changed-source campaign."],
     strategies
   };
 }

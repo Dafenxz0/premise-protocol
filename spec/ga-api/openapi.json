@@ -1,0 +1,372 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "PREMiSE v2 API",
+    "version": "2.0.0",
+    "description": "Stable HTTP contract used by @premise/sdk. Existing v2 servers may omit pagination tokens and may return either string or structured errors."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local PREMiSE server"
+    }
+  ],
+  "security": [
+    {},
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Check server health",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/health-response.schema.json"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v2/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "summary": "List v2 capabilities",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SubjectHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/capabilities-response.schema.json"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v2/memories": {
+      "post": {
+        "operationId": "storeMemory",
+        "summary": "Register or derive a memory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SubjectHeader"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schemas/memory-write.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Memory stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "memoryId",
+                    "status"
+                  ],
+                  "properties": {
+                    "memoryId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v2/memories/{memoryId}": {
+      "get": {
+        "operationId": "getMemory",
+        "summary": "Read one memory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MemoryId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SubjectHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memory record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/memory-record.schema.json"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v2/memories/{memoryId}/revalidate": {
+      "post": {
+        "operationId": "revalidateMemory",
+        "summary": "Revalidate one memory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MemoryId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SubjectHeader"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validation report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/revalidation-report.schema.json"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "No validator is configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v2/query": {
+      "post": {
+        "operationId": "query",
+        "summary": "Search memories and build context",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SubjectHeader"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schemas/query-request.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/query-response.schema.json"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v2/source-changed": {
+      "post": {
+        "operationId": "sourceChanged",
+        "summary": "Signal that a source has changed",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TenantHeader"
+          },
+          {
+            "$ref": "#/components/parameters/SubjectHeader"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKeyHeader"
+          },
+          {
+            "$ref": "#/components/parameters/RequestIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schemas/source-changed-request.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Source change accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/source-changed-response.schema.json"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "parameters": {
+      "TenantHeader": {
+        "name": "x-premise-tenant",
+        "in": "header",
+        "required": false,
+        "description": "Tenant selected for this request. Create one client per tenant.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "SubjectHeader": {
+        "name": "x-premise-subject",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "IdempotencyKeyHeader": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Stable for every retry of the same mutation.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "RequestIdHeader": {
+        "name": "x-request-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "MemoryId": {
+        "name": "memoryId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "API error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "./schemas/error.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}

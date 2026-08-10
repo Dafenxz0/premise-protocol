@@ -30,40 +30,57 @@ const event = {
 class InMemoryPostgresClient {
   records = new Map();
   events = new Map();
+  snapshots = new Map();
+  migrations = new Set();
 
   async query(sql, values = []) {
     const statement = sql.replace(/\s+/g, " ").trim();
-    if (statement.startsWith("CREATE TABLE") || statement.startsWith("CREATE INDEX")) return { rows: [] };
+    if (statement.startsWith("CREATE TABLE") || statement.startsWith("CREATE INDEX") || statement.startsWith("ALTER TABLE") || statement.startsWith("DROP POLICY") || statement.startsWith("CREATE POLICY")) return { rows: [] };
+    if (statement.startsWith("SELECT pg_advisory_xact_lock") || statement.startsWith("SELECT set_config") || statement.startsWith("SET TRANSACTION")) return { rows: [] };
+    if (statement.startsWith('SELECT version FROM "premise_v2_schema_migrations"')) return { rows: [...this.migrations].sort((a, b) => a - b).map((version) => ({ version })) };
+    if (statement.startsWith('INSERT INTO "premise_v2_schema_migrations"')) { this.migrations.add(values[0]); return { rows: [], rowCount: 1 }; }
     if (statement.startsWith("INSERT INTO \"premise_v2_records\"")) {
-      this.records.set(values[0], { envelope_json: values[2], content_json: values[3] });
+      this.records.set(values.length >= 4 ? values[1] : values[0], { envelope_json: values.length >= 4 ? values[2] : values[1], content_json: values.length >= 4 ? values[3] : values[2] });
       return { rows: [] };
     }
     if (statement.startsWith("SELECT envelope_json, content_json FROM \"premise_v2_records\" WHERE")) {
-      const row = this.records.get(values[0]);
+      const row = this.records.get(values.at(-1));
       return { rows: row === undefined ? [] : [row] };
     }
     if (statement.startsWith("SELECT envelope_json, content_json FROM \"premise_v2_records\" ORDER")) {
       return { rows: [...this.records.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row) };
     }
     if (statement.startsWith("INSERT INTO \"premise_v2_events\"")) {
-      if (this.events.has(values[0])) return { rows: [] };
-      const row = { event_id: values[1], event_json: values[3] };
-      this.events.set(values[0], row);
+      if (this.events.has(values[1])) return { rows: [] };
+      const row = { event_id: values[2], event_json: values[3] };
+      this.events.set(values[1], row);
       return statement.includes("RETURNING") ? { rows: [row] } : { rows: [] };
     }
     if (statement.startsWith("SELECT event_id, event_json FROM \"premise_v2_events\" WHERE")) {
-      const row = this.events.get(values[0]);
+      const row = this.events.get(values.at(-1));
       return { rows: row === undefined ? [] : [row] };
     }
     if (statement.startsWith("SELECT 1 AS present FROM \"premise_v2_events\" WHERE")) {
-      return { rows: this.events.has(values[0]) ? [{ present: 1 }] : [] };
+      return { rows: this.events.has(values.at(-1)) ? [{ present: 1 }] : [] };
     }
     if (statement.startsWith("SELECT event_json FROM \"premise_v2_events\" ORDER")) {
       return { rows: [...this.events.values()] };
     }
+    if (statement.startsWith('INSERT INTO "premise_v2_snapshots"')) {
+      this.snapshots.set(values[1], { snapshot_json: values[2] });
+      return { rows: [] };
+    }
+    if (statement.startsWith('SELECT snapshot_json FROM "premise_v2_snapshots"')) {
+      const row = this.snapshots.get(values.at(-1));
+      return { rows: row === undefined ? [] : [row] };
+    }
+    if (statement.startsWith('DELETE FROM "premise_v2_events"')) { this.events.clear(); return { rows: [] }; }
+    if (statement.startsWith('DELETE FROM "premise_v2_snapshots"')) { this.snapshots.clear(); return { rows: [] }; }
+    if (statement.startsWith('DELETE FROM "premise_v2_replay_checkpoints"')) return { rows: [] };
     if (statement.startsWith("DELETE FROM \"premise_v2_records\"")) {
       this.records.clear();
       this.events.clear();
+      this.snapshots.clear();
       return { rows: [] };
     }
     throw new Error(`Unhandled SQL in runtime test double: ${statement}`);

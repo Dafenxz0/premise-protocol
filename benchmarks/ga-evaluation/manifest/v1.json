@@ -1,0 +1,278 @@
+{
+  "format": "ga-evaluation-task-manifest/1",
+  "version": "1.0.0",
+  "suite": "ga-evaluation",
+  "datasetManifest": "../datasets/v1.json",
+  "blindProtocol": "ga-evaluation/1",
+  "seed": "ga-evaluation-v1-public-2026-08-10",
+  "splits": {
+    "visible": {
+      "purpose": "development and smoke reproduction",
+      "minimumTasks": 8
+    },
+    "hidden": {
+      "purpose": "unseen prompts over the same public-source contract",
+      "minimumTasks": 6
+    },
+    "holdout": {
+      "purpose": "final claim gate; do not tune against this split",
+      "minimumTasks": 6
+    }
+  },
+  "tasks": [
+    {
+      "id": "visible-001",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "snapshot": "github.requests.version.old",
+      "prompt": "What version of Requests is declared by the source? Return only the semantic version.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-002",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "snapshot": "github.requests.version.old",
+      "prompt": "What hexadecimal build identifier is declared by the source? Return it exactly.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-003",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "snapshot": "github.requests.version.new",
+      "prompt": "What version of Requests is declared by the source now? Return only the semantic version.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-004",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "snapshot": "github.requests.version.new",
+      "prompt": "What hexadecimal build identifier is declared by the source now? Return it exactly.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-005",
+      "split": "visible",
+      "sourceId": "filesystem.requests.version",
+      "snapshot": "filesystem.requests.version.old",
+      "prompt": "Read the local public-download source and return its declared Requests version.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-006",
+      "split": "visible",
+      "sourceId": "filesystem.requests.version",
+      "snapshot": "filesystem.requests.version.new",
+      "prompt": "Read the updated local public-download source and return its declared Requests version.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-007",
+      "split": "visible",
+      "sourceId": "git.requests.version",
+      "snapshot": "git.requests.version.old",
+      "prompt": "From the Git source, return the declared Requests version.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-008",
+      "split": "visible",
+      "sourceId": "git.requests.version",
+      "snapshot": "git.requests.version.new",
+      "prompt": "From the updated Git source, return the declared Requests version.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "visible-009",
+      "split": "visible",
+      "sourceId": "github.hello.world",
+      "snapshot": "github.hello.world",
+      "prompt": "What exact text is in the Hello-World README? Return the trimmed text.",
+      "oracle": {
+        "kind": "trimmedText"
+      }
+    },
+    {
+      "id": "visible-010",
+      "split": "visible",
+      "sourceId": "filesystem.nodeignore",
+      "snapshot": "filesystem.nodeignore",
+      "prompt": "Does the public Node ignore file exclude node_modules/? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "node_modules/"
+      }
+    },
+    {
+      "id": "hidden-001",
+      "split": "hidden",
+      "sourceId": "filesystem.requests.version",
+      "snapshot": "filesystem.requests.version.old",
+      "prompt": "Which Requests build value is present in this public-download source? Return the hexadecimal value.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)",
+        "group": 1
+      }
+    },
+    {
+      "id": "hidden-002",
+      "split": "hidden",
+      "sourceId": "filesystem.requests.version",
+      "snapshot": "filesystem.requests.version.new",
+      "prompt": "Which Requests build value is present after the source update? Return the hexadecimal value.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)",
+        "group": 1
+      }
+    },
+    {
+      "id": "hidden-003",
+      "split": "hidden",
+      "sourceId": "git.requests.version",
+      "snapshot": "git.requests.version.old",
+      "prompt": "Is the source's declared package title exactly requests? Return true or false.",
+      "oracle": {
+        "kind": "regexBoolean",
+        "pattern": "__title__\\s*=\\s*[\"']requests[\"']"
+      }
+    },
+    {
+      "id": "hidden-004",
+      "split": "hidden",
+      "sourceId": "git.requests.version",
+      "snapshot": "git.requests.version.new",
+      "prompt": "Is the updated source's declared package title exactly requests? Return true or false.",
+      "oracle": {
+        "kind": "regexBoolean",
+        "pattern": "__title__\\s*=\\s*[\"']requests[\"']"
+      }
+    },
+    {
+      "id": "hidden-005",
+      "split": "hidden",
+      "sourceId": "github.hello.world",
+      "snapshot": "github.hello.world",
+      "prompt": "Does the Hello-World source contain the phrase Hello World? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "Hello World"
+      }
+    },
+    {
+      "id": "hidden-006",
+      "split": "hidden",
+      "sourceId": "filesystem.nodeignore",
+      "snapshot": "filesystem.nodeignore",
+      "prompt": "Does the Node ignore source contain the heading '# Logs'? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "# Logs"
+      }
+    },
+    {
+      "id": "holdout-001",
+      "split": "holdout",
+      "sourceId": "filesystem.nodeignore",
+      "snapshot": "filesystem.nodeignore",
+      "prompt": "Does the holdout source include a coverage directory rule? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "coverage"
+      }
+    },
+    {
+      "id": "holdout-002",
+      "split": "holdout",
+      "sourceId": "git.requests.pyproject",
+      "snapshot": "git.requests.pyproject.old",
+      "prompt": "What minimum Python version is declared in the project metadata? Return the constraint exactly.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "requires-python\\s*=\\s*[\"']([^\"']+)[\"']",
+        "group": 1
+      }
+    },
+    {
+      "id": "holdout-003",
+      "split": "holdout",
+      "sourceId": "git.requests.pyproject",
+      "snapshot": "git.requests.pyproject.old",
+      "prompt": "Does the project metadata use a dynamic package version? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "dynamic = [\"version\"]"
+      }
+    },
+    {
+      "id": "holdout-004",
+      "split": "holdout",
+      "sourceId": "git.requests.pyproject",
+      "snapshot": "git.requests.pyproject.new",
+      "prompt": "Does the updated project metadata include chardet in the typecheck dependency group? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "chardet"
+      }
+    },
+    {
+      "id": "holdout-005",
+      "split": "holdout",
+      "sourceId": "github.requests.readme",
+      "snapshot": "github.requests.readme",
+      "prompt": "What is the first Markdown heading in the Requests README? Return it exactly.",
+      "oracle": {
+        "kind": "regex",
+        "pattern": "^# ([^\\r\\n]+)",
+        "group": 1,
+        "flags": "m"
+      }
+    },
+    {
+      "id": "holdout-006",
+      "split": "holdout",
+      "sourceId": "github.requests.readme",
+      "snapshot": "github.requests.readme",
+      "prompt": "Does the Requests README describe the project as Python HTTP for Humans? Return true or false.",
+      "oracle": {
+        "kind": "contains",
+        "needle": "Python HTTP for Humans"
+      }
+    }
+  ]
+}

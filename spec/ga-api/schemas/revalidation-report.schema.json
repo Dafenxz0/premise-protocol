@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/revalidation-report.schema.json",
+  "title": "PREMiSE revalidation report",
+  "type": "object",
+  "required": [
+    "memoryId",
+    "result",
+    "status",
+    "checkedAt"
+  ],
+  "properties": {
+    "memoryId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "result": {
+      "enum": [
+        "UNCHANGED",
+        "CHANGED",
+        "MISSING",
+        "UNKNOWN"
+      ]
+    },
+    "status": {
+      "enum": [
+        "FRESH",
+        "STALE",
+        "INVALID",
+        "UNKNOWN"
+      ]
+    },
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceUri": {
+      "type": "string"
+    },
+    "version": {
+      "type": "object",
+      "required": [
+        "scheme",
+        "token"
+      ],
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

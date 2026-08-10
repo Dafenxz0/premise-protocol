@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/query-response.schema.json",
+  "title": "PREMiSE query response",
+  "type": "object",
+  "required": [
+    "hits",
+    "context"
+  ],
+  "properties": {
+    "hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": [
+        "selected"
+      ],
+      "properties": {
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "page": {
+      "$ref": "./pagination.schema.json"
+    },
+    "nextPageToken": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

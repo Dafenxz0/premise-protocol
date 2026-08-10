@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "premise/ga-1",
+  "release": "2.0.0",
+  "status": "candidate",
+  "truthPolicy": {
+    "fixturesAreNotExternalEvidence": true,
+    "claimsRequireRawTraces": true,
+    "claimsRequireIndependentReproduction": true,
+    "missingEvidenceBlocksGa": true
+  },
+  "thresholds": {
+    "holdoutAccuracyMin": 0.95,
+    "freshnessSlaMin": 0.99,
+    "p95LatencyMsMax": 500,
+    "p99LatencyMsMax": 2000,
+    "errorRateMax": 0.001,
+    "availabilityMin": 0.999,
+    "costPerThousandOperationsUsdMax": 0.05
+  },
+  "gates": [
+    {
+      "id": "protocol-conformance",
+      "owner": "protocol",
+      "requirement": "Every accepted envelope and event passes the v2 contract and replay is deterministic.",
+      "evidence": ["conformance-v2.json", "replay-report.json"]
+    },
+    {
+      "id": "cryptographic-security",
+      "owner": "security",
+      "requirement": "Signatures, encryption, key rotation, ACLs, audit chaining and replay protection are tested.",
+      "evidence": ["security-report.json", "threat-model.md"]
+    },
+    {
+      "id": "real-persistence",
+      "owner": "data",
+      "requirement": "Postgres integration, migrations, tenant isolation, backups and restore pass against a real service.",
+      "evidence": ["postgres-integration.json", "backup-restore.json"]
+    },
+    {
+      "id": "external-blind-evaluation",
+      "owner": "evaluation",
+      "requirement": "A hidden holdout with public hashes and independent runners meets accuracy and freshness thresholds.",
+      "evidence": ["external-holdout.json", "dataset-manifest.json"]
+    },
+    {
+      "id": "load-and-recovery",
+      "owner": "reliability",
+      "requirement": "The declared reference profile survives million-scale load, concurrency, restart and corruption recovery.",
+      "evidence": ["load-full.json", "recovery-report.json"]
+    },
+    {
+      "id": "operations",
+      "owner": "operations",
+      "requirement": "The deployment is reproducible and health, metrics, alerts, backup and rollback are verified.",
+      "evidence": ["operations-smoke.json", "rollback-report.json"]
+    },
+    {
+      "id": "stable-api",
+      "owner": "api",
+      "requirement": "SDK, schemas, pagination, typed errors and compatibility policy are documented and tested.",
+      "evidence": ["sdk-contract.json", "openapi-validation.json"]
+    }
+  ]
+}

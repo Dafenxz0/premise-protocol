@@ -81,6 +81,10 @@ class InMemoryPostgresDriver {
   async close() {
     this.closed = true;
   }
+
+  async transaction(action) {
+    return action(this);
+  }
 }
 
 const driver = new InMemoryPostgresDriver();

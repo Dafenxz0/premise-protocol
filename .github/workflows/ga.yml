@@ -1,0 +1,228 @@
+name: GA release gates
+
+on:
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "ops/**"
+      - "docs/ga-operations.md"
+      - ".github/workflows/ga.yml"
+      - "packages/**"
+      - "benchmarks/real-world-v2/**"
+      - "benchmarks/ga-evaluation/**"
+      - "benchmarks/ga-load/**"
+      - "spec/ga/**"
+      - "spec/ga-api/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: premise-v2:ga-${{ github.sha }}
+  COMPOSE_FILE: deploy/docker-compose.yml
+  POSTGRES_PASSWORD: local-only-not-for-production
+  POSTGRES_DB: premise
+  POSTGRES_USER: premise
+  PREMISE_TENANT_ID: tenant:ga
+
+jobs:
+  security:
+    name: Security gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Dependency audit
+        run: |
+          mkdir -p .ga-artifacts
+          pnpm audit --audit-level=high --json > .ga-artifacts/pnpm-audit.json
+      - name: Verify GA acceptance manifest
+        run: pnpm ga:gate
+      - name: Filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: sarif
+          output: .ga-artifacts/trivy-filesystem.sarif
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-security-${{ github.sha }}
+          path: .ga-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+  deterministic-load:
+    name: Deterministic CI load gate
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the workspace
+        run: pnpm build
+      - name: Run deterministic load and recovery gate
+        run: |
+          node benchmarks/ga-load/runner.mjs --profile ci --concurrency 4 --enforce-gates
+          node benchmarks/ga-load/self-check.mjs
+      - name: Upload load evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-load-${{ github.sha }}
+          path: benchmarks/ga-load/results.json
+          if-no-files-found: error
+          retention-days: 14
+
+  external-github:
+    name: Real GitHub read-only benchmark
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run external GitHub benchmark in read-only mode
+        env:
+          PREMISE_GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node benchmarks/real-world-v2/runner.mjs --live --repetitions 20
+          node benchmarks/real-world-v2/report.mjs
+          node benchmarks/real-world-v2/self-check.mjs
+      - name: Upload external benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-github-${{ github.sha }}
+          path: |
+            benchmarks/real-world-v2/results.json
+            benchmarks/real-world-v2/report.md
+            benchmarks/real-world-v2/traces.jsonl
+          if-no-files-found: error
+          retention-days: 14
+
+  integration:
+    name: Build, smoke, load and recovery gates
+    needs: [security, deterministic-load, external-github]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local backup directory
+        run: |
+          mkdir -p .local/backups .ga-artifacts
+          chmod 0777 .local/backups
+      - name: Build immutable candidate image
+        run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
+      - name: Verify the image runs as non-root
+        run: test "$(docker inspect --format='{{.Config.User}}' "${IMAGE}")" = "10001:10001"
+      - name: Scan candidate image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: premise-v2:ga-${{ github.sha }}
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: sarif
+          output: .ga-artifacts/trivy-image.sarif
+      - name: Validate Compose configuration
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" --profile ops config --quiet
+      - name: Start the local production-shaped stack
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_BUILD_VERSION: ${{ github.sha }}
+        run: docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
+      - name: Wait for readiness
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/healthcheck.mjs; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f "${COMPOSE_FILE}" ps
+          exit 1
+      - name: Run v2 smoke test
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/smoke.mjs | tee .ga-artifacts/smoke.json
+      - name: Run bounded CI load test
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" exec -T -e PREMISE_LOAD_REQUESTS=32 -e PREMISE_LOAD_CONCURRENCY=4 -e PREMISE_LOAD_MAX_P95_MS=750 premise node /app/ops/load-smoke.mjs | tee .ga-artifacts/load.json
+      - name: Verify Prometheus metrics endpoint
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" exec -T premise node --input-type=module -e "const r=await fetch('http://127.0.0.1:3000/metrics'); const t=await r.text(); if (!r.ok || !t.includes('premise_http_requests_total')) process.exit(1);"
+      - name: Create and verify a backup
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup
+          docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup node /app/ops/restore-verify.mjs | tee .ga-artifacts/restore-verify.json
+          cp .local/backups/premise-v2-latest.json .ga-artifacts/premise-v2-latest.json
+      - name: Capture stack logs
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/compose.log
+      - name: Upload GA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-evidence-${{ github.sha }}
+          path: |
+            .ga-artifacts/**
+            deploy/**
+            ops/**
+            docs/ga-operations.md
+          if-no-files-found: error
+          retention-days: 14
+      - name: Tear down local stack
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" --profile ops down -v

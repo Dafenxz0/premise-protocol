@@ -6,8 +6,7 @@ Token budget: **128,000**
 
 | Memories | Selected | Tokens | Target kept | p50 | p95 | Heap after run |
 |---:|---:|---:|:---:|---:|---:|---:|
-| 10.000 | 4096 | 32773 | yes | 23.923 ms | 23.986 ms | 35.1 MB |
-| 100.000 | 4096 | 32773 | yes | 199.06 ms | 207.732 ms | 197.2 MB |
-| 1.000.000 | 4096 | 32773 | yes | 3319.965 ms | 3321.731 ms | 1743.5 MB |
+| 100.000 | 4096 | 32773 | yes | 194.505 ms | 239.234 ms | 380.9 MB |
+| 1.000.000 | 4096 | 32773 | yes | 3452.236 ms | 3792.535 ms | 1724.8 MB |
 
 These are context-engine measurements, not model accuracy or a production capacity guarantee.

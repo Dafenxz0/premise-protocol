@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/pagination.schema.json",
+  "title": "PREMiSE page information",
+  "type": "object",
+  "properties": {
+    "pageSize": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nextPageToken": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": true
+}

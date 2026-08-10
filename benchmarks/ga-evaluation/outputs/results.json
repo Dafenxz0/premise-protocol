@@ -1,0 +1,372 @@
+{
+  "format": "ga-evaluation-result/1",
+  "runner": "ga-evaluation-runner/1.0.0",
+  "benchmark": {
+    "runId": "ga-20260810113536-f131e8a3",
+    "generatedAt": "2026-08-10T11:35:41.644Z",
+    "manifestVersion": "1.0.0",
+    "datasetManifestVersion": "1.0.0",
+    "blindProtocol": "ga-evaluation/1",
+    "blind": true,
+    "split": "all",
+    "repetitions": 1,
+    "tasks": 22,
+    "candidate": "reference-strategies"
+  },
+  "verification": {
+    "datasetsVerified": 11,
+    "hashAlgorithm": "sha256",
+    "externalOnly": true,
+    "fixtureEvidenceAccepted": false,
+    "datasetVerificationRequests": 11,
+    "verifiedDatasetIds": [
+      "filesystem.nodeignore",
+      "filesystem.requests.version.new",
+      "filesystem.requests.version.old",
+      "git.requests.pyproject.new",
+      "git.requests.pyproject.old",
+      "git.requests.version.new",
+      "git.requests.version.old",
+      "github.hello.world",
+      "github.requests.readme",
+      "github.requests.version.new",
+      "github.requests.version.old"
+    ]
+  },
+  "costModel": {
+    "currency": "USD",
+    "perRequestUsd": {
+      "github": 0.00001,
+      "filesystem": 5e-7,
+      "git": 0.000005
+    },
+    "computePerMsUsd": 2e-8,
+    "note": "Source-operation proxy; excludes model tokens, provider billing, bandwidth, and human review."
+  },
+  "metrics": [
+    {
+      "strategy": "direct-read",
+      "tasks": 22,
+      "denominators": {
+        "correctRate": 22,
+        "falsePositiveRate": 22,
+        "freshnessRate": 22,
+        "availabilityRate": 22
+      },
+      "correct": 22,
+      "correctRate": 1,
+      "freshnessCount": 22,
+      "freshnessRate": 1,
+      "falsePositiveCount": 0,
+      "falsePositiveRate": 0,
+      "available": 22,
+      "availabilityRate": 1,
+      "errors": 0,
+      "requests": 22,
+      "warmupRequests": 0,
+      "requestsPerTask": 1,
+      "readRequests": 22,
+      "versionRequests": 0,
+      "adapterRequests": {
+        "github": 8,
+        "filesystem": 7,
+        "git": 7
+      },
+      "costUsd": 0.00012576,
+      "latencyMs": {
+        "p50": 18.712,
+        "p95": 31.832,
+        "p99": 36.434
+      },
+      "bySplit": {
+        "visible": {
+          "tasks": 10,
+          "correct": 10,
+          "correctRate": 1,
+          "freshnessRate": 1,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 18.924,
+            "p95": 36.434,
+            "p99": 36.434
+          }
+        },
+        "hidden": {
+          "tasks": 6,
+          "correct": 6,
+          "correctRate": 1,
+          "freshnessRate": 1,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.22,
+            "p95": 23.047,
+            "p99": 23.047
+          }
+        },
+        "holdout": {
+          "tasks": 6,
+          "correct": 6,
+          "correctRate": 1,
+          "freshnessRate": 1,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 18.954,
+            "p95": 28.069,
+            "p99": 28.069
+          }
+        }
+      }
+    },
+    {
+      "strategy": "ttl-cache",
+      "tasks": 22,
+      "denominators": {
+        "correctRate": 22,
+        "falsePositiveRate": 22,
+        "freshnessRate": 22,
+        "availabilityRate": 22
+      },
+      "correct": 18,
+      "correctRate": 0.818182,
+      "freshnessCount": 16,
+      "freshnessRate": 0.727273,
+      "falsePositiveCount": 4,
+      "falsePositiveRate": 0.181818,
+      "available": 22,
+      "availabilityRate": 1,
+      "errors": 0,
+      "requests": 12,
+      "warmupRequests": 0,
+      "requestsPerTask": 0.545455,
+      "readRequests": 12,
+      "versionRequests": 0,
+      "adapterRequests": {
+        "github": 5,
+        "filesystem": 4,
+        "git": 3
+      },
+      "costUsd": 0.00007103,
+      "latencyMs": {
+        "p50": 0.171,
+        "p95": 30.947,
+        "p99": 34.131
+      },
+      "bySplit": {
+        "visible": {
+          "tasks": 10,
+          "correct": 7,
+          "correctRate": 0.7,
+          "freshnessRate": 0.7,
+          "falsePositiveRate": 0.3,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.202,
+            "p95": 30.947,
+            "p99": 30.947
+          }
+        },
+        "hidden": {
+          "tasks": 6,
+          "correct": 5,
+          "correctRate": 0.833333,
+          "freshnessRate": 0.666667,
+          "falsePositiveRate": 0.166667,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.171,
+            "p95": 34.131,
+            "p99": 34.131
+          }
+        },
+        "holdout": {
+          "tasks": 6,
+          "correct": 6,
+          "correctRate": 1,
+          "freshnessRate": 0.833333,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.002,
+            "p95": 28.729,
+            "p99": 28.729
+          }
+        }
+      }
+    },
+    {
+      "strategy": "retrieval-no-protocol",
+      "tasks": 22,
+      "denominators": {
+        "correctRate": 22,
+        "falsePositiveRate": 22,
+        "freshnessRate": 22,
+        "availabilityRate": 22
+      },
+      "correct": 17,
+      "correctRate": 0.772727,
+      "freshnessCount": 15,
+      "freshnessRate": 0.681818,
+      "falsePositiveCount": 5,
+      "falsePositiveRate": 0.227273,
+      "available": 22,
+      "availabilityRate": 1,
+      "errors": 0,
+      "requests": 7,
+      "warmupRequests": 7,
+      "requestsPerTask": 0.318182,
+      "readRequests": 7,
+      "versionRequests": 0,
+      "adapterRequests": {
+        "github": 3,
+        "filesystem": 2,
+        "git": 2
+      },
+      "costUsd": 0.000041,
+      "latencyMs": {
+        "p50": 0.001,
+        "p95": 0.002,
+        "p99": 0.014
+      },
+      "bySplit": {
+        "visible": {
+          "tasks": 10,
+          "correct": 6,
+          "correctRate": 0.6,
+          "freshnessRate": 0.6,
+          "falsePositiveRate": 0.4,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.001,
+            "p95": 0.014,
+            "p99": 0.014
+          }
+        },
+        "hidden": {
+          "tasks": 6,
+          "correct": 5,
+          "correctRate": 0.833333,
+          "freshnessRate": 0.666667,
+          "falsePositiveRate": 0.166667,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.001,
+            "p95": 0.002,
+            "p99": 0.002
+          }
+        },
+        "holdout": {
+          "tasks": 6,
+          "correct": 6,
+          "correctRate": 1,
+          "freshnessRate": 0.833333,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.001,
+            "p95": 0.002,
+            "p99": 0.002
+          }
+        }
+      }
+    },
+    {
+      "strategy": "PREMiSE",
+      "tasks": 22,
+      "denominators": {
+        "correctRate": 22,
+        "falsePositiveRate": 22,
+        "freshnessRate": 22,
+        "availabilityRate": 22
+      },
+      "correct": 22,
+      "correctRate": 1,
+      "freshnessCount": 22,
+      "freshnessRate": 1,
+      "falsePositiveCount": 0,
+      "falsePositiveRate": 0,
+      "available": 22,
+      "availabilityRate": 1,
+      "errors": 0,
+      "requests": 30,
+      "warmupRequests": 0,
+      "requestsPerTask": 1.363636,
+      "readRequests": 15,
+      "versionRequests": 15,
+      "adapterRequests": {
+        "github": 9,
+        "filesystem": 10,
+        "git": 11
+      },
+      "costUsd": 0.00015962,
+      "latencyMs": {
+        "p50": 21.668,
+        "p95": 40.044,
+        "p99": 64.912
+      },
+      "bySplit": {
+        "visible": {
+          "tasks": 10,
+          "correct": 10,
+          "correctRate": 1,
+          "freshnessRate": 1,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 21.668,
+            "p95": 64.912,
+            "p99": 64.912
+          }
+        },
+        "hidden": {
+          "tasks": 6,
+          "correct": 6,
+          "correctRate": 1,
+          "freshnessRate": 1,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 0.408,
+            "p95": 40.044,
+            "p99": 40.044
+          }
+        },
+        "holdout": {
+          "tasks": 6,
+          "correct": 6,
+          "correctRate": 1,
+          "freshnessRate": 1,
+          "falsePositiveRate": 0,
+          "availabilityRate": 1,
+          "latencyMs": {
+            "p50": 20.259,
+            "p95": 39.502,
+            "p99": 39.502
+          }
+        }
+      }
+    }
+  ],
+  "traceCount": 88,
+  "claims": {
+    "allowed": [
+      "exact answer rate for this task manifest",
+      "source-version freshness",
+      "false-positive rate as wrong USE answers",
+      "task availability",
+      "source-operation request count",
+      "local latency percentiles",
+      "source-operation cost proxy"
+    ],
+    "forbidden": [
+      "universal truth",
+      "model quality outside this task parser",
+      "production SLA",
+      "provider invoice",
+      "causal product uplift",
+      "live mutation recovery from static snapshots"
+    ]
+  }
+}
