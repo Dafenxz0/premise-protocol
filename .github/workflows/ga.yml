@@ -208,6 +208,7 @@ jobs:
         run: |
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup node /app/ops/restore-verify.mjs | tee .ga-artifacts/restore-verify.json
+          sudo chown "$(id -u):$(id -g)" .local/backups/premise-v2-latest.json
           cp .local/backups/premise-v2-latest.json .ga-artifacts/premise-v2-latest.json
       - name: Capture stack logs
         if: always()
