@@ -21,6 +21,7 @@ function megabytes(value) {
 
 test("PostgreSQL baseline keeps durable writes and smooths checkpoint/WAL pressure", () => {
   assert.equal(setting(config, "data_directory"), "/var/lib/postgresql/data");
+  assert.equal(setting(config, "listen_addresses"), "*");
   assert.match(config, /^include_if_exists ['"]\/var\/lib\/postgresql\/data\/postgresql\.auto\.conf['"]$/mu);
   assert.equal(setting(config, "max_connections"), "64");
   assert.equal(setting(config, "checkpoint_timeout"), "15min");
