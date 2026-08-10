@@ -127,6 +127,10 @@ jobs:
           node benchmarks/ga-evaluation/holdout/candidate.test.mjs
           node benchmarks/ga-soak/self-check.mjs
           node benchmarks/ga-cost/self-check.mjs
+          pnpm --filter @premise/index-hybrid test
+          pnpm --filter @premise/runtime-core test
+          pnpm --filter @premise/premise-server test
+          node --test ops/route-durability.test.mjs
           node --test tests/scripts-ga/ga-gate.test.mjs tests/scripts-ga/collect-ga-evidence.test.mjs
       - name: Run cryptographic security verification
         run: |
@@ -374,12 +378,16 @@ jobs:
         run: |
           set -o pipefail
           docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/smoke.mjs | tee .ga-artifacts/smoke.json
+      - name: Run durable mirror concurrency tests
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" exec -T premise node --test /app/ops/runtime-store.test.mjs
       - name: Run bounded CI load test
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
         run: |
           set -o pipefail
-          docker compose -f "${COMPOSE_FILE}" exec -T -e PREMISE_LOAD_REQUESTS=32 -e PREMISE_LOAD_CONCURRENCY=4 -e PREMISE_LOAD_MAX_P95_MS=750 premise node /app/ops/load-smoke.mjs | tee .ga-artifacts/load.json
+          docker compose -f "${COMPOSE_FILE}" exec -T -e PREMISE_LOAD_REQUESTS=32 -e PREMISE_LOAD_CONCURRENCY=4 -e PREMISE_LOAD_MAX_P95_MS=500 premise node /app/ops/load-smoke.mjs | tee .ga-artifacts/load.json
       - name: Verify Prometheus metrics endpoint
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}

@@ -69,9 +69,15 @@ Carga acotada para CI o una comprobación manual:
 docker compose -f deploy/docker-compose.yml exec -T \
   -e PREMISE_LOAD_REQUESTS=32 \
   -e PREMISE_LOAD_CONCURRENCY=4 \
-  -e PREMISE_LOAD_MAX_P95_MS=750 \
+  -e PREMISE_LOAD_MAX_P95_MS=500 \
   premise node /app/ops/load-smoke.mjs
 ~~~
+
+El espejo durable procesa escrituras con concurrencia acotada para no bloquear
+todo el servicio ni saturar PostgreSQL. El valor por defecto es `4`; se puede
+ajustar por despliegue con `PREMISE_RUNTIME_WRITE_CONCURRENCY` (entero entre 1
+y 64). Las rutas de lectura no esperan esa cola; las mutaciones sí esperan su
+barrera de durabilidad antes de responder.
 
 Métricas Prometheus:
 
@@ -147,13 +153,18 @@ deploy/alert-rules.yml contiene reglas listas para cargar en Prometheus:
 
 | Señal | Umbral | Ventana |
 | --- | ---: | ---: |
-| p95 de latencia HTTP | > 750 ms | 10 min |
-| error-rate HTTP 5xx | > 2% | 10 min |
+| p95 de latencia HTTP | > 500 ms | 10 min |
+| p99 de latencia HTTP | > 2.000 ms | 10 min |
+| error-rate HTTP 5xx | > 0,1% | 10 min |
+| error-rate HTTP 4xx | > 0,1% | 10 min |
 | recuerdos STALE/UNKNOWN | > 10% | 15 min |
 | recuerdos INVALID | > 0 | 10 min |
 | store no listo | 0 | 5 min |
 
 Las alertas no contienen receptores ni tokens. Conectar Alertmanager, PagerDuty, Slack u otro canal pertenece al entorno de cada operador.
+El runner de soak también cuenta timeouts y fallos semánticos de respuestas 2xx;
+esas señales no se pueden inferir únicamente de un contador HTTP y deben
+revisarse en el artefacto de la campaña.
 
 ## Seguridad operativa
 

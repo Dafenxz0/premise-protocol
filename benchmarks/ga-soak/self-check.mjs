@@ -88,6 +88,10 @@ try {
   assert.ok(result.metrics.latency.observations > 0, "latency observations are missing");
   assert.ok(result.metrics.latency.p50Ms <= result.metrics.latency.p95Ms, "p50 must not exceed p95");
   assert.ok(result.metrics.latency.p95Ms <= result.metrics.latency.p99Ms, "p95 must not exceed p99");
+  assert.equal(result.eligibility.checks.latencyP95.passed, true, "fixture p95 should satisfy the public latency gate");
+  assert.equal(result.eligibility.checks.latencyP99.passed, true, "fixture p99 should satisfy the public latency gate");
+  assert.equal(result.eligibility.thresholds.maximumP95Ms, 500, "p95 threshold drifted from the public GA contract");
+  assert.equal(result.eligibility.thresholds.maximumP99Ms, 2_000, "p99 threshold drifted from the public GA contract");
   assert.ok(result.metrics.errors.total >= 1, "fixture error was not recorded");
   assert.ok(result.metrics.errorRate > 0, "error rate did not reflect fixture error");
   assert.equal(result.eligibility.eligibleForGa, false, "short fixture run must not be GA eligible");

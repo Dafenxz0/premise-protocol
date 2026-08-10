@@ -156,6 +156,11 @@ interface ScoreParts {
   readonly score: number;
 }
 
+interface ScoredDocument<T> {
+  readonly stored: StoredDocument<T>;
+  readonly parts: ScoreParts;
+}
+
 const DEFAULT_LIMIT = 10;
 const DEFAULT_LEXICAL_WEIGHT = 0.5;
 const DEFAULT_VECTOR_WEIGHT = 0.5;
@@ -402,11 +407,55 @@ function compareIds(left: string, right: string): number {
   return left === right ? 0 : left < right ? -1 : 1;
 }
 
+function compareScoredDocuments<T>(left: ScoredDocument<T>, right: ScoredDocument<T>): number {
+  return compareDescending(left.parts.score, right.parts.score)
+    || compareDescending(left.parts.lexicalScore, right.parts.lexicalScore)
+    || compareDescending(left.parts.vectorScore, right.parts.vectorScore)
+    || compareIds(left.stored.document.id, right.stored.document.id);
+}
+
+function insertTopK<T>(heap: Array<ScoredDocument<T>>, candidate: ScoredDocument<T>, limit: number): void {
+  if (heap.length < limit) {
+    heap.push(candidate);
+    siftWorstUp(heap, heap.length - 1);
+    return;
+  }
+
+  // The root is the worst retained result. A candidate that is not strictly
+  // better cannot change the exact total ordering, so it is discarded.
+  if (compareScoredDocuments(candidate, heap[0] as ScoredDocument<T>) >= 0) return;
+  heap[0] = candidate;
+  siftWorstDown(heap, 0);
+}
+
+function siftWorstUp<T>(heap: Array<ScoredDocument<T>>, start: number): void {
+  let index = start;
+  while (index > 0) {
+    const parent = Math.floor((index - 1) / 2);
+    if (compareScoredDocuments(heap[index] as ScoredDocument<T>, heap[parent] as ScoredDocument<T>) <= 0) return;
+    [heap[index], heap[parent]] = [heap[parent] as ScoredDocument<T>, heap[index] as ScoredDocument<T>];
+    index = parent;
+  }
+}
+
+function siftWorstDown<T>(heap: Array<ScoredDocument<T>>, start: number): void {
+  let index = start;
+  while (true) {
+    const left = index * 2 + 1;
+    const right = left + 1;
+    let worst = index;
+    if (left < heap.length && compareScoredDocuments(heap[left] as ScoredDocument<T>, heap[worst] as ScoredDocument<T>) > 0) worst = left;
+    if (right < heap.length && compareScoredDocuments(heap[right] as ScoredDocument<T>, heap[worst] as ScoredDocument<T>) > 0) worst = right;
+    if (worst === index) return;
+    [heap[index], heap[worst]] = [heap[worst] as ScoredDocument<T>, heap[index] as ScoredDocument<T>];
+    index = worst;
+  }
+}
+
 function formatScore(value: number): string {
   return value.toFixed(4);
 }
 
-// ponytail: full in-memory candidate scan; add inverted/ANN indexes only when corpus size requires it.
 export class HybridIndex<T = unknown> {
   readonly vectorProvider: VectorProvider;
   readonly tokenizer: Tokenizer;
@@ -511,7 +560,10 @@ export class HybridIndex<T = unknown> {
       throw new RangeError(`Query vector dimension ${queryVector.length} does not match indexed dimension ${this.vectorDimensions}`);
     }
     const averageDocumentLength = Math.max(1, this.totalDocumentLength / this.documents.size);
-    const scored: Array<{ readonly stored: StoredDocument<T>; readonly parts: ScoreParts }> = [];
+    // Keep only the exact top-k set while scanning. The heap root is the
+    // worst retained result under the public tie-break, so this cannot remove
+    // a result that belongs in the final sorted prefix.
+    const scored: Array<ScoredDocument<T>> = [];
     for (const stored of candidates) {
       const lexical = bm25(queryTokens, stored as StoredDocument<unknown>, this.documents.size, this.documentFrequency, averageDocumentLength);
       const cosine = queryVector === undefined ? 0 : cosineSimilarity(queryVector, stored.vector);
@@ -519,13 +571,10 @@ export class HybridIndex<T = unknown> {
       const lexicalScore = normalizedBm25(lexical.score);
       const score = (weights.lexicalWeight * lexicalScore + weights.vectorWeight * vectorScore) / (weights.lexicalWeight + weights.vectorWeight);
       if (score < minimumScore || score <= 0) continue;
-      scored.push({ stored, parts: { queryTokens: distinctQueryTokens, bm25: lexical.score, lexicalScore, matchedTokens: lexical.matchedTokens, tokenCoverage: distinctQueryTokens.length === 0 ? 0 : lexical.matchedTokens.length / distinctQueryTokens.length, cosineSimilarity: cosine, vectorScore, score } });
+      insertTopK(scored, { stored, parts: { queryTokens: distinctQueryTokens, bm25: lexical.score, lexicalScore, matchedTokens: lexical.matchedTokens, tokenCoverage: distinctQueryTokens.length === 0 ? 0 : lexical.matchedTokens.length / distinctQueryTokens.length, cosineSimilarity: cosine, vectorScore, score } }, limit);
     }
 
-    scored.sort((left, right) => compareDescending(left.parts.score, right.parts.score)
-      || compareDescending(left.parts.lexicalScore, right.parts.lexicalScore)
-      || compareDescending(left.parts.vectorScore, right.parts.vectorScore)
-      || compareIds(left.stored.document.id, right.stored.document.id));
+    scored.sort(compareScoredDocuments);
 
     return scored.slice(0, limit).map(({ stored, parts }, index) => this.result(stored, parts, weights, filter !== undefined, index + 1));
   }

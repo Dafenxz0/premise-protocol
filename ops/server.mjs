@@ -7,6 +7,7 @@ import { Metrics } from "./metrics.mjs";
 import { createBearerAuthorizer } from "./auth.mjs";
 import { openPgClient } from "./pg-client.mjs";
 import { openDurableMirror } from "./runtime-store.mjs";
+import { shouldFlushDurableWrite } from "./route-durability.mjs";
 
 const config = {
   host: process.env.HOST ?? "0.0.0.0",
@@ -102,10 +103,6 @@ async function readiness() {
   return { ready, checks };
 }
 
-function shouldFlush(pathname, method) {
-  return config.storeMode === "postgres" && method === "POST" && pathname.startsWith("/v2/");
-}
-
 function installResponseBarrier(request, response, pathname, requestId, startedAt) {
   const originalEnd = response.end.bind(response);
   let ended = false;
@@ -118,7 +115,7 @@ function installResponseBarrier(request, response, pathname, requestId, startedA
       let output = chunk;
       let outputEncoding = encodingValue;
       let outputCallback = callbackFunction;
-      if (shouldFlush(pathname, request.method ?? "GET")) {
+      if (shouldFlushDurableWrite(pathname, request.method ?? "GET", config.storeMode)) {
         try {
           await store.flush();
         } catch (error) {

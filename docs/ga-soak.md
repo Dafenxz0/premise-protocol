@@ -81,8 +81,34 @@ Los gates incorporados son deliberadamente explícitos:
 | observaciones de latencia | `10.000` |
 | disponibilidad semántica | `>= 99,9%` |
 | tasa de error | `<= 0,1%` |
+| p95 global | `<= 500 ms` |
+| p99 global | `<= 2.000 ms` |
 
-`--enforce-ga` termina con código distinto de cero si alguno falla. No permite convertir una muestra corta en evidencia GA cambiando un umbral desde la línea de comandos. Aun con `eligibleForGa: true`, el resultado solo respalda ese target, commit, configuración, tenant, hardware y ventana; no prueba una disponibilidad universal ni un SLA.
+`--enforce-ga` termina con código distinto de cero si alguno falla. No permite convertir una muestra corta en evidencia GA cambiando un umbral desde la línea de comandos. Una ejecución con disponibilidad perfecta pero cola lenta sigue siendo `ga-candidate-failed`. Aun con `eligibleForGa: true`, el resultado solo respalda ese target, commit, configuración, tenant, hardware y ventana; no prueba una disponibilidad universal ni un SLA.
+
+## Diagnóstico de la primera ventana larga
+
+La primera ventana remota de una hora (`60.743` peticiones, `100%` de
+disponibilidad y `0` errores) fue útil precisamente porque no pasó la cola de
+latencia. El artefacto se conserva como evidencia de diagnóstico, no como
+certificación: el runner anterior a la corrección todavía marcaba elegibilidad
+por disponibilidad aunque sus percentiles incumplían el contrato público.
+
+| Operación | p95 observado | p99 observado | Lectura sencilla |
+| --- | ---: | ---: | --- |
+| `register` | 3.524 ms | 3.729 ms | Las escrituras se acumulaban en una cola durable global. |
+| `query` | 3.502 ms | 3.700 ms | Las lecturas esperaban esa cola y además ordenaban todo el corpus. |
+| `source-changed` | 4.004 ms | 4.226 ms | Cada aviso recorría todas las memorias y repetía estados ya `STALE`. |
+
+La corrección separa lecturas de la barrera de persistencia, limita la
+concurrencia del escritor durable, mantiene índices inversos para fuentes y
+dependencias, hace idempotente la invalidación y conserva un top-k exacto en el
+índice híbrido. En el benchmark reproducible de `100.000` documentos, la
+consulta híbrida posterior obtuvo p95/p99 de `39,44/40,17 ms` sin filtro y
+`17,70/17,79 ms` con tenant, ACL y frescura. El proveedor vectorial de esta
+fixture es determinista y local: sirve para medir la ruta híbrida, no para
+prometer calidad semántica de un modelo externo. Son medidas locales del
+índice y no sustituyen repetir el soak de una hora contra la imagen candidata.
 
 ## Check ejecutable
 
