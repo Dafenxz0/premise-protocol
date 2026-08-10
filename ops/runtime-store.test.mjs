@@ -55,10 +55,30 @@ class PersistentFake {
   }
 }
 
+class BatchPersistentFake extends PersistentFake {
+  appendEvents(values) {
+    return this.start("events", values);
+  }
+}
+
 test("requires a strict bounded concurrency value", () => {
   assert.equal(new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "04" }).concurrency, 4);
   assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "4foo" }), /integer/);
   assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: 0 }), /integer/);
+});
+
+test("batches ordered events when the persistent store supports it", async () => {
+  const persistent = new BatchPersistentFake();
+  const store = new DurableMirrorStore(persistent, emptySnapshot, { concurrency: 2 });
+  store.appendEvent(event("batch:1"));
+  store.appendEvent(event("batch:2"));
+  await tick();
+  await tick();
+  assert.equal(persistent.calls.length, 1);
+  assert.equal(persistent.calls[0].kind, "events");
+  assert.deepEqual(persistent.calls[0].value.map(({ eventId }) => eventId), ["event:batch:1", "event:batch:2"]);
+  persistent.release();
+  await store.flush();
 });
 
 test("limits active writes and keeps cloning", async () => {

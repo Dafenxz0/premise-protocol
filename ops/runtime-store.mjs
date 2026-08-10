@@ -1,5 +1,6 @@
 export const DEFAULT_DURABLE_WRITE_CONCURRENCY = 4;
 const MAX_DURABLE_WRITE_CONCURRENCY = 64;
+const MAX_EVENT_BATCH_SIZE = 64;
 
 function clone(value) {
   const serialized = JSON.stringify(value);
@@ -41,6 +42,7 @@ export class DurableMirrorStore {
     this.recordTails = new Map();
     this.pendingPuts = new Set();
     this.lastEventTask = undefined;
+    this.eventBatch = undefined;
     this.restoreTask = undefined;
     this.activeWrites = 0;
     this.pendingWrites = 0;
@@ -86,11 +88,20 @@ export class DurableMirrorStore {
       return;
     }
     this.events.set(copy.idempotencyKey, copy);
-    const dependencies = [...this.pendingPuts];
-    if (this.restoreTask !== undefined) dependencies.push(this.restoreTask);
-    if (this.lastEventTask !== undefined) dependencies.push(this.lastEventTask);
-    const task = this.enqueue(() => this.persistent.appendEvent(clone(copy)), dependencies);
-    this.lastEventTask = task;
+    let batch = this.eventBatch;
+    if (batch === undefined) {
+      batch = { events: [], dependencies: new Set(), task: undefined };
+      const dependencies = [];
+      if (this.lastEventTask !== undefined) dependencies.push(this.lastEventTask);
+      if (this.restoreTask !== undefined) dependencies.push(this.restoreTask);
+      batch.task = this.enqueue(() => this.flushEventBatch(batch), dependencies);
+      this.eventBatch = batch;
+      this.lastEventTask = batch.task;
+    }
+    batch.events.push(copy);
+    for (const pendingPut of this.pendingPuts) batch.dependencies.add(pendingPut);
+    if (this.restoreTask !== undefined) batch.dependencies.add(this.restoreTask);
+    if (batch.events.length >= MAX_EVENT_BATCH_SIZE && this.eventBatch === batch) this.eventBatch = undefined;
   }
 
   hasEvent(idempotencyKey) {
@@ -111,6 +122,9 @@ export class DurableMirrorStore {
     this.records = new Map(copy.records.map((record) => [record.envelope.memoryId, record]));
     this.events = new Map(copy.events.map((event) => [event.idempotencyKey, event]));
     this.revision += 1;
+    // Close the current event batch before enqueueing a restore barrier. New
+    // events must wait for restore rather than forming a dependency cycle.
+    this.eventBatch = undefined;
     const task = this.enqueue(() => this.persistent.restore(clone(copy)), [...this.tasks]);
     this.restoreTask = task;
   }
@@ -166,6 +180,21 @@ export class DurableMirrorStore {
     if (task.dependencies.size === 0) this.ready.push(task);
     this.pump();
     return task;
+  }
+
+  async flushEventBatch(batch) {
+    // Let other request continuations in this event-loop turn join the batch,
+    // then wait for their record writes before publishing ordered events.
+    await new Promise((resolve) => setImmediate(resolve));
+    if (this.eventBatch === batch) this.eventBatch = undefined;
+    await Promise.all([...batch.dependencies].filter((dependency) => !dependency.settled).map((dependency) => dependency.done));
+    if (this.failure !== undefined) throw this.failure;
+    const events = batch.events.map(clone);
+    if (typeof this.persistent.appendEvents === "function") {
+      await this.persistent.appendEvents(events);
+      return;
+    }
+    for (const event of events) await this.persistent.appendEvent(event);
   }
 
   pump() {

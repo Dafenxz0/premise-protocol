@@ -297,6 +297,15 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     await this.scoped((client) => this.appendEventOn(client, parsed));
   }
 
+  async appendEvents(events: readonly V2Event[]): Promise<void> {
+    const parsed = events.map((event) => parseV2Event(cloneJson(event)));
+    for (const event of parsed) this.assertTenant(event.tenantId);
+    if (parsed.length === 0) return;
+    await this.transaction(async (client) => {
+      for (const event of parsed) await this.appendEventOn(client, event);
+    });
+  }
+
   async hasEvent(idempotencyKey: string): Promise<boolean> {
     assertKey(idempotencyKey, "idempotencyKey");
     return this.scoped(async (client) => {
