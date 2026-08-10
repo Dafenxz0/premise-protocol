@@ -256,8 +256,8 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     assertKey(memoryId, "memoryId");
     return this.scoped(async (client) => {
       const query = this.tenantId === undefined
-        ? `SELECT envelope_json, content_json FROM ${this.runtime.records} WHERE memory_id = $1`
-        : `SELECT envelope_json, content_json FROM ${this.runtime.records} WHERE tenant_id = $1 AND memory_id = $2`;
+        ? `SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE memory_id = $1`
+        : `SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE tenant_id = $1 AND memory_id = $2`;
       const result = await client.query(query, this.tenantId === undefined ? [memoryId] : [this.tenantId, memoryId]);
       const row = result.rows[0];
       return row === undefined ? undefined : cloneJson(runtimeRecord<T>(row));
@@ -267,8 +267,8 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
   async list(): Promise<readonly RuntimeRecord<T>[]> {
     return this.scoped(async (client) => {
       const result = this.tenantId === undefined
-        ? await client.query(`SELECT envelope_json, content_json FROM ${this.runtime.records} ORDER BY tenant_id, memory_id`)
-        : await client.query(`SELECT envelope_json, content_json FROM ${this.runtime.records} WHERE tenant_id = $1 ORDER BY memory_id`, [this.tenantId]);
+        ? await client.query(`SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} ORDER BY tenant_id, memory_id`)
+        : await client.query(`SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE tenant_id = $1 ORDER BY memory_id`, [this.tenantId]);
       return result.rows.map((row) => cloneJson(runtimeRecord<T>(row)));
     });
   }
@@ -311,8 +311,8 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
   async listEvents(): Promise<readonly V2Event[]> {
     return this.scoped(async (client) => {
       const result = this.tenantId === undefined
-        ? await client.query(`SELECT event_json FROM ${this.runtime.events} ORDER BY sequence`)
-        : await client.query(`SELECT event_json FROM ${this.runtime.events} WHERE tenant_id = $1 ORDER BY sequence`, [this.tenantId]);
+        ? await client.query(`SELECT event_json::text AS event_json FROM ${this.runtime.events} ORDER BY sequence`)
+        : await client.query(`SELECT event_json::text AS event_json FROM ${this.runtime.events} WHERE tenant_id = $1 ORDER BY sequence`, [this.tenantId]);
       return result.rows.map((row) => cloneJson(runtimeEvent(row)));
     });
   }
@@ -338,7 +338,7 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     return this.scoped(async (client) => {
       const snapshotTenant = this.snapshotTenant();
       const result = await client.query(`
-        SELECT snapshot_json
+        SELECT snapshot_json::text AS snapshot_json
         FROM ${this.runtime.snapshots}
         WHERE tenant_id = $1 AND snapshot_id = $2
       `, [snapshotTenant, capturedAt]);
@@ -400,8 +400,8 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
         `, [checkpointTenant, consumerId]);
         const cursor = Math.max(fromSequence, rowSequence(checkpoint.rows[0] ?? {}, "event_sequence"));
         const eventResult = tenantId === undefined
-          ? await client.query(`SELECT sequence, event_json FROM ${this.runtime.events} WHERE sequence > $1 ORDER BY sequence LIMIT $2`, [cursor, batchSize])
-          : await client.query(`SELECT sequence, event_json FROM ${this.runtime.events} WHERE tenant_id = $1 AND sequence > $2 ORDER BY sequence LIMIT $3`, [tenantId, cursor, batchSize]);
+          ? await client.query(`SELECT sequence, event_json::text AS event_json FROM ${this.runtime.events} WHERE sequence > $1 ORDER BY sequence LIMIT $2`, [cursor, batchSize])
+          : await client.query(`SELECT sequence, event_json::text AS event_json FROM ${this.runtime.events} WHERE tenant_id = $1 AND sequence > $2 ORDER BY sequence LIMIT $3`, [tenantId, cursor, batchSize]);
         if (eventResult.rows.length === 0) return 0;
         let lastSequence = cursor;
         for (const row of eventResult.rows) {
@@ -489,11 +489,11 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
       INSERT INTO ${this.runtime.events}(tenant_id, idempotency_key, event_id, event_json, occurred_at)
       VALUES ($1, $2, $3, $4::jsonb, $5)
       ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
-      RETURNING event_id, event_json
+      RETURNING event_id, event_json::text AS event_json
     `, [parsed.tenantId, parsed.idempotencyKey, parsed.eventId, serialized, parsed.occurredAt]);
     if (result.rows.length > 0) return;
     const existing = await client.query<Readonly<Record<string, unknown>>>(`
-      SELECT event_id, event_json
+      SELECT event_id, event_json::text AS event_json
       FROM ${this.runtime.events}
       WHERE tenant_id = $1 AND idempotency_key = $2
     `, [parsed.tenantId, parsed.idempotencyKey]);
@@ -504,16 +504,16 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
   }
 
   private async listOn(client: PostgresAdapter): Promise<readonly RuntimeRecord<T>[]> {
-    const result = this.tenantId === undefined
-      ? await client.query(`SELECT envelope_json, content_json FROM ${this.runtime.records} ORDER BY tenant_id, memory_id`)
-      : await client.query(`SELECT envelope_json, content_json FROM ${this.runtime.records} WHERE tenant_id = $1 ORDER BY memory_id`, [this.tenantId]);
+      const result = this.tenantId === undefined
+      ? await client.query(`SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} ORDER BY tenant_id, memory_id`)
+      : await client.query(`SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE tenant_id = $1 ORDER BY memory_id`, [this.tenantId]);
     return result.rows.map((row) => cloneJson(runtimeRecord<T>(row)));
   }
 
   private async listEventsOn(client: PostgresAdapter): Promise<readonly V2Event[]> {
-    const result = this.tenantId === undefined
-      ? await client.query(`SELECT event_json FROM ${this.runtime.events} ORDER BY sequence`)
-      : await client.query(`SELECT event_json FROM ${this.runtime.events} WHERE tenant_id = $1 ORDER BY sequence`, [this.tenantId]);
+      const result = this.tenantId === undefined
+      ? await client.query(`SELECT event_json::text AS event_json FROM ${this.runtime.events} ORDER BY sequence`)
+      : await client.query(`SELECT event_json::text AS event_json FROM ${this.runtime.events} WHERE tenant_id = $1 ORDER BY sequence`, [this.tenantId]);
     return result.rows.map((row) => cloneJson(runtimeEvent(row)));
   }
 
