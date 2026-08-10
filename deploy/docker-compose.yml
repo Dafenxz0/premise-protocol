@@ -126,11 +126,11 @@ services:
     image: prom/prometheus:v3.5.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
-      - --config.expand-env
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
-    environment:
-      PREMISE_METRICS_TOKEN: ${PREMISE_METRICS_TOKEN:-local-only-metrics-token}
+    secrets:
+      - source: premise_metrics_token
+        target: premise_metrics_token
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
@@ -162,7 +162,7 @@ services:
       PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
-      BACKUP_FILE: /backup/premise-v2-latest.json
+      BACKUP_FILE: /backup/premise-v2-latest.ndjson
     volumes:
       - ../.local/backups:/backup
     depends_on:
@@ -173,3 +173,7 @@ services:
 volumes:
   postgres-data:
   prometheus-data:
+
+secrets:
+  premise_metrics_token:
+    file: ${PREMISE_METRICS_TOKEN_FILE:-../.local/premise_metrics_token}

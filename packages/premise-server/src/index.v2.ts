@@ -2,16 +2,36 @@ import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { URL } from "node:url";
 import { ContextEngine, type ContextCandidate } from "@premise/context-engine";
-import { HybridIndex, type SearchOptions } from "@premise/index-hybrid";
+import { HybridIndex, type HybridDocument, type SearchOptions } from "@premise/index-hybrid";
 import { SPEC_VERSION_V2, V2EnvelopeValidationError } from "@premise/protocol-types";
 import { PremiseRuntime, type RuntimePrincipal, type RuntimeRecord, type RuntimeValidator } from "@premise/runtime-core";
 
 export const HTTP_IDEMPOTENCY_PROTOCOL = "premise-http-idempotency/1" as const;
 export const HTTP_REQUEST_HASH_PREFIX = "sha256:http-v1:" as const;
 
+export interface PremiseSearchHit<T = unknown> {
+  readonly id: string;
+  readonly text: string;
+  readonly score: number;
+  readonly content?: T;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly record?: RuntimeRecord<T>;
+}
+
+export interface PremiseSearchIndex<T = unknown> {
+  upsert(document: HybridDocument<T>): void | Promise<void>;
+  search(query: string, options: SearchOptions<T>): Promise<readonly PremiseSearchHit<T>[]>;
+}
+
+export interface PremiseRuntimeCounts {
+  readonly memories: number;
+  readonly events: number;
+}
+
 export interface PremiseServerOptions<T> {
   readonly runtime: PremiseRuntime<T>;
-  readonly index?: HybridIndex;
+  readonly index?: PremiseSearchIndex<T>;
+  readonly runtimeCounts?: (principal: RuntimePrincipal) => PremiseRuntimeCounts | Promise<PremiseRuntimeCounts>;
   readonly context?: ContextEngine;
   readonly validator?: RuntimeValidator<T>;
   readonly principal?: RuntimePrincipal;
@@ -147,6 +167,13 @@ function positiveSafeInteger(value: unknown, label: string): number {
   return value as number;
 }
 
+function runtimeCounts(value: PremiseRuntimeCounts): PremiseRuntimeCounts {
+  if (value === null || typeof value !== "object" || !Number.isSafeInteger(value.memories) || value.memories < 0 || !Number.isSafeInteger(value.events) || value.events < 0) {
+    throw new TypeError("runtimeCounts must return non-negative safe integer counts");
+  }
+  return value;
+}
+
 export interface ServerAddress {
   readonly host: string;
   readonly port: number;
@@ -259,11 +286,12 @@ function requestHash(operation: string, pathname: string, principal: RuntimePrin
 export class PremiseServer<T = unknown> {
   readonly server: Server;
   readonly runtime: PremiseRuntime<T>;
-  readonly index: HybridIndex;
+  readonly index: PremiseSearchIndex<T>;
   readonly context: ContextEngine;
   private readonly validator: RuntimeValidator<T> | undefined;
   private readonly principal: RuntimePrincipal;
   private readonly authorize: PremiseServerOptions<T>["authorize"];
+  private readonly runtimeCounts: PremiseServerOptions<T>["runtimeCounts"];
   private readonly idempotencyStore: HttpIdempotencyStore;
   private readonly awaitDurability: (() => void | Promise<void>) | undefined;
   private readonly allowTenantHeader: boolean;
@@ -274,11 +302,12 @@ export class PremiseServer<T = unknown> {
 
   constructor(options: PremiseServerOptions<T>) {
     this.runtime = options.runtime;
-    this.index = options.index ?? new HybridIndex();
+    this.index = options.index ?? new HybridIndex<T>();
     this.context = options.context ?? new ContextEngine();
     this.validator = options.validator;
     this.principal = options.principal ?? this.runtime.principal;
     this.authorize = options.authorize;
+    this.runtimeCounts = options.runtimeCounts;
     this.idempotencyStore = options.idempotencyStore ?? new InMemoryHttpIdempotencyStore();
     this.awaitDurability = options.awaitDurability;
     this.allowTenantHeader = options.allowTenantHeader ?? false;
@@ -314,7 +343,10 @@ export class PremiseServer<T = unknown> {
       const idempotencyKey = method === "POST" ? requestIdempotencyKey(request) : undefined;
       metricTenant = principal.tenantId;
       if (method === "GET" && url.pathname === "/health") {
-        jsonResponse(response, 200, { ok: true, specVersion: SPEC_VERSION_V2, memories: this.runtime.list(principal).length, events: this.runtime.eventCount() });
+        const counts = this.runtimeCounts === undefined
+          ? { memories: this.runtime.list(principal).length, events: this.runtime.eventCount() }
+          : runtimeCounts(await this.runtimeCounts(principal));
+        jsonResponse(response, 200, { ok: true, specVersion: SPEC_VERSION_V2, ...counts });
         return;
       }
       if (method === "GET" && url.pathname === "/v2/capabilities") {
@@ -380,11 +412,10 @@ export class PremiseServer<T = unknown> {
         const hits = await this.index.search(query, scopedOptions);
         const candidates: ContextCandidate[] = [];
         for (const hit of hits) {
-          const record = this.runtime.get(hit.id, principal);
+          const record = hit.record ?? this.runtime.get(hit.id, principal);
           if (record === undefined) continue;
-          const state = this.runtime.check([hit.id], principal)[0];
-          if (state === undefined) continue;
-          candidates.push({ id: hit.id, text: hit.text, score: hit.score, freshness: state.status, topic: record.envelope.evidence[0]?.sourceUri ?? hit.id, metadata: { tenantId: record.envelope.tenantId } });
+          if (record.envelope.memoryId !== hit.id || record.envelope.tenantId !== principal.tenantId) continue;
+          candidates.push({ id: hit.id, text: hit.text, score: hit.score, freshness: record.envelope.validity.status, topic: record.envelope.evidence[0]?.sourceUri ?? hit.id, metadata: { tenantId: record.envelope.tenantId } });
         }
         const tokenBudget = input.maxTokens === undefined ? 4_096 : positiveSafeInteger(input.maxTokens, "maxTokens");
         const plan = this.context.select({ candidates, tokenBudget });

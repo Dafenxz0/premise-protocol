@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { URL } from "node:url";
 import { PremiseServer } from "@premise/premise-server/v2";
 import { InMemoryRuntimeStore, PremiseRuntime } from "@premise/runtime-core";
+import { PostgresLexicalIndex } from "@premise/store-postgres";
 import { Metrics } from "./metrics.mjs";
 import { assertRlsSafeDatabaseRole, authorizeOperationalRequest, createBearerAuthorizer } from "./auth.mjs";
 import { openPgClient } from "./pg-client.mjs";
@@ -34,6 +35,8 @@ let database;
 let store;
 let idempotencyStore;
 let runtime;
+let retrievalIndex;
+let runtimeCounts;
 let app;
 
 if (config.storeMode === "postgres") {
@@ -46,6 +49,8 @@ if (config.storeMode === "postgres") {
     });
     store = opened.mirror;
     idempotencyStore = opened.persistent;
+    retrievalIndex = new PostgresLexicalIndex(opened.persistent, { awaitDurability: () => opened.mirror.flush() });
+    runtimeCounts = () => opened.persistent.counts();
   } catch (error) {
     console.error("PREMiSE v2 startup failed: PostgreSQL is unavailable");
     console.error(error?.code ?? error?.name ?? "database error");
@@ -65,6 +70,8 @@ runtime = new PremiseRuntime({
 
 app = new PremiseServer({
   runtime,
+  index: retrievalIndex,
+  runtimeCounts,
   principal: { tenantId: config.tenantId, subjectId: "premise-service" },
   allowTenantHeader: false,
   authorize,
@@ -73,11 +80,6 @@ app = new PremiseServer({
   maxBodyBytes: config.maxBodyBytes,
   logger: (message) => console.error("PREMiSE v2 request error", message.split("\n", 1)[0])
 });
-
-for (const record of runtime.list()) {
-  const content = typeof record.content === "string" ? record.content : JSON.stringify(record.content) ?? String(record.content);
-  await app.index.upsert({ id: record.envelope.memoryId, text: content, content: record.content, metadata: { tenantId: record.envelope.tenantId } });
-}
 
 function required(name, fallback) {
   const value = process.env[name];

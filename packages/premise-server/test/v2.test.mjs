@@ -84,6 +84,32 @@ await server.close();
 assert.ok(metrics.length >= 4);
 assert.ok(metrics.every((metric) => metric.durationMs >= 0 && metric.requestId.length > 0));
 
+const remoteEnvelope = { ...envelope, tenantId: "tenant:remote", memoryId: "memory:remote" };
+const remoteRecord = { envelope: remoteEnvelope, content: "remote PostgreSQL content" };
+const remoteRuntime = new PremiseRuntime({ tenantId: "tenant:remote", now: () => at });
+remoteRuntime.store.list = () => { throw new Error("remote health must not list the runtime store"); };
+remoteRuntime.store.get = () => { throw new Error("remote query must use the PostgreSQL hit record"); };
+const remoteServer = new PremiseServer({
+  runtime: remoteRuntime,
+  runtimeCounts: () => ({ memories: 1_000_000, events: 2_000_000 }),
+  index: {
+    async upsert() {},
+    async search() {
+      return [{ id: remoteEnvelope.memoryId, text: remoteRecord.content, score: 0.9, record: remoteRecord }];
+    }
+  }
+});
+await remoteServer.listen({ host: "127.0.0.1", port: 0 });
+const remoteAddress = remoteServer.server.address();
+assert.ok(remoteAddress && typeof remoteAddress === "object");
+const remoteHealth = await fetch(`http://127.0.0.1:${remoteAddress.port}/health`);
+assert.equal(remoteHealth.status, 200);
+assert.deepEqual(await remoteHealth.json().then(({ memories, events }) => ({ memories, events })), { memories: 1_000_000, events: 2_000_000 });
+const remoteQuery = await fetch(`http://127.0.0.1:${remoteAddress.port}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PostgreSQL" }) });
+assert.equal(remoteQuery.status, 200);
+assert.equal((await remoteQuery.json()).context.selected.length, 1);
+await remoteServer.close();
+
 const capturedSearchOptions = [];
 const scopedRuntime = new PremiseRuntime({ tenantId: "tenant:filter", now: () => at });
 const scopedServer = new PremiseServer({

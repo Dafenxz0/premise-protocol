@@ -1,17 +1,39 @@
 {
-  "format": "ga-evaluation-result/1",
-  "runner": "ga-evaluation-runner/1.0.0",
+  "format": "ga-evaluation-result/2",
+  "runner": "ga-evaluation-runner/1.1.0",
   "benchmark": {
-    "runId": "ga-20260810113536-f131e8a3",
-    "generatedAt": "2026-08-10T11:35:41.644Z",
+    "runId": "ga-20260810193923-bbac217a",
+    "generatedAt": "2026-08-10T19:39:29.116Z",
     "manifestVersion": "1.0.0",
+    "promptManifestVersion": "1.0.0",
+    "labelManifestVersion": "1.0.0",
     "datasetManifestVersion": "1.0.0",
     "blindProtocol": "ga-evaluation/1",
     "blind": true,
     "split": "all",
     "repetitions": 1,
     "tasks": 22,
-    "candidate": "reference-strategies"
+    "candidate": "reference-strategies",
+    "baselineStrategy": "retrieval-no-protocol"
+  },
+  "evidence": {
+    "source": {
+      "class": "external-public-static",
+      "hashesVerified": true,
+      "live": false,
+      "syntheticData": false
+    },
+    "execution": {
+      "class": "local-runner",
+      "independent": false,
+      "liveConnector": false
+    },
+    "syntheticData": {
+      "accepted": false,
+      "detectedMarkers": 0,
+      "method": "manifest-reference-denylist-and-pinned-public-commit"
+    },
+    "eligibleForPublicClaim": false
   },
   "verification": {
     "datasetsVerified": 11,
@@ -46,6 +68,8 @@
   "metrics": [
     {
       "strategy": "direct-read",
+      "baseline": false,
+      "protocol": "direct-read",
       "tasks": 22,
       "denominators": {
         "correctRate": 22,
@@ -55,13 +79,18 @@
       },
       "correct": 22,
       "correctRate": 1,
+      "correctPer100": 100,
       "freshnessCount": 22,
       "freshnessRate": 1,
+      "freshnessPer100Available": 100,
       "falsePositiveCount": 0,
       "falsePositiveRate": 0,
       "available": 22,
       "availabilityRate": 1,
+      "availabilityPer100": 100,
       "errors": 0,
+      "errorRate": 0,
+      "errorsPer100": 0,
       "requests": 22,
       "warmupRequests": 0,
       "requestsPerTask": 1,
@@ -72,11 +101,12 @@
         "filesystem": 7,
         "git": 7
       },
-      "costUsd": 0.00012576,
+      "costUsd": 0.00012444,
+      "costPer1000TasksUsd": 0.00565638,
       "latencyMs": {
-        "p50": 18.712,
-        "p95": 31.832,
-        "p99": 36.434
+        "p50": 18.743,
+        "p95": 21.729,
+        "p99": 23.35
       },
       "bySplit": {
         "visible": {
@@ -87,9 +117,9 @@
           "falsePositiveRate": 0,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 18.924,
-            "p95": 36.434,
-            "p99": 36.434
+            "p50": 18.793,
+            "p95": 23.35,
+            "p99": 23.35
           }
         },
         "hidden": {
@@ -100,9 +130,9 @@
           "falsePositiveRate": 0,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 0.22,
-            "p95": 23.047,
-            "p99": 23.047
+            "p50": 0.525,
+            "p95": 19.944,
+            "p99": 19.944
           }
         },
         "holdout": {
@@ -113,15 +143,17 @@
           "falsePositiveRate": 0,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 18.954,
-            "p95": 28.069,
-            "p99": 28.069
+            "p50": 18.743,
+            "p95": 21.729,
+            "p99": 21.729
           }
         }
       }
     },
     {
       "strategy": "ttl-cache",
+      "baseline": false,
+      "protocol": "ttl-cache",
       "tasks": 22,
       "denominators": {
         "correctRate": 22,
@@ -131,13 +163,18 @@
       },
       "correct": 18,
       "correctRate": 0.818182,
+      "correctPer100": 81.818,
       "freshnessCount": 16,
       "freshnessRate": 0.727273,
+      "freshnessPer100Available": 72.727,
       "falsePositiveCount": 4,
       "falsePositiveRate": 0.181818,
       "available": 22,
       "availabilityRate": 1,
+      "availabilityPer100": 100,
       "errors": 0,
+      "errorRate": 0,
+      "errorsPer100": 0,
       "requests": 12,
       "warmupRequests": 0,
       "requestsPerTask": 0.545455,
@@ -148,11 +185,12 @@
         "filesystem": 4,
         "git": 3
       },
-      "costUsd": 0.00007103,
+      "costUsd": 0.00007014,
+      "costPer1000TasksUsd": 0.00318809,
       "latencyMs": {
-        "p50": 0.171,
-        "p95": 30.947,
-        "p99": 34.131
+        "p50": 0.513,
+        "p95": 20.073,
+        "p99": 20.299
       },
       "bySplit": {
         "visible": {
@@ -163,9 +201,9 @@
           "falsePositiveRate": 0.3,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 0.202,
-            "p95": 30.947,
-            "p99": 30.947
+            "p50": 0.584,
+            "p95": 20.073,
+            "p99": 20.073
           }
         },
         "hidden": {
@@ -176,9 +214,9 @@
           "falsePositiveRate": 0.166667,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 0.171,
-            "p95": 34.131,
-            "p99": 34.131
+            "p50": 0.513,
+            "p95": 20.299,
+            "p99": 20.299
           }
         },
         "holdout": {
@@ -190,14 +228,16 @@
           "availabilityRate": 1,
           "latencyMs": {
             "p50": 0.002,
-            "p95": 28.729,
-            "p99": 28.729
+            "p95": 18.923,
+            "p99": 18.923
           }
         }
       }
     },
     {
       "strategy": "retrieval-no-protocol",
+      "baseline": true,
+      "protocol": "none",
       "tasks": 22,
       "denominators": {
         "correctRate": 22,
@@ -207,13 +247,18 @@
       },
       "correct": 17,
       "correctRate": 0.772727,
+      "correctPer100": 77.273,
       "freshnessCount": 15,
       "freshnessRate": 0.681818,
+      "freshnessPer100Available": 68.182,
       "falsePositiveCount": 5,
       "falsePositiveRate": 0.227273,
       "available": 22,
       "availabilityRate": 1,
+      "availabilityPer100": 100,
       "errors": 0,
+      "errorRate": 0,
+      "errorsPer100": 0,
       "requests": 7,
       "warmupRequests": 7,
       "requestsPerTask": 0.318182,
@@ -225,10 +270,11 @@
         "git": 2
       },
       "costUsd": 0.000041,
+      "costPer1000TasksUsd": 0.00186366,
       "latencyMs": {
         "p50": 0.001,
         "p95": 0.002,
-        "p99": 0.014
+        "p99": 0.007
       },
       "bySplit": {
         "visible": {
@@ -240,8 +286,8 @@
           "availabilityRate": 1,
           "latencyMs": {
             "p50": 0.001,
-            "p95": 0.014,
-            "p99": 0.014
+            "p95": 0.007,
+            "p99": 0.007
           }
         },
         "hidden": {
@@ -252,9 +298,9 @@
           "falsePositiveRate": 0.166667,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 0.001,
-            "p95": 0.002,
-            "p99": 0.002
+            "p50": 0,
+            "p95": 0.001,
+            "p99": 0.001
           }
         },
         "holdout": {
@@ -266,14 +312,16 @@
           "availabilityRate": 1,
           "latencyMs": {
             "p50": 0.001,
-            "p95": 0.002,
-            "p99": 0.002
+            "p95": 0.001,
+            "p99": 0.001
           }
         }
       }
     },
     {
       "strategy": "PREMiSE",
+      "baseline": false,
+      "protocol": "version-gated",
       "tasks": 22,
       "denominators": {
         "correctRate": 22,
@@ -283,13 +331,18 @@
       },
       "correct": 22,
       "correctRate": 1,
+      "correctPer100": 100,
       "freshnessCount": 22,
       "freshnessRate": 1,
+      "freshnessPer100Available": 100,
       "falsePositiveCount": 0,
       "falsePositiveRate": 0,
       "available": 22,
       "availabilityRate": 1,
+      "availabilityPer100": 100,
       "errors": 0,
+      "errorRate": 0,
+      "errorsPer100": 0,
       "requests": 30,
       "warmupRequests": 0,
       "requestsPerTask": 1.363636,
@@ -300,11 +353,12 @@
         "filesystem": 10,
         "git": 11
       },
-      "costUsd": 0.00015962,
+      "costUsd": 0.00015795,
+      "costPer1000TasksUsd": 0.0071796,
       "latencyMs": {
-        "p50": 21.668,
-        "p95": 40.044,
-        "p99": 64.912
+        "p50": 19.76,
+        "p95": 39.768,
+        "p99": 41.493
       },
       "bySplit": {
         "visible": {
@@ -315,9 +369,9 @@
           "falsePositiveRate": 0,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 21.668,
-            "p95": 64.912,
-            "p99": 64.912
+            "p50": 19.799,
+            "p95": 41.493,
+            "p99": 41.493
           }
         },
         "hidden": {
@@ -328,9 +382,9 @@
           "falsePositiveRate": 0,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 0.408,
-            "p95": 40.044,
-            "p99": 40.044
+            "p50": 0.739,
+            "p95": 38.17,
+            "p99": 38.17
           }
         },
         "holdout": {
@@ -341,9 +395,9 @@
           "falsePositiveRate": 0,
           "availabilityRate": 1,
           "latencyMs": {
-            "p50": 20.259,
-            "p95": 39.502,
-            "p99": 39.502
+            "p50": 19.136,
+            "p95": 39.768,
+            "p99": 39.768
           }
         }
       }
@@ -366,7 +420,8 @@
       "production SLA",
       "provider invoice",
       "causal product uplift",
-      "live mutation recovery from static snapshots"
+      "live mutation recovery from static snapshots",
+      "independent external evidence"
     ]
   }
 }

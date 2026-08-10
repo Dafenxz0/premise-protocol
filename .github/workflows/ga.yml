@@ -15,6 +15,7 @@ on:
       - "benchmarks/ga-soak/**"
       - "benchmarks/ga-cost/**"
       - "scripts/**"
+      - "tests/scripts-ga/**"
       - "spec/ga/**"
       - "spec/ga-api/**"
       - "docs/ga-*.md"
@@ -131,6 +132,8 @@ jobs:
       - name: Verify GA benchmark and evidence harnesses
         run: |
           pnpm build
+          node benchmarks/ga-evaluation/runner.mjs --split all
+          node benchmarks/ga-evaluation/self-check.mjs --require-output --require-external
           node benchmarks/ga-evaluation/holdout/contract.test.mjs
           node benchmarks/ga-evaluation/holdout/runner.contract.test.mjs
           node benchmarks/ga-evaluation/holdout/candidate.test.mjs
@@ -142,7 +145,7 @@ jobs:
           pnpm --filter @premise/runtime-core test
           pnpm --filter @premise/premise-server test
           node --test ops/route-durability.test.mjs
-          node --test tests/scripts-ga/ga-gate.test.mjs tests/scripts-ga/collect-ga-evidence.test.mjs tests/scripts-ga/ga-workflow.test.mjs
+          node --test tests/scripts-ga/ga-gate.test.mjs tests/scripts-ga/collect-ga-evidence.test.mjs tests/scripts-ga/ga-workflow.test.mjs tests/scripts-ga/ga-evaluation.test.mjs
       - name: Run cryptographic security verification
         run: |
           set -o pipefail
@@ -168,6 +171,17 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
+      - name: Upload blind evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-blind-evaluation-${{ github.sha }}
+          path: |
+            benchmarks/ga-evaluation/outputs/results.json
+            benchmarks/ga-evaluation/outputs/report.md
+            benchmarks/ga-evaluation/outputs/traces.jsonl
+          if-no-files-found: error
+          retention-days: 30
 
   deterministic-load:
     name: Deterministic CI load gate
@@ -258,8 +272,13 @@ jobs:
       - name: Prepare PostgreSQL scale evidence directory
         run: |
           set -euo pipefail
-          mkdir -p .ga-artifacts
+          mkdir -p .ga-artifacts .local
           chmod 0777 .ga-artifacts
+          metrics_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$metrics_token"
+          printf '%s\n' "$metrics_token" > .local/premise_metrics_token
+          chmod 600 .local/premise_metrics_token
+          echo "PREMISE_METRICS_TOKEN=$metrics_token" >> "$GITHUB_ENV"
       - name: Build immutable candidate image
         run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
       - name: Start PostgreSQL only
@@ -303,7 +322,9 @@ jobs:
         run: |
           set -euo pipefail
           api_token="$(openssl rand -hex 32)"
-          metrics_token="$(openssl rand -hex 32)"
+          metrics_token="$(cat .local/premise_metrics_token)"
+          test -n "$metrics_token"
+          echo "::add-mask::$metrics_token"
           echo "PREMISE_API_TOKEN=$api_token" >> "$GITHUB_ENV"
           echo "PREMISE_METRICS_TOKEN=$metrics_token" >> "$GITHUB_ENV"
           export PREMISE_API_TOKEN="$api_token"
@@ -518,8 +539,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare local backup directory
         run: |
+          set -euo pipefail
           mkdir -p .local/backups .ga-artifacts
           chmod 0777 .local/backups
+          metrics_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$metrics_token"
+          printf '%s\n' "$metrics_token" > .local/premise_metrics_token
+          chmod 600 .local/premise_metrics_token
+          echo "PREMISE_METRICS_TOKEN=$metrics_token" >> "$GITHUB_ENV"
       - name: Build immutable candidate image
         run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
       - name: Verify the image runs as non-root
@@ -598,8 +625,8 @@ jobs:
           set -o pipefail
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup node /app/ops/restore-verify.mjs | tee .ga-artifacts/restore-verify.json
-          sudo chown "$(id -u):$(id -g)" .local/backups/premise-v2-latest.json
-          cp .local/backups/premise-v2-latest.json .ga-artifacts/premise-v2-latest.json
+          sudo chown "$(id -u):$(id -g)" .local/backups/premise-v2-latest.ndjson
+          cp .local/backups/premise-v2-latest.ndjson .ga-artifacts/premise-v2-latest.ndjson
       - name: Capture stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/compose.log
@@ -635,8 +662,14 @@ jobs:
           node-version: 24
       - name: Prepare soak directories
         run: |
+          set -euo pipefail
           mkdir -p .local/backups .ga-artifacts
           chmod 0777 .local/backups
+          metrics_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$metrics_token"
+          printf '%s\n' "$metrics_token" > .local/premise_metrics_token
+          chmod 600 .local/premise_metrics_token
+          echo "PREMISE_METRICS_TOKEN=$metrics_token" >> "$GITHUB_ENV"
       - name: Build immutable candidate image
         run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
       - name: Start production-shaped stack
@@ -648,7 +681,8 @@ jobs:
           set -euo pipefail
           export PREMISE_ENV=production
           export PREMISE_API_TOKEN="$(openssl rand -hex 32)"
-          export PREMISE_METRICS_TOKEN="$(openssl rand -hex 32)"
+          export PREMISE_METRICS_TOKEN="$(cat .local/premise_metrics_token)"
+          test -n "$PREMISE_METRICS_TOKEN"
           docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
       - name: Wait for readiness
         env:
@@ -793,6 +827,11 @@ jobs:
           set -euo pipefail
           mkdir -p .ga-artifacts .local/backups
           chmod 0777 .local/backups
+          metrics_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$metrics_token"
+          printf '%s\n' "$metrics_token" > .local/premise_metrics_token
+          chmod 600 .local/premise_metrics_token
+          export PREMISE_METRICS_TOKEN="$metrics_token"
           node deploy/rollback-smoke.mjs
       - name: Verify rollback raw evidence
         if: always()

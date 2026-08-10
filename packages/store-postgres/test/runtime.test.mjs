@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
-import { PostgresRuntimeStore } from "../dist/index.js";
+import { readFile } from "node:fs/promises";
+import { POSTGRES_RUNTIME_MIGRATIONS, POSTGRES_RUNTIME_SCHEMA_VERSION, PostgresLexicalIndex, PostgresRuntimeStore } from "../dist/index.js";
+
+assert.ok(POSTGRES_RUNTIME_SCHEMA_VERSION >= 5);
+const permissiveRepair = POSTGRES_RUNTIME_MIGRATIONS.find(({ version }) => version === 5)?.sql;
+assert.ok(permissiveRepair);
+for (const table of ["records", "events", "snapshots", "replay_checkpoints", "http_idempotency"]) {
+  assert.match(permissiveRepair, new RegExp(`CREATE POLICY [^\\n]*${table}_tenant_policy[\\s\\S]*AS PERMISSIVE[\\s\\S]*current_setting\\('premise\\.tenant_id', true\\)`, "u"));
+}
+const staticCoreRls = await readFile(new URL("../migrations/002-tenant-rls.sql", import.meta.url), "utf8");
+assert.match(staticCoreRls, /CREATE POLICY premise_v2_records_tenant_policy[\s\S]*AS PERMISSIVE/u);
 
 const at = "2026-08-10T10:00:00Z";
 const envelope = {
@@ -48,6 +58,23 @@ class InMemoryPostgresClient {
       if (statement.includes("ON CONFLICT (tenant_id, memory_id) DO NOTHING") && this.records.has(key)) return { rows: [], rowCount: 0 };
       this.records.set(key, { envelope_json: values.length >= 4 ? values[2] : values[1], content_json: values.length >= 4 ? values[3] : values[2] });
       return statement.includes("RETURNING memory_id") ? { rows: [{ memory_id: key }], rowCount: 1 } : { rows: [] };
+    }
+    if (statement.startsWith('SELECT (SELECT COUNT(*) FROM "premise_v2_records"')) {
+      const tenant = values[0];
+      const records = [...this.records.values()].filter((row) => tenant === undefined || JSON.parse(row.envelope_json).tenantId === tenant);
+      const events = [...this.events.values()].filter((row) => tenant === undefined || row.tenant_id === tenant);
+      return { rows: [{ memories: records.length, events: events.length }] };
+    }
+    if (statement.startsWith('SELECT tenant_id, memory_id, envelope_json::text AS envelope_json, content_json::text AS content_json')) {
+      const query = String(values[0]).toLowerCase();
+      const tenant = values.length === 3 ? values[1] : undefined;
+      const limit = Number(values.at(-1));
+      const rows = [...this.records.entries()]
+        .map(([memoryId, row]) => ({ ...row, memory_id: memoryId, tenant_id: JSON.parse(row.envelope_json).tenantId }))
+        .filter((row) => (tenant === undefined || row.tenant_id === tenant) && row.content_json.toLowerCase().includes(query))
+        .sort((left, right) => left.memory_id.localeCompare(right.memory_id))
+        .map((row) => ({ ...row, rank: 1 }));
+      return { rows: rows.slice(0, limit) };
     }
     if (statement.startsWith('SELECT tenant_id, envelope_json::text AS envelope_json, content_json::text AS content_json FROM "premise_v2_records"')) {
       const limit = Number(values.at(-1));
@@ -172,10 +199,21 @@ assert.deepEqual(await store.loadIncrementally({
 }), { records: 2, events: 1 });
 assert.deepEqual(loadedRecords.map(({ envelope: loadedEnvelope }) => loadedEnvelope.memoryId), [envelope.memoryId, secondEnvelope.memoryId]);
 assert.equal(loadedEvents[0].sequence, 1);
+assert.deepEqual(await store.counts(), { memories: 2, events: 1 });
+const lexicalHits = await store.search("answer", { limit: 1, filter: { tenantId: "tenant:acme" } });
+assert.equal(lexicalHits.length, 1);
+assert.equal(lexicalHits[0].record.envelope.tenantId, "tenant:acme");
+assert.equal(lexicalHits[0].vectorScore, 0);
+let durabilityWaits = 0;
+const lexicalIndex = new PostgresLexicalIndex(store, { awaitDurability: () => { durabilityWaits += 1; } });
+await lexicalIndex.upsert({ id: envelope.memoryId, text: "answer", content: { answer: 42 }, metadata: { tenantId: "tenant:acme" } });
+assert.equal(durabilityWaits, 1);
+await assert.rejects(() => store.search("answer", { vectorWeight: 1 }), /vectorWeight/);
 const loadQueries = client.queries.slice(queryStart).map(({ statement }) => statement);
 assert.ok(loadQueries.filter((statement) => statement.startsWith('SELECT tenant_id, envelope_json')).length >= 2);
 assert.ok(loadQueries.filter((statement) => statement.startsWith('SELECT sequence, tenant_id, event_json')).length >= 2);
 assert.equal(loadQueries.some((statement) => statement.includes("snapshot_json")), false);
+assert.ok(client.queries.some(({ statement }) => statement.includes("to_tsvector('simple', content_json::text)")));
 await assert.rejects(() => store.loadIncrementally({ batchSize: 10_001, onRecord: () => undefined, onEvent: () => undefined }), /batchSize/);
 await assert.rejects(() => store.loadIncrementally({ batchSize: 1, onRecord: () => { throw new Error("startup hydration failed"); }, onEvent: () => undefined }), /startup hydration failed/);
 const scopedStore = new PostgresRuntimeStore(client, { tenantId: "tenant:acme" });
@@ -188,6 +226,17 @@ assert.equal((await store.claimHttpIdempotency(request)).kind, "in-progress");
 await store.completeHttpIdempotency({ ...request, token: claim.token, response: { status: 201, body: { memoryId: "memory:postgres-runtime", status: "stored" }, headers: { "content-type": "application/json" } } });
 assert.deepEqual(await store.claimHttpIdempotency(request), { kind: "replay", response: { status: 201, body: { memoryId: "memory:postgres-runtime", status: "stored" }, headers: { "content-type": "application/json" } } });
 assert.equal((await store.claimHttpIdempotency({ ...request, requestHash: "sha256:http-v1:two" })).kind, "conflict");
+
+const streamedRestore = await store.restoreIncrementally({
+  source: async (sink) => {
+    await sink.onRecord({ envelope, content: { answer: 42 } });
+    await sink.onEvent(event);
+    return { capturedAt: at, records: 1, events: 1 };
+  }
+});
+assert.deepEqual(streamedRestore, { capturedAt: at, records: 1, events: 1 });
+assert.deepEqual(await store.get(envelope.memoryId), { envelope, content: { answer: 42 } });
+assert.equal((await store.listEvents()).length, 1);
 
 const snapshot = await store.snapshot(at);
 const snapshotInsert = client.queries.find(({ statement }) => statement.startsWith('INSERT INTO "premise_v2_snapshots"'));

@@ -71,6 +71,14 @@ try {
   assert.deepEqual((await store.get(envelope.memoryId)).content, { answer: 42 });
   const snapshot = await store.snapshot(at);
   assert.equal(snapshot.events.length, 1);
+  const streamedRestore = await store.restoreIncrementally({
+    source: async (sink) => {
+      await sink.onRecord({ envelope, content: { answer: 42 } });
+      await sink.onEvent(event);
+      return { capturedAt: at, records: 1, events: 1 };
+    }
+  });
+  assert.deepEqual(streamedRestore, { capturedAt: at, records: 1, events: 1 });
   let replayed = 0;
   assert.equal(await store.replay(() => { replayed += 1; }, { consumerId: "ci" }), 1);
   assert.equal(await store.replay(() => { replayed += 1; }, { consumerId: "ci" }), 0);

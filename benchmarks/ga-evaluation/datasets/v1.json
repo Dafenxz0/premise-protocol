@@ -7,6 +7,14 @@
     "allowedDownloadHosts": [
       "raw.githubusercontent.com"
     ],
+    "syntheticDataAllowed": false,
+    "syntheticMarkers": [
+      "fixture:",
+      "synthetic:",
+      "mock:",
+      "fake:",
+      "dummy:"
+    ],
     "forbiddenSchemes": [
       "fixture",
       "data",
@@ -24,7 +32,9 @@
       "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
       "path": "src/requests/__version__.py",
       "sha256": "48258dddf3888611721a8dd085e91a27cf12ef5ea882c1edc4dd216e4001a0d8",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "github.requests.version.new",
@@ -36,7 +46,9 @@
       "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
       "path": "src/requests/__version__.py",
       "sha256": "abba90670b0370a3dc40d97c2dea46a35d4bec941ff10d7c3cf3098ef04a17f9",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "filesystem.requests.version.old",
@@ -48,7 +60,9 @@
       "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
       "path": "src/requests/__version__.py",
       "sha256": "48258dddf3888611721a8dd085e91a27cf12ef5ea882c1edc4dd216e4001a0d8",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "filesystem.requests.version.new",
@@ -60,7 +74,9 @@
       "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
       "path": "src/requests/__version__.py",
       "sha256": "abba90670b0370a3dc40d97c2dea46a35d4bec941ff10d7c3cf3098ef04a17f9",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "git.requests.version.old",
@@ -73,7 +89,9 @@
       "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
       "path": "src/requests/__version__.py",
       "sha256": "48258dddf3888611721a8dd085e91a27cf12ef5ea882c1edc4dd216e4001a0d8",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "git.requests.version.new",
@@ -86,7 +104,9 @@
       "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
       "path": "src/requests/__version__.py",
       "sha256": "abba90670b0370a3dc40d97c2dea46a35d4bec941ff10d7c3cf3098ef04a17f9",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "github.hello.world",
@@ -98,7 +118,9 @@
       "commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
       "path": "README",
       "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "filesystem.nodeignore",
@@ -110,7 +132,9 @@
       "commit": "57286c3887203259752b747db94e6c3ad10ec53d",
       "path": "Node.gitignore",
       "sha256": "ae3ac05cd16b0f6c4251fd30d74c12866d1ba6daa365aacc2e32ddfc09a478f6",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "github.requests.readme",
@@ -122,7 +146,9 @@
       "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
       "path": "README.md",
       "sha256": "2a9268c9be5f4dc9abe9105740be7c5234babc3dd2b25eb11ca376c538a0c67b",
-      "mediaType": "text/markdown"
+      "mediaType": "text/markdown",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "git.requests.pyproject.old",
@@ -135,7 +161,9 @@
       "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
       "path": "pyproject.toml",
       "sha256": "249147c8688043884fd91b951a013c5bf0aef445894527ad75124a12a41225e1",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     },
     {
       "id": "git.requests.pyproject.new",
@@ -148,7 +176,9 @@
       "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
       "path": "pyproject.toml",
       "sha256": "345f26b9f691435e39d0eb6f7f4150a390f43175b22f8d61ac95e7f2827f0a77",
-      "mediaType": "text/plain"
+      "mediaType": "text/plain",
+      "evidenceClass": "external-public-static",
+      "syntheticData": false
     }
   ]
 }

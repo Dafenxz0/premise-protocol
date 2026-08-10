@@ -55,11 +55,12 @@ test("Compose provisions and uses a non-bypass RLS application role", () => {
   assert.ok(databaseUrls.slice(1).every((value) => value.includes("PREMISE_DB_USER") && !value.includes("POSTGRES_USER:-")));
 });
 
-test("Prometheus receives a dedicated metrics bearer through environment expansion", () => {
-  assert.match(compose, /--config\.expand-env/u);
-  assert.equal((compose.match(/^\s+PREMISE_METRICS_TOKEN:/gmu) ?? []).length, 2);
-  assert.match(prometheus, /authorization:\s*\n\s+type:\s+Bearer\s*\n\s+credentials:\s+\$\{PREMISE_METRICS_TOKEN\}/u);
-  assert.doesNotMatch(prometheus, /PREMISE_API_TOKEN/u);
+test("Prometheus 3.5 receives its bearer through a Docker secret file", () => {
+  assert.doesNotMatch(compose, /--config\.expand-env/u);
+  assert.match(compose, /premise_metrics_token:\s*\n\s+file:\s+\$\{PREMISE_METRICS_TOKEN_FILE:-\.\.\/\.local\/premise_metrics_token\}/u);
+  assert.match(compose, /prometheus:[\s\S]*?secrets:\s*\n\s+- source: premise_metrics_token\s*\n\s+target: premise_metrics_token/u);
+  assert.match(prometheus, /bearer_token_file:\s+\/run\/secrets\/premise_metrics_token/u);
+  assert.doesNotMatch(prometheus, /PREMISE_METRICS_TOKEN|PREMISE_API_TOKEN/u);
 });
 
 test("production example pins the same pool budget", () => {

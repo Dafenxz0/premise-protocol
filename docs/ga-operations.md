@@ -4,7 +4,7 @@ Esta guía describe un despliegue reproducible, local y con forma de producción
 
 ## Qué se entrega
 
-La imagen ejecuta la API v2 con un usuario sin privilegios (10001:10001). El proceso carga los recuerdos y eventos desde PostgreSQL al arrancar, mantiene el índice de consulta en memoria y confirma las escrituras en PostgreSQL antes de responder con éxito. Si la persistencia falla, las operaciones de escritura devuelven 503, readiness pasa a rojo y hay que reiniciar el proceso después de corregir la base de datos.
+La imagen ejecuta la API v2 con un usuario sin privilegios (10001:10001). PostgreSQL es la fuente de verdad: el arranque hidrata el mirror en páginas acotadas y las consultas usan el índice lexical persistido en PostgreSQL, sin reconstruir un índice completo en memoria. Las escrituras se confirman en PostgreSQL antes de responder con éxito. Si la persistencia falla, las operaciones de escritura devuelven 503, readiness pasa a rojo y hay que reiniciar el proceso después de corregir la base de datos.
 
 ~~~mermaid
 flowchart LR
@@ -73,6 +73,8 @@ Desde la raíz del repositorio:
 
 ~~~bash
 mkdir -p .local/backups
+printf '%s\n' 'local-only-metrics-token' > .local/premise_metrics_token
+chmod 600 .local/premise_metrics_token
 chmod 0777 .local/backups
 docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml up -d
 ~~~
@@ -81,6 +83,8 @@ En PowerShell:
 
 ~~~powershell
 New-Item -ItemType Directory -Force .local/backups | Out-Null
+$token = 'local-only-metrics-token'
+Set-Content -NoNewline -Encoding ascii .local/premise_metrics_token $token
 docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml up -d
 ~~~
 
@@ -184,7 +188,7 @@ Las migraciones son forward-only. Antes de publicar una imagen nueva, primero de
 
 ## Backup y restore verificado
 
-El backup es un snapshot JSON de los registros y eventos v2, con SHA-256 y permisos de fichero restrictivos. El restore de verificación restaura en tablas temporales, compara registros/eventos y las elimina; no cambia el store activo.
+El backup operativo usa NDJSON con paginación, SHA-256 de las entradas, footer de conteos, `fsync` y rename atómico para no construir un snapshot monolítico en memoria. El restore de verificación consume el stream dentro de una transacción, valida tenant, digest y conteos, y restaura en tablas temporales; no cambia el store activo. También se acepta el formato JSON v1 legado.
 
 ~~~bash
 docker compose -f deploy/docker-compose.yml --profile ops run --rm backup
@@ -192,7 +196,7 @@ docker compose -f deploy/docker-compose.yml --profile ops run --rm backup \
   node /app/ops/restore-verify.mjs
 ~~~
 
-El fichero queda en .local/backups/premise-v2-latest.json. Antes de una operación destructiva, conservar una copia externa y parar la API:
+El fichero queda en `.local/backups/premise-v2-latest.ndjson`. Antes de una operación destructiva, conservar una copia externa y parar la API:
 
 ~~~bash
 docker compose -f deploy/docker-compose.yml stop premise

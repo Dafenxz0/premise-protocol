@@ -25,7 +25,8 @@ test("GA certification is fail-closed for manual runs and required evidence cann
     postgresScale.indexOf("      - name: Start production-shaped API after real seed"),
     postgresScale.indexOf("      - name: Wait for API readiness after scale seed")
   );
-  assert.match(postgresApiStart, /metrics_token="\$\(openssl rand -hex 32\)"/u);
+  assert.match(postgresScale, /printf '%s\\n' "\$metrics_token" > \.local\/premise_metrics_token/u);
+  assert.match(postgresApiStart, /metrics_token="\$\(cat \.local\/premise_metrics_token\)"/u);
   assert.match(postgresApiStart, /echo "PREMISE_METRICS_TOKEN=\$metrics_token" >> "\$GITHUB_ENV"/u);
   assert.match(postgresApiStart, /export PREMISE_METRICS_TOKEN="\$metrics_token"/u);
 
@@ -40,7 +41,8 @@ test("GA certification is fail-closed for manual runs and required evidence cann
     productionSoak.indexOf("      - name: Start production-shaped stack"),
     productionSoak.indexOf("      - name: Wait for readiness")
   );
-  assert.match(soakStart, /export PREMISE_METRICS_TOKEN="\$\(openssl rand -hex 32\)"/u);
+  assert.match(productionSoak, /printf '%s\\n' "\$metrics_token" > \.local\/premise_metrics_token/u);
+  assert.match(soakStart, /export PREMISE_METRICS_TOKEN="\$\(cat \.local\/premise_metrics_token\)"/u);
   assert.match(soakStart, /up -d --no-build premise prometheus otel-collector/u);
 
   const postgresRawVerification = workflow.slice(

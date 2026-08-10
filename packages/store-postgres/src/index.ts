@@ -97,6 +97,57 @@ export interface PostgresRuntimeLoadResult {
   readonly events: number;
 }
 
+export interface PostgresRuntimeRestoreSink<T = unknown> {
+  readonly onRecord: (record: RuntimeRecord<T>) => Promise<void>;
+  readonly onEvent: (event: V2Event) => Promise<void>;
+}
+
+export interface PostgresRuntimeRestoreSourceResult {
+  readonly capturedAt: string;
+  readonly records: number;
+  readonly events: number;
+}
+
+export interface PostgresRuntimeRestoreOptions<T = unknown> {
+  readonly source: (sink: PostgresRuntimeRestoreSink<T>) => Promise<PostgresRuntimeRestoreSourceResult>;
+}
+
+export interface PostgresRuntimeCounts {
+  readonly memories: number;
+  readonly events: number;
+}
+
+export interface PostgresRuntimeSearchOptions {
+  readonly limit?: number;
+  readonly filter?: unknown;
+  readonly filters?: unknown;
+  readonly lexicalWeight?: number;
+  readonly vectorWeight?: number;
+  readonly minScore?: number;
+}
+
+export interface PostgresRuntimeSearchHit<T = unknown> {
+  readonly id: string;
+  readonly text: string;
+  readonly content: T;
+  readonly metadata: Readonly<Record<string, string>>;
+  readonly document: {
+    readonly id: string;
+    readonly text: string;
+    readonly content: T;
+    readonly metadata: Readonly<Record<string, string>>;
+  };
+  readonly score: number;
+  readonly lexicalScore: number;
+  readonly vectorScore: 0;
+  readonly record: RuntimeRecord<T>;
+  readonly explanation: Readonly<Record<string, unknown>>;
+}
+
+export interface PostgresLexicalIndexOptions {
+  readonly awaitDurability?: () => void | Promise<void>;
+}
+
 interface RuntimeTables {
   readonly prefix: string;
   readonly schema: string;
@@ -127,6 +178,7 @@ ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ${table} FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS ${identifier(policy(table.replaceAll('"', "").replace(`${runtime.prefix}_`, "")))} ON ${table};
 CREATE POLICY ${identifier(policy(table.replaceAll('"', "").replace(`${runtime.prefix}_`, "")))} ON ${table}
+  AS PERMISSIVE
   USING (tenant_id = NULLIF(current_setting('premise.tenant_id', true), ''))
   WITH CHECK (tenant_id = NULLIF(current_setting('premise.tenant_id', true), ''));
 `;
@@ -211,6 +263,19 @@ CREATE TABLE IF NOT EXISTS ${runtime.idempotency} (
 );
 ${policySql(runtime.idempotency)}
 `
+    },
+    {
+      version: 5,
+      name: "tenant-rls-permissive",
+      sql: `${policySql(runtime.records)}${policySql(runtime.events)}${policySql(runtime.snapshots)}${policySql(runtime.checkpoints)}${policySql(runtime.idempotency)}`
+    },
+    {
+      version: 6,
+      name: "lexical-retrieval",
+      sql: `
+CREATE INDEX IF NOT EXISTS ${identifier(`${runtime.prefix}_records_content_fts_idx`)}
+  ON ${runtime.records} USING GIN (to_tsvector('simple', content_json::text));
+      `
     }
   ];
 }
@@ -224,13 +289,15 @@ function migrationBundle(prefix: string): string {
   ].join("\n");
 }
 
-export const POSTGRES_RUNTIME_SCHEMA_VERSION = 4 as const;
+export const POSTGRES_RUNTIME_SCHEMA_VERSION = 6 as const;
 export const POSTGRES_RUNTIME_MIGRATIONS = migrationSql(tables("premise_v2"));
 export const POSTGRES_RUNTIME_SCHEMA_SQL = migrationBundle("premise_v2");
 export const POSTGRES_RUNTIME_SPEC_VERSION = SPEC_VERSION_V2;
 const HTTP_IDEMPOTENCY_LEASE_MS = 60_000;
 export const DEFAULT_POSTGRES_RUNTIME_LOAD_BATCH_SIZE = 1_000;
 export const MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE = 10_000;
+export const DEFAULT_POSTGRES_RUNTIME_SEARCH_LIMIT = 10;
+export const MAX_POSTGRES_RUNTIME_SEARCH_LIMIT = 1_000;
 
 function cloneJson<T>(value: T): T {
   const serialized = json(value, "PREMiSE runtime value");
@@ -294,6 +361,54 @@ function loadBatchSize(value: number | undefined): number {
   if (!Number.isSafeInteger(result) || result < 1 || result > MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE) {
     throw new TypeError(`load batchSize must be an integer between 1 and ${MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE}`);
   }
+  return result;
+}
+
+function searchLimit(value: number | undefined): number {
+  const result = value ?? DEFAULT_POSTGRES_RUNTIME_SEARCH_LIMIT;
+  if (!Number.isSafeInteger(result) || result < 0 || result > MAX_POSTGRES_RUNTIME_SEARCH_LIMIT) {
+    throw new TypeError(`search limit must be an integer between 0 and ${MAX_POSTGRES_RUNTIME_SEARCH_LIMIT}`);
+  }
+  return result;
+}
+
+function searchWeight(value: number | undefined, label: string, fallback: number): number {
+  const result = value ?? fallback;
+  if (!Number.isFinite(result) || result < 0) throw new RangeError(`${label} must be a finite non-negative number`);
+  return result;
+}
+
+function searchScope(
+  options: PostgresRuntimeSearchOptions,
+  configuredTenantId: string | undefined
+): { readonly tenantId: string | undefined; readonly filterApplied: boolean; readonly matches: boolean } {
+  if (options.filter !== undefined && options.filters !== undefined) throw new TypeError("Use either filter or filters, not both");
+  const filter = options.filter ?? options.filters;
+  if (filter === undefined) return { tenantId: configuredTenantId, filterApplied: false, matches: true };
+  if (filter === null || typeof filter !== "object" || Array.isArray(filter)) throw new TypeError("PostgreSQL lexical filter must be an object");
+  const entries = Object.entries(filter as Record<string, unknown>);
+  if (entries.some(([key]) => key !== "tenantId")) return { tenantId: configuredTenantId, filterApplied: true, matches: false };
+  const requestedTenantId = (filter as Record<string, unknown>).tenantId;
+  if (requestedTenantId === undefined) return { tenantId: configuredTenantId, filterApplied: true, matches: true };
+  if (typeof requestedTenantId !== "string" || requestedTenantId.length === 0 || requestedTenantId.trim() !== requestedTenantId) {
+    throw new TypeError("PostgreSQL lexical search requires an exact tenantId filter");
+  }
+  return {
+    tenantId: requestedTenantId,
+    filterApplied: true,
+    matches: configuredTenantId === undefined || configuredTenantId === requestedTenantId
+  };
+}
+
+function lexicalTokens(query: string): readonly string[] {
+  const normalized = query.normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "");
+  return [...new Set(normalized.match(/[\p{L}\p{N}]+/gu) ?? [])];
+}
+
+function rowNumber(row: Readonly<Record<string, unknown>>, column: string): number {
+  const value = row[column];
+  const result = typeof value === "number" ? value : typeof value === "string" ? Number(value) : typeof value === "bigint" ? Number(value) : Number.NaN;
+  if (!Number.isFinite(result)) throw new Error(`PostgreSQL row has invalid numeric column ${column}`);
   return result;
 }
 
@@ -386,6 +501,91 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
         ? await client.query(`SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} ORDER BY tenant_id, memory_id`)
         : await client.query(`SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE tenant_id = $1 ORDER BY memory_id`, [this.tenantId]);
       return result.rows.map((row) => cloneJson(runtimeRecord<T>(row)));
+    });
+  }
+
+  async counts(): Promise<PostgresRuntimeCounts> {
+    return this.scoped(async (client) => {
+      const recordsFilter = this.tenantId === undefined ? "" : " WHERE tenant_id = $1";
+      const eventsFilter = this.tenantId === undefined ? "" : " WHERE tenant_id = $1";
+      const result = await client.query(`
+        SELECT
+          (SELECT COUNT(*) FROM ${this.runtime.records}${recordsFilter}) AS memories,
+          (SELECT COUNT(*) FROM ${this.runtime.events}${eventsFilter}) AS events
+      `, this.tenantId === undefined ? [] : [this.tenantId]);
+      const row = result.rows[0];
+      if (row === undefined) throw new Error("PostgreSQL count query returned no row");
+      return { memories: rowSequence(row, "memories"), events: rowSequence(row, "events") };
+    });
+  }
+
+  async search(query: string, options: PostgresRuntimeSearchOptions = {}): Promise<readonly PostgresRuntimeSearchHit<T>[]> {
+    if (typeof query !== "string") throw new TypeError("Search query must be a string");
+    if (options === null || typeof options !== "object") throw new TypeError("Search options must be an object");
+    const limit = searchLimit(options.limit);
+    const lexicalWeight = searchWeight(options.lexicalWeight, "lexicalWeight", 1);
+    const vectorWeight = searchWeight(options.vectorWeight, "vectorWeight", 0);
+    if (vectorWeight !== 0) throw new RangeError("PostgreSQL search supports lexical retrieval only; vectorWeight must be zero");
+    if (lexicalWeight === 0) throw new RangeError("lexicalWeight must be greater than zero for PostgreSQL lexical retrieval");
+    const minScore = searchWeight(options.minScore, "minScore", 0);
+    const scope = searchScope(options, this.tenantId);
+    const queryTokens = lexicalTokens(query);
+    if (limit === 0 || query.trim().length === 0 || queryTokens.length === 0 || !scope.matches) return [];
+
+    return this.scoped(async (client) => {
+      const textVector = "to_tsvector('simple', content_json::text)";
+      const textQuery = "plainto_tsquery('simple', $1)";
+      const predicates = [`${textVector} @@ ${textQuery}`];
+      const parameters: unknown[] = [query];
+      if (scope.tenantId !== undefined) {
+        parameters.push(scope.tenantId);
+        predicates.unshift(`tenant_id = $${parameters.length}`);
+      }
+      parameters.push(limit);
+      const result = await client.query<Readonly<Record<string, unknown>>>(`
+        SELECT tenant_id, memory_id,
+               envelope_json::text AS envelope_json,
+               content_json::text AS content_json,
+               ts_rank_cd(${textVector}, ${textQuery}, 32) AS rank
+        FROM ${this.runtime.records}
+        WHERE ${predicates.join(" AND ")}
+        ORDER BY rank DESC, memory_id ASC
+        LIMIT $${parameters.length}
+      `, parameters);
+      const hits: PostgresRuntimeSearchHit<T>[] = [];
+      for (const row of result.rows) {
+        const rowTenant = rowText(row, "tenant_id");
+        const memoryId = rowText(row, "memory_id");
+        const record = cloneJson(runtimeRecord<T>(row));
+        if (rowTenant !== record.envelope.tenantId || memoryId !== record.envelope.memoryId) {
+          throw new Error(`PostgreSQL search row identity mismatch: ${memoryId}`);
+        }
+        this.assertTenant(rowTenant);
+        const rank = rowNumber(row, "rank");
+        if (rank <= 0) continue;
+        const score = rank / (rank + 1);
+        if (score < minScore) continue;
+        const content = cloneJson(record.content);
+        const text = typeof content === "string" ? content : JSON.stringify(content) ?? String(content);
+        const metadata = { tenantId: rowTenant };
+        const document = { id: memoryId, text, content, metadata };
+        hits.push({
+          ...document,
+          document,
+          score,
+          lexicalScore: score,
+          vectorScore: 0,
+          record,
+          explanation: {
+            reasons: ["PostgreSQL full-text search supplied the lexical retrieval signal.", "Vector retrieval is disabled for this PostgreSQL index."],
+            metadata: { filterApplied: scope.filterApplied, matched: true },
+            lexical: { queryTokens, matchedTokens: queryTokens, bm25: rank, normalizedScore: score, tokenCoverage: 1 },
+            vector: { provider: "postgresql-fts", mode: "external", used: false, cosineSimilarity: 0, normalizedScore: 0 },
+            fusion: { lexicalWeight, vectorWeight: 0, finalScore: score, rank: hits.length + 1, tieBreak: "score desc, lexical desc, vector desc, id asc" }
+          }
+        });
+      }
+      return hits;
     });
   }
 
@@ -631,6 +831,37 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     }, { isolation: "repeatable read", readOnly: true });
   }
 
+  /**
+   * Restores a streamed source in one transaction. The source is consumed
+   * while the transaction is open, so a malformed or incomplete backup rolls
+   * back the destructive clear instead of leaving a partial restore committed.
+   */
+  async restoreIncrementally(options: PostgresRuntimeRestoreOptions<T>): Promise<PostgresRuntimeRestoreSourceResult> {
+    if (options === null || typeof options !== "object" || typeof options.source !== "function") throw new TypeError("restore options require a source callback");
+    return this.transaction(async (client) => {
+      await this.clearOn(client);
+      let records = 0;
+      let events = 0;
+      const sourceResult = await options.source({
+        onRecord: async (record) => {
+          const checked = { envelope: parseMemoryEnvelopeV2(cloneJson(record?.envelope)), content: cloneJson(record?.content) };
+          this.assertTenant(checked.envelope.tenantId);
+          await this.putOn(client, checked, true);
+          records += 1;
+        },
+        onEvent: async (event) => {
+          const checked = parseV2Event(cloneJson(event));
+          this.assertTenant(checked.tenantId);
+          await this.appendEventOn(client, checked, true);
+          events += 1;
+        }
+      });
+      assertDateTime(sourceResult.capturedAt, "restore source capturedAt");
+      if (sourceResult.records !== records || sourceResult.events !== events) throw new Error("PREMiSE incremental restore count verification failed");
+      return sourceResult;
+    });
+  }
+
   async snapshot(capturedAt: string): Promise<RuntimeSnapshot<T>> {
     assertDateTime(capturedAt, "capturedAt");
     return this.transaction(async (client) => {
@@ -664,17 +895,7 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
   async restore(snapshot: RuntimeSnapshot<T>): Promise<void> {
     const checked = this.checkedSnapshot(snapshot);
     await this.transaction(async (client) => {
-      if (this.tenantId === undefined) {
-        await client.query(`DELETE FROM ${this.runtime.events}`);
-        await client.query(`DELETE FROM ${this.runtime.records}`);
-        await client.query(`DELETE FROM ${this.runtime.snapshots}`);
-        await client.query(`DELETE FROM ${this.runtime.checkpoints}`);
-      } else {
-        await client.query(`DELETE FROM ${this.runtime.events} WHERE tenant_id = $1`, [this.tenantId]);
-        await client.query(`DELETE FROM ${this.runtime.records} WHERE tenant_id = $1`, [this.tenantId]);
-        await client.query(`DELETE FROM ${this.runtime.snapshots} WHERE tenant_id = $1`, [this.snapshotTenant()]);
-        await client.query(`DELETE FROM ${this.runtime.checkpoints} WHERE tenant_id = $1`, [this.tenantId]);
-      }
+      await this.clearOn(client);
       for (const record of checked.records) await this.putOn(client, record);
       for (const event of checked.events) await this.appendEventOn(client, event);
       await this.saveSnapshotOn(client, checked);
@@ -817,7 +1038,7 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     if (insertOnly && result.rows.length === 0) throw new Error(`Memory already registered: ${record.envelope.memoryId}`);
   }
 
-  private async appendEventOn(client: PostgresAdapter, parsed: V2Event): Promise<void> {
+  private async appendEventOn(client: PostgresAdapter, parsed: V2Event, rejectExisting = false): Promise<void> {
     const serialized = json(parsed);
     const result = await client.query<Readonly<Record<string, unknown>>>(`
       INSERT INTO ${this.runtime.events}(tenant_id, idempotency_key, event_id, event_json, occurred_at)
@@ -826,6 +1047,7 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
       RETURNING event_id, event_json::text AS event_json
     `, [parsed.tenantId, parsed.idempotencyKey, parsed.eventId, serialized, parsed.occurredAt]);
     if (result.rows.length > 0) return;
+    if (rejectExisting) throw new Error(`Duplicate event in PREMiSE restore: ${parsed.idempotencyKey}`);
     const existing = await client.query<Readonly<Record<string, unknown>>>(`
       SELECT event_id, event_json::text AS event_json
       FROM ${this.runtime.events}
@@ -835,6 +1057,20 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     if (row === undefined) throw new Error(`Idempotency event was not stored: ${parsed.idempotencyKey}`);
     const existingEvent = runtimeEvent(row);
     if (rowEventId(row) !== parsed.eventId || !sameJson(existingEvent, parsed)) throw new Error(`Conflicting idempotency key: ${parsed.idempotencyKey}`);
+  }
+
+  private async clearOn(client: PostgresAdapter): Promise<void> {
+    if (this.tenantId === undefined) {
+      await client.query(`DELETE FROM ${this.runtime.events}`);
+      await client.query(`DELETE FROM ${this.runtime.records}`);
+      await client.query(`DELETE FROM ${this.runtime.snapshots}`);
+      await client.query(`DELETE FROM ${this.runtime.checkpoints}`);
+      return;
+    }
+    await client.query(`DELETE FROM ${this.runtime.events} WHERE tenant_id = $1`, [this.tenantId]);
+    await client.query(`DELETE FROM ${this.runtime.records} WHERE tenant_id = $1`, [this.tenantId]);
+    await client.query(`DELETE FROM ${this.runtime.snapshots} WHERE tenant_id = $1`, [this.snapshotTenant()]);
+    await client.query(`DELETE FROM ${this.runtime.checkpoints} WHERE tenant_id = $1`, [this.tenantId]);
   }
 
   private async listOn(client: PostgresAdapter): Promise<readonly RuntimeRecord<T>[]> {
@@ -878,6 +1114,30 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
 
   private ensureOpen(): void {
     if (this.closed) throw new Error("PostgresRuntimeStore is closed");
+  }
+}
+
+/**
+ * Structural index adapter for PremiseServer. PostgreSQL is the source of
+ * truth, so upsert only waits for the durable runtime write already queued by
+ * DurableMirrorStore; it never creates a second in-memory index.
+ */
+export class PostgresLexicalIndex<T = unknown> {
+  private readonly awaitDurability: (() => void | Promise<void>) | undefined;
+
+  constructor(
+    private readonly store: Pick<PostgresRuntimeStore<T>, "search">,
+    options: PostgresLexicalIndexOptions = {}
+  ) {
+    this.awaitDurability = options.awaitDurability;
+  }
+
+  async upsert(_document: { readonly id: string; readonly text: string; readonly content?: T; readonly metadata?: Readonly<Record<string, unknown>> }): Promise<void> {
+    await this.awaitDurability?.();
+  }
+
+  search(query: string, options: PostgresRuntimeSearchOptions = {}): Promise<readonly PostgresRuntimeSearchHit<T>[]> {
+    return this.store.search(query, options);
   }
 }
 
