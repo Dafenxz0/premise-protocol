@@ -382,6 +382,13 @@ jobs:
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
         run: docker compose -f "${COMPOSE_FILE}" exec -T premise node --test /app/ops/runtime-store.test.mjs
+      - name: Run real PostgreSQL adapter integration tests
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" exec -T \
+            -e POSTGRES_URL=postgresql://premise:local-only-not-for-production@postgres:5432/premise \
+            premise node /app/packages/store-postgres/test/postgres.integration.test.mjs
       - name: Run bounded CI load test
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
