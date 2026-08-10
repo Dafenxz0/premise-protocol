@@ -75,10 +75,17 @@ try {
   assert.equal(await store.replay(() => { replayed += 1; }, { consumerId: "ci" }), 1);
   assert.equal(await store.replay(() => { replayed += 1; }, { consumerId: "ci" }), 0);
   assert.equal(replayed, 1);
+  const request = { tenantId: "tenant:ci", operation: "register", key: "http:ci", requestHash: "sha256:http-v1:ci" };
+  const claim = await store.claimHttpIdempotency(request);
+  assert.equal(claim.kind, "new");
+  assert.equal((await store.claimHttpIdempotency(request)).kind, "in-progress");
+  await store.completeHttpIdempotency({ ...request, token: claim.token, response: { status: 201, body: { accepted: true }, headers: { "content-type": "application/json" } } });
+  assert.deepEqual(await store.claimHttpIdempotency(request), { kind: "replay", response: { status: 201, body: { accepted: true }, headers: { "content-type": "application/json" } } });
+  assert.equal((await store.claimHttpIdempotency({ ...request, requestHash: "sha256:http-v1:other" })).kind, "conflict");
 } finally {
   const client = await pool.connect();
   try {
-    await client.query(`DROP TABLE IF EXISTS "${prefix}_replay_checkpoints", "${prefix}_snapshots", "${prefix}_events", "${prefix}_records", "${prefix}_schema_migrations"`);
+    await client.query(`DROP TABLE IF EXISTS "${prefix}_http_idempotency", "${prefix}_replay_checkpoints", "${prefix}_snapshots", "${prefix}_events", "${prefix}_records", "${prefix}_schema_migrations"`);
   } finally {
     client.release();
   }

@@ -40,6 +40,9 @@ assert.equal(storedConflict.status, 409, "reusing an Idempotency-Key with a diff
 const query = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", maxTokens: 100 }) });
 assert.equal(query.status, 200);
 assert.equal((await query.json()).context.selected.length, 1);
+const oversizedQuery = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { limit: 1001 } }) });
+assert.equal(oversizedQuery.status, 400);
+assert.equal((await oversizedQuery.json()).error, "INVALID_QUERY_LIMIT");
 
 const fetched = await fetch(`${base}/v2/memories/${encodeURIComponent(envelope.memoryId)}`);
 assert.equal(fetched.status, 200);

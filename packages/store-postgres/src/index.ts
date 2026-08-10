@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { parseMemoryEnvelopeV2, parseV2Event, SPEC_VERSION_V2, type V2Event } from "@premise/protocol-types";
 import type { RuntimeRecord, RuntimeSnapshot } from "@premise/runtime-core";
 import {
@@ -39,6 +40,34 @@ export interface PostgresRuntimeStoreOptions {
   readonly autoMigrate?: boolean;
 }
 
+export interface HttpIdempotencyRequest {
+  readonly tenantId: string;
+  readonly operation: string;
+  readonly key: string;
+  readonly requestHash: string;
+}
+
+export interface HttpIdempotencyResponse {
+  readonly status: number;
+  readonly body: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+export type HttpIdempotencyClaim =
+  | { readonly kind: "new"; readonly token: string }
+  | { readonly kind: "replay"; readonly response: HttpIdempotencyResponse }
+  | { readonly kind: "conflict" }
+  | { readonly kind: "in-progress" };
+
+export interface HttpIdempotencyCompletion extends HttpIdempotencyRequest {
+  readonly token: string;
+  readonly response: HttpIdempotencyResponse;
+}
+
+export interface HttpIdempotencyRelease extends HttpIdempotencyRequest {
+  readonly token: string;
+}
+
 export interface PostgresReplayOptions {
   readonly consumerId?: string;
   readonly tenantId?: string;
@@ -55,6 +84,7 @@ interface RuntimeTables {
   readonly events: string;
   readonly snapshots: string;
   readonly checkpoints: string;
+  readonly idempotency: string;
 }
 
 function tables(prefix: string): RuntimeTables {
@@ -65,7 +95,8 @@ function tables(prefix: string): RuntimeTables {
     records: identifier(`${prefix}_records`),
     events: identifier(`${prefix}_events`),
     snapshots: identifier(`${prefix}_snapshots`),
-    checkpoints: identifier(`${prefix}_replay_checkpoints`)
+    checkpoints: identifier(`${prefix}_replay_checkpoints`),
+    idempotency: identifier(`${prefix}_http_idempotency`)
   };
 }
 
@@ -136,6 +167,29 @@ CREATE TABLE IF NOT EXISTS ${runtime.checkpoints} (
   PRIMARY KEY (tenant_id, consumer_id)
 );
 ${policySql(runtime.checkpoints)}
+      `
+    },
+    {
+      version: 4,
+      name: "http-idempotency",
+      sql: `
+CREATE TABLE IF NOT EXISTS ${runtime.idempotency} (
+  tenant_id TEXT NOT NULL CHECK (length(trim(tenant_id)) > 0),
+  operation TEXT NOT NULL CHECK (length(trim(operation)) > 0),
+  idempotency_key TEXT NOT NULL CHECK (length(trim(idempotency_key)) > 0),
+  request_hash TEXT NOT NULL CHECK (length(trim(request_hash)) > 0),
+  state TEXT NOT NULL CHECK (state IN ('IN_PROGRESS', 'COMPLETED')),
+  lease_token TEXT NOT NULL CHECK (length(trim(lease_token)) > 0),
+  status_code INTEGER,
+  response_json JSONB,
+  response_headers JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(response_headers) = 'object'),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (tenant_id, operation, idempotency_key),
+  CHECK ((state = 'IN_PROGRESS' AND status_code IS NULL AND response_json IS NULL) OR
+         (state = 'COMPLETED' AND status_code BETWEEN 100 AND 599 AND response_json IS NOT NULL))
+);
+${policySql(runtime.idempotency)}
 `
     }
   ];
@@ -150,10 +204,11 @@ function migrationBundle(prefix: string): string {
   ].join("\n");
 }
 
-export const POSTGRES_RUNTIME_SCHEMA_VERSION = 3 as const;
+export const POSTGRES_RUNTIME_SCHEMA_VERSION = 4 as const;
 export const POSTGRES_RUNTIME_MIGRATIONS = migrationSql(tables("premise_v2"));
 export const POSTGRES_RUNTIME_SCHEMA_SQL = migrationBundle("premise_v2");
 export const POSTGRES_RUNTIME_SPEC_VERSION = SPEC_VERSION_V2;
+const HTTP_IDEMPOTENCY_LEASE_MS = 60_000;
 
 function cloneJson<T>(value: T): T {
   const serialized = json(value, "PREMiSE runtime value");
@@ -176,6 +231,36 @@ function sameJson(left: unknown, right: unknown): boolean {
 
 function assertKey(value: string, label: string): void {
   if (typeof value !== "string" || value.length === 0 || value.trim() !== value) throw new TypeError(`${label} must be a non-empty string without surrounding whitespace`);
+}
+
+function assertOperation(value: string): void {
+  assertKey(value, "operation");
+  if (value.length > 128) throw new TypeError("operation must not exceed 128 characters");
+}
+
+function rowOptionalText(row: Readonly<Record<string, unknown>>, column: string): string | undefined {
+  const value = row[column];
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error(`PostgreSQL row has invalid text column ${column}`);
+  return value;
+}
+
+function rowStatus(row: Readonly<Record<string, unknown>>): number {
+  const value = row.status_code;
+  const status = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  if (!Number.isSafeInteger(status) || status < 100 || status > 599) throw new Error("PostgreSQL idempotency row has invalid status_code");
+  return status;
+}
+
+function rowHeaders(row: Readonly<Record<string, unknown>>): Readonly<Record<string, string>> {
+  const value = jsonValue(row, "response_headers");
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error("PostgreSQL idempotency row has invalid response_headers");
+  const headers: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof item !== "string") throw new Error(`PostgreSQL idempotency response header ${key} is not a string`);
+    headers[key] = item;
+  }
+  return headers;
 }
 
 function assertDateTime(value: string, label: string): void {
@@ -287,7 +372,7 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     this.assertTenant(checkedEvent.tenantId);
     if (checkedEvent.memoryId !== undefined && checkedEvent.memoryId !== checkedRecord.envelope.memoryId) throw new Error("Runtime event memory ID does not match record");
     await this.transaction(async (client) => {
-      await this.putOn(client, checkedRecord);
+      await this.putOn(client, checkedRecord, checkedEvent.type === "MemoryRegistered" || checkedEvent.type === "MemoryDerived");
       await this.appendEventOn(client, checkedEvent);
     });
   }
@@ -304,6 +389,88 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     if (parsed.length === 0) return;
     await this.transaction(async (client) => {
       for (const event of parsed) await this.appendEventOn(client, event);
+    });
+  }
+
+  async claimHttpIdempotency(input: HttpIdempotencyRequest): Promise<HttpIdempotencyClaim> {
+    this.validateHttpIdempotencyRequest(input);
+    const token = randomUUID();
+    return this.httpTransaction(input.tenantId, async (client) => {
+      const inserted = await client.query<Readonly<Record<string, unknown>>>(`
+        INSERT INTO ${this.runtime.idempotency}(
+          tenant_id, operation, idempotency_key, request_hash, state, lease_token,
+          status_code, response_json, response_headers, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, 'IN_PROGRESS', $5, NULL, NULL, '{}'::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (tenant_id, operation, idempotency_key) DO NOTHING
+        RETURNING lease_token
+      `, [input.tenantId, input.operation, input.key, input.requestHash, token]);
+      if (inserted.rows.length > 0) return { kind: "new", token };
+
+      const existing = await client.query<Readonly<Record<string, unknown>>>(`
+        SELECT request_hash, state, lease_token, status_code, response_json::text AS response_json,
+               response_headers::text AS response_headers, updated_at::text AS updated_at
+        FROM ${this.runtime.idempotency}
+        WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3
+        FOR UPDATE
+      `, [input.tenantId, input.operation, input.key]);
+      const row = existing.rows[0];
+      if (row === undefined) throw new Error(`HTTP idempotency claim was not stored: ${input.key}`);
+      if (rowText(row, "request_hash") !== input.requestHash) return { kind: "conflict" };
+      const state = rowText(row, "state");
+      if (state === "COMPLETED") {
+        return {
+          kind: "replay",
+          response: {
+            status: rowStatus(row),
+            body: cloneJson(jsonValue(row, "response_json")),
+            headers: rowHeaders(row)
+          }
+        };
+      }
+      if (state !== "IN_PROGRESS") throw new Error(`PostgreSQL idempotency row has invalid state: ${state}`);
+      const updatedAt = Date.parse(rowText(row, "updated_at"));
+      if (!Number.isFinite(updatedAt) || Date.now() - updatedAt <= HTTP_IDEMPOTENCY_LEASE_MS) return { kind: "in-progress" };
+      await client.query(`
+        UPDATE ${this.runtime.idempotency}
+        SET lease_token = $4, updated_at = CURRENT_TIMESTAMP
+        WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3
+      `, [input.tenantId, input.operation, input.key, token]);
+      return { kind: "new", token };
+    });
+  }
+
+  async completeHttpIdempotency(input: HttpIdempotencyCompletion): Promise<void> {
+    this.validateHttpIdempotencyRequest(input);
+    if (!Number.isSafeInteger(input.response.status) || input.response.status < 100 || input.response.status > 599) throw new TypeError("HTTP idempotency response status must be from 100 to 599");
+    await this.httpTransaction(input.tenantId, async (client) => {
+      const result = await client.query(`
+        UPDATE ${this.runtime.idempotency}
+        SET state = 'COMPLETED', status_code = $5, response_json = $6::jsonb,
+            response_headers = $7::jsonb, updated_at = CURRENT_TIMESTAMP
+        WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3
+          AND request_hash = $4 AND state = 'IN_PROGRESS' AND lease_token = $8
+      `, [input.tenantId, input.operation, input.key, input.requestHash, input.response.status, json(input.response.body), json(input.response.headers ?? {}), input.token]);
+      if ((result.rowCount ?? result.rows.length) === 1) return;
+      const existing = await client.query(`
+        SELECT state, request_hash, lease_token
+        FROM ${this.runtime.idempotency}
+        WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3
+      `, [input.tenantId, input.operation, input.key]);
+      const row = existing.rows[0];
+      if (row !== undefined && rowText(row, "state") === "COMPLETED" && rowText(row, "request_hash") === input.requestHash) return;
+      throw new Error(`HTTP idempotency claim is no longer owned: ${input.key}`);
+    });
+  }
+
+  async releaseHttpIdempotency(input: HttpIdempotencyRelease): Promise<void> {
+    this.validateHttpIdempotencyRequest(input);
+    await this.httpTransaction(input.tenantId, async (client) => {
+      await client.query(`
+        DELETE FROM ${this.runtime.idempotency}
+        WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3
+          AND request_hash = $4 AND state = 'IN_PROGRESS' AND lease_token = $5
+      `, [input.tenantId, input.operation, input.key, input.requestHash, input.token]);
     });
   }
 
@@ -482,15 +649,35 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     }, options);
   }
 
-  private async putOn(client: PostgresAdapter, record: RuntimeRecord<T>): Promise<void> {
-    await client.query(`
+  private async httpTransaction<T>(tenantId: string, action: (client: PostgresAdapter) => Promise<T>): Promise<T> {
+    assertTenantId(tenantId);
+    this.assertTenant(tenantId);
+    return this.transaction(async (client) => {
+      if (this.tenantId === undefined) await setTenantContext(client, tenantId);
+      return action(client);
+    });
+  }
+
+  private validateHttpIdempotencyRequest(input: HttpIdempotencyRequest): void {
+    assertTenantId(input.tenantId);
+    this.assertTenant(input.tenantId);
+    assertOperation(input.operation);
+    assertKey(input.key, "idempotency key");
+    if (input.key.length > 256) throw new TypeError("idempotency key must not exceed 256 characters");
+    assertKey(input.requestHash, "request hash");
+  }
+
+  private async putOn(client: PostgresAdapter, record: RuntimeRecord<T>, insertOnly = false): Promise<void> {
+    const result = await client.query(`
       INSERT INTO ${this.runtime.records}(tenant_id, memory_id, envelope_json, content_json)
       VALUES ($1, $2, $3::jsonb, $4::jsonb)
-      ON CONFLICT (tenant_id, memory_id) DO UPDATE SET
+      ${insertOnly ? "ON CONFLICT (tenant_id, memory_id) DO NOTHING" : `ON CONFLICT (tenant_id, memory_id) DO UPDATE SET
         envelope_json = EXCLUDED.envelope_json,
         content_json = EXCLUDED.content_json,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = CURRENT_TIMESTAMP`}
+      ${insertOnly ? "RETURNING memory_id" : ""}
     `, [record.envelope.tenantId, record.envelope.memoryId, json(record.envelope), json(record.content)]);
+    if (insertOnly && result.rows.length === 0) throw new Error(`Memory already registered: ${record.envelope.memoryId}`);
   }
 
   private async appendEventOn(client: PostgresAdapter, parsed: V2Event): Promise<void> {

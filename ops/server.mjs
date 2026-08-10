@@ -26,6 +26,7 @@ const authorize = createBearerAuthorizer({ environment: config.environment, toke
 const metrics = new Metrics();
 let database;
 let store;
+let idempotencyStore;
 let runtime;
 let app;
 
@@ -34,6 +35,7 @@ if (config.storeMode === "postgres") {
     database = await openPgClient();
     const opened = await openDurableMirror(database, config.tablePrefix, config.tenantId);
     store = opened.mirror;
+    idempotencyStore = opened.persistent;
   } catch (error) {
     console.error("PREMiSE v2 startup failed: PostgreSQL is unavailable");
     console.error(error?.code ?? error?.name ?? "database error");
@@ -51,13 +53,13 @@ runtime = new PremiseRuntime({
   principal: { tenantId: config.tenantId, subjectId: "premise-service" }
 });
 
-// The runtime's event IDs are process-local. Continue after a durable restart.
-runtime.sequence = store.listEvents().length;
 app = new PremiseServer({
   runtime,
   principal: { tenantId: config.tenantId, subjectId: "premise-service" },
   allowTenantHeader: false,
   authorize,
+  idempotencyStore,
+  awaitDurability: () => store.flush(),
   maxBodyBytes: config.maxBodyBytes,
   logger: (message) => console.error("PREMiSE v2 request error", message.split("\n", 1)[0])
 });

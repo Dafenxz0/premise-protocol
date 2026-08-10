@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   parseMemoryEnvelopeV2,
   parseV2Event,
@@ -109,7 +109,7 @@ function canonicalJson(value: unknown): string {
 }
 
 function digestFor(value: unknown): `sha256:${string}` {
-  return `sha256:${createHash("sha256").update(canonicalJson(value), "utf8").digest("hex")}`;
+  return `sha256:v2:${createHash("sha256").update(canonicalJson(value), "utf8").digest("hex")}`;
 }
 
 export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
@@ -454,7 +454,7 @@ export class PremiseRuntime<T = unknown> {
       if (existing.type !== type || existing.memoryId !== memoryId || existing.requestDigest !== requestDigest) throw new Error(`Conflicting idempotency key: ${idempotencyKey}`);
       return existing;
     }
-    const eventId = `evt_${this.tenantId}_${++this.sequence}`;
+    const eventId = `evt_${this.tenantId}_${randomUUID()}`;
     const event: V2Event = {
       specVersion: SPEC_VERSION_V2,
       tenantId: this.tenantId,

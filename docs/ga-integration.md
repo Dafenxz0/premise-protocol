@@ -42,6 +42,10 @@ for (const hit of result.hits) {
 }
 ~~~
 
+El servidor limita `options.limit` a 1.000 resultados por petición para evitar
+que una consulta sin límite agote memoria o latencia; el presupuesto de
+contexto (`maxTokens`) sigue controlando cuánto se selecciona finalmente.
+
 token: "abc" se envía como Authorization: Bearer abc. Si el servidor
 necesita una cabecera completa, usa authorization: "Basic ..." en lugar de
 token. El tenant no se infiere de la URL: configúralo explícitamente para
@@ -125,7 +129,10 @@ el resultado de la operación sin crear otro evento; si cambia el payload,
 responde `409 IDEMPOTENCY_CONFLICT`. Para que este contrato sobreviva a un
 reinicio o a varias réplicas, el runtime debe usar un store duradero y
 compartido, como el adapter PostgreSQL; el store en memoria solo garantiza
-replay durante la vida del proceso.
+replay durante la vida del proceso. El digest de request de los eventos v2 usa
+un namespace versionado (`sha256:v2:`); una migración debe tratar eventos
+legacy sin namespace como datos históricos y no asumir que su payload completo
+puede reconstruirse.
 
 Retry-After se respeta para respuestas 429/5xx hasta el límite configurado.
 Se puede ajustar la política con maxRetries, retry: { baseDelayMs,

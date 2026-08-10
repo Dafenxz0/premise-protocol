@@ -243,7 +243,7 @@ function hardwareMetadata() {
   };
 }
 
-function headers(config, method) {
+function headers(config, method, idempotencyKey) {
   const value = {
     accept: "application/json",
     "cache-control": "no-store",
@@ -251,6 +251,7 @@ function headers(config, method) {
     "x-request-id": randomUUID()
   };
   if (method === "POST") value["content-type"] = "application/json";
+  if (method === "POST" && typeof idempotencyKey === "string") value["idempotency-key"] = idempotencyKey;
   if (typeof process.env.PREMISE_API_TOKEN === "string" && process.env.PREMISE_API_TOKEN.length > 0) {
     value.authorization = `Bearer ${process.env.PREMISE_API_TOKEN}`;
   }
@@ -261,13 +262,13 @@ function endpoint(config, pathname) {
   return new URL(pathname, `${config.baseUrl}/`).toString();
 }
 
-async function requestJson(config, pathname, method = "GET", body) {
+async function requestJson(config, pathname, method = "GET", body, idempotencyKey) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
   try {
     const response = await fetch(endpoint(config, pathname), {
       method,
-      headers: headers(config, method),
+      headers: headers(config, method, idempotencyKey),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal
     });
@@ -365,7 +366,7 @@ async function runOperation(config, state, operation, sequence) {
   }
   if (operation === "register") {
     const item = recordFor(config, state.runId, sequence, "live");
-    const result = await requestJson(config, "/v2/memories", "POST", { record: item.record });
+    const result = await requestJson(config, "/v2/memories", "POST", { record: item.record }, `ga-soak:${state.runId}:live:${sequence}`);
     validateRegister(result.body, item.memoryId);
     state.records.set(item.memoryId, item);
     return;
@@ -378,12 +379,12 @@ async function runOperation(config, state, operation, sequence) {
     return;
   }
   if (operation === "query") {
-    const result = await requestJson(config, "/v2/query", "POST", { query: "PREMiSE GA soak", maxTokens: 128 });
+    const result = await requestJson(config, "/v2/query", "POST", { query: "PREMiSE GA soak", maxTokens: 128 }, `ga-soak:${state.runId}:query:${sequence}`);
     validateQuery(result.body);
     return;
   }
   if (operation === "source-changed") {
-    const result = await requestJson(config, "/v2/source-changed", "POST", { sourceUri: seed.sourceUri, version: { scheme: "ga-soak", token: `v${sequence + 2}` } });
+    const result = await requestJson(config, "/v2/source-changed", "POST", { sourceUri: seed.sourceUri, version: { scheme: "ga-soak", token: `v${sequence + 2}` } }, `ga-soak:${state.runId}:source:${seed.memoryId}:${sequence}`);
     validateSourceChanged(result.body);
   }
 }
@@ -445,7 +446,7 @@ async function setupTarget(config, runId) {
   const seedRecords = [];
   for (let index = 0; index < config.seedCount; index += 1) {
     const item = recordFor(config, runId, index);
-    const response = await requestJson(config, "/v2/memories", "POST", { record: item.record });
+    const response = await requestJson(config, "/v2/memories", "POST", { record: item.record }, `ga-soak:${runId}:seed:${index}`);
     validateRegister(response.body, item.memoryId);
     seedRecords.push(item);
   }

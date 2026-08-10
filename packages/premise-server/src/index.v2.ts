@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { URL } from "node:url";
 import { ContextEngine, type ContextCandidate } from "@premise/context-engine";
@@ -13,10 +13,84 @@ export interface PremiseServerOptions<T> {
   readonly validator?: RuntimeValidator<T>;
   readonly principal?: RuntimePrincipal;
   readonly authorize?: (request: IncomingMessage, requested: RuntimePrincipal) => RuntimePrincipal | false | Promise<RuntimePrincipal | false>;
+  readonly idempotencyStore?: HttpIdempotencyStore;
+  readonly awaitDurability?: () => void | Promise<void>;
   readonly allowTenantHeader?: boolean;
   readonly maxBodyBytes?: number;
+  readonly maxQueryHits?: number;
   readonly onMetric?: (metric: PremiseServerMetric) => void;
   readonly logger?: (message: string) => void;
+}
+
+export interface HttpIdempotencyRequest {
+  readonly tenantId: string;
+  readonly operation: string;
+  readonly key: string;
+  readonly requestHash: string;
+}
+
+export interface HttpIdempotencyResponse {
+  readonly status: number;
+  readonly body: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+export type HttpIdempotencyClaim =
+  | { readonly kind: "new"; readonly token: string }
+  | { readonly kind: "replay"; readonly response: HttpIdempotencyResponse }
+  | { readonly kind: "conflict" }
+  | { readonly kind: "in-progress" };
+
+export interface HttpIdempotencyCompletion extends HttpIdempotencyRequest {
+  readonly token: string;
+  readonly response: HttpIdempotencyResponse;
+}
+
+export interface HttpIdempotencyRelease extends HttpIdempotencyRequest {
+  readonly token: string;
+}
+
+export interface HttpIdempotencyStore {
+  claimHttpIdempotency(input: HttpIdempotencyRequest): HttpIdempotencyClaim | Promise<HttpIdempotencyClaim>;
+  completeHttpIdempotency(input: HttpIdempotencyCompletion): void | Promise<void>;
+  releaseHttpIdempotency(input: HttpIdempotencyRelease): void | Promise<void>;
+}
+
+class InMemoryHttpIdempotencyStore implements HttpIdempotencyStore {
+  private readonly completed = new Map<string, { readonly requestHash: string; readonly response: HttpIdempotencyResponse }>();
+  private readonly active = new Map<string, { readonly requestHash: string; readonly token: string }>();
+
+  claimHttpIdempotency(input: HttpIdempotencyRequest): HttpIdempotencyClaim {
+    const scope = this.scope(input);
+    const completed = this.completed.get(scope);
+    if (completed !== undefined) return completed.requestHash === input.requestHash ? { kind: "replay", response: completed.response } : { kind: "conflict" };
+    const active = this.active.get(scope);
+    if (active !== undefined) {
+      if (active.requestHash !== input.requestHash) return { kind: "conflict" };
+      return { kind: "in-progress" };
+    }
+    const token = randomUUID();
+    this.active.set(scope, { requestHash: input.requestHash, token });
+    return { kind: "new", token };
+  }
+
+  completeHttpIdempotency(input: HttpIdempotencyCompletion): void {
+    const scope = this.scope(input);
+    const active = this.active.get(scope);
+    if (active === undefined || active.token !== input.token || active.requestHash !== input.requestHash) throw new Error(`Idempotency claim is no longer owned: ${input.key}`);
+    this.completed.set(scope, { requestHash: input.requestHash, response: cloneJson(input.response) });
+    this.active.delete(scope);
+  }
+
+  releaseHttpIdempotency(input: HttpIdempotencyRelease): void {
+    const scope = this.scope(input);
+    const active = this.active.get(scope);
+    if (active?.token === input.token && active.requestHash === input.requestHash) this.active.delete(scope);
+  }
+
+  private scope(input: Pick<HttpIdempotencyRequest, "tenantId" | "operation" | "key">): string {
+    return `${input.tenantId}\u0000${input.operation}\u0000${input.key}`;
+  }
 }
 
 export interface PremiseServerMetric {
@@ -29,7 +103,7 @@ export interface PremiseServerMetric {
 }
 
 class HttpError extends Error {
-  constructor(readonly status: number, readonly code: string, message: string) {
+  constructor(readonly status: number, readonly code: string, message: string, readonly headers: Readonly<Record<string, string>> = {}) {
     super(message);
     this.name = "HttpError";
   }
@@ -44,13 +118,20 @@ function utf8Bytes(value: string): number {
   return bytes;
 }
 
+function cloneJson<T>(value: T): T {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) throw new TypeError("PREMiSE HTTP values must be JSON serializable");
+  return JSON.parse(serialized) as T;
+}
+
 export interface ServerAddress {
   readonly host: string;
   readonly port: number;
 }
 
-function jsonResponse(response: ServerResponse, status: number, body: unknown): void {
+function jsonResponse(response: ServerResponse, status: number, body: unknown, headers: Readonly<Record<string, string>> = {}): void {
   response.statusCode = status;
+  for (const [name, value] of Object.entries(headers)) response.setHeader(name, value);
   response.setHeader("content-type", "application/json; charset=utf-8");
   response.end(JSON.stringify(body));
 }
@@ -107,6 +188,33 @@ function requestIdempotencyKey(request: IncomingMessage): string | undefined {
   return value;
 }
 
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") {
+    const serialized = JSON.stringify(value);
+    if (serialized === undefined) throw new TypeError("Request values must be JSON serializable");
+    return serialized;
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  if (typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`).join(",")}}`;
+  }
+  throw new TypeError("Request values must be JSON serializable");
+}
+
+function requestHash(operation: string, pathname: string, principal: RuntimePrincipal, payload: unknown): string {
+  const canonical = canonicalJson({
+    protocol: "premise-http-idempotency/1",
+    operation,
+    pathname,
+    tenantId: principal.tenantId,
+    subjectId: principal.subjectId ?? null,
+    roles: principal.roles ?? [],
+    payload
+  });
+  return `sha256:http-v1:${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
+}
+
 export class PremiseServer<T = unknown> {
   readonly server: Server;
   readonly runtime: PremiseRuntime<T>;
@@ -115,8 +223,11 @@ export class PremiseServer<T = unknown> {
   private readonly validator: RuntimeValidator<T> | undefined;
   private readonly principal: RuntimePrincipal;
   private readonly authorize: PremiseServerOptions<T>["authorize"];
+  private readonly idempotencyStore: HttpIdempotencyStore;
+  private readonly awaitDurability: (() => void | Promise<void>) | undefined;
   private readonly allowTenantHeader: boolean;
   private readonly maxBodyBytes: number;
+  private readonly maxQueryHits: number;
   private readonly onMetric: ((metric: PremiseServerMetric) => void) | undefined;
   private readonly logger: (message: string) => void;
 
@@ -127,9 +238,13 @@ export class PremiseServer<T = unknown> {
     this.validator = options.validator;
     this.principal = options.principal ?? this.runtime.principal;
     this.authorize = options.authorize;
+    this.idempotencyStore = options.idempotencyStore ?? new InMemoryHttpIdempotencyStore();
+    this.awaitDurability = options.awaitDurability;
     this.allowTenantHeader = options.allowTenantHeader ?? false;
     this.maxBodyBytes = options.maxBodyBytes ?? 1_048_576;
     if (!Number.isSafeInteger(this.maxBodyBytes) || this.maxBodyBytes < 1) throw new TypeError("maxBodyBytes must be a positive safe integer");
+    this.maxQueryHits = options.maxQueryHits ?? 1_000;
+    if (!Number.isSafeInteger(this.maxQueryHits) || this.maxQueryHits < 1) throw new TypeError("maxQueryHits must be a positive safe integer");
     this.onMetric = options.onMetric;
     this.logger = options.logger ?? (() => undefined);
     this.server = createServer((request, response) => { void this.handle(request, response); });
@@ -152,10 +267,10 @@ export class PremiseServer<T = unknown> {
     try {
       const url = new URL(request.url ?? "/", "http://premise.local");
       const method = (request.method ?? "GET").toUpperCase();
-      const idempotencyKey = requestIdempotencyKey(request);
       const requestedPrincipal = requestPrincipal(request, this.principal, this.allowTenantHeader);
       const principal = this.authorize === undefined ? requestedPrincipal : await this.authorize(request, requestedPrincipal);
       if (principal === false) throw new HttpError(401, "UNAUTHORIZED", "Request is not authorized");
+      const idempotencyKey = requestIdempotencyKey(request);
       metricTenant = principal.tenantId;
       if (method === "GET" && url.pathname === "/health") {
         jsonResponse(response, 200, { ok: true, specVersion: SPEC_VERSION_V2, memories: this.runtime.list(principal).length, events: this.runtime.eventCount() });
@@ -176,15 +291,29 @@ export class PremiseServer<T = unknown> {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
         const record = input.record as RuntimeRecord<T>;
         if (!record || typeof record !== "object") throw new Error("record is required");
-        if (input.derived === true) this.runtime.derive(record, idempotencyKey); else this.runtime.register(record, idempotencyKey);
-        await this.index.upsert(this.indexDocument(record));
-        jsonResponse(response, 201, { memoryId: record.envelope.memoryId, status: "stored" });
+        const operation = input.derived === true ? "derive" : "register";
+        const result = await this.executeMutation({
+          idempotencyKey,
+          operation,
+          pathname: url.pathname,
+          principal,
+          payload: input,
+          action: async () => {
+            if (input.derived === true) this.runtime.derive(record, idempotencyKey); else this.runtime.register(record, idempotencyKey);
+            await this.index.upsert(this.indexDocument(record));
+            return { status: 201, body: { memoryId: record.envelope.memoryId, status: "stored" } };
+          }
+        });
+        jsonResponse(response, result.status, result.body, result.headers);
         return;
       }
       if (method === "POST" && url.pathname === "/v2/query") {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
         const query = typeof input.query === "string" ? input.query : "";
         const options = (input.options ?? {}) as SearchOptions;
+        if (options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit < 0 || options.limit > this.maxQueryHits)) {
+          throw new HttpError(400, "INVALID_QUERY_LIMIT", `options.limit must be an integer from 0 to ${this.maxQueryHits}`);
+        }
         const hits = await this.index.search(query, { ...options, filter: { tenantId: principal.tenantId } });
         const candidates: ContextCandidate[] = [];
         for (const hit of hits) {
@@ -202,13 +331,31 @@ export class PremiseServer<T = unknown> {
         if (this.validator === undefined) { jsonResponse(response, 501, { error: "No validator configured" }); return; }
         const id = routeMemoryId(url.pathname.replace(/\/revalidate$/u, ""));
         if (id === undefined) { jsonResponse(response, 404, { error: "memory not found" }); return; }
-        jsonResponse(response, 200, await this.runtime.revalidate(id, this.validator, idempotencyKey));
+        const result = await this.executeMutation({
+          idempotencyKey,
+          operation: "revalidate",
+          pathname: url.pathname,
+          principal,
+          payload: { memoryId: id },
+          action: async () => ({ status: 200, body: await this.runtime.revalidate(id, this.validator!, idempotencyKey) })
+        });
+        jsonResponse(response, result.status, result.body, result.headers);
         return;
       }
       if (method === "POST" && url.pathname === "/v2/source-changed") {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
         if (typeof input.sourceUri !== "string" || typeof input.version !== "object" || input.version === null) throw new Error("sourceUri and version are required");
-        jsonResponse(response, 202, { affected: this.runtime.signalSourceChanged(input.sourceUri, input.version as { scheme: string; token: string }, idempotencyKey) });
+        const sourceUri = input.sourceUri;
+        const version = input.version as { scheme: string; token: string };
+        const result = await this.executeMutation({
+          idempotencyKey,
+          operation: "source-changed",
+          pathname: url.pathname,
+          principal,
+          payload: input,
+          action: async () => ({ status: 202, body: { affected: this.runtime.signalSourceChanged(sourceUri, version, idempotencyKey) } })
+        });
+        jsonResponse(response, result.status, result.body, result.headers);
         return;
       }
       jsonResponse(response, 404, { error: "route not found" });
@@ -223,9 +370,43 @@ export class PremiseServer<T = unknown> {
             : error instanceof Error && /Conflicting idempotency key/u.test(error.message)
               ? new HttpError(409, "IDEMPOTENCY_CONFLICT", error.message)
               : new HttpError(500, "INTERNAL_ERROR", "Internal server error");
-      jsonResponse(response, httpError.status, { error: httpError.code, message: httpError.message, requestId });
+      jsonResponse(response, httpError.status, { error: httpError.code, message: httpError.message, requestId }, httpError.headers);
     } finally {
       this.onMetric?.({ requestId, method: (request.method ?? "GET").toUpperCase(), path: request.url ?? "/", status: response.statusCode, durationMs: Date.now() - startedAt, ...(metricTenant ? { tenantId: metricTenant } : {}) });
+    }
+  }
+
+  private async executeMutation(input: {
+    readonly idempotencyKey: string | undefined;
+    readonly operation: string;
+    readonly pathname: string;
+    readonly principal: RuntimePrincipal;
+    readonly payload: unknown;
+    readonly action: () => Promise<HttpIdempotencyResponse>;
+  }): Promise<HttpIdempotencyResponse> {
+    if (input.idempotencyKey === undefined) return input.action();
+    const request: HttpIdempotencyRequest = {
+      tenantId: input.principal.tenantId,
+      operation: input.operation,
+      key: input.idempotencyKey,
+      requestHash: requestHash(input.operation, input.pathname, input.principal, input.payload)
+    };
+    const claim = await this.idempotencyStore.claimHttpIdempotency(request);
+    if (claim.kind === "replay") return claim.response;
+    if (claim.kind === "conflict") throw new HttpError(409, "IDEMPOTENCY_CONFLICT", `Idempotency-Key already belongs to another request: ${input.idempotencyKey}`);
+    if (claim.kind === "in-progress") throw new HttpError(425, "IDEMPOTENCY_IN_PROGRESS", "The same idempotent request is already in progress", { "retry-after": "1" });
+    try {
+      const result = await input.action();
+      await this.awaitDurability?.();
+      await this.idempotencyStore.completeHttpIdempotency({ ...request, token: claim.token, response: cloneJson(result) });
+      return result;
+    } catch (error) {
+      try {
+        await this.idempotencyStore.releaseHttpIdempotency({ ...request, token: claim.token });
+      } catch (releaseError) {
+        this.logger(`Failed to release idempotency claim ${input.idempotencyKey}: ${releaseError instanceof Error ? releaseError.message : String(releaseError)}`);
+      }
+      throw error;
     }
   }
 
