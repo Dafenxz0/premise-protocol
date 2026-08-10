@@ -69,6 +69,7 @@ jobs:
         with:
           name: premise-ga-security-${{ github.sha }}
           path: .ga-artifacts
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
 
@@ -221,6 +222,7 @@ jobs:
             deploy/**
             ops/**
             docs/ga-operations.md
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
       - name: Tear down local stack

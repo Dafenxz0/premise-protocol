@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24.5.0-bookworm-slim AS build
+FROM node:24.19.0-bookworm-slim AS build
 
 ARG BUILD_VERSION=local
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
@@ -25,7 +25,7 @@ RUN pnpm install --frozen-lockfile
 RUN cd /opt/deploy-deps && npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 RUN pnpm build
 
-FROM node:24.5.0-bookworm-slim AS runtime
+FROM node:24.19.0-bookworm-slim AS runtime
 
 ARG BUILD_VERSION=local
 ENV NODE_ENV=production \
