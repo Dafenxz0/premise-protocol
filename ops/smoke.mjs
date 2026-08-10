@@ -23,7 +23,7 @@ const envelope = {
   specVersion: "premise/2",
   tenantId,
   memoryId,
-  evidence: [{ evidenceId: `evidence:${memoryId}`, sourceUri, observedAt: at, version: { scheme: "smoke", token: "v1" } }],
+  evidence: [{ evidenceId: `evidence:${memoryId}`, sourceUri, observedAt: at, version: { scheme: "smoke", token: "v1" }, validator: { id: "smoke", operation: "read" } }],
   confidence: { score: null, method: "smoke", assessedAt: at },
   conflicts: [],
   temporal: { asOf: at },

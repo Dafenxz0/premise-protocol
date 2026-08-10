@@ -192,11 +192,15 @@ jobs:
       - name: Run v2 smoke test
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
-        run: docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/smoke.mjs | tee .ga-artifacts/smoke.json
+        run: |
+          set -o pipefail
+          docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/smoke.mjs | tee .ga-artifacts/smoke.json
       - name: Run bounded CI load test
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
-        run: docker compose -f "${COMPOSE_FILE}" exec -T -e PREMISE_LOAD_REQUESTS=32 -e PREMISE_LOAD_CONCURRENCY=4 -e PREMISE_LOAD_MAX_P95_MS=750 premise node /app/ops/load-smoke.mjs | tee .ga-artifacts/load.json
+        run: |
+          set -o pipefail
+          docker compose -f "${COMPOSE_FILE}" exec -T -e PREMISE_LOAD_REQUESTS=32 -e PREMISE_LOAD_CONCURRENCY=4 -e PREMISE_LOAD_MAX_P95_MS=750 premise node /app/ops/load-smoke.mjs | tee .ga-artifacts/load.json
       - name: Verify Prometheus metrics endpoint
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -206,6 +210,7 @@ jobs:
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
         run: |
+          set -o pipefail
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup node /app/ops/restore-verify.mjs | tee .ga-artifacts/restore-verify.json
           sudo chown "$(id -u):$(id -g)" .local/backups/premise-v2-latest.json
