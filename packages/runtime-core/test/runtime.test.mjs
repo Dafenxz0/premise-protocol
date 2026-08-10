@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { InMemoryRuntimeStore, PremiseRuntime } from "../dist/index.js";
 
 const at = "2026-08-10T10:00:00Z";
-const envelope = (memoryId, dependsOn = [], status = "FRESH") => ({
+const envelope = (memoryId, dependsOn = [], status = "FRESH", tenantId = "tenant:acme", sourceUri = "github://acme/repo/commit/main") => ({
   specVersion: "premise/2",
-  tenantId: "tenant:acme",
+  tenantId,
   memoryId,
-  evidence: dependsOn.length === 0 ? [{ evidenceId: `${memoryId}:e`, sourceUri: "github://acme/repo/commit/main", observedAt: at, version: { scheme: "github.commit", token: "a1" }, validator: { id: "github", operation: "commit" } }] : [],
+  evidence: dependsOn.length === 0 ? [{ evidenceId: `${memoryId}:e`, sourceUri, observedAt: at, version: { scheme: "github.commit", token: "a1" }, validator: { id: "github", operation: "commit" } }] : [],
   confidence: { score: null, method: "test", assessedAt: at },
   conflicts: [],
   temporal: { asOf: at },
@@ -14,6 +14,21 @@ const envelope = (memoryId, dependsOn = [], status = "FRESH") => ({
   dependsOn,
   signatures: []
 });
+
+class CountingStore extends InMemoryRuntimeStore {
+  putCalls = 0;
+  eventCalls = 0;
+
+  put(record) {
+    this.putCalls += 1;
+    return super.put(record);
+  }
+
+  appendEvent(event) {
+    this.eventCalls += 1;
+    return super.appendEvent(event);
+  }
+}
 
 const runtime = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
 runtime.register({ envelope: envelope("memory:source"), content: { value: "source" } });
@@ -23,6 +38,7 @@ assert.deepEqual(runtime.check(["memory:source", "memory:derived"]).map((item) =
 const affected = runtime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b2" });
 assert.deepEqual(affected, ["memory:source", "memory:derived"]);
 assert.deepEqual(runtime.check(["memory:source", "memory:derived"]).map((item) => item.status), ["STALE", "STALE"]);
+assert.deepEqual(runtime.history().map((item) => item.type), ["MemoryRegistered", "MemoryDerived", "SourceChanged", "MemoryStaled", "MemoryStaled"]);
 
 const report = await runtime.revalidate("memory:source", async (evidence) => ({ memoryId: "memory:source", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri, version: { scheme: "github.commit", token: "b2" } }));
 assert.equal(report.status, "FRESH");
@@ -40,5 +56,46 @@ const restored = new PremiseRuntime({ store: new InMemoryRuntimeStore(), tenantI
 restored.restore(snapshot);
 assert.equal(restored.get("memory:derived").content.value, "derived");
 assert.equal(restored.history().length, runtime.history().length);
+assert.deepEqual(restored.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b3" }), ["memory:source", "memory:derived"], "restore must rebuild source and dependency indexes");
+
+const countedStore = new CountingStore();
+const counted = new PremiseRuntime({ store: countedStore, tenantId: "tenant:acme", now: () => at });
+counted.register({ envelope: envelope("memory:counted-source"), content: { value: "source" } });
+counted.derive({ envelope: envelope("memory:counted-derived", ["memory:counted-source"]), content: { value: "derived" } });
+const putsBeforeSignal = countedStore.putCalls;
+const eventsBeforeSignal = countedStore.eventCalls;
+const firstSignal = counted.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b2" });
+assert.deepEqual(firstSignal, ["memory:counted-source", "memory:counted-derived"]);
+assert.equal(countedStore.putCalls, putsBeforeSignal + 2);
+assert.equal(countedStore.eventCalls, eventsBeforeSignal + 3);
+const putsAfterFirstSignal = countedStore.putCalls;
+const eventsAfterFirstSignal = countedStore.eventCalls;
+assert.deepEqual(counted.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b2" }), firstSignal);
+assert.equal(countedStore.putCalls, putsAfterFirstSignal, "replaying the same source change must not rewrite STALE records");
+assert.equal(countedStore.eventCalls, eventsAfterFirstSignal, "replaying the same source change must not append duplicate events");
+assert.deepEqual(counted.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b3" }), firstSignal);
+assert.equal(countedStore.putCalls, putsAfterFirstSignal, "a newer source version must also avoid rewriting records already STALE");
+assert.equal(countedStore.eventCalls, eventsAfterFirstSignal + 1, "a newer source version still records its SourceChanged event");
+assert.throws(() => counted.signalSourceChanged("", { scheme: "github.commit", token: "b4" }), /non-empty/);
+
+const indexed = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+indexed.register({ envelope: envelope("memory:index-source"), content: { value: "source" } });
+indexed.register({ envelope: envelope("memory:index-other", [], "FRESH", "tenant:acme", "github://acme/repo/other"), content: { value: "other" } });
+indexed.derive({ envelope: envelope("memory:index-derived", ["memory:index-source"]), content: { value: "derived" } });
+indexed.replace("memory:index-other", { value: "repointed-source" }, envelope("memory:index-other", [], "FRESH", "tenant:acme", "github://acme/repo/replacement"));
+indexed.replace("memory:index-derived", { value: "repointed" }, envelope("memory:index-derived", ["memory:index-other"]));
+assert.deepEqual(indexed.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "c1" }), ["memory:index-source"]);
+assert.deepEqual(indexed.signalSourceChanged("github://acme/repo/other", { scheme: "github.commit", token: "c1" }), [], "replace must remove the old source index entry");
+assert.deepEqual(indexed.signalSourceChanged("github://acme/repo/replacement", { scheme: "github.commit", token: "c1" }), ["memory:index-other", "memory:index-derived"], "replace must update both source and dependency indexes");
+
+const sharedStore = new InMemoryRuntimeStore();
+sharedStore.put({ envelope: envelope("memory:tenant-a-source", [], "FRESH", "tenant:a"), content: { tenant: "a" } });
+sharedStore.put({ envelope: envelope("memory:tenant-b-source", [], "FRESH", "tenant:b"), content: { tenant: "b" } });
+sharedStore.put({ envelope: envelope("memory:tenant-b-derived", ["memory:tenant-b-source"], "FRESH", "tenant:b"), content: { tenant: "b" } });
+const tenantARuntime = new PremiseRuntime({ store: sharedStore, tenantId: "tenant:a", now: () => at });
+assert.deepEqual(tenantARuntime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "d1" }), ["memory:tenant-a-source"]);
+assert.equal(sharedStore.get("memory:tenant-b-source").envelope.validity.status, "FRESH", "source changes must not cross tenant boundaries");
+assert.equal(sharedStore.get("memory:tenant-b-derived").envelope.validity.status, "FRESH", "dependency propagation must not cross tenant boundaries");
+assert.throws(() => tenantARuntime.derive({ envelope: envelope("memory:cross-tenant", ["memory:tenant-b-source"], "FRESH", "tenant:a"), content: {} }), /Missing required dependency/);
 
 console.log("runtime-core tests passed");

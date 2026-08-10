@@ -39,6 +39,17 @@ assert.equal((await query.json()).context.selected.length, 1);
 const fetched = await fetch(`${base}/v2/memories/${encodeURIComponent(envelope.memoryId)}`);
 assert.equal(fetched.status, 200);
 assert.equal((await fetched.json()).content, "PREMiSE v2 exact context");
+
+const sourceChangedBody = JSON.stringify({ sourceUri: "file:///http", version: { scheme: "file.mtime", token: "b2" } });
+const sourceChanged = await fetch(`${base}/v2/source-changed`, { method: "POST", headers: { "content-type": "application/json" }, body: sourceChangedBody });
+assert.equal(sourceChanged.status, 202);
+const sourceChangedJson = await sourceChanged.json();
+assert.deepEqual(sourceChangedJson.affected, [envelope.memoryId]);
+const sourceChangedReplay = await fetch(`${base}/v2/source-changed`, { method: "POST", headers: { "content-type": "application/json" }, body: sourceChangedBody });
+assert.equal(sourceChangedReplay.status, 202);
+assert.deepEqual((await sourceChangedReplay.json()).affected, sourceChangedJson.affected);
+assert.equal(runtime.history().filter((event) => event.type === "SourceChanged").length, 1);
+assert.equal(runtime.history().filter((event) => event.type === "MemoryStaled").length, 1);
 await server.close();
 assert.ok(metrics.length >= 4);
 assert.ok(metrics.every((metric) => metric.durationMs >= 0 && metric.requestId.length > 0));

@@ -103,7 +103,13 @@ async function readiness() {
 }
 
 function shouldFlush(pathname, method) {
-  return config.storeMode === "postgres" && method === "POST" && pathname.startsWith("/v2/");
+  if (config.storeMode !== "postgres" || method !== "POST") return false;
+
+  // Only mutation endpoints need a durability barrier. Read-only queries must
+  // not wait behind unrelated writes in the global mirror queue.
+  return pathname === "/v2/memories" ||
+    pathname === "/v2/source-changed" ||
+    /^\/v2\/memories\/[^/]+\/revalidate$/u.test(pathname);
 }
 
 function installResponseBarrier(request, response, pathname, requestId, startedAt) {

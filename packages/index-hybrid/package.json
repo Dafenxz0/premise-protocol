@@ -12,6 +12,7 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node test/index.test.mjs"
+    "test": "pnpm build && node test/index.test.mjs && node test/ranking-equivalence.test.mjs && node test/latency.test.mjs",
+    "benchmark": "pnpm build && node test/benchmark.mjs"
   }
 }
