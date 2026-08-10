@@ -87,7 +87,14 @@ export interface HybridIndexOptions {
 }
 
 export interface SearchOptions<T = unknown> {
+  /** Maximum number of results. Zero is valid and returns no results. */
   readonly limit?: number;
+  /**
+   * Optional adapter hint for bounded retrieval before ranking. The in-memory
+   * HybridIndex validates the hint but keeps exact top-k semantics; persistent
+   * adapters may use it to bound their candidate window.
+   */
+  readonly candidateLimit?: number;
   readonly filter?: MetadataFilter | MetadataPredicate<T>;
   readonly filters?: MetadataFilter | MetadataPredicate<T>;
   readonly lexicalWeight?: number;
@@ -161,7 +168,9 @@ interface ScoredDocument<T> {
   readonly parts: ScoreParts;
 }
 
-const DEFAULT_LIMIT = 10;
+export const DEFAULT_SEARCH_LIMIT = 10;
+export const MAX_SEARCH_LIMIT = 10_000;
+export const MAX_SEARCH_CANDIDATE_LIMIT = 10_000;
 const DEFAULT_LEXICAL_WEIGHT = 0.5;
 const DEFAULT_VECTOR_WEIGHT = 0.5;
 const BM25_K1 = 1.2;
@@ -254,9 +263,19 @@ function resolveWeights(
 }
 
 function validateLimit(value: number | undefined): number {
-  const limit = value ?? DEFAULT_LIMIT;
-  if (!Number.isInteger(limit) || limit < 0) throw new RangeError("limit must be a non-negative integer");
+  const limit = value ?? DEFAULT_SEARCH_LIMIT;
+  if (!Number.isSafeInteger(limit) || limit < 0 || limit > MAX_SEARCH_LIMIT) {
+    throw new RangeError(`limit must be a safe integer from 0 to ${MAX_SEARCH_LIMIT}`);
+  }
   return limit;
+}
+
+function validateCandidateLimit(value: number | undefined, resultLimit: number): void {
+  if (value === undefined) return;
+  const minimum = Math.max(1, resultLimit);
+  if (!Number.isSafeInteger(value) || value < minimum || value > MAX_SEARCH_CANDIDATE_LIMIT) {
+    throw new RangeError(`candidateLimit must be a safe integer from ${minimum} to ${MAX_SEARCH_CANDIDATE_LIMIT}`);
+  }
 }
 
 function providerName(provider: VectorProvider): string {
@@ -545,7 +564,9 @@ export class HybridIndex<T = unknown> {
 
   async search(query: string, options: SearchOptions<T> = {}): Promise<readonly HybridSearchResult<T>[]> {
     if (typeof query !== "string") throw new TypeError("Search query must be a string");
+    if (options === null || typeof options !== "object" || Array.isArray(options)) throw new TypeError("Search options must be an object");
     const limit = validateLimit(options.limit);
+    validateCandidateLimit(options.candidateLimit, limit);
     if (limit === 0 || query.trim().length === 0 || this.documents.size === 0) return [];
     const weights = resolveWeights(options.lexicalWeight, options.vectorWeight, this.defaultLexicalWeight, this.defaultVectorWeight);
     const minimumScore = options.minScore ?? 0;

@@ -17,6 +17,7 @@ export const ACCEPTANCE_THRESHOLDS = Object.freeze({
 });
 
 const DEFAULT_TELEMETRY_INTERVAL_MS = 1_000;
+const DEFAULT_TELEMETRY_TIMEOUT_MS = 5_000;
 const DEFAULT_OUTPUT = fileURLToPath(new URL("./diagnostic-results.json", import.meta.url));
 
 function positiveInteger(value, flag) {
@@ -148,20 +149,31 @@ export function classifyAcceptance(soak, telemetry, thresholds = ACCEPTANCE_THRE
   };
 }
 
-function createSampler(telemetry, intervalMs) {
+function createSampler(telemetry, intervalMs, timeoutMs) {
   const samples = [];
   const errors = [];
   let stopped = false;
   let ended = false;
   let poller = Promise.resolve();
+  let timer;
+  let wake;
 
   async function capture() {
+    const started = performance.now();
+    let timer;
     try {
-      const sample = await telemetry.snapshot();
+      const sample = await Promise.race([
+        telemetry.snapshot(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`PostgreSQL telemetry timed out after ${timeoutMs} ms`)), timeoutMs);
+        })
+      ]);
       if (sample?.format !== POSTGRES_TELEMETRY_FORMAT) throw new Error(`unexpected PostgreSQL telemetry format: ${sample?.format ?? "missing"}`);
       samples.push(sample);
     } catch (error) {
-      errors.push(errorEntry(error));
+      errors.push({ ...errorEntry(error), capturedAt: new Date().toISOString(), durationMs: Number((performance.now() - started).toFixed(3)) });
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
   }
 
@@ -172,7 +184,12 @@ function createSampler(telemetry, intervalMs) {
       await capture();
       poller = (async () => {
         while (!stopped) {
-          await new Promise((resolve) => setTimeout(resolve, intervalMs));
+          await new Promise((resolve) => {
+            wake = resolve;
+            timer = setTimeout(resolve, intervalMs);
+          });
+          timer = undefined;
+          wake = undefined;
           if (stopped) break;
           await capture();
         }
@@ -182,6 +199,8 @@ function createSampler(telemetry, intervalMs) {
       if (ended) return;
       ended = true;
       stopped = true;
+      if (timer !== undefined) clearTimeout(timer);
+      wake?.();
       await poller;
       await capture();
     }
@@ -191,6 +210,7 @@ function createSampler(telemetry, intervalMs) {
 export function parseArgs(argv = process.argv.slice(2), environment = process.env) {
   const forwarded = [];
   let telemetryIntervalMs = positiveInteger(environment.PREMISE_SOAK_PG_TELEMETRY_INTERVAL_MS ?? DEFAULT_TELEMETRY_INTERVAL_MS, "PREMISE_SOAK_PG_TELEMETRY_INTERVAL_MS");
+  let telemetryTimeoutMs = positiveInteger(environment.PREMISE_SOAK_PG_TELEMETRY_TIMEOUT_MS ?? DEFAULT_TELEMETRY_TIMEOUT_MS, "PREMISE_SOAK_PG_TELEMETRY_TIMEOUT_MS");
   let enforceAcceptance = environment.PREMISE_SOAK_ENFORCE_ACCEPTANCE !== "0";
   let diagnosticOutput = environment.PREMISE_SOAK_DIAGNOSTIC_OUTPUT === undefined ? DEFAULT_OUTPUT : path.resolve(environment.PREMISE_SOAK_DIAGNOSTIC_OUTPUT);
   let help = false;
@@ -202,6 +222,12 @@ export function parseArgs(argv = process.argv.slice(2), environment = process.en
       const value = inlineValue ?? argumentValue(argv, index, flag);
       if (inlineValue === undefined) index += 1;
       telemetryIntervalMs = positiveInteger(value, flag);
+      continue;
+    }
+    if (flag === "--telemetry-timeout-ms") {
+      const value = inlineValue ?? argumentValue(argv, index, flag);
+      if (inlineValue === undefined) index += 1;
+      telemetryTimeoutMs = positiveInteger(value, flag);
       continue;
     }
     if (flag === "--enforce-acceptance") {
@@ -235,6 +261,7 @@ export function parseArgs(argv = process.argv.slice(2), environment = process.en
       output: null,
       diagnosticOutput,
       telemetryIntervalMs,
+      telemetryTimeoutMs,
       enforceAcceptance
     }
   };
@@ -247,6 +274,7 @@ Runs the HTTP soak with read-only PostgreSQL checkpoint, WAL, database, and conn
 The check exits non-zero for incomplete telemetry, checkpoint-dominated latency, connection saturation, HTTP errors, or p95/p99 above the GA limits.
 Options:
   --telemetry-interval-ms N     PostgreSQL sample interval (default: 1000)
+  --telemetry-timeout-ms N      timeout for each PostgreSQL sample (default: 5000)
   --enforce-acceptance           fail on an acceptance classification (default)
   --report-only                 write the result without failing the process
   --output PATH                 diagnostic result JSON path
@@ -260,14 +288,14 @@ export async function runDiagnostic(input = {}) {
   const openErrors = [];
   if (telemetry === undefined) {
     try {
-      telemetry = await openPostgresTelemetry({ connectionString: input.databaseUrl ?? databaseUrl() });
+      telemetry = await openPostgresTelemetry({ connectionString: input.databaseUrl ?? databaseUrl(), timeoutMs: input.telemetryTimeoutMs ?? DEFAULT_TELEMETRY_TIMEOUT_MS });
       ownedTelemetry = true;
     } catch (error) {
       openErrors.push(errorEntry(error, "telemetry-unavailable"));
     }
   }
 
-  const sampler = telemetry === undefined ? undefined : createSampler(telemetry, intervalMs);
+  const sampler = telemetry === undefined ? undefined : createSampler(telemetry, intervalMs, positiveInteger(input.telemetryTimeoutMs ?? DEFAULT_TELEMETRY_TIMEOUT_MS, "telemetryTimeoutMs"));
   let soak;
   try {
     soak = await runSoak({
@@ -293,6 +321,7 @@ export async function runDiagnostic(input = {}) {
     schema: POSTGRES_TELEMETRY_FORMAT,
     available: summary.available === true && errors.length === 0,
     sampleIntervalMs: intervalMs,
+    sampleTimeoutMs: input.telemetryTimeoutMs ?? DEFAULT_TELEMETRY_TIMEOUT_MS,
     sampleCount: samples.length,
     database: samples[0]?.database ?? null,
     serverVersionNum: samples[0]?.serverVersionNum ?? null,

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const POSTGRES_TELEMETRY_FORMAT = "premise-ga-soak/postgres-telemetry/1";
+const DEFAULT_QUERY_TIMEOUT_MS = 5_000;
 
 const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
@@ -47,22 +48,30 @@ export function databaseUrl(environment = process.env) {
   return environment.PREMISE_SOAK_DATABASE_URL ?? environment.DATABASE_URL ?? environment.POSTGRES_URL;
 }
 
-export async function openPostgresTelemetry({ connectionString = databaseUrl() } = {}) {
+export async function openPostgresTelemetry({ connectionString = databaseUrl(), timeoutMs = DEFAULT_QUERY_TIMEOUT_MS } = {}) {
   if (typeof connectionString !== "string" || connectionString.length === 0 || connectionString.startsWith("__")) {
     throw new Error("Set PREMISE_SOAK_DATABASE_URL, DATABASE_URL, or POSTGRES_URL for PostgreSQL telemetry");
   }
 
   const Pool = await loadPool();
-  const pool = new Pool({ connectionString, max: 1, application_name: "premise-ga-soak" });
+  const queryTimeout = Number.isSafeInteger(Number(timeoutMs)) && Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_QUERY_TIMEOUT_MS;
+  const pool = new Pool({
+    connectionString,
+    max: 1,
+    application_name: "premise-ga-soak",
+    connectionTimeoutMillis: queryTimeout,
+    query_timeout: queryTimeout,
+    statement_timeout: queryTimeout
+  });
   try {
-    await pool.query("SELECT 1");
+    await pool.query({ text: "SELECT 1", query_timeout: queryTimeout, statement_timeout: queryTimeout });
   } catch (error) {
     await pool.end();
     throw error;
   }
 
   return {
-    snapshot: () => readPostgresTelemetry((sql) => pool.query(sql)),
+    snapshot: () => readPostgresTelemetry((sql) => pool.query({ text: sql, query_timeout: queryTimeout, statement_timeout: queryTimeout })),
     close: () => pool.end()
   };
 }
@@ -142,7 +151,10 @@ export async function readPostgresTelemetry(query, capturedAt = new Date()) {
         count(*) FILTER (WHERE state = 'active')::int AS active,
         count(*) FILTER (WHERE state = 'idle')::int AS idle,
         count(*) FILTER (WHERE state = 'idle in transaction')::int AS idle_in_transaction,
-        count(*) FILTER (WHERE wait_event_type IS NOT NULL)::int AS waiting
+        count(*) FILTER (WHERE state = 'active' AND wait_event_type IS NOT NULL)::int AS active_waiting,
+        count(*) FILTER (WHERE state = 'active' AND wait_event_type = 'Lock')::int AS lock_waiting,
+        count(*) FILTER (WHERE state = 'active' AND wait_event_type = 'IO')::int AS io_waiting,
+        COALESCE(max(EXTRACT(EPOCH FROM (clock_timestamp() - query_start)) * 1000) FILTER (WHERE state = 'active' AND query_start IS NOT NULL), 0)::double precision AS oldest_active_query_ms
       FROM pg_catalog.pg_stat_activity
     `)
   ]);
@@ -201,7 +213,11 @@ export async function readPostgresTelemetry(query, capturedAt = new Date()) {
       active: numeric(connections.active),
       idle: numeric(connections.idle),
       idleInTransaction: numeric(connections.idle_in_transaction),
-      waiting: numeric(connections.waiting)
+      waiting: numeric(connections.active_waiting ?? connections.waiting),
+      activeWaiting: numeric(connections.active_waiting ?? connections.waiting),
+      lockWaiting: numeric(connections.lock_waiting),
+      ioWaiting: numeric(connections.io_waiting),
+      oldestActiveQueryMs: numeric(connections.oldest_active_query_ms)
     }
   };
 }
@@ -217,14 +233,32 @@ function sum(left, right) {
 }
 
 function resetChanged(start, end) {
-  return start !== null && end !== null && start !== undefined && end !== undefined && String(start) !== String(end);
+  return String(start ?? "") !== String(end ?? "") && (start !== null && start !== undefined || end !== null && end !== undefined);
+}
+
+function counterRegressionDetected(samples) {
+  const fields = [
+    ["checkpoint", ["timed", "requested", "completed", "writeTimeMs", "syncTimeMs", "buffers"]],
+    ["wal", ["records", "fpi", "bytes", "buffersFull", "writes", "syncs", "writeTimeMs", "syncTimeMs"]],
+    ["databaseStats", ["commits", "rollbacks", "blocksRead", "blocksHit", "tuplesReturned", "tuplesFetched", "tuplesInserted", "tuplesUpdated", "tuplesDeleted", "tempFiles", "tempBytes", "deadlocks"]]
+  ];
+  for (let index = 1; index < samples.length; index += 1) {
+    for (const [section, names] of fields) {
+      for (const name of names) {
+        const previous = numeric(samples[index - 1]?.[section]?.[name]);
+        const current = numeric(samples[index]?.[section]?.[name]);
+        if (previous !== null && current !== null && current < previous) return true;
+      }
+    }
+  }
+  return false;
 }
 
 function deltaFields(start, end, fields, resetDetected) {
   return Object.fromEntries(fields.map((field) => [field, delta(start[field], end[field], resetDetected)]));
 }
 
-export function diffPostgresTelemetry(start, end, elapsedMs) {
+export function diffPostgresTelemetry(start, end, elapsedMs, { counterRegression = false } = {}) {
   if (!start || !end) return { available: false, reason: "two PostgreSQL telemetry samples are required" };
   const elapsed = numeric(elapsedMs);
   const windowMs = elapsed !== null && elapsed > 0 ? elapsed : 0;
@@ -240,7 +274,8 @@ export function diffPostgresTelemetry(start, end, elapsedMs) {
   return {
     available: true,
     elapsedMs: rounded(windowMs),
-    statsResetDetected: checkpointReset || walReset || databaseReset,
+    statsResetDetected: checkpointReset || walReset || databaseReset || counterRegression,
+    counterRegressionDetected: counterRegression,
     checkpoint: {
       timed: checkpoint.timed,
       requested: checkpoint.requested,
@@ -286,7 +321,7 @@ export function diffPostgresTelemetry(start, end, elapsedMs) {
 }
 
 function peakConnections(samples) {
-  const fields = ["max", "total", "active", "idle", "idleInTransaction", "waiting"];
+  const fields = ["max", "total", "active", "idle", "idleInTransaction", "waiting", "activeWaiting", "lockWaiting", "ioWaiting", "oldestActiveQueryMs"];
   return Object.fromEntries(fields.map((field) => {
     const values = samples.map((sample) => numeric(sample.connections?.[field])).filter((value) => value !== null);
     return [field, values.length === 0 ? null : Math.max(...values)];
@@ -297,7 +332,7 @@ export function summarizePostgresTelemetry(samples, elapsedMs) {
   if (!Array.isArray(samples) || samples.length < 2) {
     return { available: false, reason: "two PostgreSQL telemetry samples are required", sampleCount: Array.isArray(samples) ? samples.length : 0 };
   }
-  const deltaResult = diffPostgresTelemetry(samples[0], samples[samples.length - 1], elapsedMs);
+  const deltaResult = diffPostgresTelemetry(samples[0], samples[samples.length - 1], elapsedMs, { counterRegression: counterRegressionDetected(samples) });
   const peak = peakConnections(samples);
   const connectionMax = peak.max ?? deltaResult.connections.max;
   const connectionUtilization = connectionMax === null || connectionMax === 0 || peak.total === null ? null : rounded(peak.total / connectionMax);

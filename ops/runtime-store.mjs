@@ -387,9 +387,9 @@ export async function openDurableMirror(client, tablePrefix, tenantId, options =
   };
   const mirror = new DurableMirrorStore(persistent, emptySnapshot, options);
   try {
-    // This bounds PostgreSQL hydration only. server.mjs still builds its full
-    // query index from mirror.list() after this function returns; that separate
-    // 1M-record indexing cost remains an explicit capacity risk.
+    // This bounds PostgreSQL hydration. The production server uses the
+    // persisted PostgreSQL lexical index directly after this returns; it
+    // does not rebuild a full in-memory query index from mirror.list().
     await persistent.loadIncrementally({
       batchSize: startupBatchSize,
       onRecord: (record) => mirror[hydrateRecord](record),

@@ -47,6 +47,10 @@ const server = createServer(async (request, response) => {
       json(response, 200, { ok: true, ready: true, checks: { process: "ok", store: "ok" } });
       return;
     }
+    if (request.method === "GET" && url.pathname === "/health") {
+      json(response, 200, { ok: true, specVersion: "premise/2", memories: records.size, events: 0 });
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/v2/capabilities") {
       json(response, 200, { specVersion: "premise/2", capabilities: ["RECORD", "RETRIEVAL"] });
       return;
@@ -164,7 +168,7 @@ try {
   assert.equal(diagnostic.format, DIAGNOSTIC_FORMAT, "unexpected diagnostic format");
   assert.equal(diagnostic.postgresTelemetry.available, true, "diagnostic telemetry was not captured");
   assert.equal(diagnostic.postgresTelemetry.summary.checkpoint.totalTimeMs, 300, "checkpoint delta was not calculated");
-  assert.equal(diagnostic.acceptance.passed, false, "checkpoint-dominated fixture must fail acceptance");
+  assert.equal(diagnostic.acceptance.passed, false, `checkpoint-dominated fixture must fail acceptance: ${JSON.stringify({ summary: diagnostic.postgresTelemetry.summary, acceptance: diagnostic.acceptance })}`);
   assert.equal(diagnostic.acceptance.classification, "checkpoint-dominated", "checkpoint failure classification is not actionable");
   assert.ok(diagnostic.acceptance.actions.length >= 2, "checkpoint failure needs remediation actions");
   for (const [operation, metrics] of Object.entries(diagnostic.metrics.byOperation)) {

@@ -1,20 +1,31 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { arch, availableParallelism, cpus, hostname, platform, totalmem } from "node:os";
 import { performance } from "node:perf_hooks";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const FORMAT = "premise-ga-soak/1";
+export const TRACE_FORMAT = "premise-ga-soak/trace/1";
+export const REQUIRED_OPERATIONS = Object.freeze([
+  "health",
+  "capabilities",
+  "register",
+  "retrieve",
+  "query",
+  "source-changed"
+]);
 export const GA_THRESHOLDS = Object.freeze({
   minimumDurationMs: 60 * 60 * 1_000,
   minimumRequests: 10_000,
   minimumLatencySamples: 10_000,
   minimumAvailabilityRate: 0.999,
   maximumErrorRate: 0.001,
+  minimumOperationRequests: 100,
   maximumP95Ms: 500,
-  maximumP99Ms: 2_000
+  maximumP99Ms: 2_000,
+  requiredOperations: REQUIRED_OPERATIONS
 });
 
 const DEFAULT_OUTPUT = fileURLToPath(new URL("./results.json", import.meta.url));
@@ -26,7 +37,9 @@ const DEFAULTS = Object.freeze({
   seedCount: 4,
   maxResponseBytes: 4 * 1024 * 1024,
   latencySampleSize: 100_000,
+  rawTraceLimit: 10_000,
   healthPath: "/readyz",
+  livenessPath: "/health",
   tenantId: "tenant:soak",
   operations: ["health", "capabilities", "register", "retrieve", "query", "source-changed"],
   output: DEFAULT_OUTPUT,
@@ -34,6 +47,74 @@ const DEFAULTS = Object.freeze({
 });
 const OPERATIONS = new Set(DEFAULTS.operations);
 const ERROR_SAMPLE_LIMIT = 20;
+
+class TraceWriter {
+  constructor({ output, limit, runId }) {
+    this.output = output;
+    this.limit = limit;
+    this.runId = runId;
+    this.events = [];
+    this.totalEvents = 0;
+    this.truncated = false;
+    this.writeError = null;
+    this.pending = Promise.resolve();
+    this.hash = createHash("sha256");
+    this.handle = undefined;
+  }
+
+  async open() {
+    if (this.output !== undefined) {
+      await mkdir(path.dirname(this.output), { recursive: true });
+      this.handle = await open(this.output, "w", 0o600);
+    }
+    return this;
+  }
+
+  record(event) {
+    const row = {
+      schema: TRACE_FORMAT,
+      runId: this.runId,
+      ...event
+    };
+    this.totalEvents += 1;
+    if (this.events.length < this.limit) this.events.push(row);
+    else this.truncated = true;
+    if (this.handle !== undefined) {
+      const line = `${JSON.stringify(row)}\n`;
+      this.pending = this.pending.then(async () => {
+        if (this.writeError !== null) return;
+        try {
+          await this.handle.write(line, undefined, "utf8");
+          this.hash.update(line, "utf8");
+        } catch (error) {
+          this.writeError ??= error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240);
+        }
+      });
+    }
+  }
+
+  async close() {
+    await this.pending;
+    if (this.handle !== undefined) {
+      await this.handle.close();
+      this.handle = undefined;
+    }
+  }
+
+  summary() {
+    return {
+      kind: "raw-jsonl",
+      format: TRACE_FORMAT,
+      path: this.output === undefined ? null : path.basename(this.output),
+      sha256: this.output === undefined || this.writeError !== null ? null : `sha256:${this.hash.digest("hex")}`,
+      totalEvents: this.totalEvents,
+      retainedEvents: this.events.length,
+      truncated: this.truncated,
+      writeError: this.writeError,
+      events: this.events
+    };
+  }
+}
 
 class SoakError extends Error {
   constructor(message, kind, details = {}) {
@@ -95,11 +176,6 @@ function positiveInteger(value, flag, { minimum = 1, maximum = Number.MAX_SAFE_I
   return parsed;
 }
 
-function environmentInteger(environment, name, fallback, options) {
-  const value = environment[name];
-  return value === undefined ? fallback : positiveInteger(value, name, options);
-}
-
 function argumentValue(argv, index, flag) {
   const value = argv[index + 1];
   if (value === undefined || value.startsWith("--")) throw new Error(`${flag} requires a value`);
@@ -129,6 +205,13 @@ function pathValue(value, flag) {
 }
 
 export function normalizeConfig(input = {}) {
+  const output = input.output === null ? undefined : input.output === undefined ? DEFAULTS.output : path.resolve(String(input.output));
+  const traceOutput = input.traceOutput === null || input.traceOutput === undefined
+    ? undefined
+    : path.resolve(String(input.traceOutput));
+  if (output !== undefined && traceOutput !== undefined && output === traceOutput) {
+    throw new Error("traceOutput must be different from output");
+  }
   const config = {
     ...DEFAULTS,
     ...input,
@@ -139,10 +222,13 @@ export function normalizeConfig(input = {}) {
     seedCount: positiveInteger(input.seedCount ?? DEFAULTS.seedCount, "seedCount"),
     maxResponseBytes: positiveInteger(input.maxResponseBytes ?? DEFAULTS.maxResponseBytes, "maxResponseBytes"),
     latencySampleSize: positiveInteger(input.latencySampleSize ?? DEFAULTS.latencySampleSize, "latencySampleSize"),
+    rawTraceLimit: positiveInteger(input.rawTraceLimit ?? DEFAULTS.rawTraceLimit, "rawTraceLimit"),
     healthPath: pathValue(input.healthPath ?? DEFAULTS.healthPath, "healthPath"),
+    livenessPath: pathValue(input.livenessPath ?? DEFAULTS.livenessPath, "livenessPath"),
     tenantId: String(input.tenantId ?? DEFAULTS.tenantId),
     operations: Array.isArray(input.operations) ? parseOperations(input.operations.join(",")) : parseOperations(input.operations ?? DEFAULTS.operations.join(",")),
-    output: input.output === null ? undefined : input.output === undefined ? DEFAULTS.output : path.resolve(String(input.output)),
+    output,
+    traceOutput,
     enforceGa: input.enforceGa === true
   };
   if (!/^[\x21-\x7e]{1,128}$/u.test(config.tenantId)) throw new Error("tenantId must be 1-128 printable ASCII characters");
@@ -158,10 +244,13 @@ export function parseArgs(argv = process.argv.slice(2), environment = process.en
     seedCount: environment.PREMISE_SOAK_SEED_COUNT,
     maxResponseBytes: environment.PREMISE_SOAK_MAX_RESPONSE_BYTES,
     latencySampleSize: environment.PREMISE_SOAK_LATENCY_SAMPLE_SIZE,
+    rawTraceLimit: environment.PREMISE_SOAK_RAW_TRACE_LIMIT,
     healthPath: environment.PREMISE_SOAK_HEALTH_PATH,
+    livenessPath: environment.PREMISE_SOAK_LIVENESS_PATH,
     tenantId: environment.PREMISE_TENANT_ID,
     operations: environment.PREMISE_SOAK_OPERATIONS,
     output: environment.PREMISE_SOAK_OUTPUT,
+    traceOutput: environment.PREMISE_SOAK_TRACE_OUTPUT,
     enforceGa: false
   };
   let help = false;
@@ -186,10 +275,13 @@ export function parseArgs(argv = process.argv.slice(2), environment = process.en
       case "--seed-count": input.seedCount = value; break;
       case "--max-response-bytes": input.maxResponseBytes = value; break;
       case "--latency-sample-size": input.latencySampleSize = value; break;
+      case "--raw-trace-limit": input.rawTraceLimit = value; break;
       case "--health-path": input.healthPath = value; break;
+      case "--liveness-path": input.livenessPath = value; break;
       case "--tenant-id": input.tenantId = value; break;
       case "--operations": input.operations = value; break;
       case "--output": input.output = value; break;
+      case "--trace-output": input.traceOutput = value; break;
       default: throw new Error(`Unknown argument: ${argument}`);
     }
   }
@@ -207,11 +299,14 @@ Options:
   --request-timeout-ms N         timeout per request (default: 30000)
   --seed-count N                 records written during setup (default: 4)
   --health-path PATH             readiness endpoint (default: /readyz)
+  --liveness-path PATH           liveness endpoint (default: /health)
   --tenant-id ID                 tenant header/envelope (default: tenant:soak)
   --operations LIST              comma-separated health,capabilities,register,retrieve,query,source-changed
   --latency-sample-size N        bounded percentile reservoir (default: 100000)
+  --raw-trace-limit N            raw events retained in the JSON result (default: 10000)
   --max-response-bytes N         response safety limit (default: 4194304)
   --output PATH                  result JSON path
+  --trace-output PATH             complete raw request JSONL trace path
   --enforce-ga                   exit non-zero unless the GA sample gates pass
   --help`;
 }
@@ -243,12 +338,12 @@ function hardwareMetadata() {
   };
 }
 
-function headers(config, method, idempotencyKey) {
+function headers(config, method, idempotencyKey, requestId) {
   const value = {
     accept: "application/json",
     "cache-control": "no-store",
     "x-premise-tenant": config.tenantId,
-    "x-request-id": randomUUID()
+    "x-request-id": requestId
   };
   if (method === "POST") value["content-type"] = "application/json";
   if (method === "POST" && typeof idempotencyKey === "string") value["idempotency-key"] = idempotencyKey;
@@ -262,18 +357,103 @@ function endpoint(config, pathname) {
   return new URL(pathname, `${config.baseUrl}/`).toString();
 }
 
-async function requestJson(config, pathname, method = "GET", body, idempotencyKey) {
+async function responseText(response, maxBytes) {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isSafeInteger(declaredLength) && declaredLength > maxBytes) {
+    throw new SoakError("response exceeded safety limit", "response-too-large", { status: response.status });
+  }
+  if (response.body?.getReader === undefined) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") > maxBytes) {
+      throw new SoakError("response exceeded safety limit", "response-too-large", { status: response.status });
+    }
+    return { text, bytes: Buffer.byteLength(text, "utf8") };
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      bytes += next.value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel();
+        throw new SoakError("response exceeded safety limit", "response-too-large", { status: response.status });
+      }
+      chunks.push(decoder.decode(next.value, { stream: true }));
+    }
+    chunks.push(decoder.decode());
+    return { text: chunks.join(""), bytes };
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function requestMeta(requestId, startedAt, started, pathname, method, status, responseRequestId, responseBytes) {
+  return {
+    requestId,
+    responseRequestId: responseRequestId ?? null,
+    method,
+    path: pathname,
+    startedAt,
+    endedAt: new Date().toISOString(),
+    durationMs: round(Math.max(0.001, performance.now() - started)),
+    status: status ?? null,
+    responseBytes: responseBytes ?? 0
+  };
+}
+
+function normalizedRequestError(error, config, timedOut, interrupted, meta) {
+  if (error instanceof SoakError) {
+    error.requestMeta = meta;
+    return error;
+  }
+  if (interrupted || (error?.name === "AbortError" && config.abortSignal?.aborted === true && !timedOut)) {
+    return new SoakError("soak run interrupted", "interrupted", { requestMeta: meta });
+  }
+  if (timedOut || error?.name === "AbortError" || error?.name === "TimeoutError") {
+    return new SoakError("request timed out", "timeout", { requestMeta: meta });
+  }
+  return new SoakError("request failed", "network", { requestMeta: meta });
+}
+
+async function requestJson(config, pathname, method = "GET", body, idempotencyKey, traceContext = {}) {
+  const requestId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const started = performance.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+  let timedOut = false;
+  let interrupted = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, config.requestTimeoutMs);
+  const abortExternal = () => {
+    interrupted = true;
+    controller.abort();
+  };
+  if (config.abortSignal !== undefined) {
+    if (config.abortSignal.aborted) abortExternal();
+    else config.abortSignal.addEventListener("abort", abortExternal, { once: true });
+  }
+  let status;
+  let responseRequestId;
+  let responseBytes = 0;
+  let failure;
   try {
     const response = await fetch(endpoint(config, pathname), {
       method,
-      headers: headers(config, method, idempotencyKey),
+      headers: headers(config, method, idempotencyKey, requestId),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal
     });
-    const text = await response.text();
-    if (Buffer.byteLength(text, "utf8") > config.maxResponseBytes) throw new SoakError("response exceeded safety limit", "response-too-large", { status: response.status });
+    status = response.status;
+    responseRequestId = response.headers.get("x-request-id") ?? undefined;
+    const payload = await responseText(response, config.maxResponseBytes);
+    responseBytes = payload.bytes;
+    const text = payload.text;
     let parsed;
     try {
       parsed = text.length === 0 ? {} : JSON.parse(text);
@@ -286,11 +466,24 @@ async function requestJson(config, pathname, method = "GET", body, idempotencyKe
     }
     return { status: response.status, body: parsed };
   } catch (error) {
-    if (error instanceof SoakError) throw error;
-    if (error?.name === "AbortError" || error?.name === "TimeoutError") throw new SoakError("request timed out", "timeout");
-    throw new SoakError("request failed", "network");
+    const meta = requestMeta(requestId, startedAt, started, pathname, method, status, responseRequestId, responseBytes);
+    failure = normalizedRequestError(error, config, timedOut, interrupted, meta);
+    throw failure;
   } finally {
     clearTimeout(timeout);
+    if (config.abortSignal !== undefined) config.abortSignal.removeEventListener("abort", abortExternal);
+    const meta = requestMeta(requestId, startedAt, started, pathname, method, status, responseRequestId, responseBytes);
+    const trace = traceContext.trace ?? config.traceWriter;
+    trace?.record({
+      event: "http",
+      phase: traceContext.phase ?? "measured",
+      operation: traceContext.operation ?? "unknown",
+      probe: traceContext.probe ?? null,
+      sequence: traceContext.sequence ?? null,
+      ...meta,
+      ok: failure === undefined,
+      error: failure === undefined ? null : { kind: classifyError(failure), message: failure.message.slice(0, 240), ...(failure.status === undefined ? {} : { status: failure.status }) }
+    });
   }
 }
 
@@ -328,9 +521,9 @@ function recordFor(config, runId, index, kind = "seed") {
   };
 }
 
-function validateHealth(body) {
+function validateHealth(body, { readiness = false } = {}) {
   requireProtocol(body?.ok === true, "health endpoint did not report ok");
-  if (body.ready !== undefined) requireProtocol(body.ready === true, "readiness endpoint did not report ready");
+  if (readiness) requireProtocol(body?.ready === true, "readiness endpoint did not report ready");
 }
 
 function validateCapabilities(body) {
@@ -354,37 +547,50 @@ function validateSourceChanged(body) {
 }
 
 async function runOperation(config, state, operation, sequence) {
+  const call = (pathname, method = "GET", body, idempotencyKey, probe = null) => requestJson(
+    config,
+    pathname,
+    method,
+    body,
+    idempotencyKey,
+    { trace: state.trace, operation, sequence, probe, phase: "measured" }
+  );
   if (operation === "health") {
-    const result = await requestJson(config, config.healthPath);
-    validateHealth(result.body);
+    const liveness = await call(config.livenessPath, "GET", undefined, undefined, "liveness");
+    validateHealth(liveness.body);
+    if (config.healthPath !== config.livenessPath) {
+      const readiness = await call(config.healthPath, "GET", undefined, undefined, "readiness");
+      validateHealth(readiness.body, { readiness: true });
+    } else {
+      validateHealth(liveness.body, { readiness: true });
+    }
     return;
   }
   if (operation === "capabilities") {
-    const result = await requestJson(config, "/v2/capabilities");
+    const result = await call("/v2/capabilities");
     validateCapabilities(result.body);
     return;
   }
   if (operation === "register") {
     const item = recordFor(config, state.runId, sequence, "live");
-    const result = await requestJson(config, "/v2/memories", "POST", { record: item.record }, `ga-soak:${state.runId}:live:${sequence}`);
+    const result = await call("/v2/memories", "POST", { record: item.record }, `ga-soak:${state.runId}:live:${sequence}`);
     validateRegister(result.body, item.memoryId);
-    state.records.set(item.memoryId, item);
     return;
   }
   const seed = state.seedRecords[sequence % state.seedRecords.length];
   if (seed === undefined) throw new SoakError("no seed record is available for read operation", "setup");
   if (operation === "retrieve") {
-    const result = await requestJson(config, `/v2/memories/${encodeURIComponent(seed.memoryId)}`);
+    const result = await call(`/v2/memories/${encodeURIComponent(seed.memoryId)}`);
     validateRetrieve(result.body, seed.memoryId);
     return;
   }
   if (operation === "query") {
-    const result = await requestJson(config, "/v2/query", "POST", { query: "PREMiSE GA soak", maxTokens: 128 }, `ga-soak:${state.runId}:query:${sequence}`);
+    const result = await call("/v2/query", "POST", { query: "PREMiSE GA soak", maxTokens: 128 }, `ga-soak:${state.runId}:query:${sequence}`);
     validateQuery(result.body);
     return;
   }
   if (operation === "source-changed") {
-    const result = await requestJson(config, "/v2/source-changed", "POST", { sourceUri: seed.sourceUri, version: { scheme: "ga-soak", token: `v${sequence + 2}` } }, `ga-soak:${state.runId}:source:${seed.memoryId}:${sequence}`);
+    const result = await call("/v2/source-changed", "POST", { sourceUri: seed.sourceUri, version: { scheme: "ga-soak", token: `v${sequence + 2}` } }, `ga-soak:${state.runId}:source:${seed.memoryId}:${sequence}`);
     validateSourceChanged(result.body);
   }
 }
@@ -422,6 +628,18 @@ async function measure(config, state, metrics, operation, sequence) {
   row.latency.add(durationMs);
   metrics.requests += 1;
   metrics.latency.add(durationMs);
+  if (operation === "health") updateReadiness(state, error);
+  state.trace?.record({
+    event: "operation",
+    phase: "measured",
+    operation,
+    sequence,
+    startedAt: new Date(Date.now() - durationMs).toISOString(),
+    endedAt: new Date().toISOString(),
+    durationMs: round(durationMs),
+    ok: error === undefined,
+    error: error === undefined ? null : { kind: classifyError(error), message: error.message.slice(0, 240), ...(error.status === undefined ? {} : { status: error.status }) }
+  });
   if (error === undefined) {
     row.successful += 1;
     metrics.successful += 1;
@@ -437,23 +655,51 @@ async function measure(config, state, metrics, operation, sequence) {
   }
 }
 
+function updateReadiness(state, error) {
+  const readiness = state.readiness;
+  readiness.probes += 1;
+  if (error === undefined) {
+    readiness.successful += 1;
+    if (readiness.activeOutage !== null) {
+      const endedAt = new Date().toISOString();
+      readiness.activeOutage.endedAt = endedAt;
+      readiness.activeOutage.durationMs = round(Math.max(0, Date.parse(endedAt) - Date.parse(readiness.activeOutage.startedAt)));
+      readiness.outages.push(readiness.activeOutage);
+      readiness.activeOutage = null;
+    }
+    readiness.state = "ready";
+    return;
+  }
+  readiness.failed += 1;
+  if (readiness.activeOutage === null) {
+    readiness.activeOutage = { startedAt: new Date().toISOString(), endedAt: null, durationMs: null, errorKind: classifyError(error) };
+  }
+  readiness.state = "not-ready";
+}
+
 async function setupTarget(config, runId) {
   const started = performance.now();
-  const health = await requestJson(config, config.healthPath);
-  validateHealth(health.body);
-  const capabilities = await requestJson(config, "/v2/capabilities");
+  const traceContext = (operation, probe = null) => ({ trace: config.traceWriter, operation, probe, phase: "setup", sequence: null });
+  const liveness = await requestJson(config, config.livenessPath, "GET", undefined, undefined, traceContext("health", "liveness"));
+  validateHealth(liveness.body);
+  let readiness = liveness;
+  if (config.healthPath !== config.livenessPath) {
+    readiness = await requestJson(config, config.healthPath, "GET", undefined, undefined, traceContext("health", "readiness"));
+  }
+  validateHealth(readiness.body, { readiness: true });
+  const capabilities = await requestJson(config, "/v2/capabilities", "GET", undefined, undefined, traceContext("capabilities"));
   validateCapabilities(capabilities.body);
   const seedRecords = [];
   for (let index = 0; index < config.seedCount; index += 1) {
     const item = recordFor(config, runId, index);
-    const response = await requestJson(config, "/v2/memories", "POST", { record: item.record }, `ga-soak:${runId}:seed:${index}`);
+    const response = await requestJson(config, "/v2/memories", "POST", { record: item.record }, `ga-soak:${runId}:seed:${index}`, traceContext("register"));
     validateRegister(response.body, item.memoryId);
     seedRecords.push(item);
   }
   return {
     ok: true,
     durationMs: round(performance.now() - started),
-    preflight: { health: true, capabilities: true },
+    preflight: { liveness: true, readiness: true, capabilities: true },
     seedRequested: config.seedCount,
     seedStored: seedRecords.length,
     seedRecords
@@ -486,21 +732,56 @@ function summarizeMetrics(metrics) {
   };
 }
 
-function eligibility(config, setup, activeDurationMs, summary, commit) {
+function operationEligibility(summary) {
+  const byOperation = Object.fromEntries(GA_THRESHOLDS.requiredOperations.map((operation) => {
+    const row = summary.byOperation[operation];
+    const requests = row?.requests ?? 0;
+    const failed = row?.failed ?? 0;
+    const errorRate = requests === 0 ? 1 : failed / requests;
+    const availabilityRate = requests === 0 ? 0 : (requests - failed) / requests;
+    const p95Ms = row?.latency?.p95Ms ?? null;
+    const p99Ms = row?.latency?.p99Ms ?? null;
+    return [operation, {
+      requests: { observed: requests, minimum: GA_THRESHOLDS.minimumOperationRequests, passed: requests >= GA_THRESHOLDS.minimumOperationRequests },
+      availability: { observed: round(availabilityRate), minimum: GA_THRESHOLDS.minimumAvailabilityRate, passed: availabilityRate >= GA_THRESHOLDS.minimumAvailabilityRate },
+      errorRate: { observed: round(errorRate), maximum: GA_THRESHOLDS.maximumErrorRate, passed: errorRate <= GA_THRESHOLDS.maximumErrorRate },
+      latencyP95: { observedMs: p95Ms, maximumMs: GA_THRESHOLDS.maximumP95Ms, passed: Number.isFinite(p95Ms) && p95Ms <= GA_THRESHOLDS.maximumP95Ms },
+      latencyP99: { observedMs: p99Ms, maximumMs: GA_THRESHOLDS.maximumP99Ms, passed: Number.isFinite(p99Ms) && p99Ms <= GA_THRESHOLDS.maximumP99Ms }
+    }];
+  }));
+  return {
+    required: GA_THRESHOLDS.requiredOperations,
+    byOperation,
+    passed: Object.values(byOperation).every((checks) => Object.values(checks).every((check) => check.passed))
+  };
+}
+
+function eligibility(config, setup, activeDurationMs, summary, commit, trace, interrupted) {
   const checks = {
     setup: { observed: setup.ok === true, required: true, passed: setup.ok === true },
     commit: { observed: commit.value, passed: commit.value !== "unknown" },
+    interruption: { observed: interrupted, passed: interrupted !== true },
+    operations: operationEligibility(summary),
     duration: { observedMs: round(activeDurationMs), minimumMs: GA_THRESHOLDS.minimumDurationMs, passed: activeDurationMs >= GA_THRESHOLDS.minimumDurationMs },
     requests: { observed: summary.requests, minimum: GA_THRESHOLDS.minimumRequests, passed: summary.requests >= GA_THRESHOLDS.minimumRequests },
     latencySamples: { observed: summary.latency.observations, minimum: GA_THRESHOLDS.minimumLatencySamples, passed: summary.latency.observations >= GA_THRESHOLDS.minimumLatencySamples },
     availability: { observed: summary.availabilityRate, minimum: GA_THRESHOLDS.minimumAvailabilityRate, passed: summary.availabilityRate >= GA_THRESHOLDS.minimumAvailabilityRate },
     errorRate: { observed: summary.errorRate, maximum: GA_THRESHOLDS.maximumErrorRate, passed: summary.errorRate <= GA_THRESHOLDS.maximumErrorRate },
     latencyP95: { observedMs: summary.latency.p95Ms, maximumMs: GA_THRESHOLDS.maximumP95Ms, passed: Number.isFinite(summary.latency.p95Ms) && summary.latency.p95Ms <= GA_THRESHOLDS.maximumP95Ms },
-    latencyP99: { observedMs: summary.latency.p99Ms, maximumMs: GA_THRESHOLDS.maximumP99Ms, passed: Number.isFinite(summary.latency.p99Ms) && summary.latency.p99Ms <= GA_THRESHOLDS.maximumP99Ms }
+    latencyP99: { observedMs: summary.latency.p99Ms, maximumMs: GA_THRESHOLDS.maximumP99Ms, passed: Number.isFinite(summary.latency.p99Ms) && summary.latency.p99Ms <= GA_THRESHOLDS.maximumP99Ms },
+    trace: {
+      path: { observed: trace.path, required: true, passed: typeof trace.path === "string" && trace.path.length > 0 },
+      digest: { observed: trace.sha256, required: true, passed: typeof trace.sha256 === "string" && /^sha256:[0-9a-f]{64}$/iu.test(trace.sha256) },
+      observedEvents: trace.totalEvents,
+      retainedEvents: trace.retainedEvents,
+      truncated: trace.truncated,
+      writeError: trace.writeError,
+      passed: trace.writeError === null && typeof trace.path === "string" && /^sha256:[0-9a-f]{64}$/iu.test(trace.sha256 ?? "")
+    }
   };
   const eligibleForGa = Object.values(checks).every((check) => check.passed);
-  const sampleType = activeDurationMs < GA_THRESHOLDS.minimumDurationMs ? "smoke" : "ga-candidate";
-  const classification = eligibleForGa ? "ga-eligible" : sampleType === "smoke" ? "smoke-only" : "ga-candidate-failed";
+  const sampleType = interrupted ? "interrupted" : activeDurationMs < GA_THRESHOLDS.minimumDurationMs ? "smoke" : "ga-candidate";
+  const classification = eligibleForGa ? "ga-eligible" : interrupted ? "interrupted" : sampleType === "smoke" ? "smoke-only" : "ga-candidate-failed";
   const reasons = Object.entries(checks).filter(([, check]) => !check.passed).map(([name]) => name);
   return {
     eligibleForGa,
@@ -509,7 +790,98 @@ function eligibility(config, setup, activeDurationMs, summary, commit) {
     reasons,
     checks,
     thresholds: GA_THRESHOLDS,
-    note: "Solo una ejecución que cumpla todas las comprobaciones y que sea revisada junto con su entorno y dataset puede usarse como evidencia GA; una prueba corta es smoke-only."
+    note: "Solo una ejecución que cumpla todas las comprobaciones y que sea revisada junto con su entorno y dataset puede usarse como evidencia GA; una prueba corta o interrumpida no es evidencia de disponibilidad."
+  };
+}
+
+async function writeResult(output, result) {
+  await mkdir(path.dirname(output), { recursive: true });
+  const temporary = `${output}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, `${JSON.stringify(result, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    await rename(temporary, output);
+  } catch (error) {
+    await rm(temporary, { force: true }).catch(() => {});
+    throw error;
+  }
+}
+
+function interruptionState(signal, setup) {
+  return signal?.aborted === true || setup.error?.kind === "interrupted";
+}
+
+function closeActiveOutage(readiness) {
+  if (readiness.activeOutage === null) return;
+  readiness.state = "not-ready";
+  readiness.outages.push(readiness.activeOutage);
+  readiness.activeOutage = null;
+}
+
+function emptyReadiness() {
+  return { state: "unknown", probes: 0, successful: 0, failed: 0, outages: [], activeOutage: null };
+}
+
+function traceError(error) {
+  return error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240);
+}
+
+function signalController() {
+  return new AbortController();
+}
+
+function installSignalHandlers(controller) {
+  const onSignal = () => controller.abort();
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
+  return () => {
+    process.removeListener("SIGINT", onSignal);
+    process.removeListener("SIGTERM", onSignal);
+  };
+}
+
+function finalizeReadiness(readiness) {
+  const result = { ...readiness, outages: [...readiness.outages] };
+  delete result.activeOutage;
+  return result;
+}
+
+function resultStatus(result) {
+  return result.setup.ok ? "PASS" : "SETUP_FAILED";
+}
+
+function rawTraceClaims(trace) {
+  return trace.path === null
+    ? ["retained raw request and operation events up to the configured limit"]
+    : ["complete raw request and operation JSONL trace referenced by its basename and SHA-256 digest"];
+}
+
+function benchmarkInterpretation(config, trace) {
+  return {
+    workload: "HTTP liveness/readiness plus real PREMiSE v2 capability, register, retrieve, query and source-change requests against BASE_URL.",
+    availabilityDefinition: "successful semantic logical operations divided by measured operations; HTTP 2xx alone is not sufficient, and readiness requires ready=true.",
+    latencyDefinition: "p50/p95/p99 over a bounded uniform reservoir; observations reports the total seen by the runner.",
+    rawEvidence: rawTraceClaims(trace),
+    livenessPath: config.livenessPath,
+    readinessPath: config.healthPath,
+    claimsSupported: ["only this run, commit, configuration, target, hardware and retained/raw trace evidence"],
+    claimsNotSupported: ["universal capacity", "an SLA or availability guarantee", "external connector quality", "a short-run GA certification"]
+  };
+}
+
+function outputSummary(result, config) {
+  return {
+    status: resultStatus(result),
+    sampleType: result.eligibility.sampleType,
+    classification: result.eligibility.classification,
+    eligibleForGa: result.eligibility.eligibleForGa,
+    requests: result.metrics.requests,
+    availabilityRate: result.metrics.availabilityRate,
+    errorRate: result.metrics.errorRate,
+    p50Ms: result.metrics.latency.p50Ms,
+    p95Ms: result.metrics.latency.p95Ms,
+    p99Ms: result.metrics.latency.p99Ms,
+    stopReason: result.window.stopReason,
+    output: config.output
   };
 }
 
@@ -520,6 +892,15 @@ function emptySetup(config, error) {
 export async function runSoak(input = {}) {
   const config = normalizeConfig(input);
   const runId = input.runId ?? randomUUID();
+  const abortSignal = input.abortSignal ?? input.signal;
+  config.abortSignal = abortSignal;
+  const trace = new TraceWriter({ output: config.traceOutput, limit: config.rawTraceLimit, runId });
+  try {
+    await trace.open();
+  } catch (error) {
+    trace.writeError = traceError(error);
+  }
+  config.traceWriter = trace;
   const startedAt = new Date().toISOString();
   const started = performance.now();
   let setup;
@@ -530,43 +911,66 @@ export async function runSoak(input = {}) {
   }
 
   const metrics = makeMetrics(config);
-  const state = { runId, seedRecords: setup.seedRecords, records: new Map(), nextSequence: 0 };
+  const state = { runId, seedRecords: setup.seedRecords, nextSequence: 0, readiness: emptyReadiness(), trace };
   const measuredWindow = input.measuredWindow;
-  if (setup.ok && typeof measuredWindow?.start === "function") await measuredWindow.start({ runId });
-  const measuredStart = performance.now();
-  if (setup.ok) {
-    const deadline = measuredStart + config.durationMs;
-    const worker = async () => {
-      while (performance.now() < deadline) {
-        const sequence = state.nextSequence;
-        state.nextSequence += 1;
-        const operation = config.operations[sequence % config.operations.length];
-        await measure(config, state, metrics, operation, sequence);
-      }
-    };
-    await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+  let measuredStarted = false;
+  let measuredStart = performance.now();
+  try {
+    if (setup.ok && abortSignal?.aborted !== true) {
+      if (typeof measuredWindow?.start === "function") await measuredWindow.start({ runId });
+      measuredStarted = true;
+      measuredStart = performance.now();
+      const deadline = measuredStart + config.durationMs;
+      const worker = async () => {
+        while (abortSignal?.aborted !== true && performance.now() < deadline) {
+          const sequence = state.nextSequence;
+          state.nextSequence += 1;
+          const operation = config.operations[sequence % config.operations.length];
+          await measure(config, state, metrics, operation, sequence);
+        }
+      };
+      await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
+    }
+  } finally {
+    if (measuredStarted && typeof measuredWindow?.end === "function") await measuredWindow.end({ runId });
   }
   const ended = performance.now();
-  if (setup.ok && typeof measuredWindow?.end === "function") await measuredWindow.end({ runId });
+  closeActiveOutage(state.readiness);
+  try {
+    await trace.close();
+  } catch (error) {
+    trace.writeError ??= traceError(error);
+  }
   const endedAt = new Date().toISOString();
-  const summary = summarizeMetrics(metrics);
+  const summary = { ...summarizeMetrics(metrics), readiness: finalizeReadiness(state.readiness) };
   const commit = commitMetadata();
   const hardware = hardwareMetadata();
+  const traceSummary = trace.summary();
+  const activeDurationMs = measuredStarted ? ended - measuredStart : 0;
+  const interrupted = interruptionState(abortSignal, setup);
+  const window = {
+    configuredDurationMs: config.durationMs,
+    activeDurationMs: round(activeDurationMs),
+    wallClockDurationMs: round(ended - started),
+    deadlineReached: measuredStarted && activeDurationMs >= config.durationMs,
+    inFlightTailMs: round(Math.max(0, activeDurationMs - config.durationMs)),
+    stopReason: interrupted ? "interrupted" : measuredStarted && activeDurationMs >= config.durationMs ? "deadline" : "setup-failed"
+  };
   const result = {
     schema: FORMAT,
     format: FORMAT,
     benchmark: "ga-soak",
     runId,
     generatedAt: endedAt,
-    source: { kind: "live-http", baseUrl: config.baseUrl, healthPath: config.healthPath },
-    trace: { kind: "benchmark-run", runId, operations: config.operations },
+    source: { kind: "live-http", baseUrl: config.baseUrl, healthPath: config.healthPath, livenessPath: config.livenessPath },
+    trace: traceSummary,
     startedAt,
     endedAt,
     commit: commit.value,
     commitSource: commit.source,
     runtime: { node: process.version, versions: { ...process.versions } },
     hardware,
-    target: { baseUrl: config.baseUrl, tenantId: config.tenantId, healthPath: config.healthPath, authorizationConfigured: typeof process.env.PREMISE_API_TOKEN === "string" && process.env.PREMISE_API_TOKEN.length > 0 },
+    target: { baseUrl: config.baseUrl, tenantId: config.tenantId, healthPath: config.healthPath, livenessPath: config.livenessPath, authorizationConfigured: typeof process.env.PREMISE_API_TOKEN === "string" && process.env.PREMISE_API_TOKEN.length > 0 },
     configuration: {
       durationMs: config.durationMs,
       concurrency: config.concurrency,
@@ -574,24 +978,17 @@ export async function runSoak(input = {}) {
       seedCount: config.seedCount,
       maxResponseBytes: config.maxResponseBytes,
       latencySampleSize: config.latencySampleSize,
+      rawTraceLimit: config.rawTraceLimit,
+      traceOutput: traceSummary.path,
       operations: config.operations
     },
     setup: { ...setup, seedRecords: setup.seedRecords.map(({ memoryId, sourceUri }) => ({ memoryId, sourceUri })) },
-    window: { configuredDurationMs: config.durationMs, activeDurationMs: round(ended - measuredStart), wallClockDurationMs: round(ended - started) },
+    window,
     metrics: summary,
-    eligibility: eligibility(config, setup, ended - measuredStart, summary, commit),
-    interpretation: {
-      workload: "HTTP readiness plus real PREMiSE v2 capability, register, retrieve, query and source-change requests against BASE_URL.",
-      availabilityDefinition: "successful semantic responses divided by measured requests; HTTP 2xx alone is not sufficient.",
-      latencyDefinition: "p50/p95/p99 over a bounded uniform reservoir; observations reports the total seen by the runner.",
-      claimsSupported: ["only this run, commit, configuration, target and hardware"],
-      claimsNotSupported: ["universal capacity", "an SLA or availability guarantee", "external connector quality", "a short-run GA certification"]
-    }
+    eligibility: eligibility(config, setup, activeDurationMs, summary, commit, traceSummary, interrupted),
+    interpretation: benchmarkInterpretation(config, traceSummary)
   };
-  if (config.output !== undefined) {
-    await mkdir(path.dirname(config.output), { recursive: true });
-    await writeFile(config.output, `${JSON.stringify(result, null, 2)}\n`, "utf8");
-  }
+  if (config.output !== undefined) await writeResult(config.output, result);
   return result;
 }
 
@@ -601,20 +998,15 @@ async function main() {
     console.log(help());
     return;
   }
-  const result = await runSoak(parsed.config);
-  console.log(JSON.stringify({
-    status: result.setup.ok ? "PASS" : "SETUP_FAILED",
-    sampleType: result.eligibility.sampleType,
-    classification: result.eligibility.classification,
-    eligibleForGa: result.eligibility.eligibleForGa,
-    requests: result.metrics.requests,
-    availabilityRate: result.metrics.availabilityRate,
-    errorRate: result.metrics.errorRate,
-    p50Ms: result.metrics.latency.p50Ms,
-    p95Ms: result.metrics.latency.p95Ms,
-    p99Ms: result.metrics.latency.p99Ms,
-    output: parsed.config.output
-  }, null, 2));
+  const controller = signalController();
+  const removeSignalHandlers = installSignalHandlers(controller);
+  let result;
+  try {
+    result = await runSoak({ ...parsed.config, abortSignal: controller.signal });
+  } finally {
+    removeSignalHandlers();
+  }
+  console.log(JSON.stringify(outputSummary(result, parsed.config), null, 2));
   if (parsed.config.enforceGa && !result.eligibility.eligibleForGa) process.exitCode = 1;
 }
 

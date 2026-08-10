@@ -53,6 +53,12 @@ assert.equal((await query.json()).context.selected.length, 1);
 const oversizedQuery = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { limit: 1001 } }) });
 assert.equal(oversizedQuery.status, 400);
 assert.equal((await oversizedQuery.json()).error, "INVALID_QUERY_LIMIT");
+const invalidCandidateQuery = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { limit: 2, candidateLimit: 1 } }) });
+assert.equal(invalidCandidateQuery.status, 400);
+assert.equal((await invalidCandidateQuery.json()).error, "INVALID_QUERY_CANDIDATE_LIMIT");
+const invalidPageSize = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", pageSize: 0 }) });
+assert.equal(invalidPageSize.status, 400);
+assert.equal((await invalidPageSize.json()).error, "INVALID_QUERY_PAGE_SIZE");
 
 const missingQuery = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
 assert.equal(missingQuery.status, 400);
@@ -122,10 +128,12 @@ const scopedServer = new PremiseServer({
 await scopedServer.listen({ host: "127.0.0.1", port: 0 });
 const scopedAddress = scopedServer.server.address();
 assert.ok(scopedAddress && typeof scopedAddress === "object");
-const scopedQuery = await fetch(`http://127.0.0.1:${scopedAddress.port}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { filters: { topic: "release" } } }) });
+const scopedQuery = await fetch(`http://127.0.0.1:${scopedAddress.port}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { filters: { topic: "release" }, limit: 2, candidateLimit: 10 } }) });
 assert.equal(scopedQuery.status, 200);
 assert.deepEqual(capturedSearchOptions[0].filter, { topic: "release", tenantId: "tenant:filter" });
 assert.equal(capturedSearchOptions[0].filters, undefined);
+assert.equal(capturedSearchOptions[0].limit, 2);
+assert.equal(capturedSearchOptions[0].candidateLimit, 10);
 await scopedServer.close();
 
 const deniedRuntime = new PremiseRuntime({ tenantId: "tenant:denied", now: () => at });

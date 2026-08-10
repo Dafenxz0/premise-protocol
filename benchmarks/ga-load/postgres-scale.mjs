@@ -15,6 +15,9 @@ const DEFAULT_MAX_P95_MS = 500;
 const DEFAULT_MAX_P99_MS = 2_000;
 const DEFAULT_MAX_ERROR_RATE = 0.001;
 const DEFAULT_MIN_MEMORIES = 100_000;
+const DEFAULT_MIN_OPERATION_REQUESTS = 100;
+const OPERATIONS = Object.freeze(["retrieve", "query", "register"]);
+const OPERATION_P95_MULTIPLIER = Object.freeze({ retrieve: 1, query: 1, register: 2 });
 
 function fail(message) {
   throw new Error(message);
@@ -77,6 +80,96 @@ function latencySummary(values) {
   };
 }
 
+function operationSummary(results, operation) {
+  const values = results.filter((result) => result.operation === operation);
+  const successful = values.filter((result) => result.ok).length;
+  const failed = values.length - successful;
+  return {
+    requests: values.length,
+    successful,
+    failed,
+    availabilityRate: values.length === 0 ? 0 : round(successful / values.length),
+    errorRate: values.length === 0 ? 1 : round(failed / values.length),
+    latency: latencySummary(values.map((result) => result.durationMs))
+  };
+}
+
+function summarizeResults(results) {
+  const successful = results.filter((result) => result.ok).length;
+  const failed = results.length - successful;
+  return {
+    requests: results.length,
+    successful,
+    failed,
+    availabilityRate: results.length === 0 ? 0 : round(successful / results.length),
+    errorRate: results.length === 0 ? 1 : round(failed / results.length),
+    latency: latencySummary(results.map((result) => result.durationMs)),
+    byOperation: Object.fromEntries(OPERATIONS.map((operation) => [operation, operationSummary(results, operation)]))
+  };
+}
+
+function operationEligibility(metric, operation, config) {
+  const requests = metric?.requests ?? 0;
+  const successful = metric?.successful ?? 0;
+  const failed = metric?.failed ?? requests - successful;
+  const rawErrorRate = requests === 0 ? 1 : failed / requests;
+  const p95 = metric?.latency?.p95Ms ?? null;
+  const p99 = metric?.latency?.p99Ms ?? null;
+  const minimumRequests = config.minOperationRequests;
+  const maxP95Ms = config.maxP95Ms * (OPERATION_P95_MULTIPLIER[operation] ?? 1);
+  const requestCount = { observed: requests, minimum: minimumRequests, passed: requests >= minimumRequests };
+  const errorRate = {
+    observed: round(rawErrorRate),
+    maximum: config.maxErrorRate,
+    passed: requests >= minimumRequests && rawErrorRate <= config.maxErrorRate
+  };
+  const p95Check = {
+    observedMs: p95,
+    maximumMs: maxP95Ms,
+    passed: requests >= minimumRequests && p95 !== null && p95 <= maxP95Ms
+  };
+  const p99Check = {
+    observedMs: p99,
+    maximumMs: config.maxP99Ms,
+    passed: requests >= minimumRequests && p99 !== null && p99 <= config.maxP99Ms
+  };
+  return {
+    eligibleForGa: requestCount.passed && errorRate.passed && p95Check.passed && p99Check.passed,
+    checks: {
+      requestCount,
+      errorRate,
+      p95: p95Check,
+      p99: p99Check
+    }
+  };
+}
+
+function evaluateEligibility({ stored, metrics, config }) {
+  const p95 = metrics.latency.p95Ms;
+  const p99 = metrics.latency.p99Ms;
+  const aggregateChecks = {
+    realPostgresRecords: { observed: stored, minimum: config.minMemories, passed: stored >= config.minMemories },
+    requestCount: { observed: metrics.requests, minimum: config.requests, passed: metrics.requests >= config.requests },
+    errorRate: { observed: metrics.errorRate, maximum: config.maxErrorRate, passed: metrics.errorRate <= config.maxErrorRate },
+    p95: { observedMs: p95, maximumMs: config.maxP95Ms, passed: p95 !== null && p95 <= config.maxP95Ms },
+    p99: { observedMs: p99, maximumMs: config.maxP99Ms, passed: p99 !== null && p99 <= config.maxP99Ms }
+  };
+  const byOperation = Object.fromEntries(OPERATIONS.map((operation) => [
+    operation,
+    operationEligibility(metrics.byOperation?.[operation], operation, config)
+  ]));
+  const aggregateEligible = Object.values(aggregateChecks).every((check) => check.passed);
+  const operationsEligible = Object.values(byOperation).every((operation) => operation.eligibleForGa);
+  return {
+    eligibleForGa: aggregateEligible && operationsEligible,
+    checks: {
+      ...aggregateChecks,
+      byOperation: Object.fromEntries(OPERATIONS.map((operation) => [operation, byOperation[operation].checks]))
+    },
+    byOperation
+  };
+}
+
 function commitMetadata() {
   const value = ["PREMISE_COMMIT", "GITHUB_SHA", "CI_COMMIT_SHA", "SOURCE_COMMIT"]
     .map((name) => process.env[name])
@@ -115,6 +208,7 @@ function parseArgs(argv) {
     maxP99Ms: positiveInteger(process.env.PREMISE_SCALE_MAX_P99_MS, "PREMISE_SCALE_MAX_P99_MS", DEFAULT_MAX_P99_MS),
     maxErrorRate: Number(process.env.PREMISE_SCALE_MAX_ERROR_RATE ?? DEFAULT_MAX_ERROR_RATE),
     minMemories: positiveInteger(process.env.PREMISE_SCALE_MIN_MEMORIES, "PREMISE_SCALE_MIN_MEMORIES", DEFAULT_MIN_MEMORIES),
+    minOperationRequests: positiveInteger(process.env.PREMISE_SCALE_MIN_OPERATION_REQUESTS, "PREMISE_SCALE_MIN_OPERATION_REQUESTS", DEFAULT_MIN_OPERATION_REQUESTS),
     tracePath: trace === undefined ? undefined : path.resolve(trace),
     outputPath: output === undefined ? undefined : path.resolve(output),
     requestTimeoutMs: positiveInteger(process.env.PREMISE_SCALE_REQUEST_TIMEOUT_MS, "PREMISE_SCALE_REQUEST_TIMEOUT_MS", 30_000),
@@ -368,31 +462,8 @@ async function benchmark(config) {
       const trace = [...results].sort((left, right) => left.sequence - right.sequence).map((result) => JSON.stringify({ schema: TRACE_FORMAT, ...result })).join("\n");
       await writeFile(traceHandle, `${trace}\n`, "utf8");
     }
-    const latencies = results.map((result) => result.durationMs);
-    const successful = results.filter((result) => result.ok).length;
-    const failed = results.length - successful;
-    const errorRate = results.length === 0 ? 1 : failed / results.length;
-    const metrics = {
-      requests: results.length,
-      successful,
-      failed,
-      availabilityRate: results.length === 0 ? 0 : round(successful / results.length),
-      errorRate: round(errorRate),
-      latency: latencySummary(latencies),
-      byOperation: Object.fromEntries(["retrieve", "query", "register"].map((operation) => {
-        const values = results.filter((result) => result.operation === operation);
-        const operationLatencies = values.map((result) => result.durationMs);
-        return [operation, {
-          requests: values.length,
-          successful: values.filter((result) => result.ok).length,
-          failed: values.filter((result) => !result.ok).length,
-          latency: latencySummary(operationLatencies)
-        }];
-      }))
-    };
-    const p95 = metrics.latency.p95Ms;
-    const p99 = metrics.latency.p99Ms;
-    const eligibleForGa = stored >= config.minMemories && metrics.requests >= config.requests && metrics.errorRate <= config.maxErrorRate && p95 !== null && p95 <= config.maxP95Ms && p99 !== null && p99 <= config.maxP99Ms;
+    const metrics = summarizeResults(results);
+    const eligibility = evaluateEligibility({ stored, metrics, config });
     const traceDigest = traceHandle === undefined ? null : await digestFile(traceHandle);
     const report = {
       schema: FORMAT,
@@ -429,19 +500,16 @@ async function benchmark(config) {
         maxP95Ms: config.maxP95Ms,
         maxP99Ms: config.maxP99Ms,
         maxErrorRate: config.maxErrorRate,
-        minMemories: config.minMemories
+        minMemories: config.minMemories,
+        operationThresholds: Object.fromEntries(OPERATIONS.map((operation) => [operation, {
+          minimumRequests: config.minOperationRequests,
+          maxP95Ms: config.maxP95Ms * (OPERATION_P95_MULTIPLIER[operation] ?? 1),
+          maxP99Ms: config.maxP99Ms,
+          maxErrorRate: config.maxErrorRate
+        }]))
       },
       metrics,
-      eligibility: {
-        eligibleForGa,
-        checks: {
-          realPostgresRecords: { observed: stored, minimum: config.minMemories, passed: stored >= config.minMemories },
-          requestCount: { observed: metrics.requests, minimum: config.requests, passed: metrics.requests >= config.requests },
-          errorRate: { observed: metrics.errorRate, maximum: config.maxErrorRate, passed: metrics.errorRate <= config.maxErrorRate },
-          p95: { observedMs: p95, maximumMs: config.maxP95Ms, passed: p95 !== null && p95 <= config.maxP95Ms },
-          p99: { observedMs: p99, maximumMs: config.maxP99Ms, passed: p99 !== null && p99 <= config.maxP99Ms }
-        }
-      },
+      eligibility,
       interpretation: {
         workload: "Real records are read from PostgreSQL, loaded by the production-shaped PREMiSE service, then retrieved and queried over HTTP with concurrent clients.",
         claimsSupported: ["this PostgreSQL version, image, commit, workload, tenant, hardware and run"],
@@ -485,4 +553,4 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === path.reso
   });
 }
 
-export { benchmark, parseArgs, seed };
+export { benchmark, evaluateEligibility, parseArgs, seed, summarizeResults };

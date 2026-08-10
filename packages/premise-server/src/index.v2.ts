@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { URL } from "node:url";
 import { ContextEngine, type ContextCandidate } from "@premise/context-engine";
-import { HybridIndex, type HybridDocument, type SearchOptions } from "@premise/index-hybrid";
+import { DEFAULT_SEARCH_LIMIT, MAX_SEARCH_CANDIDATE_LIMIT, MAX_SEARCH_LIMIT, HybridIndex, type HybridDocument, type MetadataFilter, type SearchOptions } from "@premise/index-hybrid";
 import { SPEC_VERSION_V2, V2EnvelopeValidationError } from "@premise/protocol-types";
 import { PremiseRuntime, type RuntimePrincipal, type RuntimeRecord, type RuntimeValidator } from "@premise/runtime-core";
 
@@ -16,6 +16,39 @@ export interface PremiseSearchHit<T = unknown> {
   readonly content?: T;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly record?: RuntimeRecord<T>;
+}
+
+/** JSON-safe query options accepted by POST /v2/query. */
+export interface PremiseQueryOptions<T = unknown> extends Omit<SearchOptions<T>, "filter" | "filters"> {
+  readonly filter?: MetadataFilter;
+  readonly filters?: MetadataFilter;
+}
+
+/** JSON request body accepted by POST /v2/query. */
+export interface PremiseQueryRequest<T = unknown> {
+  readonly query: string;
+  readonly options?: PremiseQueryOptions<T>;
+  readonly maxTokens?: number;
+  readonly pageSize?: number;
+  readonly pageToken?: string;
+}
+
+export type PremiseQueryErrorCode =
+  | "INVALID_JSON"
+  | "INVALID_REQUEST"
+  | "INVALID_QUERY_LIMIT"
+  | "INVALID_QUERY_CANDIDATE_LIMIT"
+  | "INVALID_QUERY_PAGE_SIZE"
+  | "PAGINATION_UNSUPPORTED"
+  | "UNAUTHORIZED"
+  | "PERSISTENCE_BACKPRESSURE"
+  | "INTERNAL_ERROR";
+
+export interface PremiseQueryError {
+  readonly error: PremiseQueryErrorCode;
+  readonly message: string;
+  readonly requestId: string;
+  readonly details?: readonly unknown[];
 }
 
 export interface PremiseSearchIndex<T = unknown> {
@@ -167,6 +200,13 @@ function positiveSafeInteger(value: unknown, label: string): number {
   return value as number;
 }
 
+function queryInteger(value: unknown, label: string, minimum: number, maximum: number, code: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) < minimum || (value as number) > maximum) {
+    throw new HttpError(400, code, `${label} must be a safe integer from ${minimum} to ${maximum}`);
+  }
+  return value as number;
+}
+
 function runtimeCounts(value: PremiseRuntimeCounts): PremiseRuntimeCounts {
   if (value === null || typeof value !== "object" || !Number.isSafeInteger(value.memories) || value.memories < 0 || !Number.isSafeInteger(value.events) || value.events < 0) {
     throw new TypeError("runtimeCounts must return non-negative safe integer counts");
@@ -314,7 +354,9 @@ export class PremiseServer<T = unknown> {
     this.maxBodyBytes = options.maxBodyBytes ?? 1_048_576;
     if (!Number.isSafeInteger(this.maxBodyBytes) || this.maxBodyBytes < 1) throw new TypeError("maxBodyBytes must be a positive safe integer");
     this.maxQueryHits = options.maxQueryHits ?? 1_000;
-    if (!Number.isSafeInteger(this.maxQueryHits) || this.maxQueryHits < 1) throw new TypeError("maxQueryHits must be a positive safe integer");
+    if (!Number.isSafeInteger(this.maxQueryHits) || this.maxQueryHits < 1 || this.maxQueryHits > MAX_SEARCH_LIMIT) {
+      throw new TypeError(`maxQueryHits must be a safe integer from 1 to ${MAX_SEARCH_LIMIT}`);
+    }
     this.onMetric = options.onMetric;
     this.logger = options.logger ?? (() => undefined);
     this.server = createServer((request, response) => { void this.handle(request, response); });
@@ -389,18 +431,16 @@ export class PremiseServer<T = unknown> {
         const requestedFilter = options.filter ?? options.filters;
         if (requestedFilter !== undefined && !isRecord(requestedFilter)) throw new TypeError("options.filter must be an object");
         let limit: number | undefined;
-        if (options.limit !== undefined) {
-          if (typeof options.limit !== "number" || !Number.isSafeInteger(options.limit) || options.limit < 0 || options.limit > this.maxQueryHits) {
-            throw new HttpError(400, "INVALID_QUERY_LIMIT", `options.limit must be an integer from 0 to ${this.maxQueryHits}`);
-          }
-          limit = options.limit;
-        }
+        if (options.limit !== undefined) limit = queryInteger(options.limit, "options.limit", 0, this.maxQueryHits, "INVALID_QUERY_LIMIT");
         let pageSize: number | undefined;
-        if (input.pageSize !== undefined) {
-          if (typeof input.pageSize !== "number" || !Number.isSafeInteger(input.pageSize) || input.pageSize < 1 || input.pageSize > this.maxQueryHits) {
-            throw new HttpError(400, "INVALID_QUERY_LIMIT", `pageSize must be an integer from 1 to ${this.maxQueryHits}`);
+        if (input.pageSize !== undefined) pageSize = queryInteger(input.pageSize, "pageSize", 1, this.maxQueryHits, "INVALID_QUERY_PAGE_SIZE");
+        const effectiveLimit = limit ?? pageSize ?? DEFAULT_SEARCH_LIMIT;
+        if (options.candidateLimit !== undefined) {
+          const minimumCandidateLimit = Math.max(1, effectiveLimit);
+          if (minimumCandidateLimit > MAX_SEARCH_CANDIDATE_LIMIT) {
+            throw new HttpError(400, "INVALID_QUERY_CANDIDATE_LIMIT", `options.candidateLimit cannot satisfy an effective result limit of ${effectiveLimit}`);
           }
-          pageSize = input.pageSize;
+          queryInteger(options.candidateLimit, "options.candidateLimit", minimumCandidateLimit, MAX_SEARCH_CANDIDATE_LIMIT, "INVALID_QUERY_CANDIDATE_LIMIT");
         }
         if (input.pageToken !== undefined) throw new HttpError(501, "PAGINATION_UNSUPPORTED", "This PREMiSE server does not support pageToken yet");
         const { filter, filters, ...searchOptions } = options;

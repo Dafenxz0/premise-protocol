@@ -153,6 +153,13 @@ Para que sea evidencia GA también debe repetirse tras un reinicio y revisarse
 con `postgres-scale.json`, `postgres-scale-restart.json` y los diagnósticos de
 PostgreSQL.
 
+El informe no mezcla las colas de las operaciones: exige al menos 100 muestras
+de `retrieve`, `query` y `register`. El p95 agregado y el de lectura/query es
+500 ms; `register` tiene un p95 explícito de 1.000 ms porque espera la barrera
+de durabilidad y la publicación del evento. Todas mantienen p99 de 2.000 ms y
+error máximo de 0,1 %. Los umbrales quedan escritos en el JSON para que una
+ejecución no pueda cambiar la interpretación después de medir.
+
 El espejo durable procesa escrituras con concurrencia acotada para no bloquear
 todo el servicio ni saturar PostgreSQL. El valor por defecto es `4`; se puede
 ajustar por despliegue con `PREMISE_RUNTIME_WRITE_CONCURRENCY` (entero entre 1

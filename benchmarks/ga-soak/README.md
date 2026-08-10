@@ -30,9 +30,21 @@ node benchmarks/ga-soak/runner.mjs `
 
 `--enforce-ga` solo debe usarse en el job que realmente quiera exigir la muestra mínima. El token nunca se escribe en el resultado; únicamente se registra `authorizationConfigured: true|false`.
 
-También se pueden configurar `PREMISE_SOAK_DURATION_MS`, `PREMISE_SOAK_CONCURRENCY`, `PREMISE_SOAK_REQUEST_TIMEOUT_MS`, `PREMISE_SOAK_SEED_COUNT`, `PREMISE_SOAK_HEALTH_PATH`, `PREMISE_SOAK_OPERATIONS`, `PREMISE_SOAK_LATENCY_SAMPLE_SIZE` y `PREMISE_SOAK_OUTPUT`.
+También se pueden configurar `PREMISE_SOAK_DURATION_MS`, `PREMISE_SOAK_CONCURRENCY`, `PREMISE_SOAK_REQUEST_TIMEOUT_MS`, `PREMISE_SOAK_SEED_COUNT`, `PREMISE_SOAK_HEALTH_PATH`, `PREMISE_SOAK_LIVENESS_PATH`, `PREMISE_SOAK_OPERATIONS`, `PREMISE_SOAK_LATENCY_SAMPLE_SIZE`, `PREMISE_SOAK_RAW_TRACE_LIMIT`, `PREMISE_SOAK_TRACE_OUTPUT` y `PREMISE_SOAK_OUTPUT`.
 
 El benchmark escribe `benchmarks/ga-soak/results.json` salvo que se indique `--output PATH`.
+
+La elegibilidad GA se calcula de forma global y por operación. Cada operación
+requerida (`health`, `capabilities`, `register`, `retrieve`, `query` y
+`source-changed`) debe tener muestras, disponibilidad y percentiles dentro del
+contrato. Un resultado corto se clasifica como `smoke-only`; no se convierte
+en evidencia GA por tener una media favorable.
+
+Para una campaña auditable, usa `--trace-output PATH`. El runner escribe un
+JSONL con request id, respuesta, estado, duración, operación y error, limita el
+número de eventos retenidos en memoria y calcula SHA-256 del fichero completo.
+El resultado solo afirma lo observado en ese commit, host, configuración y
+dataset; no es un SLA universal.
 
 ## Diagnostico PostgreSQL y acceptance check
 

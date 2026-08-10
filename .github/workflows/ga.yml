@@ -718,6 +718,7 @@ jobs:
             --duration-ms "$SOAK_DURATION_MS" \
             --concurrency "${PREMISE_SOAK_CONCURRENCY:-16}" \
             --output /tmp/soak-availability.json \
+            --trace-output /tmp/soak-availability-trace.jsonl \
             --enforce-ga | tee .ga-artifacts/soak-run.log
       - name: Copy in-network soak diagnostic evidence
         if: always()
@@ -728,11 +729,18 @@ jobs:
       - name: Capture soak stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log
+      - name: Copy raw soak trace
+        if: always()
+        run: |
+          docker compose -f "${COMPOSE_FILE}" exec -T premise \
+            sh -ec 'test -s /tmp/soak-availability-trace.jsonl && cat /tmp/soak-availability-trace.jsonl' \
+            > .ga-artifacts/soak-availability-trace.jsonl
       - name: Verify soak raw evidence
         if: always()
         run: |
           set -euo pipefail
           test -s .ga-artifacts/soak-availability.json
+          test -s .ga-artifacts/soak-availability-trace.jsonl
           test -s .ga-artifacts/soak-run.log
           test -s .ga-artifacts/soak-compose.log
       - name: Upload soak evidence
