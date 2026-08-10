@@ -844,8 +844,12 @@ export async function run(options = parseArgs(process.argv.slice(2))) {
 
   const gates = buildGates(options, nodeInfo, load, reliability);
   const result = {
+    schema: FORMAT,
     format: FORMAT,
+    commit: process.env.PREMISE_COMMIT ?? process.env.GITHUB_SHA ?? null,
     generatedAt: new Date().toISOString(),
+    source: { kind: "synthetic-local", workload: "million-memory-journal-and-recovery" },
+    trace: { kind: "raw-benchmark-output", output: options.output },
     runner: "node-worker-threads",
     node: nodeInfo,
     profile: options.profile,

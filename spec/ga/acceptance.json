@@ -15,7 +15,11 @@
     "p99LatencyMsMax": 2000,
     "errorRateMax": 0.001,
     "availabilityMin": 0.999,
-    "costPerThousandOperationsUsdMax": 0.05
+    "costPerThousandOperationsUsdMax": 0.05,
+    "holdoutTasksMin": 200,
+    "availabilityMeasurementMinSeconds": 3600,
+    "availabilityMeasurementMinRequests": 10000,
+    "costEvidenceMode": "provider-billing-or-metered-infrastructure"
   },
   "gates": [
     {
@@ -53,6 +57,12 @@
       "owner": "operations",
       "requirement": "The deployment is reproducible and health, metrics, alerts, backup and rollback are verified.",
       "evidence": ["operations-smoke.json", "rollback-report.json"]
+    },
+    {
+      "id": "availability-and-cost",
+      "owner": "operations-finance",
+      "requirement": "A minimum-duration soak against a real deployment meets the availability and latency SLOs, and cost is measured from provider billing or metered infrastructure rather than a local proxy.",
+      "evidence": ["soak-availability.json", "cost-report.json"]
     },
     {
       "id": "stable-api",

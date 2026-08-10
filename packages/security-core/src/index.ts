@@ -827,3 +827,6 @@ export class AuditLog {
     return verifyAuditChain(this.#records);
   }
 }
+
+export * from "./external-key-provider.js";
+export * from "./audit-sink.js";

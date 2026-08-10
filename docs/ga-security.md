@@ -10,6 +10,7 @@
 - **Payloads cifrados:** `encryptPayload` y `KeyRing` usan AES-256-GCM, clave de exactamente 32 bytes, IV aleatorio de 12 bytes, tag de autenticación de 16 bytes y AAD opcional. Cada envelope incluye `format`, `version`, `algorithm`, `keyId`, IV, ciphertext y tag. `KeyRing.rotate` activa una clave nueva conservando las anteriores para descifrar; `retire` las elimina de forma explícita.
 - **ACL:** `AclPolicy` aplica tenant, subject, action y resource. El valor por defecto es deny, un deny explícito gana a cualquier allow y un request nunca puede usar wildcard como tenant/subject/action.
 - **Auditoría:** `AuditLog.append` es append-only desde la API pública. Cada entrada contiene `previousHash` y un SHA-256 de la entrada canónica; `verifyAuditChain` detecta modificaciones y reordenaciones. `sanitizeSecrets` redacta nombres sensibles y los valores secretos entregados por el caller sin mutar el objeto original.
+- **Auditoría durable local:** `FileAuditSink` persiste NDJSON canónico con `O_APPEND`, `fsync`, permisos `0600`, límites de capacidad y apertura fail-closed si la cadena está truncada, reordenada, duplicada o corrupta. Su alcance y los requisitos WORM del despliegue están documentados en [`ga-audit.md`](./ga-audit.md).
 
 Ejemplo de aislamiento criptográfico por tenant:
 
@@ -27,7 +28,7 @@ Esta biblioteca no es un KMS, HSM, almacén durable ni proveedor de identidad.
 En una instalación GA se requiere infraestructura adicional para:
 
 1. Generar, custodiar, versionar, envolver y rotar las claves AES/Ed25519 con KMS/HSM. `KeyRing` mantiene material de clave en memoria del proceso; recibir una `Uint8Array` desde configuración no convierte el proceso en un KMS. No persistas claves sin envoltura ni las escribas en logs.
-2. Resolver las claves por `keyId` desde KMS antes de construir el `KeyRing`, aplicar permisos mínimos por servicio/tenant y retirar versiones conforme a la política de retención. El paquete no contiene un adaptador KMS para no imponer un proveedor.
+2. Resolver las claves por `keyId` desde KMS antes de construir el `KeyRing`, aplicar permisos mínimos por servicio/tenant y retirar versiones conforme a la política de retención. El adaptador inyectable y sus límites están documentados en [`ga-kms.md`](./ga-kms.md); el paquete no contiene un cliente KMS concreto para no imponer un proveedor.
 3. Sustituir `MemoryReplayStore` por un almacén compartido con operación atómica tipo `SETNX`/insert-if-absent y TTL cuando existan varias réplicas. El guard por defecto sólo protege un proceso.
 4. Persistir el audit log en una transacción append-only con almacenamiento durable/WORM, control de acceso separado y copias de seguridad. El hash chaining detecta corrupción y borrado/reordenación al verificar la cadena, pero no impide que un operador con permisos de almacenamiento borre el único archivo.
 5. Distribuir y revisar las reglas ACL desde un origen de configuración controlado. Un wildcard global es deliberado y debe tratarse como una excepción revisada; el default deny permanece recomendado.
