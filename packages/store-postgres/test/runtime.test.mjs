@@ -32,9 +32,11 @@ class InMemoryPostgresClient {
   events = new Map();
   snapshots = new Map();
   migrations = new Set();
+  queries = [];
 
   async query(sql, values = []) {
     const statement = sql.replace(/\s+/g, " ").trim();
+    this.queries.push({ statement, values: [...values] });
     if (statement.startsWith("CREATE TABLE") || statement.startsWith("CREATE INDEX") || statement.startsWith("ALTER TABLE") || statement.startsWith("DROP POLICY") || statement.startsWith("CREATE POLICY")) return { rows: [] };
     if (statement.startsWith("SELECT pg_advisory_xact_lock") || statement.startsWith("SELECT set_config") || statement.startsWith("SET TRANSACTION")) return { rows: [] };
     if (statement.startsWith('SELECT version FROM "premise_v2_schema_migrations"')) return { rows: [...this.migrations].sort((a, b) => a - b).map((version) => ({ version })) };
@@ -102,6 +104,11 @@ await assert.rejects(() => store.appendEvent({ ...event, eventId: "event:postgre
 assert.equal((await store.listEvents()).length, 1);
 
 const snapshot = await store.snapshot(at);
+const snapshotInsert = client.queries.find(({ statement }) => statement.startsWith('INSERT INTO "premise_v2_snapshots"'));
+assert.ok(snapshotInsert);
+assert.match(snapshotInsert.statement, /VALUES \(\$1, \$2, \$3, \$4::jsonb\)/);
+assert.equal(snapshotInsert.values[1], at);
+assert.equal(snapshotInsert.values[2], at);
 await store.restore(snapshot);
 assert.deepEqual(await store.get(envelope.memoryId), { envelope, content: { answer: 42 } });
 assert.equal((await store.listEvents()).length, 1);

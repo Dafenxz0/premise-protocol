@@ -520,11 +520,11 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
   private async saveSnapshotOn(client: PostgresAdapter, snapshot: RuntimeSnapshot<T>): Promise<void> {
     await client.query(`
       INSERT INTO ${this.runtime.snapshots}(tenant_id, snapshot_id, captured_at, snapshot_json)
-      VALUES ($1, $2, $2, $3::jsonb)
+      VALUES ($1, $2, $3, $4::jsonb)
       ON CONFLICT (tenant_id, snapshot_id) DO UPDATE SET
         captured_at = EXCLUDED.captured_at,
         snapshot_json = EXCLUDED.snapshot_json
-    `, [this.snapshotTenant(), snapshot.capturedAt, json(snapshot)]);
+    `, [this.snapshotTenant(), snapshot.capturedAt, snapshot.capturedAt, json(snapshot)]);
   }
 
   private checkedSnapshot(snapshot: RuntimeSnapshot<T>): RuntimeSnapshot<T> {
