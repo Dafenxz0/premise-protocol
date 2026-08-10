@@ -121,7 +121,8 @@ try {
   assert.equal(result.eligibility.sampleType, "smoke", "short fixture run must be smoke");
   assert.equal(result.eligibility.classification, "smoke-only", "short fixture run must be marked smoke-only");
   assert.ok(result.hardware.logicalCpus > 0, "hardware metadata is missing CPU count");
-  assert.ok(result.commit.value.length > 0, "commit metadata is missing");
+  assert.ok(result.commit.length > 0, "commit metadata is missing");
+  assert.ok(typeof result.commitSource === "string" && result.commitSource.length > 0, "commit source metadata is missing");
 
   const diagnosticSamples = [
     {

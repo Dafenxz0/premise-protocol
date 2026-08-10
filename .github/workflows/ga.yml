@@ -372,6 +372,13 @@ jobs:
           done
           docker compose -f "${COMPOSE_FILE}" ps
           exit 1
+      - name: Verify effective PostgreSQL settings
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" exec -T premise \
+            node /app/ops/postgres-settings.mjs | tee .ga-artifacts/postgres-settings.json
       - name: Run v2 smoke test
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -453,7 +460,11 @@ jobs:
           PREMISE_IMAGE: ${{ env.IMAGE }}
           PREMISE_BUILD_VERSION: ${{ github.sha }}
           PREMISE_TENANT_ID: tenant:ga
-        run: docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
+        run: |
+          set -euo pipefail
+          export PREMISE_ENV=production
+          export PREMISE_API_TOKEN="$(openssl rand -hex 32)"
+          docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
       - name: Wait for readiness
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -465,6 +476,13 @@ jobs:
           done
           docker compose -f "${COMPOSE_FILE}" ps
           exit 1
+      - name: Verify effective PostgreSQL settings
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" exec -T premise \
+            node /app/ops/postgres-settings.mjs | tee .ga-artifacts/postgres-settings.json
       - name: Run one-hour soak and enforce GA sample and database diagnostics
         env:
           BASE_URL: http://127.0.0.1:3000
@@ -480,14 +498,14 @@ jobs:
             --base-url "$BASE_URL" \
             --duration-ms "$SOAK_DURATION_MS" \
             --concurrency "${PREMISE_SOAK_CONCURRENCY:-16}" \
-            --output /tmp/soak-diagnostic.json \
+            --output /tmp/soak-availability.json \
             --enforce-ga
       - name: Copy in-network soak diagnostic evidence
         if: always()
         run: |
           docker compose -f "${COMPOSE_FILE}" cp \
-            premise:/tmp/soak-diagnostic.json \
-            .ga-artifacts/soak-diagnostic.json || true
+            premise:/tmp/soak-availability.json \
+            .ga-artifacts/soak-availability.json || true
       - name: Capture soak stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log
