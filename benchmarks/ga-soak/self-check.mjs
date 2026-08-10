@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { classifyAcceptance, DIAGNOSTIC_FORMAT, runDiagnostic } from "./diagnostic.mjs";
 import { POSTGRES_TELEMETRY_FORMAT, readPostgresTelemetry } from "./postgres-telemetry.mjs";
 import { runSoak, FORMAT } from "./runner.mjs";
@@ -94,6 +97,8 @@ const server = createServer(async (request, response) => {
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const address = server.address();
 assert.ok(address && typeof address === "object" && address.port > 0, "fixture server did not bind");
+const traceDirectory = await mkdtemp(path.join(tmpdir(), "premise-ga-soak-self-check-"));
+const tracePath = path.join(traceDirectory, "trace.jsonl");
 
 try {
   const result = await runSoak({
@@ -105,6 +110,7 @@ try {
     operations: ["health", "capabilities", "register", "retrieve", "query", "source-changed"],
     tenantId: "tenant:self-check",
     output: null,
+    traceOutput: tracePath,
     runId: "self-check"
   });
 
@@ -115,6 +121,11 @@ try {
   assert.ok(result.metrics.latency.observations > 0, "latency observations are missing");
   assert.ok(result.metrics.latency.p50Ms <= result.metrics.latency.p95Ms, "p50 must not exceed p95");
   assert.ok(result.metrics.latency.p95Ms <= result.metrics.latency.p99Ms, "p95 must not exceed p99");
+  const rawTrace = await readFile(tracePath, "utf8");
+  assert.ok(rawTrace.length > 0, "raw trace is empty");
+  assert.equal(result.trace.path, "trace.jsonl", "trace basename is missing");
+  assert.match(result.trace.sha256 ?? "", /^sha256:[0-9a-f]{64}$/u, "trace digest is missing");
+  assert.ok(rawTrace.split("\n").filter(Boolean).every((line) => JSON.parse(line).schema === "premise-ga-soak/trace/1"), "trace schema is invalid");
   assert.equal(result.eligibility.checks.latencyP95.passed, true, "fixture p95 should satisfy the public latency gate");
   assert.equal(result.eligibility.checks.latencyP99.passed, true, "fixture p99 should satisfy the public latency gate");
   assert.equal(result.eligibility.thresholds.maximumP95Ms, 500, "p95 threshold drifted from the public GA contract");
@@ -183,5 +194,6 @@ try {
     diagnosticClassification: diagnostic.acceptance.classification
   }, null, 2));
 } finally {
+  await rm(traceDirectory, { recursive: true, force: true });
   await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 }
