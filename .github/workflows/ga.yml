@@ -458,19 +458,29 @@ jobs:
           done
           docker compose -f "${COMPOSE_FILE}" ps
           exit 1
-      - name: Run one-hour soak and enforce GA sample gates
+      - name: Run one-hour soak and enforce GA sample and database diagnostics
         env:
           BASE_URL: http://127.0.0.1:3000
           PREMISE_TENANT_ID: tenant:ga
           PREMISE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          node benchmarks/ga-soak/runner.mjs \
+          docker compose -f "${COMPOSE_FILE}" exec -T \
+            -e BASE_URL=http://127.0.0.1:3000 \
+            -e PREMISE_TENANT_ID=tenant:ga \
+            -e PREMISE_COMMIT="${PREMISE_COMMIT}" \
+            premise node /app/benchmarks/ga-soak/diagnostic.mjs \
             --base-url "$BASE_URL" \
             --duration-ms "$SOAK_DURATION_MS" \
             --concurrency "${PREMISE_SOAK_CONCURRENCY:-16}" \
-            --output .ga-artifacts/soak-availability.json \
+            --output /tmp/soak-diagnostic.json \
             --enforce-ga
+      - name: Copy in-network soak diagnostic evidence
+        if: always()
+        run: |
+          docker compose -f "${COMPOSE_FILE}" cp \
+            premise:/tmp/soak-diagnostic.json \
+            .ga-artifacts/soak-diagnostic.json || true
       - name: Capture soak stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log

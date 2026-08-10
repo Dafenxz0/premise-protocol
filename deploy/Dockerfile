@@ -48,6 +48,10 @@ COPY --from=build --chown=10001:10001 /workspace/node_modules ./node_modules
 COPY --from=build --chown=10001:10001 /workspace/packages ./packages
 COPY --from=build --chown=10001:10001 /workspace/ops ./ops
 COPY --from=build --chown=10001:10001 /workspace/deploy ./deploy
+# Keep the production-shaped soak diagnostic beside the runtime so CI can
+# measure the same service/container network and PostgreSQL instance that it
+# is certifying, without exposing the database port to the host.
+COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-soak ./benchmarks/ga-soak
 # Operations code is imported from /app/ops, so production-only connector
 # dependencies must be resolvable from the image-level /app/node_modules.
 COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modules

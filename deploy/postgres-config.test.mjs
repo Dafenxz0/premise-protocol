@@ -4,6 +4,7 @@ import test from "node:test";
 
 const config = await readFile(new URL("./postgres/postgresql.conf", import.meta.url), "utf8");
 const compose = await readFile(new URL("./docker-compose.yml", import.meta.url), "utf8");
+const dockerfile = await readFile(new URL("./Dockerfile", import.meta.url), "utf8");
 const productionEnv = await readFile(new URL("./config/production.env.example", import.meta.url), "utf8");
 
 function setting(text, name) {
@@ -42,4 +43,8 @@ test("Compose activates the checked-in config and leaves pool headroom", () => {
 
 test("production example pins the same pool budget", () => {
   assert.match(productionEnv, /^PREMISE_DB_POOL_SIZE=8$/mu);
+});
+
+test("production image carries the in-network soak diagnostic", () => {
+  assert.match(dockerfile, /COPY --from=build --chown=10001:10001 \/workspace\/benchmarks\/ga-soak \.\/benchmarks\/ga-soak/u);
 });
