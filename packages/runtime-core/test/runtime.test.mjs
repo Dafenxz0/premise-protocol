@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync, sign } from "node:crypto";
 import { InMemoryRuntimeStore, PremiseRuntime } from "../dist/index.js";
+import { canonicalizeMemoryEnvelopeV2, MemoryV2SignatureReplayStore } from "@premise/protocol-types";
 
 const at = "2026-08-10T10:00:00Z";
 const envelope = (memoryId, dependsOn = [], status = "FRESH", tenantId = "tenant:acme", sourceUri = "github://acme/repo/commit/main") => ({
@@ -14,6 +16,16 @@ const envelope = (memoryId, dependsOn = [], status = "FRESH", tenantId = "tenant
   dependsOn,
   signatures: []
 });
+
+const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+const signedEnvelope = (memoryId) => {
+  const unsigned = envelope(memoryId);
+  const signature = sign(null, Buffer.from(canonicalizeMemoryEnvelopeV2(unsigned), "utf8"), privateKey).toString("base64");
+  return {
+    ...unsigned,
+    signatures: [{ signatureId: `sig:${memoryId}`, signerId: "test-signer", keyId: "key:test", algorithm: "ed25519", value: signature, signedAt: at }]
+  };
+};
 
 class CountingStore extends InMemoryRuntimeStore {
   putCalls = 0;
@@ -117,5 +129,21 @@ assert.deepEqual(
   ["memory:external-source"],
   "source indexes must refresh when the public store is mutated outside the runtime"
 );
+
+const signatureReplayStore = new MemoryV2SignatureReplayStore();
+const signedRuntime = new PremiseRuntime({
+  tenantId: "tenant:acme",
+  now: () => at,
+  signatureVerification: { keys: new Map([["key:test", publicKey]]), replayStore: signatureReplayStore }
+});
+const trusted = signedEnvelope("memory:signed");
+signedRuntime.register({ envelope: trusted, content: { value: "trusted" } }, "request:signed");
+signedRuntime.register({ envelope: trusted, content: { value: "trusted" } }, "request:signed");
+assert.equal(signedRuntime.history().length, 1, "an idempotent signed retry must not append a second event");
+assert.equal(signedRuntime.get("memory:signed").content.value, "trusted");
+assert.throws(() => signedRuntime.register({ envelope: envelope("memory:unsigned"), content: {} }), /signature|unsigned/i);
+assert.throws(() => new PremiseRuntime({ tenantId: "tenant:acme", requireSignedEnvelopes: true }), /signatureVerification/);
+const tampered = { ...signedEnvelope("memory:tampered"), confidence: { ...signedEnvelope("memory:tampered").confidence, method: "tampered" } };
+assert.throws(() => signedRuntime.register({ envelope: tampered, content: {} }), /signature|Invalid PREMiSE/);
 
 console.log("runtime-core tests passed");

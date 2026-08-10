@@ -228,3 +228,4 @@ export function usabilityForStatus(status: MemoryStatus): UsabilityDecision {
 }
 
 export * from "./v2.js";
+export * from "./signatures.js";

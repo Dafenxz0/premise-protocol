@@ -60,7 +60,12 @@ test("GA certification is fail-closed for manual runs and required evidence cann
   }
 
   const certification = workflow.slice(workflow.indexOf("  ga-certification:"));
-  assert.match(certification, /test "\$result" = success/u);
+  assert.match(certification, /actions\/download-artifact@v4/u);
+  assert.match(certification, /scripts\/collect-ga-evidence\.mjs/u);
+  assert.match(certification, /scripts\/ga-gate\.mjs --strict/u);
+  assert.match(certification, /campaign-status\.exit/u);
+  assert.match(certification, /collector\.exit/u);
+  assert.match(certification, /ga-gate\.exit/u);
   for (const campaign of ["SECURITY", "DETERMINISTIC_LOAD", "MILLION_LOAD", "POSTGRES_SCALE", "EXTERNAL_GITHUB", "EXTERNAL_HOLDOUT", "INTEGRATION", "PRODUCTION_SOAK", "COST_EVIDENCE", "ROLLBACK"]) {
     assert.match(certification, new RegExp("^          " + campaign + ":", "mu"));
   }

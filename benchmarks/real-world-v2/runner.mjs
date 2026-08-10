@@ -37,7 +37,7 @@ function answersMatch(actual, expected) {
   return stable(comparableGithub(actual)) === stable(comparableGithub(expected));
 }
 
-function measure(strategy, tasks, truthForTask, runTask) {
+async function measure(strategy, tasks, truthForTask, runTask) {
   const latencies = [];
   const traces = [];
   let correct = 0;
@@ -48,10 +48,12 @@ function measure(strategy, tasks, truthForTask, runTask) {
     let answer;
     let error;
     let taskRequests = 0;
+    let trace = {};
     try {
-      const result = runTask(task);
+      const result = await runTask(task);
       answer = result.answer;
       taskRequests = result.requests ?? 0;
+      trace = result.trace ?? {};
       requests += taskRequests;
     } catch (caught) {
       error = caught instanceof Error ? caught.message : String(caught);
@@ -61,7 +63,7 @@ function measure(strategy, tasks, truthForTask, runTask) {
     latencies.push(latencyMs);
     const expected = truthForTask(task);
     if (error === undefined && answersMatch(answer, expected)) correct += 1;
-    traces.push({ strategy, taskId: task.id, source: task.source, correct: error === undefined && answersMatch(answer, expected), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)), ...(error ? { error } : {}) });
+    traces.push({ strategy, taskId: task.id, source: task.source, correct: error === undefined && answersMatch(answer, expected), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)), ...trace, ...(error ? { error } : {}) });
   }
   return {
     strategy,
@@ -115,13 +117,13 @@ function offlineWorld() {
   };
 }
 
-function runOffline() {
+async function runOffline() {
   const directWorld = offlineWorld();
   const tasks = directWorld.tasks;
-  const direct = measure("direct-read", tasks, directWorld.truth, (task) => directWorld.read(task));
+  const direct = await measure("direct-read", tasks, directWorld.truth, (task) => directWorld.read(task));
   const ttlWorld = offlineWorld();
   const ttlCache = new Map();
-  const ttl = measure("ttl-cache-20", tasks, ttlWorld.truth, (task) => {
+  const ttl = await measure("ttl-cache-20", tasks, ttlWorld.truth, (task) => {
     ttlWorld.mutate(task.index);
     const cached = ttlCache.get(task.key);
     if (cached && task.index - cached.at < 20) return { answer: cached.answer, requests: 0 };
@@ -131,7 +133,7 @@ function runOffline() {
   });
   const premiseWorld = offlineWorld();
   const premiseCache = new Map();
-  const premise = measure("premise-event-cache", tasks, premiseWorld.truth, (task) => {
+  const premise = await measure("premise-event-cache", tasks, premiseWorld.truth, (task) => {
     premiseWorld.mutate(task.index);
     const currentEvents = premiseWorld.events.filter((event) => event.atTask === task.index);
     for (const event of currentEvents) premiseCache.delete(event.source.split("/").pop());
@@ -170,9 +172,14 @@ async function githubGet(path, token, headers = {}) {
   const text = await response.text();
   let body;
   try { body = JSON.parse(text); } catch { body = text; }
-  if (response.status === 304) return { status: 304, body: undefined, etag: response.headers.get("etag") };
+  const metadata = {
+    etag: response.headers.get("etag"),
+    rateLimitRemaining: response.headers.get("x-ratelimit-remaining"),
+    rateLimitUsed: response.headers.get("x-ratelimit-used")
+  };
+  if (response.status === 304) return { status: 304, body: undefined, ...metadata };
   if (!response.ok) throw new Error(`GitHub ${response.status}: ${typeof body === "string" ? body.slice(0, 180) : JSON.stringify(body).slice(0, 180)}`);
-  return { status: response.status, body, etag: response.headers.get("etag") };
+  return { status: response.status, body, ...metadata };
 }
 
 async function runLive(repetitions) {
@@ -205,7 +212,19 @@ async function runLive(repetitions) {
     const endpoint = availableEndpoints[index % availableEndpoints.length];
     return { id: `live-${index + 1}`, source: `github://${owner}/${repository}/${endpoint.key}`, key: endpoint.key, path: endpoint.path, index };
   });
-  const direct = measure("direct-read", tasks, (task) => truth.get(task.key), (task) => ({ answer: observed.get(task.key).body, requests: 1 }));
+  const direct = await measure("direct-read", tasks, (task) => truth.get(task.key), async (task) => {
+    const response = await githubGet(task.path, token);
+    return {
+      answer: response.body,
+      requests: 1,
+      trace: {
+        status: response.status,
+        etag: response.etag,
+        rateLimitRemaining: response.rateLimitRemaining,
+        rateLimitUsed: response.rateLimitUsed
+      }
+    };
+  });
   const traces = [];
   const strategies = [direct];
   for (const strategyName of ["ttl-cache-20", "premise-conditional-cache"]) {
@@ -218,6 +237,7 @@ async function runLive(repetitions) {
       const started = performance.now();
       let answer;
       let taskRequests = 0;
+      let requestTrace = {};
       try {
         const cached = cache.get(task.key);
         const shouldRefresh = strategyName === "ttl-cache-20" ? cached === undefined || task.index - cached.at >= 20 : cached === undefined || task.index % 20 === 0;
@@ -228,12 +248,13 @@ async function runLive(repetitions) {
           taskRequests = 1;
           if (response.status === 304 && cached !== undefined) answer = cached.body;
           else { answer = response.body; cache.set(task.key, { body: response.body, etag: response.etag, at: task.index }); }
+          requestTrace = { status: response.status, etag: response.etag, rateLimitRemaining: response.rateLimitRemaining, rateLimitUsed: response.rateLimitUsed };
         }
         if (answersMatch(answer, truth.get(task.key))) correct += 1;
       } catch (error) { errors += 1; traces.push({ strategy: strategyName, taskId: task.id, error: error instanceof Error ? error.message : String(error) }); }
       const latencyMs = performance.now() - started;
       latencies.push(latencyMs);
-      traces.push({ strategy: strategyName, taskId: task.id, correct: answersMatch(answer, truth.get(task.key)), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)) });
+      traces.push({ strategy: strategyName, taskId: task.id, correct: answersMatch(answer, truth.get(task.key)), requests: taskRequests, latencyMs: Number(latencyMs.toFixed(3)), ...requestTrace });
     }
     strategies.push({ strategy: strategyName, tasks: tasks.length, correct, correctPer100: Number((correct * 100 / tasks.length).toFixed(2)), errors, errorsPer100: Number((errors * 100 / tasks.length).toFixed(2)), requests, requestsPer100: Number((requests * 100 / tasks.length).toFixed(2)), p50Ms: Number(percentile(latencies, 0.5).toFixed(3)), p95Ms: Number(percentile(latencies, 0.95).toFixed(3)), traces: traces.filter((trace) => trace.strategy === strategyName) });
   }
@@ -254,7 +275,7 @@ const live = args.has("--live");
 const offline = args.has("--offline") || !live;
 const repetitionsFlag = process.argv.find((value) => value.startsWith("--repetitions="));
 const repetitions = Math.max(1, Number(repetitionsFlag?.split("=")[1] ?? 20));
-const result = live && !offline ? await runLive(repetitions) : runOffline();
+const result = live && !offline ? await runLive(repetitions) : await runOffline();
 await mkdir(outputDirectory, { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
 const traceLines = result.strategies.flatMap((strategy) => strategy.traces.map((trace) => JSON.stringify({ mode: result.mode, ...trace })));

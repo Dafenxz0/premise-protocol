@@ -19,4 +19,10 @@ if (result.mode === "offline-temporal-fixture") {
   assert.equal(premise.correctPer100, 100);
   assert.ok(ttl.correctPer100 < 100, "the TTL baseline must demonstrate temporal staleness in the fixture");
 }
+if (result.mode === "live-github-readonly") {
+  const direct = result.strategies.find((strategy) => strategy.strategy === "direct-read");
+  assert.ok(direct, "live benchmark must include direct-read");
+  assert.equal(direct.requests, result.tasks, "direct-read must perform one real GitHub request per task");
+  assert.ok(direct.traces.every((trace) => Number.isInteger(trace.status) && trace.status >= 200 && trace.status < 400), "direct-read traces must include successful HTTP statuses");
+}
 console.log(`real-world-v2 self-check passed (${result.mode})`);

@@ -402,6 +402,20 @@ function candidateOnlyEvidence(reason) {
   };
 }
 
+function benchmarkEligibility(metrics, manifest) {
+  const accuracyMin = manifest.thresholds?.accuracyMin ?? 0.95;
+  const freshnessMin = manifest.thresholds?.freshnessMin ?? 0.99;
+  const minimumTasks = 200;
+  const accuracy = metrics.tasks >= minimumTasks && metrics.correctPer100 / 100 >= accuracyMin;
+  const freshness = metrics.freshnessEligible > 0 && metrics.freshPer100Eligible / 100 >= freshnessMin;
+  return {
+    minimumTasks: { observed: metrics.tasks, required: minimumTasks, passed: metrics.tasks >= minimumTasks },
+    accuracy: { observed: metrics.correctPer100 / 100, minimum: accuracyMin, passed: accuracy },
+    freshness: { observed: metrics.freshPer100Eligible / 100, minimum: freshnessMin, passed: freshness },
+    passed: accuracy && freshness
+  };
+}
+
 async function resolveEvidenceClass({ args, manifest, hashes, responsesSha256, runSha256, candidateCommit, environment }) {
   const attestationUrl = optionValue(args, "--attestation-url", environment.PREMISE_HOLDOUT_ATTESTATION_URL);
   const attestationSha256 = optionValue(args, "--attestation-sha256", environment.PREMISE_HOLDOUT_ATTESTATION_SHA256);
@@ -488,6 +502,7 @@ export async function run(argv = process.argv.slice(2), environment = process.en
   const labelDownload = await fetchPinnedBytes(manifest.dataset.labels.url, manifest.dataset.labels.sha256, "holdout label set", { bearerToken, maxBytes: manifest.limits.maxPayloadBytes });
   const labelSet = validateLabelSet(parseJsonBytes(labelDownload.bytes, "holdout label set"), taskSet);
   const metrics = summarize(candidateRun.responses, labelSet.labels);
+  const eligibility = benchmarkEligibility(metrics, manifest);
   const traces = tracesFor(candidateRun.responses, labelSet.labels);
   const candidateCommit = candidateCommitFromEnvironment(environment);
   const hashes = {
@@ -503,11 +518,15 @@ export async function run(argv = process.argv.slice(2), environment = process.en
     responsesSha256,
     candidateCommit: candidateCommit ?? null,
     metrics,
+    eligibility,
     adapter: candidateRun.adapterCounters
   };
   const runSha256 = sha256Text(stableJson(runFingerprint));
   const evidence = await resolveEvidenceClass({ args: argv, manifest, hashes, responsesSha256, runSha256, candidateCommit, environment });
   if (candidateRun.fatal && evidence.class === "independent") fail("candidate failed before completing the holdout; independent evidence is not possible", "HOLDOUT_NOT_ELIGIBLE");
+  if (evidence.class === "independent" && !eligibility.passed) {
+    fail("independent holdout evidence did not meet the declared task, accuracy and freshness thresholds", "HOLDOUT_NOT_ELIGIBLE");
+  }
   await mkdir(outputDir, { recursive: true });
   const result = {
     schema: "premise-ga-holdout-result/1",
@@ -536,7 +555,9 @@ export async function run(argv = process.argv.slice(2), environment = process.en
       tasks: taskSet.tasks.length,
       generatedAt: new Date().toISOString(),
       runSha256,
-      candidateCommit: candidateCommit ?? null
+      candidateCommit: candidateCommit ?? null,
+      thresholds: manifest.thresholds,
+      eligibility
     },
     verification: {
       manifestUrl: safeExternalUrl(manifestUrl),

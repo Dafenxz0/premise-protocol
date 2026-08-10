@@ -1,10 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  MemoryV2SignatureReplayStore,
+  parseAndVerifyMemoryEnvelopeV2,
   parseMemoryEnvelopeV2,
   parseV2Event,
   SPEC_VERSION_V2,
   type EvidenceReference,
   type MemoryEnvelopeV2,
+  type V2SignatureVerificationOptions,
   type V2Event,
   type V2MemoryStatus,
   type VersionReference
@@ -51,6 +54,14 @@ export interface RuntimeOptions<T> {
   readonly tenantId?: string;
   readonly principal?: RuntimePrincipal;
   readonly now?: () => string;
+  /**
+   * Optional trust configuration for inbound v2 envelopes. When supplied,
+   * every register/derive/replace/restore input must carry a valid Ed25519
+   * signature resolved by this key source.
+   */
+  readonly signatureVerification?: V2SignatureVerificationOptions;
+  /** Reject unsigned inbound envelopes even when no key source is configured. */
+  readonly requireSignedEnvelopes?: boolean;
 }
 
 export interface RuntimeCheckItem {
@@ -189,6 +200,8 @@ export class PremiseRuntime<T = unknown> {
   readonly tenantId: string;
   readonly principal: RuntimePrincipal;
   private readonly now: () => string;
+  private readonly signatureVerification: V2SignatureVerificationOptions | undefined;
+  private readonly requireSignedEnvelopes: boolean;
   private sequence = 0;
   /**
    * Reverse indexes let source invalidation avoid scanning every record and
@@ -206,16 +219,22 @@ export class PremiseRuntime<T = unknown> {
     this.tenantId = options.tenantId ?? options.principal?.tenantId ?? "default";
     this.principal = options.principal ?? { tenantId: this.tenantId, subjectId: "runtime" };
     this.now = options.now ?? (() => new Date().toISOString());
+    this.signatureVerification = options.signatureVerification;
+    this.requireSignedEnvelopes = options.requireSignedEnvelopes ?? options.signatureVerification !== undefined;
+    if (this.requireSignedEnvelopes && this.signatureVerification === undefined) {
+      throw new TypeError("requireSignedEnvelopes requires signatureVerification with an external key source");
+    }
     this.rebuildIndexes();
   }
 
   register(record: RuntimeRecord<T>, eventId?: string): void {
-    const envelope = parseMemoryEnvelopeV2(record.envelope);
+    const candidate = parseMemoryEnvelopeV2(record.envelope);
+    const idempotencyKey = eventId ?? `register:${candidate.memoryId}`;
+    const replay = this.eventFor(idempotencyKey);
+    const envelope = this.trustedEnvelope(record.envelope, replay !== undefined);
     this.assertTenant(envelope.tenantId);
     if (eventId === undefined && this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     const stored = { envelope, content: cloneJson(record.content) };
-    const idempotencyKey = eventId ?? `register:${envelope.memoryId}`;
-    const replay = this.eventFor(idempotencyKey);
     const event = this.emit("MemoryRegistered", envelope.memoryId, { envelope }, idempotencyKey, false, { envelope, content: stored.content });
     if (replay !== undefined) {
       if (this.store.get(envelope.memoryId) === undefined) throw new Error(`Idempotent event has no corresponding memory: ${idempotencyKey}`);
@@ -228,7 +247,10 @@ export class PremiseRuntime<T = unknown> {
   }
 
   derive(record: RuntimeRecord<T>, eventId?: string): void {
-    const envelope = parseMemoryEnvelopeV2(record.envelope);
+    const candidate = parseMemoryEnvelopeV2(record.envelope);
+    const idempotencyKey = eventId ?? `derive:${candidate.memoryId}`;
+    const replay = this.eventFor(idempotencyKey);
+    const envelope = this.trustedEnvelope(record.envelope, replay !== undefined);
     this.assertTenant(envelope.tenantId);
     if (eventId === undefined && this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     if (envelope.dependsOn.length === 0) throw new Error("Derived memory must have at least one dependency");
@@ -237,8 +259,6 @@ export class PremiseRuntime<T = unknown> {
       if (dependency === undefined || dependency.envelope.tenantId !== this.tenantId) throw new Error(`Missing required dependency: ${dependencyId}`);
     }
     const stored = { envelope, content: cloneJson(record.content) };
-    const idempotencyKey = eventId ?? `derive:${envelope.memoryId}`;
-    const replay = this.eventFor(idempotencyKey);
     const event = this.emit("MemoryDerived", envelope.memoryId, { dependsOn: envelope.dependsOn }, idempotencyKey, false, { envelope, content: stored.content });
     if (replay !== undefined) {
       if (this.store.get(envelope.memoryId) === undefined) throw new Error(`Idempotent event has no corresponding memory: ${idempotencyKey}`);
@@ -252,12 +272,13 @@ export class PremiseRuntime<T = unknown> {
 
   replace(memoryId: string, content: T, envelope: MemoryEnvelopeV2, eventId?: string): void {
     const current = this.require(memoryId);
-    const next = parseMemoryEnvelopeV2(envelope);
+    const candidate = parseMemoryEnvelopeV2(envelope);
+    const idempotencyKey = eventId ?? `replace:${memoryId}:${candidate.contentDigest ?? "none"}`;
+    const replay = this.eventFor(idempotencyKey);
+    const next = this.trustedEnvelope(envelope, replay !== undefined);
     if (next.memoryId !== memoryId) throw new Error("Replacement must keep the memory ID");
     this.assertTenant(next.tenantId);
     const stored = { envelope: next, content: cloneJson(content) };
-    const idempotencyKey = eventId ?? `replace:${memoryId}:${next.contentDigest ?? "none"}`;
-    const replay = this.eventFor(idempotencyKey);
     const event = this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, idempotencyKey, false, { memoryId, envelope: next, content: stored.content });
     if (replay !== undefined) return;
     this.persistRecordAndEvent(stored, event);
@@ -335,8 +356,12 @@ export class PremiseRuntime<T = unknown> {
   }
 
   restore(snapshot: RuntimeSnapshot<T>): void {
-    for (const record of snapshot.records) this.assertTenant(record.envelope.tenantId);
-    this.store.restore(snapshot);
+    const records = snapshot.records.map((record) => {
+      const envelope = this.trustedEnvelope(record.envelope);
+      this.assertTenant(envelope.tenantId);
+      return { ...record, envelope };
+    });
+    this.store.restore({ ...snapshot, records });
     this.rebuildIndexes();
   }
 
@@ -479,5 +504,17 @@ export class PremiseRuntime<T = unknown> {
 
   private assertTenant(tenantId: string): void {
     if (tenantId !== this.tenantId) throw new Error(`Tenant boundary violation: ${tenantId}`);
+  }
+
+  private trustedEnvelope(input: unknown, idempotentReplay = false): MemoryEnvelopeV2 {
+    if (this.signatureVerification !== undefined) {
+      const options = idempotentReplay
+        ? { ...this.signatureVerification, replayStore: new MemoryV2SignatureReplayStore() }
+        : this.signatureVerification;
+      return parseAndVerifyMemoryEnvelopeV2(input, options);
+    }
+    const envelope = parseMemoryEnvelopeV2(input);
+    if (this.requireSignedEnvelopes) throw new Error("Signed PREMiSE v2 envelopes are required");
+    return envelope;
   }
 }

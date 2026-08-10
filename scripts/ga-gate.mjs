@@ -49,6 +49,16 @@ const REQUIRED_GATE_IDS = new Set([
   "operations",
   "availability-and-cost"
 ]);
+const RAW_JSONL_TRACE_EVIDENCE = new Set([
+  "postgres-scale.json",
+  "recovery-report.json",
+  "backup-restore.json",
+  "postgres-integration.json",
+  "sdk-contract.json",
+  "openapi-validation.json",
+  "soak-availability.json"
+]);
+const POSTGRES_SCALE_MIN_RECORDS = 1_000_000;
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -99,8 +109,245 @@ function requireNumberClaim(document, path, failures, predicate, description) {
   if (typeof value !== "number" || !Number.isFinite(value) || !predicate(value)) addClaimFailure(failures, path, `${path} must ${description}.`);
 }
 
+function requireIntegerClaim(document, path, failures, predicate, description) {
+  const value = valueAt(document, path);
+  if (!Number.isSafeInteger(value) || !predicate(value)) addClaimFailure(failures, path, `${path} must ${description}.`);
+}
+
 function requireExactClaim(document, path, expected, failures) {
   if (valueAt(document, path) !== expected) addClaimFailure(failures, path, `${path} must equal ${JSON.stringify(expected)} before this evidence can support a GA claim.`);
+}
+
+function requirePassedClaim(document, path, failures) {
+  if (!["pass", "passed", "PASS"].includes(valueAt(document, path))) addClaimFailure(failures, path, `${path} must report pass or passed before this evidence can support a GA claim.`);
+}
+
+function requirePatternClaim(document, path, pattern, failures, description) {
+  const value = valueAt(document, path);
+  if (typeof value !== "string" || !pattern.test(value)) addClaimFailure(failures, path, `${path} must ${description}.`);
+}
+
+function requirePathClaim(document, path, failures) {
+  const value = valueAt(document, path);
+  const segments = typeof value === "string" ? value.split(/[\\/]/u) : [];
+  if (typeof value !== "string" || value.trim().length === 0 || isAbsolute(value) || segments.includes("..")) addClaimFailure(failures, path, `${path} must be a non-empty relative path inside the evidence directory.`);
+}
+
+function requirePrefixedSha256Claim(document, path, failures) {
+  const value = valueAt(document, path);
+  if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/iu.test(value)) addClaimFailure(failures, path, `${path} must be a SHA-256 digest with the sha256: prefix.`);
+}
+
+function requireDigestEquality(document, leftPath, rightPath, failures) {
+  const left = valueAt(document, leftPath);
+  const right = valueAt(document, rightPath);
+  if (typeof left !== "string" || typeof right !== "string" || left !== right) addClaimFailure(failures, leftPath, `${leftPath} and ${rightPath} must contain the same verified digest.`);
+}
+
+function requireArrayIncludesClaim(document, path, expected, failures) {
+  const value = valueAt(document, path);
+  if (!Array.isArray(value) || !value.includes(expected)) addClaimFailure(failures, path, `${path} must include ${JSON.stringify(expected)}.`);
+}
+
+function requireContainsClaim(document, path, expected, failures) {
+  const value = valueAt(document, path);
+  const valid = typeof value === "string" ? value.includes(expected) : Array.isArray(value) && value.includes(expected);
+  if (!valid) addClaimFailure(failures, path, `${path} must include ${JSON.stringify(expected)}.`);
+}
+
+function requireTraceContract(document, name, failures) {
+  requireObjectClaim(document, "trace", failures);
+  requirePathClaim(document, "trace.path", failures);
+  requirePrefixedSha256Claim(document, "trace.sha256", failures);
+  if (RAW_JSONL_TRACE_EVIDENCE.has(name)) requireExactClaim(document, "trace.kind", "raw-jsonl", failures);
+}
+
+function loadFullFailures(document) {
+  const failures = [];
+  requireExactClaim(document, "profile", "full", failures);
+  requireExactClaim(document, "scenario", "all", failures);
+  requireBooleanClaim(document, "deterministicWorkload", failures);
+  requireBooleanClaim(document, "gates.allPassed", failures);
+  requireBooleanClaim(document, "gates.node24.passed", failures);
+  requireBooleanClaim(document, "gates.correctness.passed", failures);
+  requireBooleanClaim(document, "gates.performance.evaluated", failures);
+  requireBooleanClaim(document, "gates.performance.passed", failures);
+  requireObjectClaim(document, "configuration", failures);
+  requireIntegerClaim(document, "configuration.memories", failures, (value) => value >= POSTGRES_SCALE_MIN_RECORDS, `be at least ${POSTGRES_SCALE_MIN_RECORDS}`);
+  requireIntegerClaim(document, "configuration.tenants", failures, (value) => value > 0, "be positive");
+  requireObjectClaim(document, "load", failures);
+  requireBooleanClaim(document, "load.deterministic", failures);
+  requireBooleanClaim(document, "load.isolation.passed", failures);
+  requireIntegerClaim(document, "load.memoriesRequested", failures, (value) => value >= POSTGRES_SCALE_MIN_RECORDS, `be at least ${POSTGRES_SCALE_MIN_RECORDS}`);
+  requireIntegerClaim(document, "load.memoriesApplied", failures, (value) => value >= POSTGRES_SCALE_MIN_RECORDS, `be at least ${POSTGRES_SCALE_MIN_RECORDS}`);
+  if (valueAt(document, "load.memoriesApplied") !== valueAt(document, "load.memoriesRequested")) addClaimFailure(failures, "load.memoriesApplied", "load.memoriesApplied must equal load.memoriesRequested; partial load evidence is not eligible.");
+  requireIntegerClaim(document, "load.tenants.total", failures, (value) => value === valueAt(document, "load.memoriesApplied"), "equal the applied load count");
+  for (const field of ["load.errors.unexpected", "load.errors.worker", "load.errors.journal", "load.errors.store"]) requireExactClaim(document, field, 0, failures);
+  requireIntegerClaim(document, "load.latency.samples", failures, (value) => value > 0, "contain at least one latency sample");
+  requireNumberClaim(document, "load.latency.p99Ms", failures, (value) => value >= 0, "be finite and non-negative");
+  requireNumberClaim(document, "load.throughput.memoriesPerSecond", failures, (value) => value > 0, "be positive");
+  requireBooleanClaim(document, "reliability.passed", failures);
+  requireIntegerClaim(document, "reliability.memories", failures, (value) => value > 0, "be positive");
+  requireExactClaim(document, "reliability.errors.unexpected", 0, failures);
+  const requiredScenarios = ["crash-restart", "duplicate-events", "journal-corruption-truncation", "snapshot-recovery", "tenant-isolation"];
+  const scenarios = new Map(Array.isArray(document.reliability?.scenarios) ? document.reliability.scenarios.map((scenario) => [scenario?.name, scenario]) : []);
+  for (const name of requiredScenarios) {
+    if (scenarios.get(name)?.passed !== true) addClaimFailure(failures, `reliability.scenarios.${name}`, `reliability scenario ${name} must be present and passed.`);
+  }
+  requireExactClaim(document, "interpretation.universalCapacityClaim", false, failures);
+  requireContainsClaim(document, "interpretation.payloadScope", "metadata-only synthetic records; no external retrieval, network, or production database", failures);
+  requireObjectClaim(document, "trace", failures);
+  requireExactClaim(document, "trace.kind", "raw-benchmark-output", failures);
+  requireStringClaim(document, "trace.output", failures);
+  return failures;
+}
+
+function postgresScaleFailures(document, recovery = false) {
+  const failures = [];
+  requireExactClaim(document, "benchmark", "postgres-production-scale", failures);
+  requirePatternClaim(document, "source.kind", /real-postgresql-and-live-http/iu, failures, "identify a real PostgreSQL and live HTTP run");
+  requireExactClaim(document, "source.database", "PostgreSQL", failures);
+  requireStringClaim(document, "source.baseUrl", failures);
+  requireStringClaim(document, "source.tenantId", failures);
+  requireStringClaim(document, "database.engine", failures);
+  requireExactClaim(document, "database.engine", "PostgreSQL", failures);
+  requirePatternClaim(document, "database.version", /\S/iu, failures, "identify the observed PostgreSQL version");
+  requireNumberClaim(document, "database.databaseSizeBytes", failures, (value) => value > 0, "be positive");
+  requireIntegerClaim(document, "configuration.memoriesExpected", failures, (value) => value >= POSTGRES_SCALE_MIN_RECORDS, `be at least ${POSTGRES_SCALE_MIN_RECORDS}`);
+  requireIntegerClaim(document, "configuration.memoriesStored", failures, (value) => value >= POSTGRES_SCALE_MIN_RECORDS, `be at least ${POSTGRES_SCALE_MIN_RECORDS}`);
+  requireIntegerClaim(document, "configuration.requests", failures, (value) => value > 0, "be positive");
+  requireIntegerClaim(document, "configuration.concurrency", failures, (value) => value > 0, "be positive");
+  if (valueAt(document, "configuration.memoriesStored") !== valueAt(document, "database.records")) {
+    if (valueAt(document, "database.records") !== undefined) addClaimFailure(failures, "database.records", "database.records must equal configuration.memoriesStored when present.");
+  }
+  requireIntegerClaim(document, "metrics.requests", failures, (value) => value > 0, "be positive");
+  requireExactClaim(document, "metrics.failed", 0, failures);
+  requireNumberClaim(document, "metrics.errorRate", failures, (value) => value <= (document.configuration?.maxErrorRate ?? 0.001), `be at or below ${document.configuration?.maxErrorRate ?? 0.001}`);
+  requireNumberClaim(document, "metrics.latency.p95Ms", failures, (value) => value <= (document.configuration?.maxP95Ms ?? 500), `be at or below ${document.configuration?.maxP95Ms ?? 500} ms`);
+  requireNumberClaim(document, "metrics.latency.p99Ms", failures, (value) => value <= (document.configuration?.maxP99Ms ?? 2_000), `be at or below ${document.configuration?.maxP99Ms ?? 2_000} ms`);
+  requireObjectClaim(document, "metrics.byOperation", failures);
+  requireObjectClaim(document, "eligibility", failures);
+  requireBooleanClaim(document, "eligibility.eligibleForGa", failures);
+  for (const field of [
+    "eligibility.checks.realPostgresRecords.passed",
+    "eligibility.checks.requestCount.passed",
+    "eligibility.checks.errorRate.passed",
+    "eligibility.checks.p95.passed",
+    "eligibility.checks.p99.passed"
+  ]) requireBooleanClaim(document, field, failures);
+  for (const operation of ["retrieve", "query", "register"]) {
+    requireObjectClaim(document, `metrics.byOperation.${operation}`, failures);
+    requireIntegerClaim(document, `metrics.byOperation.${operation}.requests`, failures, (value) => value > 0, "be positive");
+    requireExactClaim(document, `metrics.byOperation.${operation}.failed`, 0, failures);
+    requireNumberClaim(document, `metrics.byOperation.${operation}.latency.p95Ms`, failures, (value) => value >= 0, "be finite and non-negative");
+    requireNumberClaim(document, `metrics.byOperation.${operation}.latency.p99Ms`, failures, (value) => value >= 0, "be finite and non-negative");
+    requireBooleanClaim(document, `eligibility.byOperation.${operation}.eligibleForGa`, failures);
+    requireBooleanClaim(document, `eligibility.checks.byOperation.${operation}.requestCount.passed`, failures);
+    requireBooleanClaim(document, `eligibility.checks.byOperation.${operation}.errorRate.passed`, failures);
+    requireBooleanClaim(document, `eligibility.checks.byOperation.${operation}.p95.passed`, failures);
+    requireBooleanClaim(document, `eligibility.checks.byOperation.${operation}.p99.passed`, failures);
+  }
+  requireArrayIncludesClaim(document, "interpretation.claimsNotSupported", "universal capacity", failures);
+  requireTraceContract(document, recovery ? "recovery-report.json" : "postgres-scale.json", failures);
+  if (recovery) {
+    requireObjectClaim(document, "recovery", failures);
+    for (const field of [
+      "recovery.restart.observed",
+      "recovery.restart.readinessPassed",
+      "recovery.restart.dataAvailable",
+      "recovery.corruption.injected",
+      "recovery.corruption.rejected",
+      "recovery.corruption.recovered",
+      "recovery.dataPreserved"
+    ]) requireBooleanClaim(document, field, failures);
+    requireSha256Claim(document, "recovery.before.recordSha256", failures);
+    requireSha256Claim(document, "recovery.after.recordSha256", failures);
+    requireDigestEquality(document, "recovery.before.recordSha256", "recovery.after.recordSha256", failures);
+    requirePatternClaim(document, "trace.path", /recovery/iu, failures, "identify the recovery trace");
+  }
+  return failures;
+}
+
+function backupRestoreFailures(document) {
+  const failures = [];
+  requirePassedClaim(document, "status", failures);
+  requireBooleanClaim(document, "ok", failures);
+  requirePatternClaim(document, "source.kind", /real.*postgres|postgres.*real/iu, failures, "identify a real PostgreSQL run");
+  requireStringClaim(document, "tenantId", failures);
+  requireObjectClaim(document, "backup", failures);
+  requireStringClaim(document, "backup.format", failures);
+  if (![
+    "premise-v2-backup-ndjson",
+    "premise-v2-backup"
+  ].includes(valueAt(document, "backup.format"))) addClaimFailure(failures, "backup.format", "backup.format must identify a supported PREMiSE backup format.");
+  requirePathClaim(document, "backup.path", failures);
+  requirePrefixedSha256Claim(document, "backup.fileSha256", failures);
+  requireSha256Claim(document, "backup.sha256", failures);
+  requireIntegerClaim(document, "backup.records", failures, (value) => value > 0, "be positive");
+  requireIntegerClaim(document, "backup.events", failures, (value) => value >= 0, "be non-negative");
+  requireObjectClaim(document, "restore", failures);
+  requireBooleanClaim(document, "restore.verified", failures);
+  requireStringClaim(document, "restore.verifiedIn", failures);
+  requireSha256Claim(document, "restore.sha256", failures);
+  requireIntegerClaim(document, "restore.records", failures, (value) => value > 0, "be positive");
+  requireIntegerClaim(document, "restore.events", failures, (value) => value >= 0, "be non-negative");
+  requireDigestEquality(document, "backup.sha256", "restore.sha256", failures);
+  if (valueAt(document, "backup.records") !== valueAt(document, "restore.records")) addClaimFailure(failures, "restore.records", "restore.records must equal backup.records.");
+  if (valueAt(document, "backup.events") !== valueAt(document, "restore.events")) addClaimFailure(failures, "restore.events", "restore.events must equal backup.events.");
+  requireTraceContract(document, "backup-restore.json", failures);
+  return failures;
+}
+
+function postgresIntegrationFailures(document) {
+  const failures = [];
+  requirePassedClaim(document, "status", failures);
+  requireBooleanClaim(document, "ok", failures);
+  requirePatternClaim(document, "source.kind", /real.*postgres|postgres.*real/iu, failures, "identify a real PostgreSQL run");
+  requireExactClaim(document, "database.engine", "PostgreSQL", failures);
+  requireStringClaim(document, "database.version", failures);
+  requireBooleanClaim(document, "migrations.applied", failures);
+  requireStringClaim(document, "migrations.version", failures);
+  requireBooleanClaim(document, "tenantIsolation.verified", failures);
+  requireBooleanClaim(document, "tests.passed", failures);
+  requireIntegerClaim(document, "tests.total", failures, (value) => value > 0, "be positive");
+  requireExactClaim(document, "tests.failed", 0, failures);
+  requireTraceContract(document, "postgres-integration.json", failures);
+  return failures;
+}
+
+function apiCommonFailures(document) {
+  const failures = [];
+  requirePassedClaim(document, "status", failures);
+  requireBooleanClaim(document, "ok", failures);
+  requireExactClaim(document, "apiVersion", "premise/2", failures);
+  requireBooleanClaim(document, "tests.passed", failures);
+  requireIntegerClaim(document, "tests.total", failures, (value) => value > 0, "be positive");
+  requireExactClaim(document, "tests.failed", 0, failures);
+  for (const field of ["checks.schemas", "checks.pagination", "checks.typedErrors", "checks.compatibility"]) requireBooleanClaim(document, field, failures);
+  requireStringClaim(document, "compatibility.policy", failures);
+  return failures;
+}
+
+function sdkContractFailures(document) {
+  const failures = apiCommonFailures(document);
+  requireObjectClaim(document, "sdk", failures);
+  requireStringClaim(document, "sdk.package", failures);
+  requireStringClaim(document, "sdk.version", failures);
+  requireTraceContract(document, "sdk-contract.json", failures);
+  return failures;
+}
+
+function openapiValidationFailures(document) {
+  const failures = apiCommonFailures(document);
+  requireObjectClaim(document, "spec", failures);
+  requirePathClaim(document, "spec.path", failures);
+  requireSha256Claim(document, "spec.sha256", failures);
+  requireObjectClaim(document, "validation", failures);
+  requireBooleanClaim(document, "validation.passed", failures);
+  requireIntegerClaim(document, "validation.operations", failures, (value) => value > 0, "be positive");
+  requireIntegerClaim(document, "validation.schemas", failures, (value) => value > 0, "be positive");
+  requireTraceContract(document, "openapi-validation.json", failures);
+  return failures;
 }
 
 function securityReportFailures(document) {
@@ -231,6 +478,13 @@ function rollbackFailures(document) {
 
 function semanticFailures(name, document, raw, manifest) {
   switch (name) {
+    case "load-full.json": return loadFullFailures(document);
+    case "postgres-scale.json": return postgresScaleFailures(document);
+    case "recovery-report.json": return postgresScaleFailures(document, true);
+    case "backup-restore.json": return backupRestoreFailures(document);
+    case "postgres-integration.json": return postgresIntegrationFailures(document);
+    case "sdk-contract.json": return sdkContractFailures(document);
+    case "openapi-validation.json": return openapiValidationFailures(document);
     case "security-report.json": return securityReportFailures(document);
     case "threat-model.md": return threatModelFailures(raw);
     case "external-holdout.json": return holdoutFailures(document, manifest);
@@ -241,27 +495,78 @@ function semanticFailures(name, document, raw, manifest) {
   }
 }
 
-async function rawTraceFailures(evidenceRoot, name, document) {
-  if (name !== "soak-availability.json") return [];
+async function referencedFileFailures(evidenceRoot, pathValue, declaredDigest, field, { prefixed = false, jsonl = false } = {}) {
   const failures = [];
-  const tracePath = valueAt(document, "trace.path");
-  const declaredDigest = valueAt(document, "trace.sha256");
-  if (typeof tracePath !== "string" || tracePath.trim().length === 0) return failures;
-  const resolvedTracePath = resolve(evidenceRoot, tracePath);
-  if (!isPathInside(evidenceRoot, resolvedTracePath)) {
-    addClaimFailure(failures, "trace.path", "the raw soak trace must remain inside the evidence directory.");
+  if (typeof pathValue !== "string" || pathValue.trim().length === 0) return failures;
+  const resolvedPath = resolve(evidenceRoot, pathValue);
+  if (!isPathInside(evidenceRoot, resolvedPath)) {
+    addClaimFailure(failures, field, "the referenced evidence file must remain inside the evidence directory.");
     return failures;
   }
   let bytes;
   try {
-    bytes = await readFile(resolvedTracePath);
+    const info = await stat(resolvedPath);
+    if (!info.isFile()) {
+      addClaimFailure(failures, field, "the referenced evidence path must be a regular file.");
+      return failures;
+    }
+    bytes = await readFile(resolvedPath);
   } catch (error) {
-    addClaimFailure(failures, "trace.path", `the raw soak trace cannot be read: ${error.message}`);
+    addClaimFailure(failures, field, `the referenced evidence file cannot be read: ${error.message}`);
     return failures;
   }
-  const actualDigest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-  if (actualDigest !== declaredDigest) addClaimFailure(failures, "trace.sha256", "the declared soak trace digest does not match the uploaded raw JSONL trace.");
+  if (bytes.byteLength === 0) {
+    addClaimFailure(failures, field, "the referenced evidence file must not be empty.");
+    return failures;
+  }
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  const actualDigest = prefixed ? `sha256:${digest}` : digest;
+  if (actualDigest !== declaredDigest) addClaimFailure(failures, field, "the declared digest does not match the uploaded evidence bytes.");
+  if (jsonl) {
+    const lines = bytes.toString("utf8").split(/\r?\n/u).filter((line) => line.trim().length > 0);
+    if (lines.length === 0) addClaimFailure(failures, field, "the raw JSONL evidence must contain at least one record.");
+    for (const [index, line] of lines.entries()) {
+      try {
+        JSON.parse(line);
+      } catch {
+        addClaimFailure(failures, field, `the raw JSONL evidence contains invalid JSON at line ${index + 1}.`);
+        break;
+      }
+    }
+  }
   return failures;
+}
+
+async function rawTraceFailures(evidenceRoot, name, document) {
+  if (!RAW_JSONL_TRACE_EVIDENCE.has(name)) return [];
+  return referencedFileFailures(
+    evidenceRoot,
+    valueAt(document, "trace.path"),
+    valueAt(document, "trace.sha256"),
+    "trace.sha256",
+    { prefixed: true, jsonl: true }
+  );
+}
+
+async function rawSupportingFileFailures(evidenceRoot, name, document) {
+  if (name === "backup-restore.json") {
+    return referencedFileFailures(
+      evidenceRoot,
+      valueAt(document, "backup.path"),
+      valueAt(document, "backup.fileSha256"),
+      "backup.fileSha256",
+      { prefixed: true, jsonl: valueAt(document, "backup.format") === "premise-v2-backup-ndjson" }
+    );
+  }
+  if (name === "openapi-validation.json") {
+    return referencedFileFailures(
+      evidenceRoot,
+      valueAt(document, "spec.path"),
+      valueAt(document, "spec.sha256"),
+      "spec.sha256"
+    );
+  }
+  return [];
 }
 
 function failure(code, message, extra = {}) {
@@ -433,7 +738,11 @@ async function inspectEvidenceFile(evidenceRoot, requirement, manifest) {
     return result;
   }
 
-  const semantic = [...await rawTraceFailures(evidenceRoot, requirement.name, document), ...semanticFailures(requirement.name, document, raw, manifest)];
+  const semantic = [
+    ...semanticFailures(requirement.name, document, raw, manifest),
+    ...await rawTraceFailures(evidenceRoot, requirement.name, document),
+    ...await rawSupportingFileFailures(evidenceRoot, requirement.name, document)
+  ];
   if (semantic.length > 0) {
     result.failures.push(...semantic);
     result.incompatibilities.push({

@@ -800,7 +800,11 @@ function buildGates(config, nodeInfo, load, reliability) {
   }
   if (reliability !== undefined) checks.reliabilityScenarios = reliability.passed === true && reliability.errors.unexpected === 0;
   const correctness = { passed: Object.values(checks).every(Boolean), checks };
-  const performanceEvaluated = config.profile === "ci" && load !== undefined && nodeInfo.major === NODE_REQUIRED;
+  // Every measured load profile must evaluate the declared performance budget.
+  // The full million-memory profile is synthetic and is explicitly labelled as
+  // such below, but allowing it to pass without evaluating throughput/latency/
+  // heap would make `--enforce-gates` a correctness-only smoke test.
+  const performanceEvaluated = load !== undefined && nodeInfo.major === NODE_REQUIRED;
   const performance = {
     evaluated: performanceEvaluated,
     thresholds: PERFORMANCE_GATE,

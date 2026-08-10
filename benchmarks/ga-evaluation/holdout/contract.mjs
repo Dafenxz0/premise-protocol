@@ -163,7 +163,7 @@ export function validateManifest(manifest) {
   const value = requireObject(manifest, "manifest");
   if (value.format !== HOLDOUT_MANIFEST_FORMAT) fail(`manifest.format must be ${HOLDOUT_MANIFEST_FORMAT}`);
   requireString(value.version, "manifest.version", { maxLength: 32 });
-  assertAllowedKeys(value, new Set(["format", "version", "campaign", "source", "dataset", "independence", "limits"]), "manifest");
+  assertAllowedKeys(value, new Set(["format", "version", "campaign", "source", "dataset", "independence", "limits", "thresholds"]), "manifest");
   assertNoLocalOrFixtureFields(value, "manifest");
 
   const campaign = requireObject(value.campaign, "manifest.campaign");
@@ -201,9 +201,16 @@ export function validateManifest(manifest) {
   const maxTasks = requirePositiveInteger(limits.maxTasks ?? 1000, "manifest.limits.maxTasks", 100_000);
   const maxPayloadBytes = requirePositiveInteger(limits.maxPayloadBytes ?? 4 * 1024 * 1024, "manifest.limits.maxPayloadBytes", 64 * 1024 * 1024);
   const taskTimeoutMs = requirePositiveInteger(limits.taskTimeoutMs ?? 120_000, "manifest.limits.taskTimeoutMs", 15 * 60 * 1000);
+  const thresholds = value.thresholds === undefined ? {} : requireObject(value.thresholds, "manifest.thresholds");
+  assertAllowedKeys(thresholds, new Set(["accuracyMin", "freshnessMin"]), "manifest.thresholds");
+  const accuracyMin = thresholds.accuracyMin ?? 0.95;
+  const freshnessMin = thresholds.freshnessMin ?? 0.99;
+  if (typeof accuracyMin !== "number" || !Number.isFinite(accuracyMin) || accuracyMin < 0 || accuracyMin > 1) fail("manifest.thresholds.accuracyMin must be between 0 and 1");
+  if (typeof freshnessMin !== "number" || !Number.isFinite(freshnessMin) || freshnessMin < 0 || freshnessMin > 1) fail("manifest.thresholds.freshnessMin must be between 0 and 1");
   return {
     ...value,
-    limits: { maxTasks, maxPayloadBytes, taskTimeoutMs }
+    limits: { maxTasks, maxPayloadBytes, taskTimeoutMs },
+    thresholds: { accuracyMin, freshnessMin }
   };
 }
 

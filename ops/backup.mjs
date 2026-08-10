@@ -11,7 +11,19 @@ const client = await openPgClient();
 try {
   const store = new PostgresRuntimeStore(client, { tablePrefix, tenantId });
   const backup = await writeIncrementalBackupFile(store, output, { tenantId, capturedAt: new Date().toISOString(), batchSize: parseBackupBatchSize() });
-  console.log(JSON.stringify({ ok: true, file: output, format: backup.format, tenantId, records: backup.records, events: backup.events, sha256: backup.sha256 }));
+  console.log(JSON.stringify({
+    ok: true,
+    file: output,
+    format: backup.format,
+    tenantId,
+    records: backup.records,
+    events: backup.events,
+    snapshots: backup.snapshots,
+    checkpoints: backup.checkpoints,
+    httpIdempotency: backup.httpIdempotency,
+    sha256: backup.sha256,
+    sourceSha256: backup.sha256
+  }));
 } finally {
   await client.close();
 }

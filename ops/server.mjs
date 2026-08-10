@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { URL } from "node:url";
 import { PremiseServer } from "@premise/premise-server/v2";
+import { MemoryV2SignatureReplayStore } from "@premise/protocol-types";
 import { InMemoryRuntimeStore, PremiseRuntime } from "@premise/runtime-core";
 import { PostgresLexicalIndex } from "@premise/store-postgres";
 import { Metrics } from "./metrics.mjs";
@@ -19,6 +21,8 @@ const config = {
   metricsToken: process.env.PREMISE_METRICS_TOKEN,
   storeMode: process.env.PREMISE_STORE_MODE ?? "postgres",
   tablePrefix: process.env.PREMISE_TABLE_PREFIX ?? "premise_v2",
+  signatureKeysFile: process.env.PREMISE_SIGNATURE_KEYS_FILE,
+  requireSignedEnvelopes: process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1",
   maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024),
   runtimeWriteConcurrency: integer("PREMISE_RUNTIME_WRITE_CONCURRENCY", 4, 1, 64),
   runtimeMaxPendingWrites: integer("PREMISE_RUNTIME_MAX_PENDING_WRITES", 10_000, 1, 1_000_000),
@@ -29,6 +33,10 @@ const config = {
 if (config.storeMode !== "postgres" && config.storeMode !== "memory") throw new Error("PREMISE_STORE_MODE must be postgres or memory");
 const authorize = createBearerAuthorizer({ environment: config.environment, token: config.apiToken, tenantId: config.tenantId });
 const authorizeMetrics = createBearerAuthorizer({ environment: config.environment, token: config.metricsToken, tokenName: "PREMISE_METRICS_TOKEN", tenantId: config.tenantId });
+const signatureVerification = await loadSignatureVerification(config.signatureKeysFile);
+if (config.requireSignedEnvelopes && signatureVerification === undefined) {
+  throw new Error("PREMISE_REQUIRE_SIGNED_ENVELOPES=1 requires PREMiSE_SIGNATURE_KEYS_FILE with external public keys");
+}
 
 const metrics = new Metrics();
 let database;
@@ -65,7 +73,9 @@ if (config.storeMode === "postgres") {
 runtime = new PremiseRuntime({
   store,
   tenantId: config.tenantId,
-  principal: { tenantId: config.tenantId, subjectId: "premise-service" }
+  principal: { tenantId: config.tenantId, subjectId: "premise-service" },
+  ...(signatureVerification === undefined ? {} : { signatureVerification }),
+  requireSignedEnvelopes: config.requireSignedEnvelopes
 });
 
 app = new PremiseServer({
@@ -90,6 +100,24 @@ function integer(name, fallback, minimum, maximum) {
   const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) throw new Error(`${name} must be an integer from ${minimum} to ${maximum}`);
   return value;
+}
+
+async function loadSignatureVerification(file) {
+  if (file === undefined || file.length === 0) return undefined;
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(file, "utf8"));
+  } catch (error) {
+    throw new Error(`PREMISE_SIGNATURE_KEYS_FILE cannot be read: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain a JSON object keyed by keyId");
+  const keys = new Map();
+  for (const [keyId, value] of Object.entries(parsed)) {
+    if (!/^\S{1,256}$/u.test(keyId) || typeof value !== "string" || value.length === 0) throw new Error("PREMISE_SIGNATURE_KEYS_FILE contains an invalid key entry");
+    keys.set(keyId, value);
+  }
+  if (keys.size === 0) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain at least one public key");
+  return { keys, replayStore: new MemoryV2SignatureReplayStore() };
 }
 
 function safeRequestId(request) {

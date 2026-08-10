@@ -862,8 +862,15 @@ jobs:
     if: always() && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.'))
     needs: [security, deterministic-load, million-load, postgres-scale, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - name: Fail closed unless every certification campaign passed
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Record certification campaign status
         env:
           SECURITY: ${{ needs.security.result }}
           DETERMINISTIC_LOAD: ${{ needs.deterministic-load.result }}
@@ -877,7 +884,59 @@ jobs:
           ROLLBACK: ${{ needs.rollback-certification.result }}
         run: |
           set -euo pipefail
-          for result in "$SECURITY" "$DETERMINISTIC_LOAD" "$MILLION_LOAD" "$POSTGRES_SCALE" "$EXTERNAL_GITHUB" "$EXTERNAL_HOLDOUT" "$INTEGRATION" "$PRODUCTION_SOAK" "$COST_EVIDENCE" "$ROLLBACK"; do
-            test "$result" = success
-          done
-          echo "All v2.0 GA certification campaigns passed; inspect and publish their pinned artifacts before release."
+          mkdir -p .ga-input .ga-artifacts
+          campaign_status=0
+          for pair in \
+            "security=$SECURITY" \
+            "deterministic-load=$DETERMINISTIC_LOAD" \
+            "million-load=$MILLION_LOAD" \
+            "postgres-scale=$POSTGRES_SCALE" \
+            "external-github=$EXTERNAL_GITHUB" \
+            "external-holdout=$EXTERNAL_HOLDOUT" \
+            "integration=$INTEGRATION" \
+            "production-soak=$PRODUCTION_SOAK" \
+            "cost-evidence=$COST_EVIDENCE" \
+            "rollback=$ROLLBACK"; do
+            name="${pair%%=*}"
+            result="${pair#*=}"
+            printf '%s=%s\n' "$name" "$result"
+            if [ "$result" != success ]; then campaign_status=1; fi
+          done > .ga-artifacts/campaign-status.txt
+          cat .ga-artifacts/campaign-status.txt
+          printf '%s\n' "$campaign_status" > .ga-artifacts/campaign-status.exit
+      - name: Download all artifacts from this certification run
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          pattern: premise-ga-*
+          path: .ga-input
+          merge-multiple: false
+      - name: Collect canonical GA evidence without fabricating missing files
+        if: always()
+        run: |
+          set +e
+          node scripts/collect-ga-evidence.mjs \
+            --input .ga-input \
+            --output .ga-artifacts/canonical \
+            --commit "${GITHUB_SHA}" \
+            --source "github-actions://${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}"
+          collector_status=$?
+          printf '%s\n' "$collector_status" > .ga-artifacts/collector.exit
+          exit 0
+      - name: Run the strict GA evidence gate on the collected directory
+        if: always()
+        run: |
+          set +e
+          PREMiSE_GA_EVIDENCE_DIR=.ga-artifacts/canonical node scripts/ga-gate.mjs --strict > .ga-artifacts/ga-gate.json 2> .ga-artifacts/ga-gate.log
+          gate_status=$?
+          printf '%s\n' "$gate_status" > .ga-artifacts/ga-gate.exit
+          cat .ga-artifacts/ga-gate.json
+          exit 0
+      - name: Publish the GA decision only when campaigns and canonical evidence pass
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(cat .ga-artifacts/campaign-status.exit)" = 0
+          test "$(cat .ga-artifacts/collector.exit)" = 0
+          test "$(cat .ga-artifacts/ga-gate.exit)" = 0
+          echo "All v2.0 GA certification campaigns and canonical evidence gates passed; inspect and publish their pinned artifacts before release."
