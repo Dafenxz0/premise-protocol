@@ -50,6 +50,13 @@ COPY --from=build --chown=10001:10001 /workspace/ops ./ops
 COPY --from=build --chown=10001:10001 /workspace/deploy ./deploy
 COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./deploy/node_modules
 
+# TypeScript is a build-time dependency of the workspace, not a runtime dependency.
+RUN rm -rf /app/node_modules/.pnpm/@typescript+typescript-linux-x64@* \
+           /app/node_modules/.pnpm/typescript@* \
+           /app/node_modules/typescript \
+           /app/node_modules/.bin/tsc \
+           /app/node_modules/.bin/tsserver
+
 USER 10001:10001
 
 EXPOSE 3000
