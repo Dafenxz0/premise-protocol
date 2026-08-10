@@ -191,7 +191,14 @@ const httpServer = createServer(async (request, response) => {
     const ready = store.failure === undefined;
     response.statusCode = 200;
     response.setHeader("content-type", "text/plain; version=0.0.4; charset=utf-8");
-    response.end(metrics.render({ storeReady: ready, pendingWrites: store.pendingWrites ?? 0, maxPendingWrites: store.maxPendingWrites ?? 0, freshness: store.freshnessCounts }));
+    const freshness = store.freshnessCounts;
+    response.end(metrics.render({
+      storeReady: ready,
+      pendingWrites: store.pendingWrites ?? 0,
+      maxPendingWrites: store.maxPendingWrites ?? 0,
+      freshness,
+      records: freshness === undefined ? store.list() : undefined
+    }));
     return;
   }
 
