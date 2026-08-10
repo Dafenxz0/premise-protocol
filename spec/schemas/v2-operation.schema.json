@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/2/operation.schema.json",
+  "title": "PREMiSE v2 operation request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "tenantId", "operationId", "operation", "idempotencyKey", "requestDigest", "requestedAt", "payload"],
+  "properties": {
+    "specVersion": { "const": "premise/2" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "operationId": { "type": "string", "minLength": 1 },
+    "operation": { "enum": ["register", "derive", "replace", "signal", "validate", "migrate"] },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "requestDigest": { "type": "string", "pattern": "^sha256:.+$" },
+    "requestedAt": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" }
+  }
+}

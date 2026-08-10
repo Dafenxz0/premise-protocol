@@ -209,8 +209,8 @@
       "nonRepairableRejectRate": 1,
       "revalidationCalls": 21,
       "readCalls": 45,
-      "latencyP50Ms": 0.04230000000000089,
-      "latencyP95Ms": 0.345600000000001,
+      "latencyP50Ms": 0.04400000000000048,
+      "latencyP95Ms": 0.46199999999999974,
       "memoryP50Bytes": 1151,
       "memoryP95Bytes": 1421,
       "historyPreservationRate": 1,
@@ -228,7 +228,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.0005999999999986017,
+      "durationMs": 0.0006000000000021544,
       "memoryBytes": 31,
       "note": "changed-memory-used-without-check"
     },
@@ -326,7 +326,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.00019999999999953388,
+      "durationMs": 0.00009999999999976694,
       "memoryBytes": 31,
       "note": "changed-memory-used-without-check"
     },
@@ -354,7 +354,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.0006000000000021544,
+      "durationMs": 0.0004999999999988347,
       "memoryBytes": 31,
       "note": "changed-memory-used-without-check"
     },
@@ -368,7 +368,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.00019999999999953388,
+      "durationMs": 0.0002000000000030866,
       "memoryBytes": 31,
       "note": "changed-memory-used-without-check"
     },
@@ -382,7 +382,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.00019999999999953388,
+      "durationMs": 0.00009999999999976694,
       "memoryBytes": 31,
       "note": "changed-memory-used-without-check"
     },
@@ -424,7 +424,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.00009999999999976694,
+      "durationMs": 0.00019999999999953388,
       "memoryBytes": 32,
       "note": "changed-memory-used-without-check"
     },
@@ -466,7 +466,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0,
+      "durationMs": 0.00009999999999976694,
       "memoryBytes": 32,
       "note": "changed-memory-used-without-check"
     },
@@ -480,7 +480,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.00009999999999976694,
+      "durationMs": 0,
       "memoryBytes": 32,
       "note": "changed-memory-used-without-check"
     },
@@ -522,7 +522,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0.00009999999999976694,
+      "durationMs": 0.00019999999999953388,
       "memoryBytes": 30,
       "note": "fresh-memory-used"
     },
@@ -550,7 +550,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": false,
-      "durationMs": 0,
+      "durationMs": 0.00009999999999976694,
       "memoryBytes": 30,
       "note": "fresh-memory-used"
     },
@@ -564,7 +564,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 1.005700000000001,
+      "durationMs": 1.0098999999999982,
       "memoryBytes": 1421,
       "status": "FRESH"
     },
@@ -578,7 +578,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.2842999999999982,
+      "durationMs": 0.2773000000000003,
       "memoryBytes": 1151,
       "status": "FRESH"
     },
@@ -592,7 +592,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.09110000000000085,
+      "durationMs": 0.09380000000000166,
       "memoryBytes": 1421,
       "status": "FRESH"
     },
@@ -606,7 +606,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.09919999999999973,
+      "durationMs": 0.46199999999999974,
       "memoryBytes": 1151,
       "status": "FRESH"
     },
@@ -620,7 +620,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.05310000000000059,
+      "durationMs": 0.0799999999999983,
       "memoryBytes": 1421,
       "status": "FRESH"
     },
@@ -634,7 +634,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.345600000000001,
+      "durationMs": 0.09480000000000288,
       "memoryBytes": 1151,
       "status": "FRESH"
     },
@@ -648,7 +648,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.06840000000000046,
+      "durationMs": 0.05649999999999977,
       "memoryBytes": 1421,
       "status": "FRESH"
     },
@@ -662,7 +662,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.06380000000000052,
+      "durationMs": 0.05959999999999965,
       "memoryBytes": 1151,
       "status": "FRESH"
     },
@@ -676,7 +676,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.04230000000000089,
+      "durationMs": 0.04310000000000258,
       "memoryBytes": 1421,
       "status": "FRESH"
     },
@@ -690,7 +690,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.07549999999999812,
+      "durationMs": 0.08060000000000045,
       "memoryBytes": 1151,
       "status": "FRESH"
     },
@@ -704,7 +704,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.038000000000000256,
+      "durationMs": 0.032900000000001484,
       "memoryBytes": 1421,
       "status": "FRESH"
     },
@@ -718,7 +718,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.050200000000000244,
+      "durationMs": 0.04400000000000048,
       "memoryBytes": 1151,
       "status": "FRESH"
     },
@@ -732,7 +732,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.032900000000001484,
+      "durationMs": 0.03450000000000131,
       "memoryBytes": 1362,
       "status": "INVALID"
     },
@@ -746,7 +746,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.04800000000000182,
+      "durationMs": 0.04550000000000054,
       "memoryBytes": 1073,
       "status": "INVALID"
     },
@@ -760,7 +760,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.023299999999998988,
+      "durationMs": 0.028999999999999915,
       "memoryBytes": 1362,
       "status": "INVALID"
     },
@@ -774,7 +774,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.04169999999999874,
+      "durationMs": 0.051300000000001234,
       "memoryBytes": 1073,
       "status": "INVALID"
     },
@@ -788,7 +788,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.026099999999999568,
+      "durationMs": 0.022999999999999687,
       "memoryBytes": 1362,
       "status": "INVALID"
     },
@@ -802,7 +802,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.047100000000000364,
+      "durationMs": 0.040800000000000836,
       "memoryBytes": 1073,
       "status": "INVALID"
     },
@@ -816,7 +816,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.02990000000000137,
+      "durationMs": 0.026900000000001256,
       "memoryBytes": 1381,
       "status": "UNKNOWN"
     },
@@ -830,7 +830,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.03380000000000294,
+      "durationMs": 0.03579999999999828,
       "memoryBytes": 1381,
       "status": "UNKNOWN"
     },
@@ -844,7 +844,7 @@
       "revalidationCalls": 1,
       "readCalls": 2,
       "historyPreserved": true,
-      "durationMs": 0.024699999999999278,
+      "durationMs": 0.02289999999999992,
       "memoryBytes": 1381,
       "status": "UNKNOWN"
     },
@@ -858,7 +858,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": true,
-      "durationMs": 0.016200000000001324,
+      "durationMs": 0.023699999999998056,
       "memoryBytes": 943,
       "status": "FRESH"
     },
@@ -872,7 +872,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": true,
-      "durationMs": 0.01670000000000016,
+      "durationMs": 0.21360000000000312,
       "memoryBytes": 943,
       "status": "FRESH"
     },
@@ -886,7 +886,7 @@
       "revalidationCalls": 0,
       "readCalls": 1,
       "historyPreserved": true,
-      "durationMs": 0.023399999999998755,
+      "durationMs": 0.026200000000002888,
       "memoryBytes": 642,
       "status": "FRESH"
     }

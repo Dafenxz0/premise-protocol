@@ -1,0 +1,10 @@
+{
+  "specVersion": "premise/2",
+  "tenantId": "tenant:vector",
+  "operationId": "operation:vector:1",
+  "operation": "register",
+  "idempotencyKey": "idem:vector:1",
+  "requestDigest": "sha256:vector",
+  "requestedAt": "2026-08-10T10:00:00Z",
+  "payload": { "memoryId": "memory:vector:1" }
+}

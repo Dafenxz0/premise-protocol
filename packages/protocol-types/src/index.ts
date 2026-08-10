@@ -226,3 +226,5 @@ export function usabilityForStatus(status: MemoryStatus): UsabilityDecision {
   if (status === "INVALID") return "REJECT";
   return "REVALIDATE";
 }
+
+export * from "./v2.js";

@@ -1,0 +1,30 @@
+{
+  "total_count": 1,
+  "check_runs": [
+    {
+      "id": 4001,
+      "name": "test",
+      "node_id": "CR_kwDOExampleCheck",
+      "head_sha": "1111111111111111111111111111111111111111",
+      "external_id": "workflow-1",
+      "url": "https://api.github.com/repos/acme/widget/check-runs/4001",
+      "html_url": "https://github.com/acme/widget/runs/4001",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-08-09T18:21:00Z",
+      "completed_at": "2026-08-09T18:22:00Z",
+      "output": {
+        "title": "Tests passed",
+        "summary": "1 test passed",
+        "text": null,
+        "annotations_count": 0,
+        "images_count": 0
+      },
+      "app": {
+        "id": 5001,
+        "slug": "github-actions",
+        "name": "GitHub Actions"
+      }
+    }
+  ]
+}

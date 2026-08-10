@@ -1,0 +1,22 @@
+{
+  "name": "@premise/store-postgres",
+  "version": "0.2.0-rc.1",
+  "description": "Driver-neutral PostgreSQL persistence adapter for PREMiSE v2 with transactional snapshots and events.",
+  "type": "module",
+  "dependencies": {
+    "@premise/protocol-types": "workspace:*",
+    "@premise/reference-ts": "workspace:*",
+    "@premise/runtime-core": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/store.test.mjs && node test/runtime.test.mjs"
+  }
+}

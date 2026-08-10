@@ -25,10 +25,13 @@ jobs:
       - run: pnpm test
       - run: pnpm test:properties
       - run: pnpm conformance
+      - run: pnpm conformance:v2
       - run: pnpm benchmark:smoke
       - run: pnpm benchmark:real-world
       - run: pnpm benchmark:context-corpus
       - run: pnpm benchmark:compare
       - run: pnpm benchmark:context
       - run: pnpm benchmark:evaluate
+      - run: pnpm benchmark:v2:offline
+      - run: pnpm benchmark:v2:giant
       - run: pnpm examples:verify

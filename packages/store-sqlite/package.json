@@ -1,0 +1,23 @@
+{
+  "name": "@premise/store-sqlite",
+  "version": "0.2.0-rc.1",
+  "description": "Durable SQLite runtime store for PREMiSE v2 snapshots and idempotent events.",
+  "type": "module",
+  "dependencies": {
+    "@premise/index-sqlite": "workspace:*",
+    "@premise/protocol-types": "workspace:*",
+    "@premise/reference-ts": "workspace:*",
+    "@premise/runtime-core": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/store.test.mjs && node test/runtime-v2.test.mjs"
+  }
+}

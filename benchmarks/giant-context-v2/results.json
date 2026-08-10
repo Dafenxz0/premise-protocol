@@ -1,0 +1,42 @@
+{
+  "benchmark": "giant-context-v2",
+  "generatedAt": "2026-08-10T10:43:33.266Z",
+  "node": "v24.19.0",
+  "include1m": true,
+  "tokenBudget": 128000,
+  "results": [
+    {
+      "memories": 10000,
+      "selectedChunks": 4096,
+      "tokensUsed": 32773,
+      "targetSelected": true,
+      "degraded": true,
+      "p50Ms": 23.923,
+      "p95Ms": 23.986,
+      "peakHeapMb": 35.1,
+      "traceEntries": 10000
+    },
+    {
+      "memories": 100000,
+      "selectedChunks": 4096,
+      "tokensUsed": 32773,
+      "targetSelected": true,
+      "degraded": true,
+      "p50Ms": 199.06,
+      "p95Ms": 207.732,
+      "peakHeapMb": 197.2,
+      "traceEntries": 100000
+    },
+    {
+      "memories": 1000000,
+      "selectedChunks": 4096,
+      "tokensUsed": 32773,
+      "targetSelected": true,
+      "degraded": true,
+      "p50Ms": 3319.965,
+      "p95Ms": 3321.731,
+      "peakHeapMb": 1743.5,
+      "traceEntries": 1000000
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@premise/index-hybrid",
+  "version": "0.1.0-rc.1",
+  "description": "Deterministic in-memory hybrid text and vector index.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/index.test.mjs"
+  }
+}

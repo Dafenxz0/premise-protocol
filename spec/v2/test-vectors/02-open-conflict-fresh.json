@@ -1,0 +1,12 @@
+{
+  "specVersion": "premise/2",
+  "tenantId": "tenant:vector",
+  "memoryId": "memory:vector:2",
+  "evidence": [{ "evidenceId": "e:1", "sourceUri": "source://one", "observedAt": "2026-08-10T10:00:00Z" }, { "evidenceId": "e:2", "sourceUri": "source://two", "observedAt": "2026-08-10T10:00:00Z" }],
+  "confidence": { "score": 0.5, "method": "equal", "assessedAt": "2026-08-10T10:00:00Z" },
+  "conflicts": [{ "conflictId": "c:1", "evidenceIds": ["e:1", "e:2"], "status": "OPEN" }],
+  "temporal": { "asOf": "2026-08-10T10:00:00Z" },
+  "validity": { "status": "FRESH", "checkedAt": "2026-08-10T10:00:00Z", "policy": "MANUAL" },
+  "dependsOn": [],
+  "signatures": []
+}

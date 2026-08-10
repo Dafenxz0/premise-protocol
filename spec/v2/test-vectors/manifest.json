@@ -1,0 +1,9 @@
+{
+  "specVersion": "premise/2",
+  "vectors": [
+    { "id": "valid-evidence-conflict-resolved", "file": "01-valid-envelope.json", "kind": "envelope", "valid": true },
+    { "id": "invalid-open-conflict-fresh", "file": "02-open-conflict-fresh.json", "kind": "envelope", "valid": false },
+    { "id": "valid-idempotent-operation", "file": "03-operation.json", "kind": "operation", "valid": true },
+    { "id": "valid-event", "file": "04-event.json", "kind": "event", "valid": true }
+  ]
+}

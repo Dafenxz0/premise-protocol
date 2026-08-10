@@ -1,0 +1,63 @@
+{
+  "id": 2001,
+  "number": 42,
+  "state": "open",
+  "locked": false,
+  "title": "Add the GitHub validator",
+  "body": "A real REST integration with webhook verification.",
+  "user": {
+    "login": "octocat",
+    "id": 1,
+    "type": "User",
+    "site_admin": false
+  },
+  "created_at": "2026-08-08T18:20:00Z",
+  "updated_at": "2026-08-09T18:20:00Z",
+  "closed_at": null,
+  "merged_at": null,
+  "merge_commit_sha": null,
+  "head": {
+    "label": "octocat:feature/validator",
+    "ref": "feature/validator",
+    "sha": "1111111111111111111111111111111111111111",
+    "user": {
+      "login": "octocat",
+      "id": 1,
+      "type": "User"
+    },
+    "repo": {
+      "id": 3001,
+      "name": "widget",
+      "full_name": "acme/widget",
+      "private": false
+    }
+  },
+  "base": {
+    "label": "acme:main",
+    "ref": "main",
+    "sha": "2222222222222222222222222222222222222222",
+    "user": {
+      "login": "acme",
+      "id": 3,
+      "type": "Organization"
+    },
+    "repo": {
+      "id": 3001,
+      "name": "widget",
+      "full_name": "acme/widget",
+      "private": false
+    }
+  },
+  "author_association": "CONTRIBUTOR",
+  "draft": false,
+  "merged": false,
+  "mergeable": true,
+  "rebaseable": true,
+  "mergeable_state": "clean",
+  "comments": 1,
+  "review_comments": 0,
+  "commits": 1,
+  "additions": 1,
+  "deletions": 0,
+  "changed_files": 1
+}

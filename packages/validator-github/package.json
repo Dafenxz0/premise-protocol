@@ -1,0 +1,25 @@
+{
+  "name": "@premise/validator-github",
+  "version": "0.1.0-rc.1",
+  "description": "PREMiSE GitHub REST and webhook validator.",
+  "type": "module",
+  "dependencies": {
+    "@premise/protocol-types": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./v2": {
+      "types": "./dist/v2.d.ts",
+      "import": "./dist/v2.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/validator.test.mjs",
+    "test:live": "pnpm build && node test/live.test.mjs"
+  }
+}

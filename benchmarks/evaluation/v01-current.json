@@ -16,8 +16,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 0,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.004299999999997084,
-      "latencyP95Ms": 0.013700000000000045,
+      "latencyP50Ms": 0.004199999999997317,
+      "latencyP95Ms": 0.01389999999999958,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -353,8 +353,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 40,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.004299999999997084,
-      "latencyP95Ms": 0.013700000000000045,
+      "latencyP50Ms": 0.004199999999997317,
+      "latencyP95Ms": 0.01389999999999958,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -690,8 +690,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 0,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.004299999999997084,
-      "latencyP95Ms": 0.013700000000000045,
+      "latencyP50Ms": 0.004199999999997317,
+      "latencyP95Ms": 0.01389999999999958,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -1027,8 +1027,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 40,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.004299999999997084,
-      "latencyP95Ms": 0.013700000000000045,
+      "latencyP50Ms": 0.004199999999997317,
+      "latencyP95Ms": 0.01389999999999958,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -1364,8 +1364,8 @@
       "falseSuppressionRate": 0,
       "revalidationCalls": 20,
       "historyPreservationRate": 1,
-      "latencyP50Ms": 0.004299999999997084,
-      "latencyP95Ms": 0.013700000000000045,
+      "latencyP50Ms": 0.004199999999997317,
+      "latencyP95Ms": 0.01389999999999958,
       "memoryP50Bytes": 235,
       "memoryP95Bytes": 245,
       "decisionTrace": [
@@ -1743,7 +1743,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.061700000000001864,
+      "durationMs": 0.06609999999999872,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -1796,7 +1796,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.011999999999996902,
+      "durationMs": 0.013400000000000745,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -1842,7 +1842,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.00870000000000104,
+      "durationMs": 0.008699999999997488,
       "serializedMetadataBytes": 235,
       "revalidationStatus": "INVALID"
     },
@@ -1895,7 +1895,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.013700000000000045,
+      "durationMs": 0.01389999999999958,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -1948,7 +1948,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.008800000000000807,
+      "durationMs": 0.008499999999997954,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -1994,7 +1994,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.006800000000001916,
+      "durationMs": 0.006700000000002149,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2047,7 +2047,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.0113999999999983,
+      "durationMs": 0.008900000000000574,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2100,7 +2100,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.008100000000002439,
+      "durationMs": 0.011100000000002552,
       "serializedMetadataBytes": 235,
       "revalidationStatus": "INVALID"
     },
@@ -2153,7 +2153,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.01010000000000133,
+      "durationMs": 0.010500000000000398,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2199,7 +2199,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.015799999999998704,
+      "durationMs": 0.01939999999999742,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2252,7 +2252,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.011199999999998766,
+      "durationMs": 0.010300000000000864,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2305,7 +2305,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.005000000000002558,
+      "durationMs": 0.0070000000000014495,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2351,7 +2351,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.0029000000000003467,
+      "durationMs": 0.0030000000000001137,
       "serializedMetadataBytes": 232,
       "revalidationStatus": "FRESH"
     },
@@ -2404,7 +2404,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.004000000000001336,
+      "durationMs": 0.0033999999999991815,
       "serializedMetadataBytes": 233,
       "revalidationStatus": "FRESH"
     },
@@ -2457,7 +2457,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.0034999999999989484,
+      "durationMs": 0.0033999999999991815,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2503,7 +2503,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.0023999999999979593,
+      "durationMs": 0.002300000000001745,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2556,7 +2556,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.004300000000000637,
+      "durationMs": 0.00420000000000087,
       "serializedMetadataBytes": 232,
       "revalidationStatus": "FRESH"
     },
@@ -2609,7 +2609,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.005399999999998073,
+      "durationMs": 0.005300000000001859,
       "serializedMetadataBytes": 233,
       "revalidationStatus": "INVALID"
     },
@@ -2662,7 +2662,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.004300000000000637,
+      "durationMs": 0.004400000000000404,
       "serializedMetadataBytes": 234,
       "revalidationStatus": "FRESH"
     },
@@ -2708,7 +2708,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.0030999999999998806,
+      "durationMs": 0.0031999999999996476,
       "serializedMetadataBytes": 231,
       "revalidationStatus": "FRESH"
     },
@@ -2763,7 +2763,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.005199999999998539,
+      "durationMs": 0.004999999999999005,
       "serializedMetadataBytes": 243,
       "revalidationStatus": "INVALID"
     },
@@ -2818,7 +2818,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.004699999999999704,
+      "durationMs": 0.004800000000003024,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -2866,7 +2866,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.003500000000002501,
+      "durationMs": 0.0032999999999994145,
       "serializedMetadataBytes": 242,
       "revalidationStatus": "FRESH"
     },
@@ -2921,7 +2921,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.004199999999997317,
+      "durationMs": 0.004100000000001103,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -2976,7 +2976,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.0036999999999984823,
+      "durationMs": 0.0035999999999987153,
       "serializedMetadataBytes": 243,
       "revalidationStatus": "INVALID"
     },
@@ -3024,7 +3024,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.006200000000003314,
+      "durationMs": 0.006400000000002848,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -3079,7 +3079,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.004299999999997084,
+      "durationMs": 0.004199999999997317,
       "serializedMetadataBytes": 246,
       "revalidationStatus": "INVALID"
     },
@@ -3134,7 +3134,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.006199999999999761,
+      "durationMs": 0.006099999999999994,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -3189,7 +3189,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.003800000000001802,
+      "durationMs": 0.0034999999999989484,
       "serializedMetadataBytes": 243,
       "revalidationStatus": "INVALID"
     },
@@ -3292,7 +3292,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.003800000000001802,
+      "durationMs": 0.003700000000002035,
       "serializedMetadataBytes": 242,
       "revalidationStatus": "FRESH"
     },
@@ -3347,7 +3347,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.0034999999999989484,
+      "durationMs": 0.0037999999999982492,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -3395,7 +3395,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.002500000000001279,
+      "durationMs": 0.002700000000000813,
       "serializedMetadataBytes": 243,
       "revalidationStatus": "INVALID"
     },
@@ -3450,7 +3450,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.003600000000002268,
+      "durationMs": 0.0035999999999987153,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -3505,7 +3505,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.0035999999999987153,
+      "durationMs": 0.0034999999999989484,
       "serializedMetadataBytes": 242,
       "revalidationStatus": "FRESH"
     },
@@ -3553,7 +3553,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 2,
-      "durationMs": 0.002600000000001046,
+      "durationMs": 0.002700000000000813,
       "serializedMetadataBytes": 241,
       "revalidationStatus": "FRESH"
     },
@@ -3608,7 +3608,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.003900000000001569,
+      "durationMs": 0.0036999999999984823,
       "serializedMetadataBytes": 243,
       "revalidationStatus": "INVALID"
     },
@@ -3663,7 +3663,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.0037999999999982492,
+      "durationMs": 0.0036999999999984823,
       "serializedMetadataBytes": 245,
       "revalidationStatus": "UNKNOWN"
     },
@@ -3766,7 +3766,7 @@
       "ttlExpired": false,
       "historyPreserved": true,
       "readCalls": 3,
-      "durationMs": 0.00560000000000116,
+      "durationMs": 0.005399999999998073,
       "serializedMetadataBytes": 243,
       "revalidationStatus": "INVALID"
     }

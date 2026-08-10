@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/2/premise-event.schema.json",
+  "title": "PREMiSE v2 event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "tenantId", "eventId", "operationId", "idempotencyKey", "requestDigest", "type", "occurredAt", "payload"],
+  "properties": {
+    "specVersion": { "const": "premise/2" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "eventId": { "type": "string", "minLength": 1 },
+    "operationId": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "requestDigest": { "type": "string", "pattern": "^sha256:.+$" },
+    "type": { "enum": ["MemoryRegistered", "MemoryDerived", "SourceChanged", "MemoryStaled", "MemoryInvalidated", "MemoryRevalidated", "MemoryReplaced", "ConflictDetected", "ConflictResolved", "MemoryMigrated"] },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "memoryId": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" }
+  }
+}
