@@ -56,7 +56,7 @@ COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modul
 # production prune. Recreate only the internal packages needed by the server
 # so Node can resolve the published package exports from /app/ops.
 RUN mkdir -p /app/node_modules/@premise \
- && for package in context-engine index-hybrid premise-server protocol-types reference-ts runtime-core; do \
+ && for package in context-engine index-hybrid premise-server protocol-types reference-ts runtime-core store-postgres; do \
       ln -s "/app/packages/$package" "/app/node_modules/@premise/$package"; \
     done \
  && test -f /app/node_modules/@premise/premise-server/dist/v2.js
