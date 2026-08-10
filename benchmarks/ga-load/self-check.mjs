@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const result = JSON.parse(await readFile(new URL("./results.json", import.meta.url), "utf8"));
+const inputIndex = process.argv.indexOf("--input");
+const inputPath = inputIndex >= 0 ? process.argv[inputIndex + 1] : undefined;
+if (inputIndex >= 0 && (!inputPath || inputPath.startsWith("--"))) throw new Error("--input requires a result JSON path");
+const result = JSON.parse(await readFile(inputPath ?? new URL("./results.json", import.meta.url), "utf8"));
 
 assert.equal(result.format, "ga-reliability-benchmark/1", "unexpected benchmark format");
 assert.equal(result.runner, "node-worker-threads", "runner must use Node worker_threads");
