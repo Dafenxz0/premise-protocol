@@ -104,9 +104,11 @@ La corrección separa lecturas de la barrera de persistencia, limita la
 concurrencia del escritor durable, mantiene índices inversos para fuentes y
 dependencias, hace idempotente la invalidación y conserva un top-k exacto en el
 índice híbrido. En el benchmark reproducible de `100.000` documentos, la
-consulta híbrida posterior obtuvo p95/p99 de `33,11/33,25 ms` sin filtro y
-`13,35/13,69 ms` con tenant, ACL y frescura. Son medidas locales del índice,
-no sustituyen repetir el soak de una hora contra la imagen candidata.
+consulta híbrida posterior obtuvo p95/p99 de `39,44/40,17 ms` sin filtro y
+`17,70/17,79 ms` con tenant, ACL y frescura. El proveedor vectorial de esta
+fixture es determinista y local: sirve para medir la ruta híbrida, no para
+prometer calidad semántica de un modelo externo. Son medidas locales del
+índice y no sustituyen repetir el soak de una hora contra la imagen candidata.
 
 ## Check ejecutable
 

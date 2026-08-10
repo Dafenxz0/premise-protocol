@@ -7,6 +7,7 @@ import { Metrics } from "./metrics.mjs";
 import { createBearerAuthorizer } from "./auth.mjs";
 import { openPgClient } from "./pg-client.mjs";
 import { openDurableMirror } from "./runtime-store.mjs";
+import { shouldFlushDurableWrite } from "./route-durability.mjs";
 
 const config = {
   host: process.env.HOST ?? "0.0.0.0",
@@ -102,16 +103,6 @@ async function readiness() {
   return { ready, checks };
 }
 
-function shouldFlush(pathname, method) {
-  if (config.storeMode !== "postgres" || method !== "POST") return false;
-
-  // Only mutation endpoints need a durability barrier. Read-only queries must
-  // not wait behind unrelated writes in the global mirror queue.
-  return pathname === "/v2/memories" ||
-    pathname === "/v2/source-changed" ||
-    /^\/v2\/memories\/[^/]+\/revalidate$/u.test(pathname);
-}
-
 function installResponseBarrier(request, response, pathname, requestId, startedAt) {
   const originalEnd = response.end.bind(response);
   let ended = false;
@@ -124,7 +115,7 @@ function installResponseBarrier(request, response, pathname, requestId, startedA
       let output = chunk;
       let outputEncoding = encodingValue;
       let outputCallback = callbackFunction;
-      if (shouldFlush(pathname, request.method ?? "GET")) {
+      if (shouldFlushDurableWrite(pathname, request.method ?? "GET", config.storeMode)) {
         try {
           await store.flush();
         } catch (error) {

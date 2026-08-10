@@ -24,6 +24,8 @@ export interface RuntimeSnapshot<T> {
 }
 
 export interface RuntimeStore<T> {
+  /** Monotonic record-state revision when the store can expose one. */
+  readonly revision?: number;
   get(memoryId: string): RuntimeRecord<T> | undefined;
   list(): readonly RuntimeRecord<T>[];
   put(record: RuntimeRecord<T>): void;
@@ -95,6 +97,11 @@ function digestFor(value: string): `sha256:${string}` {
 export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   private readonly records = new Map<string, RuntimeRecord<T>>();
   private readonly events = new Map<string, V2Event>();
+  private _revision = 0;
+
+  get revision(): number {
+    return this._revision;
+  }
 
   get(memoryId: string): RuntimeRecord<T> | undefined {
     const record = this.records.get(memoryId);
@@ -108,6 +115,7 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   put(record: RuntimeRecord<T>): void {
     const envelope = parseMemoryEnvelopeV2(record.envelope);
     this.records.set(envelope.memoryId, cloneJson({ envelope, content: record.content }));
+    this._revision += 1;
   }
 
   appendEvent(event: V2Event): void {
@@ -140,6 +148,10 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   }
 }
 
+function readStoreRevision<T>(store: RuntimeStore<T>): number | undefined {
+  return Number.isSafeInteger(store.revision) && (store.revision ?? -1) >= 0 ? store.revision : undefined;
+}
+
 export class PremiseRuntime<T = unknown> {
   readonly store: RuntimeStore<T>;
   readonly tenantId: string;
@@ -155,6 +167,7 @@ export class PremiseRuntime<T = unknown> {
   private readonly dependentsByDependency = new Map<string, Set<string>>();
   private readonly recordOrder = new Map<string, number>();
   private nextRecordOrder = 0;
+  private indexedStoreRevision: number | undefined;
 
   constructor(options: RuntimeOptions<T> = {}) {
     this.store = options.store ?? new InMemoryRuntimeStore<T>();
@@ -171,6 +184,7 @@ export class PremiseRuntime<T = unknown> {
     this.store.put({ envelope, content: cloneJson(record.content) });
     this.indexRecord({ envelope, content: record.content });
     this.emit("MemoryRegistered", envelope.memoryId, { envelope }, eventId ?? `register:${envelope.memoryId}`);
+    this.syncStoreRevision();
   }
 
   derive(record: RuntimeRecord<T>, eventId?: string): void {
@@ -185,6 +199,7 @@ export class PremiseRuntime<T = unknown> {
     this.store.put({ envelope, content: cloneJson(record.content) });
     this.indexRecord({ envelope, content: record.content });
     this.emit("MemoryDerived", envelope.memoryId, { dependsOn: envelope.dependsOn }, eventId ?? `derive:${envelope.memoryId}`);
+    this.syncStoreRevision();
   }
 
   replace(memoryId: string, content: T, envelope: MemoryEnvelopeV2, eventId?: string): void {
@@ -196,6 +211,7 @@ export class PremiseRuntime<T = unknown> {
     this.deindexRecord(current);
     this.indexRecord({ envelope: next, content });
     this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, eventId ?? `replace:${memoryId}:${next.contentDigest ?? "none"}`);
+    this.syncStoreRevision();
   }
 
   get(memoryId: string, principal = this.principal): RuntimeRecord<T> | undefined {
@@ -239,6 +255,7 @@ export class PremiseRuntime<T = unknown> {
 
   signalSourceChanged(sourceUri: string, version: VersionReference, eventId?: string): readonly string[] {
     if (sourceUri.length === 0) throw new TypeError("sourceUri must be non-empty");
+    this.refreshIndexesIfStoreChanged();
     const sourceEvent = this.emit("SourceChanged", undefined, { sourceUri, version }, eventId ?? `source:${sourceUri}:${version.scheme}:${version.token}`);
     const direct = this.orderedIds(this.sourceMemoryIds.get(sourceUri) ?? []);
     const affected = this.dependentClosure(direct);
@@ -248,6 +265,7 @@ export class PremiseRuntime<T = unknown> {
       this.store.put({ envelope: this.withStatus(record.envelope, "STALE"), content: record.content });
       this.emit("MemoryStaled", memoryId, { sourceUri, version }, `${sourceEvent.eventId}:stale:${memoryId}`);
     }
+    this.syncStoreRevision();
     return affected;
   }
 
@@ -279,6 +297,7 @@ export class PremiseRuntime<T = unknown> {
     const status: V2MemoryStatus = report.result === "UNCHANGED" ? "FRESH" : report.result === "CHANGED" || report.result === "MISSING" ? "INVALID" : "UNKNOWN";
     this.store.put({ envelope: this.withStatus(record.envelope, status), content: record.content });
     this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`);
+    this.syncStoreRevision();
     return { ...report, status };
   }
 
@@ -306,6 +325,19 @@ export class PremiseRuntime<T = unknown> {
     this.recordOrder.clear();
     this.nextRecordOrder = 0;
     for (const record of this.store.list()) this.indexRecord(record);
+    this.indexedStoreRevision = readStoreRevision(this.store);
+  }
+
+  private refreshIndexesIfStoreChanged(): void {
+    const currentRevision = readStoreRevision(this.store);
+    // A custom RuntimeStore may be mutable without exposing a revision. Fall
+    // back to a rebuild in that case so the optimization never changes the
+    // observable behavior of the public store interface.
+    if (currentRevision === undefined || currentRevision !== this.indexedStoreRevision) this.rebuildIndexes();
+  }
+
+  private syncStoreRevision(): void {
+    this.indexedStoreRevision = readStoreRevision(this.store);
   }
 
   private indexRecord(record: RuntimeRecord<T>): void {

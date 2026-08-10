@@ -155,12 +155,16 @@ deploy/alert-rules.yml contiene reglas listas para cargar en Prometheus:
 | --- | ---: | ---: |
 | p95 de latencia HTTP | > 500 ms | 10 min |
 | p99 de latencia HTTP | > 2.000 ms | 10 min |
-| error-rate HTTP 5xx | > 2% | 10 min |
+| error-rate HTTP 5xx | > 0,1% | 10 min |
+| error-rate HTTP 4xx | > 0,1% | 10 min |
 | recuerdos STALE/UNKNOWN | > 10% | 15 min |
 | recuerdos INVALID | > 0 | 10 min |
 | store no listo | 0 | 5 min |
 
 Las alertas no contienen receptores ni tokens. Conectar Alertmanager, PagerDuty, Slack u otro canal pertenece al entorno de cada operador.
+El runner de soak también cuenta timeouts y fallos semánticos de respuestas 2xx;
+esas señales no se pueden inferir únicamente de un contador HTTP y deben
+revisarse en el artefacto de la campaña.
 
 ## Seguridad operativa
 

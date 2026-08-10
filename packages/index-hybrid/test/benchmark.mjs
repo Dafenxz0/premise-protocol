@@ -13,7 +13,14 @@ if (!Number.isInteger(LIMIT) || LIMIT < 1) throw new Error("INDEX_HYBRID_BENCH_L
 const vectorProvider = {
   name: "index-hybrid-benchmark-vector",
   mode: "external",
-  embed: () => [1]
+  embed(text) {
+    let hash = 2166136261;
+    for (const character of text) {
+      hash ^= character.codePointAt(0) ?? 0;
+      hash = Math.imul(hash, 16777619) >>> 0;
+    }
+    return Array.from({ length: 16 }, (_, dimension) => ((hash >>> (dimension % 24)) % 997) / 997);
+  }
 };
 
 function percentile(values, probability) {
@@ -23,7 +30,7 @@ function percentile(values, probability) {
 }
 
 function makeIndex() {
-  return new HybridIndex({ vectorProvider, lexicalWeight: 1, vectorWeight: 0 });
+  return new HybridIndex({ vectorProvider, lexicalWeight: 0.7, vectorWeight: 0.3 });
 }
 
 async function load(index) {

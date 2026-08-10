@@ -127,6 +127,10 @@ jobs:
           node benchmarks/ga-evaluation/holdout/candidate.test.mjs
           node benchmarks/ga-soak/self-check.mjs
           node benchmarks/ga-cost/self-check.mjs
+          pnpm --filter @premise/index-hybrid test
+          pnpm --filter @premise/runtime-core test
+          pnpm --filter @premise/premise-server test
+          node --test ops/route-durability.test.mjs
           node --test tests/scripts-ga/ga-gate.test.mjs tests/scripts-ga/collect-ga-evidence.test.mjs
       - name: Run cryptographic security verification
         run: |

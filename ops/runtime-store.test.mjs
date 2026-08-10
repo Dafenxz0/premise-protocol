@@ -55,6 +55,12 @@ class PersistentFake {
   }
 }
 
+test("requires a strict bounded concurrency value", () => {
+  assert.equal(new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "04" }).concurrency, 4);
+  assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "4foo" }), /integer/);
+  assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: 0 }), /integer/);
+});
+
 test("limits active writes and keeps cloning", async () => {
   const persistent = new PersistentFake();
   const store = new DurableMirrorStore(persistent, emptySnapshot, { concurrency: 2 });

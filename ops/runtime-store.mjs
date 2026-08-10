@@ -9,7 +9,11 @@ function clone(value) {
 
 function writeConcurrency(options = {}) {
   const configured = options.concurrency ?? options.maxConcurrentWrites ?? process.env.PREMISE_RUNTIME_WRITE_CONCURRENCY ?? DEFAULT_DURABLE_WRITE_CONCURRENCY;
-  const value = typeof configured === "number" ? configured : Number.parseInt(configured, 10);
+  const value = typeof configured === "number"
+    ? configured
+    : typeof configured === "string" && /^\d+$/u.test(configured.trim())
+      ? Number(configured.trim())
+      : Number.NaN;
   if (!Number.isSafeInteger(value) || value < 1 || value > MAX_DURABLE_WRITE_CONCURRENCY) {
     throw new TypeError(`Durable mirror write concurrency must be an integer from 1 to ${MAX_DURABLE_WRITE_CONCURRENCY}`);
   }
@@ -43,6 +47,7 @@ export class DurableMirrorStore {
     this.failure = undefined;
     this.closed = false;
     this.closePromise = undefined;
+    this.revision = 0;
   }
 
   get(memoryId) {
@@ -58,6 +63,7 @@ export class DurableMirrorStore {
     this.ensureWritable();
     const copy = clone(record);
     this.records.set(copy.envelope.memoryId, copy);
+    this.revision += 1;
     const dependencies = [];
     if (this.restoreTask !== undefined) dependencies.push(this.restoreTask);
     const recordTail = this.recordTails.get(copy.envelope.memoryId);
@@ -104,6 +110,7 @@ export class DurableMirrorStore {
     const copy = clone(snapshot);
     this.records = new Map(copy.records.map((record) => [record.envelope.memoryId, record]));
     this.events = new Map(copy.events.map((event) => [event.idempotencyKey, event]));
+    this.revision += 1;
     const task = this.enqueue(() => this.persistent.restore(clone(copy)), [...this.tasks]);
     this.restoreTask = task;
   }

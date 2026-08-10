@@ -98,4 +98,13 @@ assert.equal(sharedStore.get("memory:tenant-b-source").envelope.validity.status,
 assert.equal(sharedStore.get("memory:tenant-b-derived").envelope.validity.status, "FRESH", "dependency propagation must not cross tenant boundaries");
 assert.throws(() => tenantARuntime.derive({ envelope: envelope("memory:cross-tenant", ["memory:tenant-b-source"], "FRESH", "tenant:a"), content: {} }), /Missing required dependency/);
 
+const externallyMutableStore = new InMemoryRuntimeStore();
+const externallyMutableRuntime = new PremiseRuntime({ store: externallyMutableStore, tenantId: "tenant:acme", now: () => at });
+externallyMutableStore.put({ envelope: envelope("memory:external-source"), content: { value: "external" } });
+assert.deepEqual(
+  externallyMutableRuntime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "e1" }),
+  ["memory:external-source"],
+  "source indexes must refresh when the public store is mutated outside the runtime"
+);
+
 console.log("runtime-core tests passed");

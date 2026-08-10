@@ -35,14 +35,29 @@ groups:
             sum(rate(premise_http_requests_total{status=~"5.."}[5m]))
             /
             clamp_min(sum(rate(premise_http_requests_total[5m])), 1)
-          ) > 0.02
+          ) > 0.001
         for: 10m
         labels:
           severity: critical
           service: premise-v2
         annotations:
           summary: "PREMiSE v2 error rate is high"
-          description: "Server errors exceed 2% of requests for 10 minutes."
+          description: "HTTP 5xx responses exceed the public 0.1% error budget for 10 minutes."
+
+      - alert: PremiseHighClientFailureRate
+        expr: >-
+          (
+            sum(rate(premise_http_requests_total{status=~"4.."}[5m]))
+            /
+            clamp_min(sum(rate(premise_http_requests_total[5m])), 1)
+          ) > 0.001
+        for: 10m
+        labels:
+          severity: warning
+          service: premise-v2
+        annotations:
+          summary: "PREMiSE v2 client failure rate is high"
+          description: "HTTP 4xx responses exceed 0.1% for 10 minutes; semantic failures and timeouts remain part of the soak evidence gate."
 
       - alert: PremiseFreshnessDegraded
         expr: >-
