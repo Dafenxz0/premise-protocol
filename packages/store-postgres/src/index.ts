@@ -119,6 +119,8 @@ export interface PostgresRuntimeCounts {
 
 export interface PostgresRuntimeSearchOptions {
   readonly limit?: number;
+  /** Maximum number of FTS matches materialized before ranking. */
+  readonly candidateLimit?: number;
   readonly filter?: unknown;
   readonly filters?: unknown;
   readonly lexicalWeight?: number;
@@ -298,6 +300,8 @@ export const DEFAULT_POSTGRES_RUNTIME_LOAD_BATCH_SIZE = 1_000;
 export const MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE = 10_000;
 export const DEFAULT_POSTGRES_RUNTIME_SEARCH_LIMIT = 10;
 export const MAX_POSTGRES_RUNTIME_SEARCH_LIMIT = 1_000;
+export const DEFAULT_POSTGRES_RUNTIME_SEARCH_CANDIDATE_LIMIT = 100;
+export const MAX_POSTGRES_RUNTIME_SEARCH_CANDIDATE_LIMIT = 10_000;
 
 function cloneJson<T>(value: T): T {
   const serialized = json(value, "PREMiSE runtime value");
@@ -368,6 +372,14 @@ function searchLimit(value: number | undefined): number {
   const result = value ?? DEFAULT_POSTGRES_RUNTIME_SEARCH_LIMIT;
   if (!Number.isSafeInteger(result) || result < 0 || result > MAX_POSTGRES_RUNTIME_SEARCH_LIMIT) {
     throw new TypeError(`search limit must be an integer between 0 and ${MAX_POSTGRES_RUNTIME_SEARCH_LIMIT}`);
+  }
+  return result;
+}
+
+function searchCandidateLimit(value: number | undefined, resultLimit: number): number {
+  const result = value ?? Math.min(MAX_POSTGRES_RUNTIME_SEARCH_CANDIDATE_LIMIT, Math.max(DEFAULT_POSTGRES_RUNTIME_SEARCH_CANDIDATE_LIMIT, resultLimit * 10));
+  if (!Number.isSafeInteger(result) || result < Math.max(1, resultLimit) || result > MAX_POSTGRES_RUNTIME_SEARCH_CANDIDATE_LIMIT) {
+    throw new TypeError(`search candidateLimit must be an integer between ${Math.max(1, resultLimit)} and ${MAX_POSTGRES_RUNTIME_SEARCH_CANDIDATE_LIMIT}`);
   }
   return result;
 }
@@ -523,6 +535,7 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
     if (typeof query !== "string") throw new TypeError("Search query must be a string");
     if (options === null || typeof options !== "object") throw new TypeError("Search options must be an object");
     const limit = searchLimit(options.limit);
+    const candidateLimit = searchCandidateLimit(options.candidateLimit, limit);
     const lexicalWeight = searchWeight(options.lexicalWeight, "lexicalWeight", 1);
     const vectorWeight = searchWeight(options.vectorWeight, "vectorWeight", 0);
     if (vectorWeight !== 0) throw new RangeError("PostgreSQL search supports lexical retrieval only; vectorWeight must be zero");
@@ -541,14 +554,24 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
         parameters.push(scope.tenantId);
         predicates.unshift(`tenant_id = $${parameters.length}`);
       }
+      // ponytail: rank only a bounded unordered candidate window; raise candidateLimit or add a relevance index when exact global ranking is required.
+      parameters.push(candidateLimit);
+      const candidateLimitParameter = parameters.length;
       parameters.push(limit);
       const result = await client.query<Readonly<Record<string, unknown>>>(`
+        WITH candidates AS MATERIALIZED (
+          SELECT tenant_id, memory_id,
+                 envelope_json,
+                 content_json
+          FROM ${this.runtime.records}
+          WHERE ${predicates.join(" AND ")}
+          LIMIT $${candidateLimitParameter}
+        )
         SELECT tenant_id, memory_id,
                envelope_json::text AS envelope_json,
                content_json::text AS content_json,
                ts_rank_cd(${textVector}, ${textQuery}, 32) AS rank
-        FROM ${this.runtime.records}
-        WHERE ${predicates.join(" AND ")}
+        FROM candidates
         ORDER BY rank DESC, memory_id ASC
         LIMIT $${parameters.length}
       `, parameters);

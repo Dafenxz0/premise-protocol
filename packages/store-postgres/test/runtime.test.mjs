@@ -65,14 +65,16 @@ class InMemoryPostgresClient {
       const events = [...this.events.values()].filter((row) => tenant === undefined || row.tenant_id === tenant);
       return { rows: [{ memories: records.length, events: events.length }] };
     }
-    if (statement.startsWith('SELECT tenant_id, memory_id, envelope_json::text AS envelope_json, content_json::text AS content_json')) {
+    if (statement.startsWith("WITH candidates AS MATERIALIZED")) {
       const query = String(values[0]).toLowerCase();
-      const tenant = values.length === 3 ? values[1] : undefined;
+      const tenant = values.length === 4 ? values[1] : undefined;
+      const candidateLimit = Number(values.at(-2));
       const limit = Number(values.at(-1));
       const rows = [...this.records.entries()]
         .map(([memoryId, row]) => ({ ...row, memory_id: memoryId, tenant_id: JSON.parse(row.envelope_json).tenantId }))
         .filter((row) => (tenant === undefined || row.tenant_id === tenant) && row.content_json.toLowerCase().includes(query))
         .sort((left, right) => left.memory_id.localeCompare(right.memory_id))
+        .slice(0, candidateLimit)
         .map((row) => ({ ...row, rank: 1 }));
       return { rows: rows.slice(0, limit) };
     }
@@ -200,15 +202,23 @@ assert.deepEqual(await store.loadIncrementally({
 assert.deepEqual(loadedRecords.map(({ envelope: loadedEnvelope }) => loadedEnvelope.memoryId), [envelope.memoryId, secondEnvelope.memoryId]);
 assert.equal(loadedEvents[0].sequence, 1);
 assert.deepEqual(await store.counts(), { memories: 2, events: 1 });
-const lexicalHits = await store.search("answer", { limit: 1, filter: { tenantId: "tenant:acme" } });
+const lexicalHits = await store.search("answer", { limit: 1, candidateLimit: 2, filter: { tenantId: "tenant:acme" } });
 assert.equal(lexicalHits.length, 1);
 assert.equal(lexicalHits[0].record.envelope.tenantId, "tenant:acme");
 assert.equal(lexicalHits[0].vectorScore, 0);
+const searchQuery = client.queries.find(({ statement }) => statement.startsWith("WITH candidates AS MATERIALIZED"));
+assert.ok(searchQuery);
+assert.match(searchQuery.statement, /LIMIT \$3 \) SELECT tenant_id, memory_id[\s\S]*ts_rank_cd/u);
+assert.ok(searchQuery.statement.indexOf("LIMIT $3") < searchQuery.statement.indexOf("ts_rank_cd"));
+assert.deepEqual(searchQuery.values, ["answer", "tenant:acme", 2, 1]);
 let durabilityWaits = 0;
 const lexicalIndex = new PostgresLexicalIndex(store, { awaitDurability: () => { durabilityWaits += 1; } });
 await lexicalIndex.upsert({ id: envelope.memoryId, text: "answer", content: { answer: 42 }, metadata: { tenantId: "tenant:acme" } });
 assert.equal(durabilityWaits, 1);
 await assert.rejects(() => store.search("answer", { vectorWeight: 1 }), /vectorWeight/);
+await assert.rejects(() => store.search("answer", { candidateLimit: 0 }), /candidateLimit/);
+await assert.rejects(() => store.search("answer", { limit: 2, candidateLimit: 1 }), /candidateLimit/);
+await assert.rejects(() => store.search("answer", { candidateLimit: 10_001 }), /candidateLimit/);
 const loadQueries = client.queries.slice(queryStart).map(({ statement }) => statement);
 assert.ok(loadQueries.filter((statement) => statement.startsWith('SELECT tenant_id, envelope_json')).length >= 2);
 assert.ok(loadQueries.filter((statement) => statement.startsWith('SELECT sequence, tenant_id, event_json')).length >= 2);

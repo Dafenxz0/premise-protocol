@@ -6,6 +6,8 @@ Esta guía describe un despliegue reproducible, local y con forma de producción
 
 La imagen ejecuta la API v2 con un usuario sin privilegios (10001:10001). PostgreSQL es la fuente de verdad: el arranque hidrata el mirror en páginas acotadas y las consultas usan el índice lexical persistido en PostgreSQL, sin reconstruir un índice completo en memoria. Las escrituras se confirman en PostgreSQL antes de responder con éxito. Si la persistencia falla, las operaciones de escritura devuelven 503, readiness pasa a rojo y hay que reiniciar el proceso después de corregir la base de datos.
 
+La búsqueda FTS aplica una ventana de candidatos antes del ranking para mantener acotada la latencia con consultas que coinciden con gran parte del corpus. El valor predeterminado es `max(100, limit * 10)` y se puede ajustar mediante `candidateLimit` en la integración del store. Es una aproximación de ranking, no un top-K global exacto: el operador debe medir recall, p95/p99 y coste con el corpus real antes de publicar un SLA de relevancia.
+
 ~~~mermaid
 flowchart LR
   Client[Cliente o gateway autenticado] --> API[PREMiSE v2 :3000]
