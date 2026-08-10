@@ -448,6 +448,36 @@ export async function readLegacyBackup(file) {
   return parseBackup(JSON.parse(await readFile(file, "utf8")));
 }
 
+export function parseExpectedBackupSha256(value = process.env.RESTORE_EXPECTED_SHA256) {
+  if (value === undefined || value === null || String(value).trim().length === 0) return undefined;
+  const normalized = String(value).trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/u.test(normalized)) throw new TypeError("RESTORE_EXPECTED_SHA256 must be a 64-character hexadecimal SHA-256 digest");
+  return normalized;
+}
+
+export function assertExpectedBackupSha256(expected, actual, label = "RESTORE_EXPECTED_SHA256") {
+  if (expected !== undefined && expected !== actual) throw new Error(`PREMiSE backup digest does not match ${label} (expected ${expected}, got ${actual})`);
+}
+
+/**
+ * Verify the complete backup before any destructive restore operation. This is
+ * intentionally local and deterministic: it validates the file format,
+ * tenant, ordering, counts, and digest, but does not claim encryption,
+ * external durability, WORM retention, or cloud-provider availability.
+ */
+export async function verifyBackupFile(file, options = {}) {
+  const kind = await inspectBackupFile(file);
+  if (kind.kind === "ndjson") {
+    const summary = await readIncrementalBackup(file, options);
+    return { ...kind, summary };
+  }
+  const backup = await readLegacyBackup(file);
+  const digest = createIncrementalDigest();
+  for (const record of backup.records) digest.addRecord(record);
+  for (const event of backup.events) digest.addEvent(event);
+  return { ...kind, backup, summary: digest.finish({ extended: true }) };
+}
+
 function quoteIdentifier(value) {
   if (!/^[a-z_][a-z0-9_]*$/u.test(value)) throw new TypeError("PostgreSQL table prefix must be a lowercase SQL identifier");
   return `"${value}"`;

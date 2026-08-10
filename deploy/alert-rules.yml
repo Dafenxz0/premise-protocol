@@ -93,3 +93,59 @@ groups:
         annotations:
           summary: "PREMiSE v2 store is not ready"
           description: "The service cannot confirm its PostgreSQL persistence path."
+
+      - alert: PremisePersistenceFailures
+        expr: increase(premise_store_persistence_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: premise-v2
+        annotations:
+          summary: "PREMiSE v2 persistence failures detected"
+          description: "At least one durable write batch failed in the last five minutes; inspect the application and PostgreSQL before retrying traffic."
+
+      - alert: PremiseWriteQueueNearLimit
+        expr: >-
+          premise_store_pending_write_limit > 0
+          and
+          premise_store_pending_writes / premise_store_pending_write_limit > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          service: premise-v2
+        annotations:
+          summary: "PREMiSE v2 durable write queue is near capacity"
+          description: "More than 80% of the admitted write queue is occupied; latency and backpressure may follow."
+
+      - alert: PremiseWriteQueueSaturated
+        expr: >-
+          premise_store_pending_write_limit > 0
+          and
+          premise_store_pending_writes / premise_store_pending_write_limit > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: premise-v2
+        annotations:
+          summary: "PREMiSE v2 durable write queue is saturated"
+          description: "The write queue is above 95% of its configured limit; protect the database and investigate before data loss or request rejection occurs."
+
+      - alert: PremiseScrapeUnavailable
+        expr: up{job="premise-v2"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: premise-v2
+        annotations:
+          summary: "PREMiSE v2 metrics scrape is unavailable"
+          description: "Prometheus cannot scrape the authenticated PREMiSE metrics endpoint."
+
+      - alert: PremiseTelemetryCollectorUnavailable
+        expr: up{job="otel-collector"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: premise-v2
+        annotations:
+          summary: "PREMiSE telemetry collector is unavailable"
+          description: "OpenTelemetry metrics are not being scraped; this does not by itself prove that the API is unavailable."

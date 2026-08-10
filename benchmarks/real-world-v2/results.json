@@ -1,6 +1,15 @@
 {
+  "format": "premise-v2-real-world-benchmark/2",
+  "benchmark": "real-world-v2",
+  "generatedAt": "2026-08-10T22:37:35.420Z",
+  "commit": null,
+  "runtime": {
+    "node": "v20.18.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
   "mode": "offline-temporal-fixture",
-  "generatedAt": "2026-08-10T22:07:49.402Z",
+  "seed": "premise-v2-real-world-v1",
   "tasks": 100,
   "mutations": [
     {
@@ -19,2452 +28,3878 @@
       "version": 2
     }
   ],
+  "source": {
+    "class": "local-deterministic-fixture",
+    "adapter": "github-fixture",
+    "networkAccess": false,
+    "readOnly": true,
+    "changedSourceTimeline": true
+  },
+  "taskManifest": {
+    "format": "premise-v2-benchmark-task-manifest/1",
+    "version": "v1",
+    "split": "paired-user-tasks",
+    "seed": "premise-v2-real-world-v1",
+    "mode": "offline-temporal-fixture",
+    "source": {
+      "adapter": "github",
+      "repository": "acme/fixture",
+      "readOnly": true
+    },
+    "tasks": [
+      {
+        "id": "offline-1",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-2",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-3",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-4",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-5",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-6",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-7",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-8",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-9",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-10",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-11",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-12",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-13",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-14",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-15",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-16",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-17",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-18",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-19",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-20",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-21",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-22",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-23",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-24",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-25",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-26",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-27",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-28",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-29",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-30",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-31",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-32",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-33",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-34",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-35",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-36",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-37",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-38",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-39",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-40",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-41",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-42",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-43",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-44",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-45",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-46",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-47",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-48",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-49",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-50",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-51",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-52",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-53",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-54",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-55",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-56",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-57",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-58",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-59",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-60",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-61",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-62",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-63",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-64",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-65",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-66",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-67",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-68",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-69",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-70",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-71",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-72",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-73",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-74",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-75",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-76",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-77",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-78",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-79",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-80",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-81",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-82",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-83",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-84",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-85",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-86",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-87",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-88",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-89",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-90",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-91",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-92",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-93",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-94",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-95",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-96",
+        "prompt": "¿Cuál es la rama principal que debo usar para abrir un cambio?",
+        "source": "github://fixture/acme/repository.defaultBranch",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-97",
+        "prompt": "¿Cuál es el identificador del commit más reciente?",
+        "source": "github://fixture/acme/repository.latestCommit",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-98",
+        "prompt": "¿Qué nombre identifica el proyecto en su documentación principal?",
+        "source": "github://fixture/acme/docs.readme",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-99",
+        "prompt": "¿Cuál es el estado actual de la incidencia 42?",
+        "source": "github://fixture/acme/issues.42",
+        "connector": "github",
+        "method": "GET"
+      },
+      {
+        "id": "offline-100",
+        "prompt": "¿Cuál es el estado de la pull request 7?",
+        "source": "github://fixture/acme/pulls.7",
+        "connector": "github",
+        "method": "GET"
+      }
+    ],
+    "blindness": {
+      "labelsExported": false,
+      "expectedAnswersInTaskManifest": false,
+      "candidateCanReadOracle": false
+    }
+  },
+  "evidence": {
+    "execution": {
+      "class": "local-runner",
+      "independent": false,
+      "blind": true,
+      "labelsExported": false
+    },
+    "taskSet": {
+      "path": "tasks.json",
+      "sha256": "sha256:8f2d67ba740b8d3682c2f7a8dd5a3264617d41fd173472ec2e6d606d6d425140",
+      "bytes": 17523,
+      "tasks": 100
+    },
+    "labels": {
+      "class": "in-process-oracle-commitment",
+      "exported": false,
+      "sha256": "sha256:160175cb09c546fc0350f4100b7cd1707f833fbf2889d2a7bfd1faa964b4fb2e",
+      "note": "This digest commits to labels without publishing answers; it is not an independent attestation."
+    },
+    "rawTrace": {
+      "kind": "raw-jsonl",
+      "path": "traces.jsonl",
+      "sha256": "sha256:7b4b5ddd18928901091ce690222cec735f0c02ceabc24f99cc85b221aaf357dd",
+      "bytes": 65339,
+      "lines": 300
+    }
+  },
+  "claims": {
+    "eligibleForPublicProductClaim": false,
+    "reason": "A local run or a single read-only observation is not independent validation of production efficacy."
+  },
   "limitations": [
     "This is a deterministic fixture for CI, not a live GitHub claim.",
-    "The fixture has exact answers and no model-generation step."
+    "The fixture has exact answers and no model-generation step.",
+    "The PREMiSE row is an event-invalidation reference implementation, not proof of production connector performance.",
+    "Response bytes are serialized fixture values and are not a cloud billing measurement."
   ],
   "strategies": [
     {
       "strategy": "direct-read",
+      "protocol": "none",
+      "baseline": true,
+      "role": "control de lectura fresca",
+      "implementation": "source-read",
       "tasks": 100,
       "correct": 100,
       "correctPer100": 100,
+      "precision": 100,
+      "precisionPer100": 100,
       "errors": 0,
       "errorsPer100": 0,
+      "freshness": 100,
+      "freshnessEligible": 100,
+      "freshnessPer100": 100,
       "requests": 100,
       "requestsPer100": 100,
-      "p50Ms": 0,
-      "p95Ms": 0.002,
+      "responseBytes": 732,
+      "responseBytesPer100": 732,
+      "costProxy": {
+        "model": "request-count-plus-response-bytes",
+        "requestUnits": 100,
+        "requestUnitsPer100Tasks": 100,
+        "responseBytes": 732,
+        "responseBytesPer100Tasks": 732,
+        "currency": null,
+        "estimatedUsd": null,
+        "billingEvidence": false
+      },
+      "p50Ms": 0.001,
+      "p95Ms": 0.007,
+      "p99Ms": 0.068,
       "traces": [
         {
           "strategy": "direct-read",
           "taskId": "offline-1",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.018
+          "responseBytes": 6,
+          "latencyMs": 0.102
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-2",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.002
+          "responseBytes": 4,
+          "latencyMs": 0.007
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-3",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.004
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-4",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 6,
+          "latencyMs": 0.006
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-5",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.002
+          "responseBytes": 8,
+          "latencyMs": 0.004
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-6",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 6,
+          "latencyMs": 0.003
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-7",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 4,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-8",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.003
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-9",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 6,
+          "latencyMs": 0.004
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-10",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.002
+          "responseBytes": 8,
+          "latencyMs": 0.041
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-11",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 6,
+          "latencyMs": 0.008
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-12",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 4,
+          "latencyMs": 0.007
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-13",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.003
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-14",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.003
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-15",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.002
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-16",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 6,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-17",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-18",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-19",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-20",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-21",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-22",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.003
+          "responseBytes": 4,
+          "latencyMs": 0.068
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-23",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.002
+          "responseBytes": 9,
+          "latencyMs": 0.003
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-24",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 6,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-25",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-26",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-27",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 4,
+          "latencyMs": 0.003
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-28",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-29",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-30",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-31",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-32",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-33",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-34",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 6,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-35",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-36",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-37",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-38",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-39",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-40",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-41",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.01
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-42",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-43",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-44",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 6,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-45",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-46",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-47",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-48",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-49",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-50",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 8,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-51",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-52",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-53",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 12,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-54",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-55",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.003
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-56",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-57",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-58",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-59",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-60",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 8,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-61",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-62",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-63",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 12,
           "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-64",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-65",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-66",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-67",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-68",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-69",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-70",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.004
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-71",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.007
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-72",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 7,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-73",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-74",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-75",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-76",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-77",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 7,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-78",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-79",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-80",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-81",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-82",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 7,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-83",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-84",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-85",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-86",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-87",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 7,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-88",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-89",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-90",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-91",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-92",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 7,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-93",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-94",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-95",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-96",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-97",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 7,
+          "latencyMs": 0.002
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-98",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-99",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 9,
+          "latencyMs": 0.001
         },
         {
           "strategy": "direct-read",
           "taskId": "offline-100",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.002
         }
       ]
     },
     {
       "strategy": "ttl-cache-20",
+      "protocol": "none",
+      "baseline": true,
+      "role": "baseline sin protocolo; cache temporal",
+      "implementation": "ttl-cache",
       "tasks": 100,
       "correct": 96,
       "correctPer100": 96,
+      "precision": 96,
+      "precisionPer100": 96,
       "errors": 0,
       "errorsPer100": 0,
+      "freshness": 96,
+      "freshnessEligible": 100,
+      "freshnessPer100": 96,
       "requests": 25,
       "requestsPer100": 25,
-      "p50Ms": 0,
+      "responseBytes": 180,
+      "responseBytesPer100": 180,
+      "costProxy": {
+        "model": "request-count-plus-response-bytes",
+        "requestUnits": 25,
+        "requestUnitsPer100Tasks": 25,
+        "responseBytes": 180,
+        "responseBytesPer100Tasks": 180,
+        "currency": null,
+        "estimatedUsd": null,
+        "billingEvidence": false
+      },
+      "p50Ms": 0.001,
       "p95Ms": 0.003,
+      "p99Ms": 0.005,
       "traces": [
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-1",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.039
+          "responseBytes": 6,
+          "latencyMs": 0.022
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-2",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 4,
           "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-3",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-4",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-5",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 8,
+          "latencyMs": 0.004
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-6",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.003
+          "responseBytes": 0,
+          "latencyMs": 0.005
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-7",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-8",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-9",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-10",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-11",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-12",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-13",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-14",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.003
+          "responseBytes": 0,
+          "latencyMs": 0.004
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-15",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-16",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-17",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-18",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-19",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-20",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-21",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.003
+          "responseBytes": 6,
+          "latencyMs": 0.004
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-22",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 4,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-23",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-24",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-25",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-26",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-27",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.002
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-28",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-29",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-30",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-31",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.003
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-32",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-33",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-34",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-35",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-36",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-37",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-38",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-39",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-40",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-41",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.009
+          "responseBytes": 6,
+          "latencyMs": 0.003
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-42",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 4,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-43",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 12,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-44",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-45",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-46",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-47",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-48",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-49",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-50",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-51",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-52",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-53",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-54",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-55",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-56",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-57",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-58",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-59",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-60",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-61",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 6,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-62",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 4,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-63",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 12,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-64",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 6,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-65",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 8,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-66",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-67",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-68",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-69",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-70",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-71",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.004
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-72",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": false,
+          "precision": false,
+          "freshness": false,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-73",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-74",
           "source": "github://fixture/acme/issues.42",
-          "correct": false,
+          "precision": false,
+          "freshness": false,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-75",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-76",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-77",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": false,
+          "precision": false,
+          "freshness": false,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-78",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-79",
           "source": "github://fixture/acme/issues.42",
-          "correct": false,
+          "precision": false,
+          "freshness": false,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-80",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-81",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 6,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-82",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 7,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-83",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 12,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-84",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-85",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0
+          "responseBytes": 8,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-86",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-87",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-88",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-89",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-90",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-91",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-92",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-93",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-94",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-95",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-96",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-97",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-98",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-99",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "ttl-cache-20",
           "taskId": "offline-100",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         }
       ]
     },
     {
       "strategy": "premise-event-cache",
+      "protocol": "PREMiSE-v2-reference",
+      "baseline": false,
+      "role": "control de invalidación por evento",
+      "implementation": "deterministic-event-invalidation",
       "tasks": 100,
       "correct": 100,
       "correctPer100": 100,
+      "precision": 100,
+      "precisionPer100": 100,
       "errors": 0,
       "errorsPer100": 0,
+      "freshness": 100,
+      "freshnessEligible": 100,
+      "freshnessPer100": 100,
       "requests": 8,
       "requestsPer100": 8,
-      "p50Ms": 0,
-      "p95Ms": 0.003,
+      "responseBytes": 61,
+      "responseBytesPer100": 61,
+      "costProxy": {
+        "model": "request-count-plus-response-bytes",
+        "requestUnits": 8,
+        "requestUnitsPer100Tasks": 8,
+        "responseBytes": 61,
+        "responseBytesPer100Tasks": 61,
+        "currency": null,
+        "estimatedUsd": null,
+        "billingEvidence": false
+      },
+      "p50Ms": 0.001,
+      "p95Ms": 0.004,
+      "p99Ms": 0.024,
       "traces": [
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-1",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.027
+          "responseBytes": 6,
+          "latencyMs": 0.062
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-2",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 4,
+          "latencyMs": 0.003
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-3",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 9,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-4",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 6,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-5",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 8,
           "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-6",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-7",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-8",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-9",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.005
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-10",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.002
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-11",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-12",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-13",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.002
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-14",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-15",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-16",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.033
+          "responseBytes": 0,
+          "latencyMs": 0.003
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-17",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.005
+          "responseBytes": 0,
+          "latencyMs": 0.006
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-18",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.003
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-19",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-20",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-21",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-22",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-23",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-24",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-25",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-26",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-27",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-28",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-29",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-30",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-31",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-32",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-33",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-34",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-35",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-36",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-37",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-38",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-39",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-40",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-41",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.015
+          "responseBytes": 0,
+          "latencyMs": 0.024
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-42",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-43",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.003
+          "responseBytes": 12,
+          "latencyMs": 0.005
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-44",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-45",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-46",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-47",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-48",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-49",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-50",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.001
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-51",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-52",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-53",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-54",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-55",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-56",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-57",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-58",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-59",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-60",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-61",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-62",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-63",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-64",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-65",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-66",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-67",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-68",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-69",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-70",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-71",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0.003
+          "responseBytes": 0,
+          "latencyMs": 0.004
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-72",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
-          "latencyMs": 0.001
+          "responseBytes": 7,
+          "latencyMs": 0.002
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-73",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-74",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 1,
+          "responseBytes": 9,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-75",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-76",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-77",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-78",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-79",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-80",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-81",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-82",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-83",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-84",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-85",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-86",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-87",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-88",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-89",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-90",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-91",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-92",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-93",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-94",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-95",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-96",
           "source": "github://fixture/acme/repository.defaultBranch",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
+          "responseBytes": 0,
           "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-97",
           "source": "github://fixture/acme/repository.latestCommit",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-98",
           "source": "github://fixture/acme/docs.readme",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-99",
           "source": "github://fixture/acme/issues.42",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         },
         {
           "strategy": "premise-event-cache",
           "taskId": "offline-100",
           "source": "github://fixture/acme/pulls.7",
-          "correct": true,
+          "precision": true,
+          "freshness": true,
           "requests": 0,
-          "latencyMs": 0
+          "responseBytes": 0,
+          "latencyMs": 0.001
         }
       ]
     }
-  ]
+  ],
+  "connectors": {}
 }

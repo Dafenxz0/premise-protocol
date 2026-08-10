@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createPublicKey, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { URL } from "node:url";
@@ -36,6 +36,9 @@ const authorizeMetrics = createBearerAuthorizer({ environment: config.environmen
 const signatureVerification = await loadSignatureVerification(config.signatureKeysFile);
 if (config.requireSignedEnvelopes && signatureVerification === undefined) {
   throw new Error("PREMISE_REQUIRE_SIGNED_ENVELOPES=1 requires PREMiSE_SIGNATURE_KEYS_FILE with external public keys");
+}
+if (!isDevelopmentEnvironment(config.environment) && signatureVerification !== undefined) {
+  throw new Error("PREMISE_SIGNATURE_KEYS_FILE cannot be used by this HTTP entrypoint outside development: its replay protection is process-local; inject a shared durable atomic replay store before enabling signatures in a protected environment");
 }
 
 const metrics = new Metrics();
@@ -96,6 +99,10 @@ function required(name, fallback) {
   return value === undefined || value.length === 0 ? fallback : value;
 }
 
+function isDevelopmentEnvironment(environment) {
+  return typeof environment === "string" && environment.trim().toLowerCase() === "development";
+}
+
 function integer(name, fallback, minimum, maximum) {
   const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) throw new Error(`${name} must be an integer from ${minimum} to ${maximum}`);
@@ -113,8 +120,18 @@ async function loadSignatureVerification(file) {
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain a JSON object keyed by keyId");
   const keys = new Map();
   for (const [keyId, value] of Object.entries(parsed)) {
-    if (!/^\S{1,256}$/u.test(keyId) || typeof value !== "string" || value.length === 0) throw new Error("PREMISE_SIGNATURE_KEYS_FILE contains an invalid key entry");
-    keys.set(keyId, value);
+    if (!/^\S{1,256}$/u.test(keyId) || typeof value !== "string" || value.length === 0 || value.length > 16_384) throw new Error("PREMISE_SIGNATURE_KEYS_FILE contains an invalid key entry");
+    if (/PRIVATE KEY/u.test(value)) throw new Error(`PREMISE_SIGNATURE_KEYS_FILE must contain public keys only (private material found for ${keyId})`);
+    let publicKey;
+    try {
+      publicKey = createPublicKey(value);
+    } catch {
+      throw new Error(`PREMISE_SIGNATURE_KEYS_FILE contains an invalid public key for ${keyId}`);
+    }
+    if (publicKey.type !== "public" || publicKey.asymmetricKeyType !== "ed25519") {
+      throw new Error(`PREMISE_SIGNATURE_KEYS_FILE key ${keyId} must be a public Ed25519 key`);
+    }
+    keys.set(keyId, publicKey);
   }
   if (keys.size === 0) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain at least one public key");
   return { keys, replayStore: new MemoryV2SignatureReplayStore() };

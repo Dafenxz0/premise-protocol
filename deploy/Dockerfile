@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24.19.0-bookworm-slim AS build
+ARG PREMISE_NODE_BUILD_IMAGE=node:24.19.0-bookworm-slim
+ARG PREMISE_NODE_RUNTIME_IMAGE=node:24.19.0-bookworm-slim
+
+FROM ${PREMISE_NODE_BUILD_IMAGE} AS build
 
 ARG BUILD_VERSION=local
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
@@ -26,7 +29,7 @@ RUN cd /opt/deploy-deps && npm ci --omit=dev --ignore-scripts --no-audit --no-fu
 RUN pnpm build
 RUN pnpm prune --prod
 
-FROM node:24.19.0-bookworm-slim AS runtime
+FROM ${PREMISE_NODE_RUNTIME_IMAGE} AS runtime
 
 ARG BUILD_VERSION=local
 ENV NODE_ENV=production \

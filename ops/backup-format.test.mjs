@@ -7,8 +7,11 @@ import test from "node:test";
 import {
   createBackup,
   createIncrementalBackupWriter,
+  assertExpectedBackupSha256,
   inspectBackupFile,
+  parseExpectedBackupSha256,
   readIncrementalBackup,
+  verifyBackupFile,
   writeIncrementalBackupFile
 } from "./backup-format.mjs";
 
@@ -115,6 +118,23 @@ test("round-trips the complete runtime state and preserves its digest", async ()
     const truncated = path.join(directory, "truncated.ndjson");
     await writeFile(truncated, chunks.filter((chunk) => !chunk.includes('"kind":"checkpoint"')).join(""), "utf8");
     await assert.rejects(() => readIncrementalBackup(truncated), /checksum or count mismatch/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("preflight verification returns a stable digest and rejects a wrong restore digest", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "premise-backup-"));
+  try {
+    const store = { async loadIncrementally({ onRecord, onEvent }) { await onRecord(record); await onEvent(event); return { records: 1, events: 1 }; } };
+    const file = path.join(directory, "verified.ndjson");
+    const written = await writeIncrementalBackupFile(store, file, { capturedAt, tenantId });
+    const verified = await verifyBackupFile(file, { expectedTenantId: tenantId });
+    assert.equal(verified.kind, "ndjson");
+    assert.equal(verified.summary.sha256, written.sha256);
+    assert.equal(parseExpectedBackupSha256(written.sha256.toUpperCase()), written.sha256);
+    assert.doesNotThrow(() => assertExpectedBackupSha256(written.sha256, verified.summary.sha256));
+    assert.throws(() => assertExpectedBackupSha256("f".repeat(64), verified.summary.sha256), /does not match RESTORE_EXPECTED_SHA256/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -1,4 +1,5 @@
-export const SDK_VERSION = "2.0.0" as const;
+export const SDK_VERSION = "2.0.0-rc.1" as const;
+export const SDK_RELEASE_CHANNEL = "candidate" as const;
 export const API_SPEC_VERSION = "premise/2" as const;
 export const SPEC_VERSION_V2 = API_SPEC_VERSION;
 export const MAX_QUERY_HITS = 1_000 as const;
@@ -225,8 +226,13 @@ export interface ApiErrorObject {
 
 export interface ApiErrorResponse {
   readonly error: string | ApiErrorObject;
+  readonly message?: string;
+  readonly requestId?: string;
+  readonly details?: readonly unknown[];
   readonly [key: string]: unknown;
 }
+
+const RETRYABLE_STATUS_CODES = new Set<number>([408, 425, 429, 500, 502, 503, 504]);
 
 export type RetryableStatus = 408 | 425 | 429 | 500 | 502 | 503 | 504;
 
@@ -260,6 +266,8 @@ export type Logger = (event: SdkLogEvent) => void;
 
 export interface PremiseClientOptions {
   readonly baseUrl: string | URL;
+  /** Reject plain HTTP endpoints; useful for production configuration. */
+  readonly requireHttps?: boolean;
   readonly tenantId?: string;
   readonly subjectId?: string;
   readonly token?: string;
@@ -410,6 +418,13 @@ export function isPremiseError(value: unknown): value is PremiseSdkError {
   return value instanceof PremiseSdkError;
 }
 
+/** Returns whether the SDK can retry this error with its default retry statuses. */
+export function isRetryablePremiseError(value: unknown): boolean {
+  return value instanceof PremiseHttpError
+    ? RETRYABLE_STATUS_CODES.has(value.status)
+    : value instanceof PremiseTimeoutError || value instanceof PremiseNetworkError;
+}
+
 interface ResolvedRetryOptions {
   readonly maxRetries: number;
   readonly baseDelayMs: number;
@@ -545,10 +560,16 @@ function responseRequestId(value: Headers): string | undefined {
   return value.get("x-request-id") ?? value.get("request-id") ?? undefined;
 }
 
+function bodyRequestId(value: unknown): string | undefined {
+  if (!isRecord(value) || typeof value.requestId !== "string") return undefined;
+  return /^[\x21-\x7e]{1,128}$/u.test(value.requestId) ? value.requestId : undefined;
+}
+
 function errorDescription(status: number, body: unknown): {
   readonly code: string;
   readonly message: string;
   readonly details?: readonly unknown[];
+  readonly requestId?: string;
 } {
   const fallbackCode = "HTTP_" + status;
   if (typeof body === "string" && body.length > 0) return { code: fallbackCode, message: body };
@@ -556,20 +577,32 @@ function errorDescription(status: number, body: unknown): {
     const rawError = body.error;
     const topLevelMessage = typeof body.message === "string" && body.message.length > 0 ? body.message : undefined;
     const topLevelDetails = Array.isArray(body.details) ? body.details : undefined;
+    const requestId = bodyRequestId(body);
     if (typeof rawError === "string" && rawError.length > 0) {
       return {
         code: topLevelMessage === undefined ? fallbackCode : rawError,
         message: topLevelMessage ?? rawError,
-        ...(topLevelDetails === undefined ? {} : { details: topLevelDetails })
+        ...(topLevelDetails === undefined ? {} : { details: topLevelDetails }),
+        ...(requestId === undefined ? {} : { requestId })
       };
     }
     if (isRecord(rawError)) {
       const code = typeof rawError.code === "string" && rawError.code.length > 0 ? rawError.code : fallbackCode;
       const message = typeof rawError.message === "string" && rawError.message.length > 0 ? rawError.message : "PREMiSE API request failed";
       const details = Array.isArray(rawError.details) ? rawError.details : undefined;
-      return { code, message, ...(details === undefined ? {} : { details }) };
+      return { code, message, ...(details === undefined ? {} : { details }), ...(requestId === undefined ? {} : { requestId }) };
     }
-    if (topLevelMessage !== undefined) return { code: fallbackCode, message: topLevelMessage, ...(topLevelDetails === undefined ? {} : { details: topLevelDetails }) };
+    if (topLevelMessage !== undefined) return {
+      code: fallbackCode,
+      message: topLevelMessage,
+      ...(topLevelDetails === undefined ? {} : { details: topLevelDetails }),
+      ...(requestId === undefined ? {} : { requestId })
+    };
+    return {
+      code: fallbackCode,
+      message: "PREMiSE API request failed with HTTP " + status,
+      ...(requestId === undefined ? {} : { requestId })
+    };
   }
   return { code: fallbackCode, message: "PREMiSE API request failed with HTTP " + status };
 }
@@ -628,6 +661,9 @@ function queryBody(input: QueryRequest): Record<string, unknown> {
   requiredString(input.query, "query");
   if (input.options !== undefined && !isRecord(input.options)) throw new TypeError("options must be an object");
   const options = input.options;
+  if (options !== undefined && hasOwn(options, "filter") && hasOwn(options, "filters")) {
+    throw new TypeError("Use either options.filter or options.filters, not both");
+  }
   if (options?.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit < 0 || options.limit > MAX_QUERY_HITS)) {
     throw new RangeError(`options.limit must be an integer from 0 to ${MAX_QUERY_HITS}`);
   }
@@ -654,12 +690,23 @@ function normalizeQueryResponse<T>(value: unknown): QueryResponse<T> {
   if (!isRecord(value.context) || !Array.isArray(value.context.selected)) {
     throw new PremiseDecodeError("PREMiSE query response must contain a context.selected array");
   }
+  for (const hit of value.hits) {
+    if (!isRecord(hit) || !isNonEmptyString(hit.id) || typeof hit.text !== "string" || typeof hit.score !== "number" || !Number.isFinite(hit.score)) {
+      invalidResponse("PREMiSE query response contains an invalid hit", value);
+    }
+  }
+  for (const selected of value.context.selected) {
+    if (!isRecord(selected)) invalidResponse("PREMiSE query response context.selected must contain objects", value);
+  }
   const context = value.context as ContextPlan;
   if (value.nextPageToken !== undefined && (typeof value.nextPageToken !== "string" || value.nextPageToken.length === 0)) {
     throw new PremiseDecodeError("PREMiSE query response nextPageToken must be a string");
   }
   if (value.page !== undefined && !isRecord(value.page)) {
     throw new PremiseDecodeError("PREMiSE query response page must be an object");
+  }
+  if (isRecord(value.page) && value.page.pageSize !== undefined && (typeof value.page.pageSize !== "number" || !Number.isSafeInteger(value.page.pageSize) || value.page.pageSize <= 0)) {
+    throw new PremiseDecodeError("PREMiSE query response page.pageSize must be a positive integer");
   }
   if (isRecord(value.page) && value.page.nextPageToken !== undefined && (typeof value.page.nextPageToken !== "string" || value.page.nextPageToken.length === 0)) {
     throw new PremiseDecodeError("PREMiSE query response page.nextPageToken must be a string");
@@ -672,15 +719,75 @@ function normalizeQueryResponse<T>(value: unknown): QueryResponse<T> {
   } as QueryResponse<T>;
 }
 
+function invalidResponse(message: string, body: unknown): never {
+  throw new PremiseSdkError(message, "INVALID_RESPONSE", { body });
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+function assertHealthResponse(value: unknown): asserts value is HealthResponse {
+  assertApiSpecVersion(value, "PREMiSE health response");
+  if (!isRecord(value) || typeof value.ok !== "boolean" || !isNonNegativeSafeInteger(value.memories) || !isNonNegativeSafeInteger(value.events)) {
+    invalidResponse("PREMiSE health response must contain ok, memories and events", value);
+  }
+}
+
+function assertCapabilitiesResponse(value: unknown): asserts value is CapabilitiesResponse {
+  assertApiSpecVersion(value, "PREMiSE capabilities response");
+  if (!isRecord(value) || !Array.isArray(value.capabilities) || value.capabilities.some((capability) => !isNonEmptyString(capability))) {
+    invalidResponse("PREMiSE capabilities response must contain a capabilities string array", value);
+  }
+}
+
+function assertStoreMemoryResponse(value: unknown): asserts value is StoreMemoryResponse {
+  if (!isRecord(value) || !isNonEmptyString(value.memoryId) || !isNonEmptyString(value.status)) {
+    invalidResponse("PREMiSE store response must contain memoryId and status", value);
+  }
+}
+
+function assertVersionReference(value: unknown, label: string, body: unknown): asserts value is VersionReference {
+  if (!isRecord(value) || !isNonEmptyString(value.scheme) || !isNonEmptyString(value.token)) {
+    invalidResponse(`${label} must contain scheme and token`, body);
+  }
+}
+
+function assertRevalidationReport(value: unknown): asserts value is RevalidationReport {
+  if (!isRecord(value)
+    || !isNonEmptyString(value.memoryId)
+    || !["UNCHANGED", "CHANGED", "MISSING", "UNKNOWN"].includes(value.result as string)
+    || !["FRESH", "STALE", "INVALID", "UNKNOWN"].includes(value.status as string)
+    || typeof value.checkedAt !== "string"
+    || Number.isNaN(Date.parse(value.checkedAt))) {
+    invalidResponse("PREMiSE revalidation response is not a valid report", value);
+  }
+  if (value.sourceUri !== undefined && typeof value.sourceUri !== "string") invalidResponse("PREMiSE revalidation sourceUri must be a string", value);
+  if (value.version !== undefined) assertVersionReference(value.version, "PREMiSE revalidation version", value);
+}
+
+function assertSourceChangedResponse(value: unknown): asserts value is SourceChangedResponse {
+  if (!isRecord(value) || !Array.isArray(value.affected) || value.affected.some((memoryId) => !isNonEmptyString(memoryId))) {
+    invalidResponse("PREMiSE source-changed response must contain an affected string array", value);
+  }
+  if (value.nextPageToken !== undefined && !isNonEmptyString(value.nextPageToken)) {
+    invalidResponse("PREMiSE source-changed nextPageToken must be a non-empty string", value);
+  }
+}
+
 function assertApiSpecVersion(value: unknown, label: string): void {
   if (!isRecord(value) || value.specVersion !== API_SPEC_VERSION) {
     throw new PremiseSdkError(`${label} must declare specVersion ${API_SPEC_VERSION}`, "INVALID_RESPONSE", { body: value });
   }
 }
 
-function assertMemoryRecordVersion(value: unknown): void {
-  if (!isRecord(value) || !isRecord(value.envelope) || value.envelope.specVersion !== API_SPEC_VERSION) {
-    throw new PremiseSdkError(`PREMiSE memory response must use specVersion ${API_SPEC_VERSION}`, "INVALID_RESPONSE", { body: value });
+function assertMemoryRecordVersion(value: unknown, label = "PREMiSE memory response", code: PremiseErrorCode = "INVALID_RESPONSE"): asserts value is MemoryRecord<unknown> {
+  if (!isRecord(value) || !isRecord(value.envelope) || value.envelope.specVersion !== API_SPEC_VERSION || !hasOwn(value, "content")) {
+    throw new PremiseSdkError(`${label} must use specVersion ${API_SPEC_VERSION} and contain content`, code, { body: value });
   }
 }
 
@@ -712,6 +819,9 @@ export class PremiseClient<T = unknown> {
 
   constructor(options: PremiseClientOptions) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
+    if (options.requireHttps === true && this.baseUrl.protocol !== "https:") {
+      throw new TypeError("baseUrl must use https when requireHttps is enabled");
+    }
     this.tenantId = options.tenantId === undefined ? undefined : requiredString(options.tenantId, "tenantId");
     this.subjectId = options.subjectId === undefined ? undefined : requiredString(options.subjectId, "subjectId");
     if (options.token !== undefined && options.authorization !== undefined) throw new TypeError("Use token or authorization, not both");
@@ -731,13 +841,13 @@ export class PremiseClient<T = unknown> {
 
   async health(options?: RequestOptions): Promise<HealthResponse> {
     const value = await this.request<unknown>("GET", "health", undefined, options);
-    assertApiSpecVersion(value, "PREMiSE health response");
+    assertHealthResponse(value);
     return value as HealthResponse;
   }
 
   async capabilities(options?: RequestOptions): Promise<CapabilitiesResponse> {
     const value = await this.request<unknown>("GET", "v2/capabilities", undefined, options);
-    assertApiSpecVersion(value, "PREMiSE capabilities response");
+    assertCapabilitiesResponse(value);
     return value as CapabilitiesResponse;
   }
 
@@ -749,12 +859,18 @@ export class PremiseClient<T = unknown> {
 
   registerMemory(record: MemoryRecord<T>, options?: RequestOptions): Promise<StoreMemoryResponse> {
     this.assertRecordTenant(record);
-    return this.request<StoreMemoryResponse>("POST", "v2/memories", { record }, options);
+    return this.request<unknown>("POST", "v2/memories", { record }, options).then((value) => {
+      assertStoreMemoryResponse(value);
+      return value;
+    });
   }
 
   deriveMemory(record: MemoryRecord<T>, options?: RequestOptions): Promise<StoreMemoryResponse> {
     this.assertRecordTenant(record);
-    return this.request<StoreMemoryResponse>("POST", "v2/memories", { record, derived: true }, options);
+    return this.request<unknown>("POST", "v2/memories", { record, derived: true }, options).then((value) => {
+      assertStoreMemoryResponse(value);
+      return value;
+    });
   }
 
   register(record: MemoryRecord<T>, options?: RequestOptions): Promise<StoreMemoryResponse> {
@@ -813,12 +929,14 @@ export class PremiseClient<T = unknown> {
   }
 
   async revalidate(memoryId: string, options?: RequestOptions): Promise<RevalidationReport> {
-    return this.request<RevalidationReport>(
+    const value = await this.request<unknown>(
       "POST",
       "v2/memories/" + encodeURIComponent(requiredString(memoryId, "memoryId")) + "/revalidate",
       undefined,
       options
     );
+    assertRevalidationReport(value);
+    return value;
   }
 
   revalidateMemory(memoryId: string, options?: RequestOptions): Promise<RevalidationReport> {
@@ -843,7 +961,10 @@ export class PremiseClient<T = unknown> {
     requiredString(request.version.scheme, "version.scheme");
     requiredString(request.version.token, "version.token");
     const requestOptions = typeof input === "string" ? options : versionOrOptions as RequestOptions | undefined;
-    return this.request<SourceChangedResponse>("POST", "v2/source-changed", request, requestOptions);
+    return this.request<unknown>("POST", "v2/source-changed", request, requestOptions).then((value) => {
+      assertSourceChangedResponse(value);
+      return value;
+    });
   }
 
   signalSourceChanged(input: SourceChangedRequest, options?: RequestOptions): Promise<SourceChangedResponse>;
@@ -859,7 +980,7 @@ export class PremiseClient<T = unknown> {
   }
 
   private assertRecordTenant(record: MemoryRecord<T>): void {
-    if (!isRecord(record) || !isRecord(record.envelope)) throw new TypeError("record.envelope must be an object");
+    assertMemoryRecordVersion(record, "PREMiSE memory request", "INVALID_REQUEST");
     requiredString(record.envelope.memoryId, "record.envelope.memoryId");
     requiredString(record.envelope.tenantId, "record.envelope.tenantId");
     if (this.tenantId !== undefined && record.envelope.tenantId !== this.tenantId) {
@@ -992,7 +1113,8 @@ export class PremiseClient<T = unknown> {
         ...(prepared.body === undefined ? {} : { body: prepared.body })
       };
       const response = await this.fetchImplementation(url, init);
-      const requestId = responseRequestId(response.headers) ?? prepared.requestId;
+      const headerRequestId = responseRequestId(response.headers);
+      const requestId = headerRequestId ?? prepared.requestId;
       this.log({
         type: "response",
         method,
@@ -1004,13 +1126,14 @@ export class PremiseClient<T = unknown> {
       if (!response.ok) {
         const body = await responseBodyLenient(response);
         const description = errorDescription(response.status, body);
+        const errorRequestId = headerRequestId ?? bodyRequestId(body) ?? prepared.requestId;
         throw new PremiseHttpError({
           ...description,
           status: response.status,
           method,
           url: url.toString(),
           responseHeaders: responseHeaders(response.headers),
-          ...(requestId === undefined ? {} : { requestId }),
+          requestId: errorRequestId,
           body
         });
       }

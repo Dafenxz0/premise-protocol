@@ -7,6 +7,7 @@ const compose = await readFile(new URL("./docker-compose.yml", import.meta.url),
 const dockerfile = await readFile(new URL("./Dockerfile", import.meta.url), "utf8");
 const productionEnv = await readFile(new URL("./config/production.env.example", import.meta.url), "utf8");
 const prometheus = await readFile(new URL("./prometheus.yml", import.meta.url), "utf8");
+const alerts = await readFile(new URL("./alert-rules.yml", import.meta.url), "utf8");
 
 function setting(text, name) {
   const match = text.match(new RegExp(`^\\s*${name}\\s*=\\s*([^\\s#]+)\\s*(?:#.*)?$`, "mu"));
@@ -73,4 +74,23 @@ test("production example pins the same pool budget", () => {
 
 test("production image carries the in-network soak diagnostic", () => {
   assert.match(dockerfile, /COPY --from=build --chown=10001:10001 \/workspace\/benchmarks\/ga-soak \.\/benchmarks\/ga-soak/u);
+  assert.match(dockerfile, /ARG PREMISE_NODE_BUILD_IMAGE=node:24\.19\.0-bookworm-slim/u);
+  assert.match(dockerfile, /FROM \$\{PREMISE_NODE_RUNTIME_IMAGE\} AS runtime/u);
+});
+
+test("operational alerts cover persistence, backpressure, and scrape loss", () => {
+  assert.match(alerts, /increase\(premise_store_persistence_failures_total\[5m\]\) > 0/u);
+  assert.match(alerts, /premise_store_pending_writes \/ premise_store_pending_write_limit > 0\.80/u);
+  assert.match(alerts, /premise_store_pending_writes \/ premise_store_pending_write_limit > 0\.95/u);
+  assert.match(alerts, /up\{job="premise-v2"\} == 0/u);
+  assert.match(alerts, /up\{job="otel-collector"\} == 0/u);
+});
+
+test("Compose uses immutable-image override points and graceful service shutdown", () => {
+  assert.match(compose, /image: \$\{PREMISE_POSTGRES_IMAGE:-postgres:16\.4-alpine\}/u);
+  assert.match(compose, /image: \$\{PREMISE_PROMETHEUS_IMAGE:-prom\/prometheus:v3\.5\.0\}/u);
+  assert.match(compose, /image: \$\{PREMISE_OTEL_IMAGE:-otel\/opentelemetry-collector-contrib:0\.132\.0\}/u);
+  assert.match(compose, /PREMISE_NODE_RUNTIME_IMAGE: \$\{PREMISE_NODE_RUNTIME_IMAGE:-node:24\.19\.0-bookworm-slim\}/u);
+  assert.match(compose, /premise:\s[\s\S]*?init: true[\s\S]*?stop_grace_period: 30s/u);
+  assert.match(compose, /backup:\s[\s\S]*?read_only: true[\s\S]*?\.\.\/\.local\/backups:\/backup:rw/u);
 });

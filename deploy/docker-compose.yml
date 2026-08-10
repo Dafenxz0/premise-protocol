@@ -2,7 +2,7 @@ name: premise-v2
 
 services:
   postgres:
-    image: postgres:16.4-alpine
+    image: ${PREMISE_POSTGRES_IMAGE:-postgres:16.4-alpine}
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-premise}
@@ -17,9 +17,10 @@ services:
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
+    stop_grace_period: 1m
 
   db-roles:
-    image: postgres:16.4-alpine
+    image: ${PREMISE_POSTGRES_IMAGE:-postgres:16.4-alpine}
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-premise}
       POSTGRES_USER: ${POSTGRES_USER:-premise}
@@ -59,7 +60,17 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         BUILD_VERSION: ${PREMISE_BUILD_VERSION:-local}
+        PREMISE_NODE_BUILD_IMAGE: ${PREMISE_NODE_BUILD_IMAGE:-node:24.19.0-bookworm-slim}
+        PREMISE_NODE_RUNTIME_IMAGE: ${PREMISE_NODE_RUNTIME_IMAGE:-node:24.19.0-bookworm-slim}
     user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
       PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
@@ -78,7 +89,10 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         BUILD_VERSION: ${PREMISE_BUILD_VERSION:-local}
+        PREMISE_NODE_BUILD_IMAGE: ${PREMISE_NODE_BUILD_IMAGE:-node:24.19.0-bookworm-slim}
+        PREMISE_NODE_RUNTIME_IMAGE: ${PREMISE_NODE_RUNTIME_IMAGE:-node:24.19.0-bookworm-slim}
     user: "10001:10001"
+    init: true
     read_only: true
     tmpfs:
       - /tmp
@@ -123,9 +137,10 @@ services:
       start_period: 15s
       retries: 6
     restart: unless-stopped
+    stop_grace_period: 30s
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: ${PREMISE_PROMETHEUS_IMAGE:-prom/prometheus:v3.5.0}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -145,7 +160,7 @@ services:
     restart: unless-stopped
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.132.0
+    image: ${PREMISE_OTEL_IMAGE:-otel/opentelemetry-collector-contrib:0.132.0}
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
@@ -159,6 +174,14 @@ services:
     image: ${PREMISE_IMAGE:-premise-v2:local}
     profiles: ["ops"]
     user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://${PREMISE_DB_USER:-premise_app}:${PREMISE_DB_PASSWORD:-local-only-app-password}@postgres:5432/${POSTGRES_DB:-premise}}
       PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
@@ -166,7 +189,7 @@ services:
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
       BACKUP_FILE: /backup/premise-v2-latest.ndjson
     volumes:
-      - ../.local/backups:/backup
+      - ../.local/backups:/backup:rw
     depends_on:
       db-roles:
         condition: service_completed_successfully

@@ -182,6 +182,10 @@ try {
   assert.equal(diagnostic.acceptance.passed, false, `checkpoint-dominated fixture must fail acceptance: ${JSON.stringify({ summary: diagnostic.postgresTelemetry.summary, acceptance: diagnostic.acceptance })}`);
   assert.equal(diagnostic.acceptance.classification, "checkpoint-dominated", "checkpoint failure classification is not actionable");
   assert.ok(diagnostic.acceptance.actions.length >= 2, "checkpoint failure needs remediation actions");
+  assert.equal(diagnostic.eligibility.eligibleForGa, false, "diagnostic acceptance failure must revoke GA eligibility");
+  assert.equal(diagnostic.eligibility.classification, "ga-candidate-failed", "diagnostic eligibility must expose acceptance failure");
+  assert.equal(diagnostic.acceptance.evidence.dominantPhase, "checkpoint-write", "checkpoint write bottleneck was not identified");
+  assert.equal(diagnostic.acceptance.evidence.writeTimePerBufferMs, 11, "checkpoint write cost evidence is incorrect");
   for (const [operation, metrics] of Object.entries(diagnostic.metrics.byOperation)) {
     assert.ok(metrics.latency.observations > 0, `${operation} latency evidence is missing`);
   }

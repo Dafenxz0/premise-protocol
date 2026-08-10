@@ -1,7 +1,7 @@
 {
   "name": "@premise/sdk",
-  "version": "2.0.0",
-  "description": "Stable TypeScript SDK for the PREMiSE v2 HTTP API.",
+  "version": "2.0.0-rc.1",
+  "description": "Release-candidate TypeScript SDK for the PREMiSE v2 HTTP API.",
   "type": "module",
   "exports": {
     ".": {

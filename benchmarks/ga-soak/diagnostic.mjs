@@ -83,9 +83,22 @@ export function classifyAcceptance(soak, telemetry, thresholds = ACCEPTANCE_THRE
     && checkpoint.totalTimeMs >= thresholds.minimumCheckpointTimeMs
     && checkpoint.timeShareOfWindow >= thresholds.checkpointTimeShareOfWindow;
   if (checkpointDominates) {
+    const writeTimeMs = checkpoint.writeTimeMs;
+    const syncTimeMs = checkpoint.syncTimeMs;
+    const buffers = checkpoint.buffers;
+    const requests = soak.metrics?.requests;
+    const walBytesPerRequest = Number.isFinite(summary.wal?.bytes) && Number.isFinite(requests) && requests > 0
+      ? Number((summary.wal.bytes / requests).toFixed(3))
+      : null;
+    const writeTimePerBufferMs = Number.isFinite(writeTimeMs) && Number.isFinite(buffers) && buffers > 0
+      ? Number((writeTimeMs / buffers).toFixed(3))
+      : null;
+    const dominantPhase = Number.isFinite(writeTimeMs) && Number.isFinite(syncTimeMs) && writeTimeMs >= syncTimeMs
+      ? "checkpoint-write"
+      : "checkpoint-sync";
     return acceptanceFailure(
       "checkpoint-dominated",
-      `PostgreSQL checkpoint write/sync time consumed ${percentage(checkpoint.timeShareOfWindow)}% of the measured window (${checkpoint.totalTimeMs} ms).`,
+      `PostgreSQL ${dominantPhase} time consumed ${percentage(checkpoint.timeShareOfWindow)}% of the measured window (${checkpoint.totalTimeMs} ms).`,
       [
         "Inspect checkpoint requested/timed counts, WAL bytes, and storage latency in postgresTelemetry.summary.",
         "Have the database owner review checkpoint cadence, WAL budget, checkpoint completion pacing, and storage throughput before changing PREMiSE code.",
@@ -98,7 +111,13 @@ export function classifyAcceptance(soak, telemetry, thresholds = ACCEPTANCE_THRE
         thresholdShare: thresholds.checkpointTimeShareOfWindow,
         requested: checkpoint.requested,
         timed: checkpoint.timed,
-        walBytes: summary.wal?.bytes ?? null
+        writeTimeMs,
+        syncTimeMs,
+        dominantPhase,
+        buffers,
+        writeTimePerBufferMs,
+        walBytes: summary.wal?.bytes ?? null,
+        walBytesPerRequest
       }
     );
   }
@@ -330,6 +349,22 @@ export async function runDiagnostic(input = {}) {
     errors
   };
   const acceptance = classifyAcceptance(soak, postgresTelemetry);
+  const eligibility = acceptance.passed
+    ? soak.eligibility
+    : {
+      ...soak.eligibility,
+      eligibleForGa: false,
+      classification: "ga-candidate-failed",
+      reasons: [...new Set([...(soak.eligibility.reasons ?? []), "acceptance"])],
+      checks: {
+        ...soak.eligibility.checks,
+        acceptance: {
+          observed: acceptance.classification,
+          passed: false
+        }
+      },
+      note: "Diagnostic acceptance is part of GA eligibility; a failed PostgreSQL or semantic acceptance check cannot coexist with ga-eligible."
+    };
   const result = {
     ...soak,
     schema: DIAGNOSTIC_FORMAT,
@@ -337,7 +372,8 @@ export async function runDiagnostic(input = {}) {
     benchmark: "ga-soak-diagnostic",
     soakFormat: soak.format,
     postgresTelemetry,
-    acceptance
+    acceptance,
+    eligibility
   };
   const output = input.diagnosticOutput === undefined ? input.output : input.diagnosticOutput;
   if (output !== null && output !== undefined) {

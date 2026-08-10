@@ -69,7 +69,25 @@ muestras completas en `postgresTelemetry.samples`. `postgresTelemetry.summary`
 contiene los deltas de checkpoints, WAL, transacciones, bloques y conexiones.
 El proceso termina con codigo distinto de cero y `acceptance.classification`
 `checkpoint-dominated` cuando el tiempo acumulado de escritura/sync de
-checkpoints alcanza 100 ms y el 25% de la ventana medida. El resultado incluye
-acciones para revisar la base de datos y repetir la prueba; no aplica cambios
-de runtime ni de deployment. Usa `--report-only` para conservar el artefacto
-sin hacer fallar el proceso.
+checkpoints alcanza 100 ms y el 25% de la ventana medida. No se relaja ese
+umbral: la aceptación de Postgres forma parte de la elegibilidad GA y un
+`acceptance.passed=false` fuerza también `eligibility.eligibleForGa=false`.
+
+La campaña manual del 2026-08-10 es un ejemplo de diagnóstico, no una señal de
+disponibilidad aceptada: completó 587.507 solicitudes sin errores, pero observó
+4 checkpoints temporizados (0 solicitados), 2.328.950 ms de escritura y 24 ms de
+sync sobre una ventana de 3.600.154,681 ms; 8.515 buffers y 868.260.959 bytes de
+WAL. El 64,7% de la ventana quedó ocupado por escritura de checkpoint. Los logs
+del mismo contenedor registraron checkpoints de aproximadamente 710-810 s.
+La clasificación correcta es `checkpoint-dominated` con fase dominante
+`checkpoint-write`: el primer propietario de la investigación es la capa de
+almacenamiento/configuración de PostgreSQL (throughput, volumen Docker/runner,
+cadencia y presupuesto WAL), no una optimización del gate ni una afirmación de
+que el protocolo sea universal. El artefacto conserva `writeTimeMs`,
+`syncTimeMs`, `buffers`, `writeTimePerBufferMs` y `walBytesPerRequest` para que
+la siguiente ejecución pueda demostrar si el cuello desapareció.
+
+El resultado incluye acciones para revisar la base de datos y repetir la
+prueba; no aplica cambios de runtime ni de deployment. Usa `--report-only`
+para conservar el artefacto sin hacer fallar el proceso, pero ese resultado
+sigue siendo no aceptado y no debe presentarse como evidencia GA.
