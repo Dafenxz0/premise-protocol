@@ -1,0 +1,55 @@
+{
+  "sha": "1111111111111111111111111111111111111111",
+  "node_id": "C_kwDOExampleCommit",
+  "commit": {
+    "author": {
+      "name": "Octocat",
+      "email": "octocat@github.com",
+      "date": "2026-08-09T18:20:00Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-08-09T18:20:00Z"
+    },
+    "message": "Update the example validator",
+    "tree": {
+      "sha": "2222222222222222222222222222222222222222",
+      "url": "https://api.github.com/repos/acme/widget/git/trees/2222222222222222222222222222222222222222"
+    },
+    "url": "https://api.github.com/repos/acme/widget/git/commits/1111111111111111111111111111111111111111",
+    "comment_count": 0
+  },
+  "author": {
+    "login": "octocat",
+    "id": 1,
+    "type": "User",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "github",
+    "id": 2,
+    "type": "User",
+    "site_admin": false
+  },
+  "parents": [],
+  "html_url": "https://github.com/acme/widget/commit/1111111111111111111111111111111111111111",
+  "url": "https://api.github.com/repos/acme/widget/commits/1111111111111111111111111111111111111111",
+  "comments_url": "https://api.github.com/repos/acme/widget/commits/1111111111111111111111111111111111111111/comments",
+  "stats": {
+    "total": 1,
+    "additions": 1,
+    "deletions": 0
+  },
+  "files": [
+    {
+      "filename": "README.md",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 0,
+      "changes": 1,
+      "blob_url": "https://github.com/acme/widget/blob/1111111111111111111111111111111111111111/README.md",
+      "raw_url": "https://github.com/acme/widget/raw/1111111111111111111111111111111111111111/README.md"
+    }
+  ]
+}

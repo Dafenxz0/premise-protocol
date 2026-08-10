@@ -1,0 +1,37 @@
+{
+  "action": "synchronize",
+  "number": 42,
+  "pull_request": {
+    "id": 2001,
+    "number": 42,
+    "state": "open",
+    "title": "Add the GitHub validator",
+    "head": {
+      "ref": "feature/validator",
+      "sha": "1111111111111111111111111111111111111111",
+      "repo": {
+        "full_name": "acme/widget"
+      }
+    },
+    "base": {
+      "ref": "main",
+      "sha": "2222222222222222222222222222222222222222",
+      "repo": {
+        "full_name": "acme/widget"
+      }
+    },
+    "merged": false,
+    "draft": false
+  },
+  "repository": {
+    "id": 3001,
+    "name": "widget",
+    "full_name": "acme/widget",
+    "private": false
+  },
+  "sender": {
+    "login": "octocat",
+    "id": 1,
+    "type": "User"
+  }
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PREMiSE v2 · Benchmark dashboard</title>
+  <style>
+    :root { color-scheme: dark; --ink:#e9eefc; --muted:#98a6c8; --panel:#121a31; --line:#293656; --blue:#6da7ff; --teal:#54d7bd; --orange:#ffb65c; --red:#ff7d8c; }
+    * { box-sizing:border-box; } body { margin:0; font:15px/1.55 Inter,ui-sans-serif,system-ui,sans-serif; color:var(--ink); background:radial-gradient(circle at 15% 0,#1d3564 0,#0a1022 42%,#070b16 100%); }
+    main { max-width:1180px; margin:0 auto; padding:38px 22px 70px; } header { display:flex; gap:22px; align-items:center; margin-bottom:34px; } header img { width:64px; height:64px; object-fit:cover; border-radius:17px; box-shadow:0 12px 30px #0008; } .eyebrow { color:var(--teal); text-transform:uppercase; letter-spacing:.16em; font-size:11px; font-weight:750; } h1 { margin:4px 0 3px; font-size:clamp(28px,5vw,52px); letter-spacing:-.04em; } p { color:var(--muted); max-width:760px; } .pill { display:inline-flex; padding:5px 10px; border:1px solid #38527f; border-radius:999px; color:var(--blue); font-size:12px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:24px 0; } .card { background:#121a31cc; border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 14px 40px #0002; } .card small { color:var(--muted); } .metric { font-size:30px; font-weight:760; margin-top:4px; } .good { color:var(--teal); } .warn { color:var(--orange); } .bad { color:var(--red); }
+    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:18px; background:#0f172bcc; } table { width:100%; border-collapse:collapse; min-width:720px; } th,td { padding:14px 16px; text-align:right; border-bottom:1px solid var(--line); } th:first-child,td:first-child { text-align:left; } th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; } tr:last-child td { border-bottom:0; } .strategy { font-weight:700; } .legend { display:flex; gap:10px; flex-wrap:wrap; margin:15px 0 26px; } .legend span { padding:6px 9px; border-radius:8px; background:#1a2645; color:var(--muted); font-size:12px; } footer { margin-top:28px; color:var(--muted); font-size:13px; } a { color:var(--blue); } @media(max-width:760px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr));} header{align-items:flex-start;} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="../../assets/premise-logo.jpg" alt="Logo PREMiSE">
+      <div><div class="eyebrow">Memory validity protocol · v2</div><h1>Benchmarks que se entienden.</h1><span class="pill" id="mode">cargando campaña…</span></div>
+    </header>
+    <p>Esta pantalla resume la campaña seleccionada con números por cada 100 tareas. Las peticiones son un proxy de coste; “correcta” significa igualdad exacta con la verdad del workload, no una afirmación universal.</p>
+    <section class="grid" aria-label="Resumen"><div class="card"><small>Tareas</small><div class="metric" id="tasks">—</div></div><div class="card"><small>Mejor exactitud</small><div class="metric good" id="accuracy">—</div></div><div class="card"><small>Menos peticiones</small><div class="metric" id="requests">—</div></div><div class="card"><small>p95 más rápido</small><div class="metric" id="latency">—</div></div></section>
+    <div class="legend"><span>● verde: exactitud total</span><span>● ámbar: ahorro con riesgo</span><span>● azul: medición</span></div>
+    <section class="table-wrap"><table><thead><tr><th>Estrategia</th><th>Correctas / 100</th><th>Peticiones / 100</th><th>Errores / 100</th><th>p50</th><th>p95</th></tr></thead><tbody id="rows"></tbody></table></section>
+    <footer><strong>Lectura correcta:</strong> una cache TTL puede ser más barata y equivocarse; PREMiSE intenta conservar el ahorro sin reutilizar un recuerdo después de una señal de cambio. Consulta el <a href="../../benchmarks/real-world-v2/report.md">informe completo</a> y las <a href="../../benchmarks/real-world-v2/traces.jsonl">trazas</a> antes de hacer promesas.</footer>
+  </main>
+  <script>
+    const fallback = { mode:'offline-temporal-fixture', tasks:100, strategies:[
+      {strategy:'direct-read',correctPer100:100,requestsPer100:100,errorsPer100:0,p50Ms:0,p95Ms:.001},
+      {strategy:'ttl-cache-20',correctPer100:96,requestsPer100:25,errorsPer100:0,p50Ms:0,p95Ms:.002},
+      {strategy:'premise-event-cache',correctPer100:100,requestsPer100:8,errorsPer100:0,p50Ms:0,p95Ms:.003}
+    ]};
+    function render(data){
+      document.querySelector('#mode').textContent=data.mode;
+      document.querySelector('#tasks').textContent=data.tasks;
+      const best=[...data.strategies].sort((a,b)=>b.correctPer100-a.correctPer100||a.requestsPer100-b.requestsPer100)[0];
+      const cheap=[...data.strategies].sort((a,b)=>a.requestsPer100-b.requestsPer100)[0];
+      const fast=[...data.strategies].sort((a,b)=>a.p95Ms-b.p95Ms)[0];
+      document.querySelector('#accuracy').textContent=`${best.correctPer100}/100`;
+      document.querySelector('#requests').textContent=`${cheap.requestsPer100}/100`;
+      document.querySelector('#latency').textContent=`${fast.p95Ms} ms`;
+      document.querySelector('#rows').innerHTML=data.strategies.map((s,i)=>`<tr><td class="strategy">${s.strategy}</td><td class="${s.correctPer100===100?'good':'warn'}">${s.correctPer100}/100</td><td>${s.requestsPer100}/100</td><td class="${s.errorsPer100?'bad':'good'}">${s.errorsPer100}/100</td><td>${s.p50Ms} ms</td><td>${s.p95Ms} ms</td></tr>`).join('');
+    }
+    fetch('../../benchmarks/real-world-v2/results.json').then(r=>r.ok?r.json():Promise.reject()).then(render).catch(()=>render(fallback));
+  </script>
+</body>
+</html>

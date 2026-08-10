@@ -1,6 +1,6 @@
 # Auditoría de evaluación PREMiSE
 
-Generado: 2026-08-09T22:52:58.706Z
+Generado: 2026-08-10T10:39:34.242Z
 
 ## Conclusión
 
@@ -106,13 +106,13 @@ La decisión de producto debe aplicar primero el gate de seguridad y después op
 - **comparative-bench**: present; 1 ficheros, 51 filas métricas reconocidas
   - Métricas reconocidas: `historyPreservationRate`, `latencyP50Ms`, `latencyP95Ms`, `memoryP50Bytes`, `memoryP95Bytes`, `recoveryRate`, `revalidationCalls`, `unsafeActionRate`.
   - Denominadores observados por fila (sin combinar): `episodes`, `dynamic`, `repairable`, `guarded`, `controls`.
-- **long-context-bench**: present; 1 ficheros, 13 filas métricas reconocidas
+- **long-context-bench**: present; 1 ficheros, 7 filas métricas reconocidas
   - Métricas reconocidas: `checkMs`, `deriveMs`, `externalPayloadBytes`, `heapDeltaBytes`, `latencyP50Ms`, `latencyP95Ms`, `registerMs`, `serializedMetadataBytes`, `signalMs`, `totalMs`, `validateMs`.
   - Denominadores observados por fila (sin combinar): `count`, `nodes`.
 - **real-world-bench**: present; 1 ficheros, 133 filas métricas reconocidas
   - Métricas reconocidas: `averageTargetEvents`, `correctDecisionRate`, `episodesWithHistory`, `falseRejectionRate`, `memoryReadCalls`, `p50`, `p95`, `preservationRate`, `protocolValidateCalls`, `resultMatchRate`, `safeRecoveryRate`, `totalTargetEvents`, `unsafeActionRate`, `validateCalls`, `validatedRecoveryRate`, `versionForCalls`.
   - Denominadores observados por fila (sin combinar): `scenarios`, `episodes`, `safeToUse`, `unsafeToUse`, `recoveryCandidates`, `validationCases`, `isolationCases`, `cases`, `total`.
-- **context-corpus-bench**: present; 1 ficheros, 133 filas métricas reconocidas
+- **context-corpus-bench**: present; 1 ficheros, 100 filas métricas reconocidas
   - Métricas reconocidas: `externalPayloadBytes`, `falseRejectRate`, `precision`, `retrievalHitRate`, `safety`, `serializedMetadataBytes`, `totalMs`.
   - Denominadores observados por fila (sin combinar): `nodes`, `count`, `queries`, `total`.
 

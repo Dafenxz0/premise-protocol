@@ -7,38 +7,30 @@
   "profiles": [
     1000,
     10000,
-    50000,
-    100000
+    50000
   ],
-  "maxMs": 900000,
+  "maxMs": 600000,
   "setups": [
     {
       "nodes": 1000,
-      "corpusGenerationMs": 1219.5587,
-      "indexBuildMs": 14.3382,
+      "corpusGenerationMs": 1306.8192,
+      "indexBuildMs": 14.1208,
       "payloadBytes": 104854,
       "indexMetadataBytes": 158605
     },
     {
       "nodes": 10000,
-      "corpusGenerationMs": 12645.5031,
-      "indexBuildMs": 177.2086,
+      "corpusGenerationMs": 12118.9849,
+      "indexBuildMs": 156.6422,
       "payloadBytes": 1058012,
       "indexMetadataBytes": 1580605
     },
     {
       "nodes": 50000,
-      "corpusGenerationMs": 70500.9393,
-      "indexBuildMs": 890.5557,
+      "corpusGenerationMs": 73416.0775,
+      "indexBuildMs": 810.9853,
       "payloadBytes": 5334262,
       "indexMetadataBytes": 7940605
-    },
-    {
-      "nodes": 100000,
-      "corpusGenerationMs": 124096.6039,
-      "indexBuildMs": 1813.6658,
-      "payloadBytes": 10679580,
-      "indexMetadataBytes": 15890605
     }
   ],
   "results": [
@@ -84,8 +76,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0145,
-            "p95Ms": 0.0554
+            "p50Ms": 0.0143,
+            "p95Ms": 0.0525
           }
         },
         "postSignal": {
@@ -106,8 +98,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.02,
-            "p95Ms": 0.0708
+            "p50Ms": 0.0148,
+            "p95Ms": 0.0464
           }
         },
         "final": {
@@ -128,8 +120,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0144,
-            "p95Ms": 0.0413
+            "p50Ms": 0.0142,
+            "p95Ms": 0.0409
           }
         }
       },
@@ -226,43 +218,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0359,
-            "p95Ms": 0.533
+            "p50Ms": 0.0386,
+            "p95Ms": 0.5644
           },
           "derive": {
             "count": 999,
             "p50Ms": 0.0046,
-            "p95Ms": 0.0074
+            "p95Ms": 0.0079
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.2022,
-            "p95Ms": 3.0967
+            "p50Ms": 0.2684,
+            "p95Ms": 3.3236
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0017,
-            "p95Ms": 0.0753
+            "p50Ms": 0.002,
+            "p95Ms": 0.0698
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2217,
-            "p95Ms": 3.2274
+            "p50Ms": 0.2918,
+            "p95Ms": 3.3429
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.2961,
-            "p95Ms": 0.5756
+            "p50Ms": 0.3211,
+            "p95Ms": 0.6139
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.078,
-            "p95Ms": 0.1801
+            "p50Ms": 0.1679,
+            "p95Ms": 0.2184
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0144,
-            "p95Ms": 0.0413
+            "p50Ms": 0.0142,
+            "p95Ms": 0.0409
           }
         },
         "metadata": {
@@ -274,21 +266,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 15507608,
-          "afterHeapUsedBytes": 14527312,
+          "beforeHeapUsedBytes": 15557048,
+          "afterHeapUsedBytes": 14551424,
           "deltaBytes": 0,
-          "signedDeltaBytes": -980296,
-          "beforeRssBytes": 62144512,
-          "afterRssBytes": 70057984,
+          "signedDeltaBytes": -1005624,
+          "beforeRssBytes": 64561152,
+          "afterRssBytes": 73043968,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 1219.5587,
-        "mutationMs": 10.8804,
-        "indexUpdateMs": 0.3272,
-        "restoreMs": 7.3643,
-        "totalMs": 46.0355
+        "corpusGenerationMs": 1306.8192,
+        "mutationMs": 15.8932,
+        "indexUpdateMs": 0.4924,
+        "restoreMs": 3.5601,
+        "totalMs": 48.6268
       }
     },
     {
@@ -333,8 +325,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0132,
-            "p95Ms": 0.0269
+            "p50Ms": 0.013,
+            "p95Ms": 0.0265
           }
         },
         "postSignal": {
@@ -355,8 +347,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0138,
-            "p95Ms": 0.0482
+            "p50Ms": 0.0139,
+            "p95Ms": 0.0474
           }
         },
         "final": {
@@ -377,8 +369,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0139,
-            "p95Ms": 0.0295
+            "p50Ms": 0.0141,
+            "p95Ms": 0.0316
           }
         }
       },
@@ -475,43 +467,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0136,
-            "p95Ms": 0.0464
+            "p50Ms": 0.0167,
+            "p95Ms": 0.0456
           },
           "derive": {
             "count": 999,
             "p50Ms": 0.0038,
-            "p95Ms": 0.0047
+            "p95Ms": 0.0069
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0176,
-            "p95Ms": 2.3279
+            "p50Ms": 0.017,
+            "p95Ms": 2.3517
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0013,
-            "p95Ms": 0.0027
+            "p50Ms": 0.0021,
+            "p95Ms": 0.0029
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1781,
-            "p95Ms": 2.1036
+            "p50Ms": 0.2477,
+            "p95Ms": 2.1614
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0149,
-            "p95Ms": 0.477
+            "p50Ms": 0.018,
+            "p95Ms": 0.5828
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.124,
-            "p95Ms": 0.1557
+            "p50Ms": 0.111,
+            "p95Ms": 0.1167
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0139,
-            "p95Ms": 0.0295
+            "p50Ms": 0.0141,
+            "p95Ms": 0.0316
           }
         },
         "metadata": {
@@ -523,21 +515,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 12203872,
-          "afterHeapUsedBytes": 23204000,
-          "deltaBytes": 11000128,
-          "signedDeltaBytes": 11000128,
-          "beforeRssBytes": 71778304,
-          "afterRssBytes": 76226560,
+          "beforeHeapUsedBytes": 12248344,
+          "afterHeapUsedBytes": 23105968,
+          "deltaBytes": 10857624,
+          "signedDeltaBytes": 10857624,
+          "beforeRssBytes": 74395648,
+          "afterRssBytes": 78823424,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 1219.5587,
-        "mutationMs": 3.7974,
-        "indexUpdateMs": 0.3607,
-        "restoreMs": 2.7336,
-        "totalMs": 27.0888
+        "corpusGenerationMs": 1306.8192,
+        "mutationMs": 3.1161,
+        "indexUpdateMs": 0.3012,
+        "restoreMs": 3.2889,
+        "totalMs": 28.32
       }
     },
     {
@@ -582,8 +574,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0151,
-            "p95Ms": 0.0318
+            "p50Ms": 0.0153,
+            "p95Ms": 0.0322
           }
         },
         "postSignal": {
@@ -604,8 +596,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0201,
-            "p95Ms": 0.051
+            "p50Ms": 0.0132,
+            "p95Ms": 0.0282
           }
         },
         "final": {
@@ -626,8 +618,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0115,
-            "p95Ms": 0.0237
+            "p50Ms": 0.0118,
+            "p95Ms": 0.0381
           }
         }
       },
@@ -724,43 +716,43 @@
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0188,
-            "p95Ms": 0.0267
+            "p50Ms": 0.0169,
+            "p95Ms": 0.0263
           },
           "derive": {
             "count": 998,
-            "p50Ms": 0.0038,
-            "p95Ms": 0.0055
+            "p50Ms": 0.0039,
+            "p95Ms": 0.0058
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0115,
-            "p95Ms": 1.4467
+            "p50Ms": 0.0259,
+            "p95Ms": 1.7915
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0011,
-            "p95Ms": 0.0069
+            "p50Ms": 0.0017,
+            "p95Ms": 0.0085
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1935,
-            "p95Ms": 2.3406
+            "p50Ms": 0.1174,
+            "p95Ms": 1.9273
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0117,
-            "p95Ms": 0.1991
+            "p50Ms": 0.0269,
+            "p95Ms": 0.2038
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0855,
-            "p95Ms": 0.0883
+            "p50Ms": 0.1943,
+            "p95Ms": 0.2399
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0115,
-            "p95Ms": 0.0237
+            "p50Ms": 0.0118,
+            "p95Ms": 0.0381
           }
         },
         "metadata": {
@@ -772,21 +764,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 12975272,
-          "afterHeapUsedBytes": 18420536,
-          "deltaBytes": 5445264,
-          "signedDeltaBytes": 5445264,
-          "beforeRssBytes": 80932864,
-          "afterRssBytes": 89501696,
+          "beforeHeapUsedBytes": 12972608,
+          "afterHeapUsedBytes": 18413584,
+          "deltaBytes": 5440976,
+          "signedDeltaBytes": 5440976,
+          "beforeRssBytes": 83607552,
+          "afterRssBytes": 91971584,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 1219.5587,
-        "mutationMs": 2.5723,
-        "indexUpdateMs": 0.2436,
-        "restoreMs": 6.6423,
-        "totalMs": 27.559
+        "corpusGenerationMs": 1306.8192,
+        "mutationMs": 6.648,
+        "indexUpdateMs": 0.6238,
+        "restoreMs": 2.8038,
+        "totalMs": 27.6624
       }
     },
     {
@@ -831,8 +823,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1708,
-            "p95Ms": 0.4432
+            "p50Ms": 0.1132,
+            "p95Ms": 0.3531
           }
         },
         "postSignal": {
@@ -853,8 +845,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1225,
-            "p95Ms": 0.3583
+            "p50Ms": 0.1283,
+            "p95Ms": 0.3889
           }
         },
         "final": {
@@ -875,8 +867,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0993,
-            "p95Ms": 0.3181
+            "p50Ms": 0.0917,
+            "p95Ms": 0.2117
           }
         }
       },
@@ -973,43 +965,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0299,
-            "p95Ms": 0.0674
+            "p50Ms": 0.0226,
+            "p95Ms": 0.0543
           },
           "derive": {
             "count": 9999,
-            "p50Ms": 0.0055,
-            "p95Ms": 0.0071
+            "p50Ms": 0.0038,
+            "p95Ms": 0.0065
           },
           "signal": {
             "count": 3,
-            "p50Ms": 2.3144,
-            "p95Ms": 28.3623
+            "p50Ms": 2.6385,
+            "p95Ms": 26.4306
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0027,
-            "p95Ms": 0.0035
+            "p50Ms": 0.0023,
+            "p95Ms": 0.004
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.369,
-            "p95Ms": 32.111
+            "p50Ms": 0.2509,
+            "p95Ms": 24.1335
           },
           "repair": {
             "count": 4,
-            "p50Ms": 2.3808,
-            "p95Ms": 4.514
+            "p50Ms": 1.6384,
+            "p95Ms": 3.1197
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0902,
-            "p95Ms": 0.1354
+            "p50Ms": 0.1646,
+            "p95Ms": 0.1745
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0993,
-            "p95Ms": 0.3181
+            "p50Ms": 0.0917,
+            "p95Ms": 0.2117
           }
         },
         "metadata": {
@@ -1021,21 +1013,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 47550312,
-          "afterHeapUsedBytes": 97845144,
-          "deltaBytes": 50294832,
-          "signedDeltaBytes": 50294832,
-          "beforeRssBytes": 132632576,
-          "afterRssBytes": 236843008,
+          "beforeHeapUsedBytes": 47961120,
+          "afterHeapUsedBytes": 97852440,
+          "deltaBytes": 49891320,
+          "signedDeltaBytes": 49891320,
+          "beforeRssBytes": 134692864,
+          "afterRssBytes": 238428160,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 12645.5031,
-        "mutationMs": 20.5052,
-        "indexUpdateMs": 0.3072,
-        "restoreMs": 9.3585,
-        "totalMs": 288.7066
+        "corpusGenerationMs": 12118.9849,
+        "mutationMs": 19.4468,
+        "indexUpdateMs": 0.4411,
+        "restoreMs": 13.2287,
+        "totalMs": 235.2351
       }
     },
     {
@@ -1080,8 +1072,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0987,
-            "p95Ms": 0.2758
+            "p50Ms": 0.0962,
+            "p95Ms": 0.2521
           }
         },
         "postSignal": {
@@ -1102,8 +1094,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1582,
-            "p95Ms": 0.3345
+            "p50Ms": 0.0916,
+            "p95Ms": 0.215
           }
         },
         "final": {
@@ -1124,8 +1116,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0964,
-            "p95Ms": 0.339
+            "p50Ms": 0.0911,
+            "p95Ms": 0.2092
           }
         }
       },
@@ -1222,43 +1214,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0187,
-            "p95Ms": 0.0641
+            "p50Ms": 0.0171,
+            "p95Ms": 0.0608
           },
           "derive": {
             "count": 9999,
-            "p50Ms": 0.0046,
-            "p95Ms": 0.0055
+            "p50Ms": 0.0032,
+            "p95Ms": 0.0045
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0515,
-            "p95Ms": 25.3617
+            "p50Ms": 0.0318,
+            "p95Ms": 21.8187
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0029,
-            "p95Ms": 0.0036
+            "p50Ms": 0.0015,
+            "p95Ms": 0.0029
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2604,
-            "p95Ms": 27.6034
+            "p50Ms": 0.1599,
+            "p95Ms": 17.9012
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0308,
-            "p95Ms": 3.8484
+            "p50Ms": 0.0273,
+            "p95Ms": 2.6413
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1563,
-            "p95Ms": 0.1868
+            "p50Ms": 0.0908,
+            "p95Ms": 0.1252
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0964,
-            "p95Ms": 0.339
+            "p50Ms": 0.0911,
+            "p95Ms": 0.2092
           }
         },
         "metadata": {
@@ -1270,21 +1262,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 62389096,
-          "afterHeapUsedBytes": 110462272,
-          "deltaBytes": 48073176,
-          "signedDeltaBytes": 48073176,
-          "beforeRssBytes": 242163712,
-          "afterRssBytes": 266604544,
+          "beforeHeapUsedBytes": 62308272,
+          "afterHeapUsedBytes": 110483424,
+          "deltaBytes": 48175152,
+          "signedDeltaBytes": 48175152,
+          "beforeRssBytes": 243548160,
+          "afterRssBytes": 268378112,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 12645.5031,
-        "mutationMs": 3.8182,
-        "indexUpdateMs": 0.4687,
-        "restoreMs": 2.9456,
-        "totalMs": 207.3865
+        "corpusGenerationMs": 12118.9849,
+        "mutationMs": 8.8528,
+        "indexUpdateMs": 0.3004,
+        "restoreMs": 2.981,
+        "totalMs": 170.8529
       }
     },
     {
@@ -1329,8 +1321,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0914,
-            "p95Ms": 0.2604
+            "p50Ms": 0.093,
+            "p95Ms": 0.1956
           }
         },
         "postSignal": {
@@ -1351,8 +1343,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1559,
-            "p95Ms": 0.3325
+            "p50Ms": 0.0909,
+            "p95Ms": 0.2058
           }
         },
         "final": {
@@ -1373,8 +1365,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1564,
-            "p95Ms": 0.3279
+            "p50Ms": 0.0923,
+            "p95Ms": 0.2182
           }
         }
       },
@@ -1471,43 +1463,43 @@
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0192,
-            "p95Ms": 0.0372
+            "p50Ms": 0.0187,
+            "p95Ms": 0.0295
           },
           "derive": {
             "count": 9998,
-            "p50Ms": 0.0048,
-            "p95Ms": 0.0061
+            "p50Ms": 0.0034,
+            "p95Ms": 0.0055
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0189,
-            "p95Ms": 13.6128
+            "p50Ms": 0.0221,
+            "p95Ms": 10.6064
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0011,
-            "p95Ms": 0.0025
+            "p50Ms": 0.0017,
+            "p95Ms": 0.0018
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1218,
-            "p95Ms": 14.4437
+            "p50Ms": 0.3285,
+            "p95Ms": 9.5153
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.013,
-            "p95Ms": 2.2686
+            "p50Ms": 0.0095,
+            "p95Ms": 1.544
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0897,
-            "p95Ms": 0.1344
+            "p50Ms": 0.0924,
+            "p95Ms": 0.128
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.1564,
-            "p95Ms": 0.3279
+            "p50Ms": 0.0923,
+            "p95Ms": 0.2182
           }
         },
         "metadata": {
@@ -1519,21 +1511,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 139659416,
-          "afterHeapUsedBytes": 159130600,
-          "deltaBytes": 19471184,
-          "signedDeltaBytes": 19471184,
-          "beforeRssBytes": 275845120,
-          "afterRssBytes": 285290496,
+          "beforeHeapUsedBytes": 139044304,
+          "afterHeapUsedBytes": 159291872,
+          "deltaBytes": 20247568,
+          "signedDeltaBytes": 20247568,
+          "beforeRssBytes": 277323776,
+          "afterRssBytes": 287293440,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 12645.5031,
-        "mutationMs": 11.8868,
-        "indexUpdateMs": 0.306,
-        "restoreMs": 8.7529,
-        "totalMs": 200.202
+        "corpusGenerationMs": 12118.9849,
+        "mutationMs": 13.7314,
+        "indexUpdateMs": 0.3023,
+        "restoreMs": 8.8322,
+        "totalMs": 161.2163
       }
     },
     {
@@ -1578,8 +1570,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.518,
-            "p95Ms": 1.5446
+            "p50Ms": 0.4843,
+            "p95Ms": 1.0327
           }
         },
         "postSignal": {
@@ -1600,8 +1592,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.5203,
-            "p95Ms": 1.702
+            "p50Ms": 0.4826,
+            "p95Ms": 1.0462
           }
         },
         "final": {
@@ -1622,8 +1614,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4985,
-            "p95Ms": 1.1104
+            "p50Ms": 0.4781,
+            "p95Ms": 1.0471
           }
         }
       },
@@ -1720,43 +1712,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.028,
-            "p95Ms": 0.0689
+            "p50Ms": 0.0218,
+            "p95Ms": 0.0435
           },
           "derive": {
             "count": 49999,
-            "p50Ms": 0.004,
-            "p95Ms": 0.0066
+            "p50Ms": 0.0033,
+            "p95Ms": 0.0043
           },
           "signal": {
             "count": 3,
-            "p50Ms": 8.5743,
-            "p95Ms": 192.2493
+            "p50Ms": 10.6235,
+            "p95Ms": 126.9696
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0038,
-            "p95Ms": 0.0175
+            "p50Ms": 0.003,
+            "p95Ms": 0.0046
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.5202,
-            "p95Ms": 118.5084
+            "p50Ms": 0.389,
+            "p95Ms": 103.7432
           },
           "repair": {
             "count": 4,
-            "p50Ms": 13.5735,
-            "p95Ms": 30.9188
+            "p50Ms": 11.2275,
+            "p95Ms": 24.4414
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.088,
-            "p95Ms": 0.1368
+            "p50Ms": 0.155,
+            "p95Ms": 0.2218
           },
           "query": {
             "count": 208,
-            "p50Ms": 0.4985,
-            "p95Ms": 1.1104
+            "p50Ms": 0.4781,
+            "p95Ms": 1.0471
           }
         },
         "metadata": {
@@ -1768,21 +1760,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 177178328,
-          "afterHeapUsedBytes": 313598816,
-          "deltaBytes": 136420488,
-          "signedDeltaBytes": 136420488,
-          "beforeRssBytes": 298954752,
-          "afterRssBytes": 478027776,
+          "beforeHeapUsedBytes": 180503912,
+          "afterHeapUsedBytes": 315801320,
+          "deltaBytes": 135297408,
+          "signedDeltaBytes": 135297408,
+          "beforeRssBytes": 335204352,
+          "afterRssBytes": 471863296,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 70500.9393,
-        "mutationMs": 16.891,
-        "indexUpdateMs": 0.3057,
-        "restoreMs": 12.7238,
-        "totalMs": 1468.4863
+        "corpusGenerationMs": 73416.0775,
+        "mutationMs": 14.8909,
+        "indexUpdateMs": 0.519,
+        "restoreMs": 11.6636,
+        "totalMs": 1161.0044
       }
     },
     {
@@ -1827,8 +1819,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.6562,
-            "p95Ms": 1.7429
+            "p50Ms": 0.4805,
+            "p95Ms": 1.0391
           }
         },
         "postSignal": {
@@ -1849,8 +1841,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.579,
-            "p95Ms": 1.7294
+            "p50Ms": 0.4801,
+            "p95Ms": 1.0687
           }
         },
         "final": {
@@ -1871,8 +1863,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.8281,
-            "p95Ms": 1.742
+            "p50Ms": 0.4807,
+            "p95Ms": 1.0363
           }
         }
       },
@@ -1969,43 +1961,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0257,
-            "p95Ms": 0.0491
+            "p50Ms": 0.0226,
+            "p95Ms": 0.0499
           },
           "derive": {
             "count": 49999,
-            "p50Ms": 0.0051,
-            "p95Ms": 0.0065
+            "p50Ms": 0.0032,
+            "p95Ms": 0.0039
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0839,
-            "p95Ms": 156.7619
+            "p50Ms": 0.0298,
+            "p95Ms": 116.8702
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0031,
-            "p95Ms": 0.0403
+            "p50Ms": 0.0018,
+            "p95Ms": 0.0302
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.4169,
-            "p95Ms": 124.4488
+            "p50Ms": 0.188,
+            "p95Ms": 105.756
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0654,
-            "p95Ms": 31.5347
+            "p50Ms": 0.0383,
+            "p95Ms": 20.9376
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1018,
-            "p95Ms": 0.1341
+            "p50Ms": 0.0921,
+            "p95Ms": 0.1285
           },
           "query": {
             "count": 208,
-            "p50Ms": 0.8281,
-            "p95Ms": 1.742
+            "p50Ms": 0.4807,
+            "p95Ms": 1.0363
           }
         },
         "metadata": {
@@ -2017,21 +2009,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 376569592,
-          "afterHeapUsedBytes": 465271568,
-          "deltaBytes": 88701976,
-          "signedDeltaBytes": 88701976,
-          "beforeRssBytes": 530866176,
-          "afterRssBytes": 652750848,
+          "beforeHeapUsedBytes": 374629368,
+          "afterHeapUsedBytes": 263442880,
+          "deltaBytes": 0,
+          "signedDeltaBytes": -111186488,
+          "beforeRssBytes": 524976128,
+          "afterRssBytes": 544497664,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 70500.9393,
-        "mutationMs": 3.2415,
-        "indexUpdateMs": 0.3236,
-        "restoreMs": 3.3983,
-        "totalMs": 1430.0459
+        "corpusGenerationMs": 73416.0775,
+        "mutationMs": 39.8471,
+        "indexUpdateMs": 0.3055,
+        "restoreMs": 2.8673,
+        "totalMs": 1096.7223
       }
     },
     {
@@ -2076,8 +2068,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.5292,
-            "p95Ms": 1.6953
+            "p50Ms": 0.4995,
+            "p95Ms": 1.0606
           }
         },
         "postSignal": {
@@ -2098,8 +2090,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.5862,
-            "p95Ms": 1.7178
+            "p50Ms": 0.503,
+            "p95Ms": 1.124
           }
         },
         "final": {
@@ -2120,8 +2112,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.8388,
-            "p95Ms": 1.7163
+            "p50Ms": 0.4966,
+            "p95Ms": 1.0739
           }
         }
       },
@@ -2218,43 +2210,43 @@
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0211,
-            "p95Ms": 0.0507
+            "p50Ms": 0.0223,
+            "p95Ms": 0.0468
           },
           "derive": {
             "count": 49998,
-            "p50Ms": 0.0047,
-            "p95Ms": 0.0063
+            "p50Ms": 0.0037,
+            "p95Ms": 0.0056
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0713,
-            "p95Ms": 78.4072
+            "p50Ms": 0.0338,
+            "p95Ms": 67.6032
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0035,
-            "p95Ms": 0.0046
+            "p50Ms": 0.0023,
+            "p95Ms": 0.0078
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1995,
-            "p95Ms": 54.6734
+            "p50Ms": 0.2599,
+            "p95Ms": 56.3877
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0295,
-            "p95Ms": 15.6698
+            "p50Ms": 0.0305,
+            "p95Ms": 11.45
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1096,
-            "p95Ms": 0.132
+            "p50Ms": 0.1243,
+            "p95Ms": 0.1339
           },
           "query": {
             "count": 208,
-            "p50Ms": 0.8388,
-            "p95Ms": 1.7163
+            "p50Ms": 0.4966,
+            "p95Ms": 1.0739
           }
         },
         "metadata": {
@@ -2266,768 +2258,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 533105216,
-          "afterHeapUsedBytes": 669918264,
-          "deltaBytes": 136813048,
-          "signedDeltaBytes": 136813048,
-          "beforeRssBytes": 703545344,
-          "afterRssBytes": 831250432,
+          "beforeHeapUsedBytes": 339281944,
+          "afterHeapUsedBytes": 490363200,
+          "deltaBytes": 151081256,
+          "signedDeltaBytes": 151081256,
+          "beforeRssBytes": 592572416,
+          "afterRssBytes": 654307328,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 70500.9393,
-        "mutationMs": 8.832,
-        "indexUpdateMs": 0.3405,
-        "restoreMs": 8.1517,
-        "totalMs": 1280.7487
-      }
-    },
-    {
-      "profile": 100000,
-      "nodes": 100000,
-      "pattern": "chain",
-      "seed": "context-corpus-100000-chain",
-      "graph": {
-        "rootSourceMemoryCount": 1,
-        "derivedConclusionCount": 99999,
-        "sourceBackedNodeCount": 100000,
-        "controlMemoryCount": 1
-      },
-      "corpus": {
-        "documentPayloadBytes": 10679515,
-        "externalPayloadBytes": 10679580,
-        "externalPayloadStoredInProtocol": false,
-        "changedDocumentIds": [
-          "doc000000",
-          "doc050000",
-          "doc099999"
-        ]
-      },
-      "queries": {
-        "count": 264,
-        "topK": 10,
-        "preMutation": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 1,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 0,
-          "affectedCandidates": 0,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 2541,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.3908,
-            "p95Ms": 3.4637
-          }
-        },
-        "postSignal": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 0.030303,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 2533,
-          "affectedCandidates": 2533,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 8,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.2265,
-            "p95Ms": 3.4645
-          }
-        },
-        "final": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 1,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 0,
-          "affectedCandidates": 0,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 2541,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.0652,
-            "p95Ms": 2.8989
-          }
-        }
-      },
-      "checks": {
-        "targetMemoryId": "memory:chain:doc099999",
-        "before": {
-          "status": "FRESH",
-          "decision": "USABLE"
-        },
-        "afterSignal": {
-          "status": "STALE",
-          "decision": "REVALIDATE"
-        },
-        "afterValidation": {
-          "status": "INVALID",
-          "decision": "REJECT"
-        },
-        "afterRepair": {
-          "status": "FRESH",
-          "decision": "USABLE"
-        },
-        "afterRepairAffected": {
-          "total": 100000,
-          "usable": 100000,
-          "safety": 1
-        }
-      },
-      "propagation": {
-        "changedDocumentCount": 3,
-        "changedMemoryIds": [
-          "memory:chain:doc000000",
-          "memory:chain:doc050000",
-          "memory:chain:doc099999"
-        ],
-        "affectedNodes": 100000,
-        "repairedNodes": 4,
-        "repairedDerivedConclusionCount": 3,
-        "affectedSample": [
-          "memory:chain:doc000000",
-          "memory:chain:doc000001",
-          "memory:chain:doc000002",
-          "memory:chain:doc099997",
-          "memory:chain:doc099998",
-          "memory:chain:doc099999"
-        ],
-        "signalReports": [
-          {
-            "documentId": "doc000000",
-            "affectedNodes": 100000
-          },
-          {
-            "documentId": "doc050000",
-            "affectedNodes": 50000
-          },
-          {
-            "documentId": "doc099999",
-            "affectedNodes": 1
-          }
-        ]
-      },
-      "validator": {
-        "id": "filesystem",
-        "operation": "sha256",
-        "realFilesystemValidator": true,
-        "changedChecks": [
-          {
-            "memoryId": "memory:chain:doc000000",
-            "result": "CHANGED",
-            "status": "INVALID"
-          },
-          {
-            "memoryId": "memory:chain:doc050000",
-            "result": "CHANGED",
-            "status": "INVALID"
-          },
-          {
-            "memoryId": "memory:chain:doc099999",
-            "result": "CHANGED",
-            "status": "INVALID"
-          }
-        ],
-        "changedResultCount": 3,
-        "unchangedControl": {
-          "result": "UNCHANGED",
-          "status": "FRESH"
-        }
-      },
-      "metrics": {
-        "precision": 1,
-        "safety": 1,
-        "finalSafety": 1,
-        "falseRejectRate": 0,
-        "retrievalHitRate": 1,
-        "latency": {
-          "register": {
-            "count": 2,
-            "p50Ms": 0.0248,
-            "p95Ms": 0.0566
-          },
-          "derive": {
-            "count": 99999,
-            "p50Ms": 0.004,
-            "p95Ms": 0.0066
-          },
-          "signal": {
-            "count": 3,
-            "p50Ms": 21.1932,
-            "p95Ms": 374.8528
-          },
-          "check": {
-            "count": 4,
-            "p50Ms": 0.0027,
-            "p95Ms": 0.016
-          },
-          "validate": {
-            "count": 4,
-            "p50Ms": 0.6926,
-            "p95Ms": 284.5356
-          },
-          "repair": {
-            "count": 4,
-            "p50Ms": 35.2116,
-            "p95Ms": 67.0725
-          },
-          "indexUpdate": {
-            "count": 3,
-            "p50Ms": 0.0919,
-            "p95Ms": 0.1486
-          },
-          "query": {
-            "count": 264,
-            "p50Ms": 1.0652,
-            "p95Ms": 2.8989
-          }
-        },
-        "metadata": {
-          "protocolEnvelopeBytes": 62800567,
-          "indexMetadataBytes": 15890621,
-          "serializedMetadataBytes": 78691188,
-          "bytesPerNode": 786.91188,
-          "journalEvents": 300009,
-          "payloadStoredInProtocol": false
-        },
-        "heap": {
-          "beforeHeapUsedBytes": 310693464,
-          "afterHeapUsedBytes": 573076056,
-          "deltaBytes": 262382592,
-          "signedDeltaBytes": 262382592,
-          "beforeRssBytes": 468946944,
-          "afterRssBytes": 755257344,
-          "gcAvailable": false
-        }
-      },
-      "timings": {
-        "corpusGenerationMs": 124096.6039,
-        "mutationMs": 16.5603,
-        "indexUpdateMs": 0.3336,
-        "restoreMs": 13.2085,
-        "totalMs": 3379.5123
-      }
-    },
-    {
-      "profile": 100000,
-      "nodes": 100000,
-      "pattern": "fanout",
-      "seed": "context-corpus-100000-fanout",
-      "graph": {
-        "rootSourceMemoryCount": 1,
-        "derivedConclusionCount": 99999,
-        "sourceBackedNodeCount": 100000,
-        "controlMemoryCount": 1
-      },
-      "corpus": {
-        "documentPayloadBytes": 10679515,
-        "externalPayloadBytes": 10679580,
-        "externalPayloadStoredInProtocol": false,
-        "changedDocumentIds": [
-          "doc000000",
-          "doc050000",
-          "doc099999"
-        ]
-      },
-      "queries": {
-        "count": 264,
-        "topK": 10,
-        "preMutation": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 1,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 0,
-          "affectedCandidates": 0,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 2541,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.1903,
-            "p95Ms": 3.4735
-          }
-        },
-        "postSignal": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 0.030303,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 2533,
-          "affectedCandidates": 2533,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 8,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.0753,
-            "p95Ms": 2.8492
-          }
-        },
-        "final": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 1,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 0,
-          "affectedCandidates": 0,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 2541,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.068,
-            "p95Ms": 3.3692
-          }
-        }
-      },
-      "checks": {
-        "targetMemoryId": "memory:fanout:doc099999",
-        "before": {
-          "status": "FRESH",
-          "decision": "USABLE"
-        },
-        "afterSignal": {
-          "status": "STALE",
-          "decision": "REVALIDATE"
-        },
-        "afterValidation": {
-          "status": "INVALID",
-          "decision": "REJECT"
-        },
-        "afterRepair": {
-          "status": "FRESH",
-          "decision": "USABLE"
-        },
-        "afterRepairAffected": {
-          "total": 100000,
-          "usable": 100000,
-          "safety": 1
-        }
-      },
-      "propagation": {
-        "changedDocumentCount": 3,
-        "changedMemoryIds": [
-          "memory:fanout:doc000000",
-          "memory:fanout:doc050000",
-          "memory:fanout:doc099999"
-        ],
-        "affectedNodes": 100000,
-        "repairedNodes": 4,
-        "repairedDerivedConclusionCount": 3,
-        "affectedSample": [
-          "memory:fanout:doc000000",
-          "memory:fanout:doc000001",
-          "memory:fanout:doc000002",
-          "memory:fanout:doc099997",
-          "memory:fanout:doc099998",
-          "memory:fanout:doc099999"
-        ],
-        "signalReports": [
-          {
-            "documentId": "doc000000",
-            "affectedNodes": 100000
-          },
-          {
-            "documentId": "doc050000",
-            "affectedNodes": 1
-          },
-          {
-            "documentId": "doc099999",
-            "affectedNodes": 1
-          }
-        ]
-      },
-      "validator": {
-        "id": "filesystem",
-        "operation": "sha256",
-        "realFilesystemValidator": true,
-        "changedChecks": [
-          {
-            "memoryId": "memory:fanout:doc000000",
-            "result": "CHANGED",
-            "status": "INVALID"
-          },
-          {
-            "memoryId": "memory:fanout:doc050000",
-            "result": "CHANGED",
-            "status": "INVALID"
-          },
-          {
-            "memoryId": "memory:fanout:doc099999",
-            "result": "CHANGED",
-            "status": "INVALID"
-          }
-        ],
-        "changedResultCount": 3,
-        "unchangedControl": {
-          "result": "UNCHANGED",
-          "status": "FRESH"
-        }
-      },
-      "metrics": {
-        "precision": 1,
-        "safety": 1,
-        "finalSafety": 1,
-        "falseRejectRate": 0,
-        "retrievalHitRate": 1,
-        "latency": {
-          "register": {
-            "count": 2,
-            "p50Ms": 0.0231,
-            "p95Ms": 0.052
-          },
-          "derive": {
-            "count": 99999,
-            "p50Ms": 0.0051,
-            "p95Ms": 0.0066
-          },
-          "signal": {
-            "count": 3,
-            "p50Ms": 0.0793,
-            "p95Ms": 344.6135
-          },
-          "check": {
-            "count": 4,
-            "p50Ms": 0.0026,
-            "p95Ms": 0.0486
-          },
-          "validate": {
-            "count": 4,
-            "p50Ms": 0.1945,
-            "p95Ms": 309.2548
-          },
-          "repair": {
-            "count": 4,
-            "p50Ms": 0.0509,
-            "p95Ms": 64.8838
-          },
-          "indexUpdate": {
-            "count": 3,
-            "p50Ms": 0.0943,
-            "p95Ms": 0.1409
-          },
-          "query": {
-            "count": 264,
-            "p50Ms": 1.068,
-            "p95Ms": 3.3692
-          }
-        },
-        "metadata": {
-          "protocolEnvelopeBytes": 63000567,
-          "indexMetadataBytes": 15890621,
-          "serializedMetadataBytes": 78891188,
-          "bytesPerNode": 788.91188,
-          "journalEvents": 300009,
-          "payloadStoredInProtocol": false
-        },
-        "heap": {
-          "beforeHeapUsedBytes": 709222936,
-          "afterHeapUsedBytes": 1016409288,
-          "deltaBytes": 307186352,
-          "signedDeltaBytes": 307186352,
-          "beforeRssBytes": 861577216,
-          "afterRssBytes": 1222987776,
-          "gcAvailable": false
-        }
-      },
-      "timings": {
-        "corpusGenerationMs": 124096.6039,
-        "mutationMs": 3.7284,
-        "indexUpdateMs": 0.3208,
-        "restoreMs": 8.2834,
-        "totalMs": 3175.3303
-      }
-    },
-    {
-      "profile": 100000,
-      "nodes": 100000,
-      "pattern": "shared",
-      "seed": "context-corpus-100000-shared",
-      "graph": {
-        "rootSourceMemoryCount": 2,
-        "derivedConclusionCount": 99998,
-        "sourceBackedNodeCount": 100000,
-        "controlMemoryCount": 1
-      },
-      "corpus": {
-        "documentPayloadBytes": 10679515,
-        "externalPayloadBytes": 10679580,
-        "externalPayloadStoredInProtocol": false,
-        "changedDocumentIds": [
-          "doc000001",
-          "doc050000",
-          "doc099999"
-        ]
-      },
-      "queries": {
-        "count": 264,
-        "topK": 10,
-        "preMutation": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 1,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 0,
-          "affectedCandidates": 0,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 2541,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.0953,
-            "p95Ms": 2.4624
-          }
-        },
-        "postSignal": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 0.537879,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 1262,
-          "affectedCandidates": 1262,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 1279,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.6981,
-            "p95Ms": 3.4836
-          }
-        },
-        "final": {
-          "queries": 264,
-          "topK": 10,
-          "precision": 1,
-          "retrievalHitRate": 1,
-          "safety": 1,
-          "falseRejectRate": 0,
-          "blockedCandidates": 0,
-          "affectedCandidates": 0,
-          "unsafeUses": 0,
-          "falseRejects": 0,
-          "falseRejectDenominator": 2541,
-          "falseRejectUnit": "candidate",
-          "controlFalseRejects": 0,
-          "controlFalseRejectRate": 0,
-          "controlQueryCount": 8,
-          "queryLatency": {
-            "count": 264,
-            "p50Ms": 1.0545,
-            "p95Ms": 2.3812
-          }
-        }
-      },
-      "checks": {
-        "targetMemoryId": "memory:shared:doc099999",
-        "before": {
-          "status": "FRESH",
-          "decision": "USABLE"
-        },
-        "afterSignal": {
-          "status": "STALE",
-          "decision": "REVALIDATE"
-        },
-        "afterValidation": {
-          "status": "INVALID",
-          "decision": "REJECT"
-        },
-        "afterRepair": {
-          "status": "FRESH",
-          "decision": "USABLE"
-        },
-        "afterRepairAffected": {
-          "total": 50001,
-          "usable": 50001,
-          "safety": 1
-        }
-      },
-      "propagation": {
-        "changedDocumentCount": 3,
-        "changedMemoryIds": [
-          "memory:shared:doc000001",
-          "memory:shared:doc050000",
-          "memory:shared:doc099999"
-        ],
-        "affectedNodes": 50001,
-        "repairedNodes": 4,
-        "repairedDerivedConclusionCount": 3,
-        "affectedSample": [
-          "memory:shared:doc000001",
-          "memory:shared:doc000002",
-          "memory:shared:doc000004",
-          "memory:shared:doc099996",
-          "memory:shared:doc099998",
-          "memory:shared:doc099999"
-        ],
-        "signalReports": [
-          {
-            "documentId": "doc000001",
-            "affectedNodes": 50000
-          },
-          {
-            "documentId": "doc050000",
-            "affectedNodes": 1
-          },
-          {
-            "documentId": "doc099999",
-            "affectedNodes": 1
-          }
-        ]
-      },
-      "validator": {
-        "id": "filesystem",
-        "operation": "sha256",
-        "realFilesystemValidator": true,
-        "changedChecks": [
-          {
-            "memoryId": "memory:shared:doc000001",
-            "result": "CHANGED",
-            "status": "INVALID"
-          },
-          {
-            "memoryId": "memory:shared:doc050000",
-            "result": "CHANGED",
-            "status": "INVALID"
-          },
-          {
-            "memoryId": "memory:shared:doc099999",
-            "result": "CHANGED",
-            "status": "INVALID"
-          }
-        ],
-        "changedResultCount": 3,
-        "unchangedControl": {
-          "result": "UNCHANGED",
-          "status": "FRESH"
-        }
-      },
-      "metrics": {
-        "precision": 1,
-        "safety": 1,
-        "finalSafety": 1,
-        "falseRejectRate": 0,
-        "retrievalHitRate": 1,
-        "latency": {
-          "register": {
-            "count": 3,
-            "p50Ms": 0.025,
-            "p95Ms": 0.0492
-          },
-          "derive": {
-            "count": 99998,
-            "p50Ms": 0.005,
-            "p95Ms": 0.0069
-          },
-          "signal": {
-            "count": 3,
-            "p50Ms": 0.0454,
-            "p95Ms": 166.5786
-          },
-          "check": {
-            "count": 4,
-            "p50Ms": 0.0037,
-            "p95Ms": 0.0091
-          },
-          "validate": {
-            "count": 4,
-            "p50Ms": 0.3169,
-            "p95Ms": 133.0576
-          },
-          "repair": {
-            "count": 4,
-            "p50Ms": 0.021,
-            "p95Ms": 39.6442
-          },
-          "indexUpdate": {
-            "count": 3,
-            "p50Ms": 0.2019,
-            "p95Ms": 0.2344
-          },
-          "query": {
-            "count": 264,
-            "p50Ms": 1.0545,
-            "p95Ms": 2.3812
-          }
-        },
-        "metadata": {
-          "protocolEnvelopeBytes": 64300516,
-          "indexMetadataBytes": 15890621,
-          "serializedMetadataBytes": 80191137,
-          "bytesPerNode": 801.91137,
-          "journalEvents": 200011,
-          "payloadStoredInProtocol": false
-        },
-        "heap": {
-          "beforeHeapUsedBytes": 467165312,
-          "afterHeapUsedBytes": 778800648,
-          "deltaBytes": 311635336,
-          "signedDeltaBytes": 311635336,
-          "beforeRssBytes": 1007472640,
-          "afterRssBytes": 1090498560,
-          "gcAvailable": false
-        }
-      },
-      "timings": {
-        "corpusGenerationMs": 124096.6039,
-        "mutationMs": 8.2913,
-        "indexUpdateMs": 0.5663,
-        "restoreMs": 8.9563,
-        "totalMs": 2755.8215
+        "corpusGenerationMs": 73416.0775,
+        "mutationMs": 7.8218,
+        "indexUpdateMs": 0.3589,
+        "restoreMs": 7.5181,
+        "totalMs": 1009.029
       }
     }
   ],

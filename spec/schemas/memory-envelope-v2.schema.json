@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/2/memory-envelope.schema.json",
+  "title": "PREMiSE v2 memory envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "tenantId", "memoryId", "evidence", "confidence", "conflicts", "temporal", "validity", "dependsOn", "signatures"],
+  "properties": {
+    "specVersion": { "const": "premise/2" },
+    "tenantId": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "memoryId": { "type": "string", "minLength": 1 },
+    "contentDigest": { "type": "string", "pattern": "^sha256:.+$" },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "confidence": { "$ref": "#/$defs/confidence" },
+    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } },
+    "temporal": { "$ref": "#/$defs/temporal" },
+    "validity": { "$ref": "#/$defs/validity" },
+    "dependsOn": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "signatures": { "type": "array", "items": { "$ref": "#/$defs/signature" } }
+  },
+  "$defs": {
+    "dateTime": { "type": "string", "format": "date-time" },
+    "version": { "type": "object", "additionalProperties": false, "required": ["scheme", "token"], "properties": { "scheme": { "type": "string", "minLength": 1 }, "token": { "type": "string", "minLength": 1 } } },
+    "validator": { "type": "object", "additionalProperties": false, "required": ["id", "operation"], "properties": { "id": { "type": "string", "minLength": 1 }, "operation": { "type": "string", "minLength": 1 } } },
+    "confidence": { "type": "object", "additionalProperties": false, "required": ["score", "method"], "properties": { "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }, "method": { "type": "string", "minLength": 1 }, "assessedAt": { "$ref": "#/$defs/dateTime" }, "rationale": { "type": "string", "minLength": 1 } } },
+    "evidence": { "type": "object", "additionalProperties": false, "required": ["evidenceId", "sourceUri", "observedAt"], "properties": { "evidenceId": { "type": "string", "minLength": 1 }, "sourceUri": { "type": "string", "minLength": 1 }, "observedAt": { "$ref": "#/$defs/dateTime" }, "validFrom": { "$ref": "#/$defs/dateTime" }, "validUntil": { "$ref": "#/$defs/dateTime" }, "version": { "$ref": "#/$defs/version" }, "validator": { "$ref": "#/$defs/validator" }, "confidence": { "$ref": "#/$defs/confidence" }, "kind": { "type": "string", "minLength": 1 } } },
+    "temporal": { "type": "object", "additionalProperties": false, "required": ["asOf"], "properties": { "asOf": { "$ref": "#/$defs/dateTime" }, "validFrom": { "$ref": "#/$defs/dateTime" }, "validUntil": { "$ref": "#/$defs/dateTime" } } },
+    "validity": { "type": "object", "additionalProperties": false, "required": ["status", "checkedAt", "policy"], "properties": { "status": { "enum": ["FRESH", "STALE", "INVALID", "UNKNOWN"] }, "checkedAt": { "$ref": "#/$defs/dateTime" }, "policy": { "enum": ["IMMUTABLE", "VERSIONED", "TTL", "MANUAL"] }, "expiresAt": { "$ref": "#/$defs/dateTime" } } },
+    "conflict": { "type": "object", "additionalProperties": false, "required": ["conflictId", "evidenceIds", "status"], "properties": { "conflictId": { "type": "string", "minLength": 1 }, "evidenceIds": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }, "status": { "enum": ["OPEN", "RESOLVED"] }, "resolution": { "type": "object", "additionalProperties": false, "required": ["strategy", "resolvedAt"], "properties": { "strategy": { "enum": ["MANUAL", "PREFER_CONFIDENCE", "PREFER_NEWEST", "MERGE"] }, "resolvedAt": { "$ref": "#/$defs/dateTime" }, "selectedEvidenceId": { "type": "string", "minLength": 1 }, "note": { "type": "string", "minLength": 1 } } } } },
+    "signature": { "type": "object", "additionalProperties": false, "required": ["signatureId", "signerId", "keyId", "algorithm", "value", "signedAt"], "properties": { "signatureId": { "type": "string", "minLength": 1 }, "signerId": { "type": "string", "minLength": 1 }, "keyId": { "type": "string", "minLength": 1 }, "algorithm": { "type": "string", "minLength": 1 }, "value": { "type": "string", "minLength": 1 }, "signedAt": { "$ref": "#/$defs/dateTime" }, "evidenceId": { "type": "string", "minLength": 1 } } }
+  }
+}

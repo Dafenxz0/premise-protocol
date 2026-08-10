@@ -304,7 +304,7 @@
         "total": 0
       },
       "latencyMs": {
-        "p50": 0.001,
+        "p50": 0.002,
         "p95": 0.004
       },
       "history": {
@@ -368,8 +368,8 @@
         "total": 64
       },
       "latencyMs": {
-        "p50": 0.365,
-        "p95": 65.028
+        "p50": 0.482,
+        "p95": 57.559
       },
       "history": {
         "episodesWithHistory": 14,
@@ -586,7 +586,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.001,
+      "latencyMs": 0.002,
       "history": {
         "preserved": false,
         "length": 0,
@@ -639,7 +639,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.001,
+      "latencyMs": 0.002,
       "history": {
         "preserved": false,
         "length": 0,
@@ -904,7 +904,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.004,
+      "latencyMs": 0.003,
       "history": {
         "preserved": false,
         "length": 0,
@@ -1237,7 +1237,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 1.318,
+      "latencyMs": 1.333,
       "history": {
         "preserved": true,
         "length": 3,
@@ -1387,7 +1387,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.252,
+      "latencyMs": 0.289,
       "history": {
         "preserved": true,
         "length": 1,
@@ -1460,7 +1460,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.282,
+      "latencyMs": 0.349,
       "history": {
         "preserved": true,
         "length": 3,
@@ -1535,7 +1535,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.365,
+      "latencyMs": 0.482,
       "history": {
         "preserved": true,
         "length": 3,
@@ -1611,7 +1611,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 0.175,
+      "latencyMs": 0.28,
       "history": {
         "preserved": true,
         "length": 3,
@@ -1751,7 +1751,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 65.028,
+      "latencyMs": 53.788,
       "history": {
         "preserved": true,
         "length": 3,
@@ -1826,7 +1826,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 43.903,
+      "latencyMs": 37.29,
       "history": {
         "preserved": true,
         "length": 3,
@@ -1901,7 +1901,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 64.342,
+      "latencyMs": 54.467,
       "history": {
         "preserved": true,
         "length": 1,
@@ -1974,7 +1974,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 64.579,
+      "latencyMs": 54.058,
       "history": {
         "preserved": true,
         "length": 3,
@@ -2049,7 +2049,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 64.743,
+      "latencyMs": 52.683,
       "history": {
         "preserved": true,
         "length": 3,
@@ -2125,7 +2125,7 @@
         }
       },
       "memoryReadCalls": 1,
-      "latencyMs": 64.796,
+      "latencyMs": 57.559,
       "history": {
         "preserved": true,
         "length": 3,

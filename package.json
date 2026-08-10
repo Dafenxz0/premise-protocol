@@ -1,8 +1,8 @@
 {
   "name": "premise-protocol",
-  "version": "0.1.0-rc.1",
+  "version": "0.2.0-rc.1",
   "private": true,
-  "description": "PREMiSE protocol workspace.",
+  "description": "PREMiSE protocol workspace with the additive v2 runtime and evaluation stack.",
   "type": "module",
   "packageManager": "pnpm@10.13.1",
   "engines": {
@@ -15,6 +15,7 @@
     "test": "pnpm run typecheck && pnpm --recursive --if-present test",
     "test:properties": "pnpm --filter @premise/testkit test",
     "conformance": "pnpm --filter @premise/conformance test",
+    "conformance:v2": "pnpm build && node scripts/verify-v2-vectors.mjs",
     "benchmark:smoke": "pnpm --filter @premise/benchmark benchmark:smoke",
     "benchmark": "pnpm --filter @premise/benchmark benchmark:smoke",
     "benchmark:real-world": "pnpm build && node benchmarks/real-world-bench/runner.mjs && node benchmarks/real-world-bench/self-check.mjs",
@@ -27,6 +28,10 @@
     "benchmark:context:full": "pnpm build && node benchmarks/long-context-bench/runner.mjs --full --max-ms 120000 && node benchmarks/long-context-bench/self-check.mjs",
     "benchmark:evaluate": "node benchmarks/evaluation/runner.mjs",
     "benchmark:next": "pnpm benchmark:compare && pnpm benchmark:context:full && pnpm benchmark:real-world && pnpm benchmark:context-corpus:full && pnpm benchmark:evaluate",
+    "benchmark:v2:offline": "node benchmarks/real-world-v2/runner.mjs --offline && node benchmarks/real-world-v2/report.mjs && node benchmarks/real-world-v2/self-check.mjs",
+    "benchmark:v2:live": "node benchmarks/real-world-v2/runner.mjs --live && node benchmarks/real-world-v2/report.mjs && node benchmarks/real-world-v2/self-check.mjs",
+    "benchmark:v2:giant": "node benchmarks/giant-context-v2/runner.mjs --profiles=10000,100000 && node benchmarks/giant-context-v2/self-check.mjs",
+    "benchmark:v2:giant:full": "node benchmarks/giant-context-v2/runner.mjs --include-1m --profiles=100000,1000000 && node benchmarks/giant-context-v2/self-check.mjs",
     "examples:verify": "pnpm --filter @premise/example-generic-memory test && pnpm --filter @premise/example-openai-memory test && pnpm --filter @premise/example-mcp-memory test && node scripts/verify-adapters.mjs",
     "artifacts:generate": "pnpm build && node scripts/generate-artifacts.mjs"
   },

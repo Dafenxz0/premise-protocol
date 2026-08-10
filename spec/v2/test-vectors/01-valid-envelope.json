@@ -1,0 +1,12 @@
+{
+  "specVersion": "premise/2",
+  "tenantId": "tenant:vector",
+  "memoryId": "memory:vector:1",
+  "evidence": [{ "evidenceId": "e:1", "sourceUri": "github://octocat/Hello-World/commits/main", "observedAt": "2026-08-10T10:00:00Z" }],
+  "confidence": { "score": null, "method": "unscored", "assessedAt": "2026-08-10T10:00:00Z" },
+  "conflicts": [],
+  "temporal": { "asOf": "2026-08-10T10:00:00Z" },
+  "validity": { "status": "FRESH", "checkedAt": "2026-08-10T10:00:00Z", "policy": "MANUAL" },
+  "dependsOn": [],
+  "signatures": []
+}

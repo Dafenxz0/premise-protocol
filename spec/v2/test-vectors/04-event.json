@@ -1,0 +1,12 @@
+{
+  "specVersion": "premise/2",
+  "tenantId": "tenant:vector",
+  "eventId": "event:vector:1",
+  "operationId": "operation:vector:1",
+  "idempotencyKey": "idem:vector:1",
+  "requestDigest": "sha256:vector",
+  "type": "MemoryRegistered",
+  "occurredAt": "2026-08-10T10:00:00Z",
+  "memoryId": "memory:vector:1",
+  "payload": { "memoryId": "memory:vector:1" }
+}
