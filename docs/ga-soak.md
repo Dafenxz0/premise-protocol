@@ -81,8 +81,10 @@ Los gates incorporados son deliberadamente explícitos:
 | observaciones de latencia | `10.000` |
 | disponibilidad semántica | `>= 99,9%` |
 | tasa de error | `<= 0,1%` |
+| p95 global | `<= 500 ms` |
+| p99 global | `<= 2.000 ms` |
 
-`--enforce-ga` termina con código distinto de cero si alguno falla. No permite convertir una muestra corta en evidencia GA cambiando un umbral desde la línea de comandos. Aun con `eligibleForGa: true`, el resultado solo respalda ese target, commit, configuración, tenant, hardware y ventana; no prueba una disponibilidad universal ni un SLA.
+`--enforce-ga` termina con código distinto de cero si alguno falla. No permite convertir una muestra corta en evidencia GA cambiando un umbral desde la línea de comandos. Una ejecución con disponibilidad perfecta pero cola lenta sigue siendo `ga-candidate-failed`. Aun con `eligibleForGa: true`, el resultado solo respalda ese target, commit, configuración, tenant, hardware y ventana; no prueba una disponibilidad universal ni un SLA.
 
 ## Check ejecutable
 

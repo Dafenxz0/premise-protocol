@@ -12,7 +12,9 @@ export const GA_THRESHOLDS = Object.freeze({
   minimumRequests: 10_000,
   minimumLatencySamples: 10_000,
   minimumAvailabilityRate: 0.999,
-  maximumErrorRate: 0.001
+  maximumErrorRate: 0.001,
+  maximumP95Ms: 500,
+  maximumP99Ms: 2_000
 });
 
 const DEFAULT_OUTPUT = fileURLToPath(new URL("./results.json", import.meta.url));
@@ -491,7 +493,9 @@ function eligibility(config, setup, activeDurationMs, summary, commit) {
     requests: { observed: summary.requests, minimum: GA_THRESHOLDS.minimumRequests, passed: summary.requests >= GA_THRESHOLDS.minimumRequests },
     latencySamples: { observed: summary.latency.observations, minimum: GA_THRESHOLDS.minimumLatencySamples, passed: summary.latency.observations >= GA_THRESHOLDS.minimumLatencySamples },
     availability: { observed: summary.availabilityRate, minimum: GA_THRESHOLDS.minimumAvailabilityRate, passed: summary.availabilityRate >= GA_THRESHOLDS.minimumAvailabilityRate },
-    errorRate: { observed: summary.errorRate, maximum: GA_THRESHOLDS.maximumErrorRate, passed: summary.errorRate <= GA_THRESHOLDS.maximumErrorRate }
+    errorRate: { observed: summary.errorRate, maximum: GA_THRESHOLDS.maximumErrorRate, passed: summary.errorRate <= GA_THRESHOLDS.maximumErrorRate },
+    latencyP95: { observedMs: summary.latency.p95Ms, maximumMs: GA_THRESHOLDS.maximumP95Ms, passed: Number.isFinite(summary.latency.p95Ms) && summary.latency.p95Ms <= GA_THRESHOLDS.maximumP95Ms },
+    latencyP99: { observedMs: summary.latency.p99Ms, maximumMs: GA_THRESHOLDS.maximumP99Ms, passed: Number.isFinite(summary.latency.p99Ms) && summary.latency.p99Ms <= GA_THRESHOLDS.maximumP99Ms }
   };
   const eligibleForGa = Object.values(checks).every((check) => check.passed);
   const sampleType = activeDurationMs < GA_THRESHOLDS.minimumDurationMs ? "smoke" : "ga-candidate";
