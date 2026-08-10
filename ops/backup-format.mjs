@@ -795,7 +795,7 @@ async function repairEventSequence(client, tables) {
   await client.query(`
     SELECT setval(
       pg_get_serial_sequence($1, 'sequence'),
-      GREATEST(COALESCE((SELECT MAX(sequence) FROM ${tables.events}), 1), (SELECT last_value FROM ${quoteIdentifier(`${tables.sequenceTable}_sequence_seq`)})),
+      GREATEST(COALESCE((SELECT MAX(sequence) FROM ${tables.events}), 1), 1),
       true
     )
   `, [tables.sequenceTable]);
