@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,6 +77,11 @@ async function makeEvidenceDirectory(t, mutate = () => {}) {
       window: { activeDurationMs: 3_600_000 },
       metrics: { requests: 10_000, availabilityRate: 0.999, errorRate: 0.001, latency: { p95Ms: 500, p99Ms: 2_000 } }
     });
+    if (requirement.name === "soak-availability.json") {
+      const traceBody = '{"schema":"premise-ga-soak/trace/1"}\n';
+      document.trace = { path: "soak-trace.jsonl", sha256: `sha256:${createHash("sha256").update(traceBody).digest("hex")}` };
+      await writeFile(join(directory, "soak-trace.jsonl"), traceBody, "utf8");
+    }
     if (requirement.name === "cost-report.json") Object.assign(document, {
       eligibleForGa: true,
       mode: "provider-billing",
@@ -182,6 +188,17 @@ test("claim gate rejects security, holdout, cost and rollback shortcuts", async 
     assert.equal(artifact(name).eligible, false, `${name} must be ineligible`);
     assert.ok(artifact(name).failures.some((item) => item.code === "claims-contract"), `${name} must fail the claims contract`);
   }
+});
+
+test("strict soak gate recalculates the uploaded raw trace digest", async (t) => {
+  const evidenceDirectory = await makeEvidenceDirectory(t, async (directory) => {
+    await writeFile(join(directory, "soak-trace.jsonl"), "tampered\n", "utf8");
+  });
+  const result = await runGaGate({ rootDir: repositoryRoot, strict: true, evidenceRoot: evidenceDirectory });
+  const artifact = result.evidence.artifacts.find((item) => item.name === "soak-availability.json");
+
+  assert.equal(artifact.eligible, false);
+  assert.ok(artifact.failures.some((item) => item.field === "trace.sha256"));
 });
 
 test("canonical GA artifacts accept the PostgreSQL commit metadata object when schema and format agree", async (t) => {

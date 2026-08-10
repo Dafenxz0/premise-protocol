@@ -1,4 +1,5 @@
 import { access, readFile, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { resolve, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -240,6 +241,29 @@ function semanticFailures(name, document, raw, manifest) {
   }
 }
 
+async function rawTraceFailures(evidenceRoot, name, document) {
+  if (name !== "soak-availability.json") return [];
+  const failures = [];
+  const tracePath = valueAt(document, "trace.path");
+  const declaredDigest = valueAt(document, "trace.sha256");
+  if (typeof tracePath !== "string" || tracePath.trim().length === 0) return failures;
+  const resolvedTracePath = resolve(evidenceRoot, tracePath);
+  if (!isPathInside(evidenceRoot, resolvedTracePath)) {
+    addClaimFailure(failures, "trace.path", "the raw soak trace must remain inside the evidence directory.");
+    return failures;
+  }
+  let bytes;
+  try {
+    bytes = await readFile(resolvedTracePath);
+  } catch (error) {
+    addClaimFailure(failures, "trace.path", `the raw soak trace cannot be read: ${error.message}`);
+    return failures;
+  }
+  const actualDigest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+  if (actualDigest !== declaredDigest) addClaimFailure(failures, "trace.sha256", "the declared soak trace digest does not match the uploaded raw JSONL trace.");
+  return failures;
+}
+
 function failure(code, message, extra = {}) {
   return { code, message, ...extra };
 }
@@ -409,7 +433,7 @@ async function inspectEvidenceFile(evidenceRoot, requirement, manifest) {
     return result;
   }
 
-  const semantic = semanticFailures(requirement.name, document, raw, manifest);
+  const semantic = [...await rawTraceFailures(evidenceRoot, requirement.name, document), ...semanticFailures(requirement.name, document, raw, manifest)];
   if (semantic.length > 0) {
     result.failures.push(...semantic);
     result.incompatibilities.push({
