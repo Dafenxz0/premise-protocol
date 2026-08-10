@@ -24,6 +24,7 @@ COPY deploy/package.json deploy/package-lock.json /opt/deploy-deps/
 RUN pnpm install --frozen-lockfile
 RUN cd /opt/deploy-deps && npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 RUN pnpm build
+RUN pnpm prune --prod
 
 FROM node:24.19.0-bookworm-slim AS runtime
 
@@ -37,6 +38,7 @@ ENV NODE_ENV=production \
 RUN groupadd --gid 10001 premise \
  && useradd --uid 10001 --gid 10001 --create-home --home-dir /home/premise --shell /usr/sbin/nologin premise \
  && mkdir -p /app /backup /tmp \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
  && chown -R 10001:10001 /app /backup /tmp /home/premise
 
 WORKDIR /app
