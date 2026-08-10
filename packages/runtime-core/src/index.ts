@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   parseMemoryEnvelopeV2,
   parseV2Event,
@@ -88,9 +89,7 @@ function usability(status: V2MemoryStatus): RuntimeCheckItem["decision"] {
 }
 
 function digestFor(value: string): `sha256:${string}` {
-  let hash = 2166136261;
-  for (const character of value) hash = Math.imul(hash ^ character.codePointAt(0)!, 16777619) >>> 0;
-  return `sha256:runtime-${hash.toString(16)}`;
+  return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
 }
 
 export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {

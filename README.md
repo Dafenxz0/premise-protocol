@@ -11,13 +11,44 @@
 
 <p align="center">
   <a href="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml"><img src="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://github.com/Dafenxz0/premise-protocol/releases/tag/v0.2.0-rc.1"><img src="https://img.shields.io/badge/release-v0.2.0--rc.1-0B132B?style=flat-square" alt="Release v0.2.0-rc.1"></a>
+  <a href="https://github.com/Dafenxz0/premise-protocol/releases/tag/v2.0.0-rc.1"><img src="https://img.shields.io/badge/release-v2.0.0--rc.1-0B132B?style=flat-square" alt="Release v2.0.0-rc.1"></a>
   <img src="https://img.shields.io/badge/Node.js-24-14B8A6?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 24">
   <img src="https://img.shields.io/badge/pnpm-10-F59E0B?style=flat-square&logo=pnpm&logoColor=white" alt="pnpm 10">
   <img src="https://img.shields.io/badge/spec-premise%2F2-2563EB?style=flat-square" alt="PREMiSE spec 2">
 </p>
 
 > PREMiSE no sustituye a tu sistema de memoria. Guarda la procedencia, la versión, las dependencias y la vigencia de un recuerdo para que un agente no trate información antigua como si fuera actual.
+
+> **Estado de la versión GA:** la RC v2 está publicada y la ruta hacia `v2.0.0 GA` está en ejecución. No se declarará GA hasta cerrar evidencia real de seguridad, Postgres, carga, recuperación, benchmarks externos, operaciones y API estable. Consulta los [criterios públicos de aceptación](./docs/v2-ga-acceptance.md).
+
+## V2.0 GA, explicado sin jerga
+
+PREMiSE no intenta reemplazar la memoria, la base de datos ni el buscador de una aplicación. Añade una capa que responde a una pregunta muy concreta: **¿sigue siendo seguro utilizar este recuerdo con la evidencia y la versión que lo respaldan?**
+
+La candidata `v2.0.0-rc.1` ya reúne el camino completo para llevar esa idea a un servicio real:
+
+| Necesidad | Qué incorpora la candidata |
+| --- | --- |
+| Guardar y actualizar recuerdos | Runtime v2, dependencias, historial, snapshots y replay idempotente. |
+| Conectar fuentes reales | GitHub REST en modo lectura, filesystem, Git, PostgreSQL y webhooks firmados. |
+| Evitar datos antiguos | Estados `FRESH`, `STALE`, `INVALID` y `UNKNOWN`, con revalidación y propagación de cambios. |
+| Proteger datos | Ed25519, HMAC-SHA-256, AES-256-GCM, ACL por tenant, auditoría encadenada y autorización API. |
+| Operar con confianza | Imagen reproducible sin root, migraciones, readiness, métricas, alertas, backup, restore y rollback. |
+| Integrarse sin sorpresas | SDK TypeScript `@premise/sdk@2.0.0`, OpenAPI, schemas, retries, timeouts e idempotencia. |
+
+### Números que se pueden entender rápidamente
+
+Son resultados medidos en este commit, no promesas universales ni un SLA:
+
+| Prueba | Resultado observado |
+| --- | ---: |
+| Evaluación ciega versionada, holdout local externo al candidato | PREMiSE: 100% exactitud y 100% frescura; baseline sin protocolo: 77,3% y 68,2% |
+| GitHub real en solo lectura, 100 tareas | 100/100 correctas; cache condicional: 9 peticiones/100 |
+| Carga sintética de 1.000.000 de memorias | 577.523 memorias/s; p99 de lote 27,8 ms; 0 errores |
+| Recuperación y aislamiento | 50.000 eventos de fiabilidad y todos los escenarios pasan |
+| Corpus contextual de 50.000 memorias | 100% precisión, seguridad y hit-rate en cadena, fan-out y datos compartidos |
+
+La evidencia reproducible y sus límites están en [`docs/v2-ga-acceptance.md`](./docs/v2-ga-acceptance.md), [`docs/ga-evaluation.md`](./docs/ga-evaluation.md) y [`docs/ga-reliability.md`](./docs/ga-reliability.md). La etiqueta GA seguirá bloqueada hasta completar Postgres real, soak/chaos, holdout independiente y revisión operativa.
 
 ## PREMiSE en una frase
 
@@ -81,8 +112,8 @@ También se ejecutó el perfil de contexto gigante con un presupuesto de 128.000
 | Memorias candidatas | Objetivo conservado | p95 local | Heap observado |
 | ---: | :---: | ---: | ---: |
 | 10.000 | Sí | 23,986 ms | 35,1 MB |
-| 100.000 | Sí | 207,732 ms | 197,2 MB |
-| 1.000.000 | Sí | 3.321,731 ms | 1.743,5 MB |
+| 100.000 | Sí | 239,234 ms | 380,9 MB |
+| 1.000.000 | Sí | 3.792,535 ms | 1.724,8 MB |
 
 Son mediciones de esta máquina y del workload versionado; no son promesas de producción ni de calidad de un modelo.
 
@@ -153,6 +184,6 @@ El servidor v1 mantiene el entrypoint original. La superficie v2 se importa expl
 
 ## Estado y límites de salida
 
-`v0.2.0-rc.1` es un release candidate técnico. El contrato, runtime, adapters, persistencia local, API y benchmarks están versionados y probados; aún hacen falta campañas de despliegue para declarar GA: PostgreSQL real, carga de 1M en infraestructura objetivo, chaos/soak, revisión de seguridad independiente, dos entornos cloud, holdout ciego e intervalos de confianza.
+`v2.0.0-rc.1` es un release candidate técnico. El contrato, runtime, adapters, persistencia local, API y benchmarks están versionados y probados; aún hacen falta campañas de despliegue para declarar GA: PostgreSQL real, carga de 1M en infraestructura objetivo, chaos/soak, revisión de seguridad independiente, dos entornos cloud, holdout ciego e intervalos de confianza.
 
 El detalle está en [`docs/v2-production-checklist.md`](./docs/v2-production-checklist.md). Este repositorio no incluye una licencia pública por diseño.

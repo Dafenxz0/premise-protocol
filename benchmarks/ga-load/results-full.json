@@ -1,0 +1,249 @@
+{
+  "format": "ga-reliability-benchmark/1",
+  "generatedAt": "2026-08-10T11:35:51.552Z",
+  "runner": "node-worker-threads",
+  "node": {
+    "version": "v24.19.0",
+    "major": 24,
+    "platform": "win32",
+    "arch": "x64",
+    "availableParallelism": 16
+  },
+  "profile": "full",
+  "scenario": "all",
+  "seed": 20260810,
+  "deterministicWorkload": true,
+  "configuration": {
+    "memories": 1000000,
+    "tenants": 64,
+    "concurrency": 8,
+    "batchSize": 1024,
+    "reliabilityMemories": 50000,
+    "maxMs": 1800000,
+    "enforceGates": true
+  },
+  "load": {
+    "memoriesRequested": 1000000,
+    "memoriesApplied": 1000000,
+    "batches": 977,
+    "batchSize": 1024,
+    "concurrency": 8,
+    "workerThreads": 8,
+    "durationMs": 1731.533,
+    "throughput": {
+      "memoriesPerSecond": 577522.923,
+      "batchesPerSecond": 564.24
+    },
+    "latency": {
+      "sampleUnit": "batch",
+      "samples": 977,
+      "p50Ms": 12.121,
+      "p95Ms": 16.485,
+      "p99Ms": 27.767
+    },
+    "heap": {
+      "sampling": "parent process only",
+      "beforeBytes": 5403928,
+      "afterBytes": 261677136,
+      "peakBytes": 309021888,
+      "deltaBytes": 256273208,
+      "peakRssBytes": 556482560
+    },
+    "journal": {
+      "format": "NDJSON",
+      "bytes": 289001182,
+      "writes": 977,
+      "orderedBy": "synthetic sequence; batches commit in ascending id"
+    },
+    "backpressure": {
+      "configuredConcurrency": 8,
+      "maxInFlightBatches": 8,
+      "writeBackpressureEvents": 977,
+      "writeBackpressureWaitMs": 221.89,
+      "sampleUnit": "journal batch"
+    },
+    "errors": {
+      "unexpected": 0,
+      "worker": 0,
+      "journal": 0,
+      "store": 0
+    },
+    "tenants": {
+      "count": 64,
+      "records": {
+        "tenant:0": 15625,
+        "tenant:1": 15625,
+        "tenant:2": 15625,
+        "tenant:3": 15625,
+        "tenant:4": 15625,
+        "tenant:5": 15625,
+        "tenant:6": 15625,
+        "tenant:7": 15625,
+        "tenant:8": 15625,
+        "tenant:9": 15625,
+        "tenant:10": 15625,
+        "tenant:11": 15625,
+        "tenant:12": 15625,
+        "tenant:13": 15625,
+        "tenant:14": 15625,
+        "tenant:15": 15625,
+        "tenant:16": 15625,
+        "tenant:17": 15625,
+        "tenant:18": 15625,
+        "tenant:19": 15625,
+        "tenant:20": 15625,
+        "tenant:21": 15625,
+        "tenant:22": 15625,
+        "tenant:23": 15625,
+        "tenant:24": 15625,
+        "tenant:25": 15625,
+        "tenant:26": 15625,
+        "tenant:27": 15625,
+        "tenant:28": 15625,
+        "tenant:29": 15625,
+        "tenant:30": 15625,
+        "tenant:31": 15625,
+        "tenant:32": 15625,
+        "tenant:33": 15625,
+        "tenant:34": 15625,
+        "tenant:35": 15625,
+        "tenant:36": 15625,
+        "tenant:37": 15625,
+        "tenant:38": 15625,
+        "tenant:39": 15625,
+        "tenant:40": 15625,
+        "tenant:41": 15625,
+        "tenant:42": 15625,
+        "tenant:43": 15625,
+        "tenant:44": 15625,
+        "tenant:45": 15625,
+        "tenant:46": 15625,
+        "tenant:47": 15625,
+        "tenant:48": 15625,
+        "tenant:49": 15625,
+        "tenant:50": 15625,
+        "tenant:51": 15625,
+        "tenant:52": 15625,
+        "tenant:53": 15625,
+        "tenant:54": 15625,
+        "tenant:55": 15625,
+        "tenant:56": 15625,
+        "tenant:57": 15625,
+        "tenant:58": 15625,
+        "tenant:59": 15625,
+        "tenant:60": 15625,
+        "tenant:61": 15625,
+        "tenant:62": 15625,
+        "tenant:63": 15625
+      },
+      "total": 1000000
+    },
+    "isolation": {
+      "passed": true,
+      "crossTenantRead": "rejected"
+    },
+    "deterministic": true
+  },
+  "reliability": {
+    "memories": 50000,
+    "tenants": 64,
+    "scenarios": [
+      {
+        "name": "crash-restart",
+        "durationMs": 195.896,
+        "passed": true,
+        "expectedPrefix": 30000,
+        "prefixApplied": 30000,
+        "fullApplied": 50000,
+        "replayDuplicates": 50000,
+        "recoveredMemories": 50000
+      },
+      {
+        "name": "duplicate-events",
+        "durationMs": 121.121,
+        "passed": true,
+        "uniqueEvents": 50000,
+        "duplicateEvents": 16666,
+        "applied": 50000,
+        "ignoredDuplicates": 16666,
+        "conflictingIdempotencyRejected": true
+      },
+      {
+        "name": "journal-corruption-truncation",
+        "durationMs": 149.288,
+        "passed": true,
+        "truncatedApplied": 49999,
+        "truncatedTailIgnored": 1,
+        "corruptPrefixApplied": 25000,
+        "corruptLine": 25001,
+        "corruptionRejected": true
+      },
+      {
+        "name": "snapshot-recovery",
+        "durationMs": 90.864,
+        "passed": true,
+        "snapshotMemories": 25000,
+        "tailApplied": 25000,
+        "recoveredMemories": 50000,
+        "snapshotFormat": "ga-memory-snapshot/1"
+      },
+      {
+        "name": "tenant-isolation",
+        "durationMs": 0.096,
+        "passed": true,
+        "tenantZeroRecords": 1,
+        "tenantOneRecords": 1,
+        "foreignRead": "rejected"
+      }
+    ],
+    "passed": true,
+    "errors": {
+      "unexpected": 0,
+      "expected": 2,
+      "expectedKinds": [
+        "duplicate idempotency conflict",
+        "corrupt middle journal"
+      ]
+    }
+  },
+  "gates": {
+    "node24": {
+      "requiredMajor": 24,
+      "actualMajor": 24,
+      "passed": true,
+      "smokeOnly": false
+    },
+    "correctness": {
+      "passed": true,
+      "checks": {
+        "loadCount": true,
+        "loadErrors": true,
+        "loadTenantIsolation": true,
+        "loadBackpressureBounded": true,
+        "reliabilityScenarios": true
+      }
+    },
+    "performance": {
+      "evaluated": false,
+      "thresholds": {
+        "minMemoriesPerSecond": 10000,
+        "maxBatchP99Ms": 500,
+        "maxPeakHeapBytes": 1073741824
+      },
+      "observed": {
+        "memoriesPerSecond": 577522.923,
+        "batchP99Ms": 27.767,
+        "peakHeapBytes": 309021888
+      },
+      "passed": true
+    },
+    "allPassed": true
+  },
+  "interpretation": {
+    "universalCapacityClaim": false,
+    "statement": "Synthetic workload measurements for this host and configuration; not an SLA, production capacity promise, or universal capability.",
+    "latencySampleUnit": "journal batch end-to-end from worker dispatch through ordered journal write and store apply",
+    "heapScope": "parent process; worker heaps are not included",
+    "payloadScope": "metadata-only synthetic records; no external retrieval, network, or production database"
+  }
+}

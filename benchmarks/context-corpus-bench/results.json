@@ -13,22 +13,22 @@
   "setups": [
     {
       "nodes": 1000,
-      "corpusGenerationMs": 1306.8192,
-      "indexBuildMs": 14.1208,
+      "corpusGenerationMs": 1397.1982,
+      "indexBuildMs": 15.6434,
       "payloadBytes": 104854,
       "indexMetadataBytes": 158605
     },
     {
       "nodes": 10000,
-      "corpusGenerationMs": 12118.9849,
-      "indexBuildMs": 156.6422,
+      "corpusGenerationMs": 11621.1266,
+      "indexBuildMs": 155.7955,
       "payloadBytes": 1058012,
       "indexMetadataBytes": 1580605
     },
     {
       "nodes": 50000,
-      "corpusGenerationMs": 73416.0775,
-      "indexBuildMs": 810.9853,
+      "corpusGenerationMs": 68366.2676,
+      "indexBuildMs": 757.6886,
       "payloadBytes": 5334262,
       "indexMetadataBytes": 7940605
     }
@@ -76,8 +76,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0143,
-            "p95Ms": 0.0525
+            "p50Ms": 0.0146,
+            "p95Ms": 0.0592
           }
         },
         "postSignal": {
@@ -98,8 +98,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0148,
-            "p95Ms": 0.0464
+            "p50Ms": 0.0151,
+            "p95Ms": 0.047
           }
         },
         "final": {
@@ -120,8 +120,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0142,
-            "p95Ms": 0.0409
+            "p50Ms": 0.0145,
+            "p95Ms": 0.0461
           }
         }
       },
@@ -218,43 +218,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0386,
-            "p95Ms": 0.5644
+            "p50Ms": 0.0407,
+            "p95Ms": 0.5078
           },
           "derive": {
             "count": 999,
-            "p50Ms": 0.0046,
-            "p95Ms": 0.0079
+            "p50Ms": 0.0048,
+            "p95Ms": 0.0113
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.2684,
-            "p95Ms": 3.3236
+            "p50Ms": 0.1972,
+            "p95Ms": 3.1292
           },
           "check": {
             "count": 4,
             "p50Ms": 0.002,
-            "p95Ms": 0.0698
+            "p95Ms": 0.0669
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2918,
-            "p95Ms": 3.3429
+            "p50Ms": 0.1743,
+            "p95Ms": 3.2433
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.3211,
-            "p95Ms": 0.6139
+            "p50Ms": 0.3034,
+            "p95Ms": 0.6104
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1679,
-            "p95Ms": 0.2184
+            "p50Ms": 0.1682,
+            "p95Ms": 0.2121
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0142,
-            "p95Ms": 0.0409
+            "p50Ms": 0.0145,
+            "p95Ms": 0.0461
           }
         },
         "metadata": {
@@ -266,21 +266,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 15557048,
-          "afterHeapUsedBytes": 14551424,
+          "beforeHeapUsedBytes": 15775928,
+          "afterHeapUsedBytes": 14598464,
           "deltaBytes": 0,
-          "signedDeltaBytes": -1005624,
-          "beforeRssBytes": 64561152,
-          "afterRssBytes": 73043968,
+          "signedDeltaBytes": -1177464,
+          "beforeRssBytes": 65384448,
+          "afterRssBytes": 73404416,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 1306.8192,
-        "mutationMs": 15.8932,
-        "indexUpdateMs": 0.4924,
-        "restoreMs": 3.5601,
-        "totalMs": 48.6268
+        "corpusGenerationMs": 1397.1982,
+        "mutationMs": 11.5096,
+        "indexUpdateMs": 0.4674,
+        "restoreMs": 2.9018,
+        "totalMs": 43.5753
       }
     },
     {
@@ -325,8 +325,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.013,
-            "p95Ms": 0.0265
+            "p50Ms": 0.0131,
+            "p95Ms": 0.0269
           }
         },
         "postSignal": {
@@ -347,8 +347,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0139,
-            "p95Ms": 0.0474
+            "p50Ms": 0.0166,
+            "p95Ms": 0.0465
           }
         },
         "final": {
@@ -369,8 +369,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0141,
-            "p95Ms": 0.0316
+            "p50Ms": 0.0157,
+            "p95Ms": 0.0351
           }
         }
       },
@@ -467,43 +467,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0167,
-            "p95Ms": 0.0456
+            "p50Ms": 0.017,
+            "p95Ms": 0.044
           },
           "derive": {
             "count": 999,
             "p50Ms": 0.0038,
-            "p95Ms": 0.0069
+            "p95Ms": 0.0068
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.017,
-            "p95Ms": 2.3517
+            "p50Ms": 0.013,
+            "p95Ms": 2.2877
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0021,
-            "p95Ms": 0.0029
+            "p50Ms": 0.0015,
+            "p95Ms": 0.0052
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2477,
-            "p95Ms": 2.1614
+            "p50Ms": 0.144,
+            "p95Ms": 2.174
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.018,
-            "p95Ms": 0.5828
+            "p50Ms": 0.0149,
+            "p95Ms": 0.4813
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.111,
-            "p95Ms": 0.1167
+            "p50Ms": 0.1285,
+            "p95Ms": 0.1715
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0141,
-            "p95Ms": 0.0316
+            "p50Ms": 0.0157,
+            "p95Ms": 0.0351
           }
         },
         "metadata": {
@@ -515,21 +515,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 12248344,
-          "afterHeapUsedBytes": 23105968,
-          "deltaBytes": 10857624,
-          "signedDeltaBytes": 10857624,
-          "beforeRssBytes": 74395648,
-          "afterRssBytes": 78823424,
+          "beforeHeapUsedBytes": 12274864,
+          "afterHeapUsedBytes": 23260624,
+          "deltaBytes": 10985760,
+          "signedDeltaBytes": 10985760,
+          "beforeRssBytes": 74620928,
+          "afterRssBytes": 78954496,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 1306.8192,
-        "mutationMs": 3.1161,
-        "indexUpdateMs": 0.3012,
-        "restoreMs": 3.2889,
-        "totalMs": 28.32
+        "corpusGenerationMs": 1397.1982,
+        "mutationMs": 3.1328,
+        "indexUpdateMs": 0.3807,
+        "restoreMs": 2.7994,
+        "totalMs": 28.3221
       }
     },
     {
@@ -574,8 +574,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0153,
-            "p95Ms": 0.0322
+            "p50Ms": 0.0146,
+            "p95Ms": 0.0317
           }
         },
         "postSignal": {
@@ -596,8 +596,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0132,
-            "p95Ms": 0.0282
+            "p50Ms": 0.0135,
+            "p95Ms": 0.03
           }
         },
         "final": {
@@ -618,8 +618,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0118,
-            "p95Ms": 0.0381
+            "p50Ms": 0.0117,
+            "p95Ms": 0.0241
           }
         }
       },
@@ -716,43 +716,43 @@
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0169,
-            "p95Ms": 0.0263
+            "p50Ms": 0.0188,
+            "p95Ms": 0.0261
           },
           "derive": {
             "count": 998,
             "p50Ms": 0.0039,
-            "p95Ms": 0.0058
+            "p95Ms": 0.0064
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0259,
-            "p95Ms": 1.7915
+            "p50Ms": 0.0121,
+            "p95Ms": 1.5646
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0017,
-            "p95Ms": 0.0085
+            "p50Ms": 0.0014,
+            "p95Ms": 0.007
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1174,
-            "p95Ms": 1.9273
+            "p50Ms": 0.1946,
+            "p95Ms": 2.3157
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0269,
-            "p95Ms": 0.2038
+            "p50Ms": 0.0116,
+            "p95Ms": 0.2079
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1943,
-            "p95Ms": 0.2399
+            "p50Ms": 0.1345,
+            "p95Ms": 0.1648
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0118,
-            "p95Ms": 0.0381
+            "p50Ms": 0.0117,
+            "p95Ms": 0.0241
           }
         },
         "metadata": {
@@ -764,21 +764,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 12972608,
-          "afterHeapUsedBytes": 18413584,
-          "deltaBytes": 5440976,
-          "signedDeltaBytes": 5440976,
-          "beforeRssBytes": 83607552,
-          "afterRssBytes": 91971584,
+          "beforeHeapUsedBytes": 13050256,
+          "afterHeapUsedBytes": 18550488,
+          "deltaBytes": 5500232,
+          "signedDeltaBytes": 5500232,
+          "beforeRssBytes": 83599360,
+          "afterRssBytes": 92270592,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 1306.8192,
-        "mutationMs": 6.648,
-        "indexUpdateMs": 0.6238,
-        "restoreMs": 2.8038,
-        "totalMs": 27.6624
+        "corpusGenerationMs": 1397.1982,
+        "mutationMs": 6.9803,
+        "indexUpdateMs": 0.4132,
+        "restoreMs": 2.8218,
+        "totalMs": 28.2884
       }
     },
     {
@@ -823,8 +823,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1132,
-            "p95Ms": 0.3531
+            "p50Ms": 0.1107,
+            "p95Ms": 0.2986
           }
         },
         "postSignal": {
@@ -845,8 +845,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.1283,
-            "p95Ms": 0.3889
+            "p50Ms": 0.1078,
+            "p95Ms": 0.2677
           }
         },
         "final": {
@@ -867,8 +867,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0917,
-            "p95Ms": 0.2117
+            "p50Ms": 0.0907,
+            "p95Ms": 0.2156
           }
         }
       },
@@ -965,43 +965,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0226,
-            "p95Ms": 0.0543
+            "p50Ms": 0.022,
+            "p95Ms": 0.0538
           },
           "derive": {
             "count": 9999,
             "p50Ms": 0.0038,
-            "p95Ms": 0.0065
+            "p95Ms": 0.0063
           },
           "signal": {
             "count": 3,
-            "p50Ms": 2.6385,
-            "p95Ms": 26.4306
+            "p50Ms": 2.1632,
+            "p95Ms": 24.5532
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0023,
-            "p95Ms": 0.004
+            "p50Ms": 0.0017,
+            "p95Ms": 0.0036
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2509,
-            "p95Ms": 24.1335
+            "p50Ms": 0.2644,
+            "p95Ms": 25.3922
           },
           "repair": {
             "count": 4,
-            "p50Ms": 1.6384,
-            "p95Ms": 3.1197
+            "p50Ms": 1.8058,
+            "p95Ms": 2.7884
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1646,
-            "p95Ms": 0.1745
+            "p50Ms": 0.1004,
+            "p95Ms": 0.2067
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0917,
-            "p95Ms": 0.2117
+            "p50Ms": 0.0907,
+            "p95Ms": 0.2156
           }
         },
         "metadata": {
@@ -1013,21 +1013,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 47961120,
-          "afterHeapUsedBytes": 97852440,
-          "deltaBytes": 49891320,
-          "signedDeltaBytes": 49891320,
-          "beforeRssBytes": 134692864,
-          "afterRssBytes": 238428160,
+          "beforeHeapUsedBytes": 46623552,
+          "afterHeapUsedBytes": 97907696,
+          "deltaBytes": 51284144,
+          "signedDeltaBytes": 51284144,
+          "beforeRssBytes": 134922240,
+          "afterRssBytes": 236433408,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 12118.9849,
-        "mutationMs": 19.4468,
-        "indexUpdateMs": 0.4411,
-        "restoreMs": 13.2287,
-        "totalMs": 235.2351
+        "corpusGenerationMs": 11621.1266,
+        "mutationMs": 19.4523,
+        "indexUpdateMs": 0.3984,
+        "restoreMs": 13.191,
+        "totalMs": 228.2716
       }
     },
     {
@@ -1072,8 +1072,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0962,
-            "p95Ms": 0.2521
+            "p50Ms": 0.0935,
+            "p95Ms": 0.2138
           }
         },
         "postSignal": {
@@ -1094,8 +1094,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0916,
-            "p95Ms": 0.215
+            "p50Ms": 0.0915,
+            "p95Ms": 0.2047
           }
         },
         "final": {
@@ -1116,8 +1116,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0911,
-            "p95Ms": 0.2092
+            "p50Ms": 0.09,
+            "p95Ms": 0.2118
           }
         }
       },
@@ -1214,43 +1214,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0171,
-            "p95Ms": 0.0608
+            "p50Ms": 0.0166,
+            "p95Ms": 0.0537
           },
           "derive": {
             "count": 9999,
-            "p50Ms": 0.0032,
-            "p95Ms": 0.0045
+            "p50Ms": 0.003,
+            "p95Ms": 0.0044
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0318,
-            "p95Ms": 21.8187
+            "p50Ms": 0.0354,
+            "p95Ms": 21.0409
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0015,
-            "p95Ms": 0.0029
+            "p50Ms": 0.0014,
+            "p95Ms": 0.0026
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.1599,
-            "p95Ms": 17.9012
+            "p50Ms": 0.1816,
+            "p95Ms": 17.2
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0273,
-            "p95Ms": 2.6413
+            "p50Ms": 0.0196,
+            "p95Ms": 2.6053
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0908,
-            "p95Ms": 0.1252
+            "p50Ms": 0.0875,
+            "p95Ms": 0.1262
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0911,
-            "p95Ms": 0.2092
+            "p50Ms": 0.09,
+            "p95Ms": 0.2118
           }
         },
         "metadata": {
@@ -1262,21 +1262,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 62308272,
-          "afterHeapUsedBytes": 110483424,
-          "deltaBytes": 48175152,
-          "signedDeltaBytes": 48175152,
-          "beforeRssBytes": 243548160,
-          "afterRssBytes": 268378112,
+          "beforeHeapUsedBytes": 62581800,
+          "afterHeapUsedBytes": 110918896,
+          "deltaBytes": 48337096,
+          "signedDeltaBytes": 48337096,
+          "beforeRssBytes": 241643520,
+          "afterRssBytes": 268328960,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 12118.9849,
-        "mutationMs": 8.8528,
-        "indexUpdateMs": 0.3004,
-        "restoreMs": 2.981,
-        "totalMs": 170.8529
+        "corpusGenerationMs": 11621.1266,
+        "mutationMs": 8.2278,
+        "indexUpdateMs": 0.297,
+        "restoreMs": 2.8678,
+        "totalMs": 165.783
       }
     },
     {
@@ -1321,8 +1321,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.093,
-            "p95Ms": 0.1956
+            "p50Ms": 0.0906,
+            "p95Ms": 0.1992
           }
         },
         "postSignal": {
@@ -1343,8 +1343,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0909,
-            "p95Ms": 0.2058
+            "p50Ms": 0.0904,
+            "p95Ms": 0.2041
           }
         },
         "final": {
@@ -1365,8 +1365,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 72,
-            "p50Ms": 0.0923,
-            "p95Ms": 0.2182
+            "p50Ms": 0.0885,
+            "p95Ms": 0.2206
           }
         }
       },
@@ -1463,43 +1463,43 @@
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0187,
-            "p95Ms": 0.0295
+            "p50Ms": 0.0192,
+            "p95Ms": 0.0777
           },
           "derive": {
             "count": 9998,
-            "p50Ms": 0.0034,
-            "p95Ms": 0.0055
+            "p50Ms": 0.0033,
+            "p95Ms": 0.0051
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0221,
-            "p95Ms": 10.6064
+            "p50Ms": 0.0216,
+            "p95Ms": 10.2755
           },
           "check": {
             "count": 4,
             "p50Ms": 0.0017,
-            "p95Ms": 0.0018
+            "p95Ms": 0.0019
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.3285,
-            "p95Ms": 9.5153
+            "p50Ms": 0.1443,
+            "p95Ms": 9.1318
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0095,
-            "p95Ms": 1.544
+            "p50Ms": 0.0156,
+            "p95Ms": 2.4489
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0924,
-            "p95Ms": 0.128
+            "p50Ms": 0.091,
+            "p95Ms": 0.1289
           },
           "query": {
             "count": 72,
-            "p50Ms": 0.0923,
-            "p95Ms": 0.2182
+            "p50Ms": 0.0885,
+            "p95Ms": 0.2206
           }
         },
         "metadata": {
@@ -1511,21 +1511,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 139044304,
-          "afterHeapUsedBytes": 159291872,
-          "deltaBytes": 20247568,
-          "signedDeltaBytes": 20247568,
-          "beforeRssBytes": 277323776,
-          "afterRssBytes": 287293440,
+          "beforeHeapUsedBytes": 139295904,
+          "afterHeapUsedBytes": 159665496,
+          "deltaBytes": 20369592,
+          "signedDeltaBytes": 20369592,
+          "beforeRssBytes": 277278720,
+          "afterRssBytes": 287952896,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 12118.9849,
-        "mutationMs": 13.7314,
-        "indexUpdateMs": 0.3023,
-        "restoreMs": 8.8322,
-        "totalMs": 161.2163
+        "corpusGenerationMs": 11621.1266,
+        "mutationMs": 12.2155,
+        "indexUpdateMs": 0.3031,
+        "restoreMs": 7.0555,
+        "totalMs": 155.2359
       }
     },
     {
@@ -1570,8 +1570,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4843,
-            "p95Ms": 1.0327
+            "p50Ms": 0.4783,
+            "p95Ms": 1.0645
           }
         },
         "postSignal": {
@@ -1592,8 +1592,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4826,
-            "p95Ms": 1.0462
+            "p50Ms": 0.4835,
+            "p95Ms": 1.0379
           }
         },
         "final": {
@@ -1614,8 +1614,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4781,
-            "p95Ms": 1.0471
+            "p50Ms": 0.4743,
+            "p95Ms": 1.0787
           }
         }
       },
@@ -1712,43 +1712,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0218,
-            "p95Ms": 0.0435
+            "p50Ms": 0.0256,
+            "p95Ms": 0.044
           },
           "derive": {
             "count": 49999,
             "p50Ms": 0.0033,
-            "p95Ms": 0.0043
+            "p95Ms": 0.0044
           },
           "signal": {
             "count": 3,
-            "p50Ms": 10.6235,
-            "p95Ms": 126.9696
+            "p50Ms": 10.3402,
+            "p95Ms": 119.9876
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.003,
-            "p95Ms": 0.0046
+            "p50Ms": 0.0027,
+            "p95Ms": 0.0049
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.389,
-            "p95Ms": 103.7432
+            "p50Ms": 17.2569,
+            "p95Ms": 99.9775
           },
           "repair": {
             "count": 4,
-            "p50Ms": 11.2275,
-            "p95Ms": 24.4414
+            "p50Ms": 9.6494,
+            "p95Ms": 21.3274
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.155,
-            "p95Ms": 0.2218
+            "p50Ms": 0.0939,
+            "p95Ms": 0.1319
           },
           "query": {
             "count": 208,
-            "p50Ms": 0.4781,
-            "p95Ms": 1.0471
+            "p50Ms": 0.4743,
+            "p95Ms": 1.0787
           }
         },
         "metadata": {
@@ -1760,21 +1760,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 180503912,
-          "afterHeapUsedBytes": 315801320,
-          "deltaBytes": 135297408,
-          "signedDeltaBytes": 135297408,
-          "beforeRssBytes": 335204352,
-          "afterRssBytes": 471863296,
+          "beforeHeapUsedBytes": 176776336,
+          "afterHeapUsedBytes": 312780152,
+          "deltaBytes": 136003816,
+          "signedDeltaBytes": 136003816,
+          "beforeRssBytes": 333955072,
+          "afterRssBytes": 469684224,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 73416.0775,
-        "mutationMs": 14.8909,
-        "indexUpdateMs": 0.519,
-        "restoreMs": 11.6636,
-        "totalMs": 1161.0044
+        "corpusGenerationMs": 68366.2676,
+        "mutationMs": 15.1532,
+        "indexUpdateMs": 0.3123,
+        "restoreMs": 11.4648,
+        "totalMs": 1169.7244
       }
     },
     {
@@ -1819,8 +1819,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4805,
-            "p95Ms": 1.0391
+            "p50Ms": 0.48,
+            "p95Ms": 1.0747
           }
         },
         "postSignal": {
@@ -1841,8 +1841,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4801,
-            "p95Ms": 1.0687
+            "p50Ms": 0.5011,
+            "p95Ms": 1.1354
           }
         },
         "final": {
@@ -1863,8 +1863,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4807,
-            "p95Ms": 1.0363
+            "p50Ms": 0.4761,
+            "p95Ms": 1.0247
           }
         }
       },
@@ -1961,43 +1961,43 @@
         "latency": {
           "register": {
             "count": 2,
-            "p50Ms": 0.0226,
-            "p95Ms": 0.0499
+            "p50Ms": 0.0236,
+            "p95Ms": 0.046
           },
           "derive": {
             "count": 49999,
             "p50Ms": 0.0032,
-            "p95Ms": 0.0039
+            "p95Ms": 0.0048
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0298,
-            "p95Ms": 116.8702
+            "p50Ms": 0.0507,
+            "p95Ms": 142.3646
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0018,
-            "p95Ms": 0.0302
+            "p50Ms": 0.0012,
+            "p95Ms": 0.0374
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.188,
-            "p95Ms": 105.756
+            "p50Ms": 0.1391,
+            "p95Ms": 106.8102
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0383,
-            "p95Ms": 20.9376
+            "p50Ms": 0.0119,
+            "p95Ms": 20.0663
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.0921,
-            "p95Ms": 0.1285
+            "p50Ms": 0.174,
+            "p95Ms": 0.227
           },
           "query": {
             "count": 208,
-            "p50Ms": 0.4807,
-            "p95Ms": 1.0363
+            "p50Ms": 0.4761,
+            "p95Ms": 1.0247
           }
         },
         "metadata": {
@@ -2009,21 +2009,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 374629368,
-          "afterHeapUsedBytes": 263442880,
+          "beforeHeapUsedBytes": 374365224,
+          "afterHeapUsedBytes": 293681904,
           "deltaBytes": 0,
-          "signedDeltaBytes": -111186488,
-          "beforeRssBytes": 524976128,
-          "afterRssBytes": 544497664,
+          "signedDeltaBytes": -80683320,
+          "beforeRssBytes": 523870208,
+          "afterRssBytes": 560943104,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 73416.0775,
-        "mutationMs": 39.8471,
-        "indexUpdateMs": 0.3055,
-        "restoreMs": 2.8673,
-        "totalMs": 1096.7223
+        "corpusGenerationMs": 68366.2676,
+        "mutationMs": 3.6031,
+        "indexUpdateMs": 0.5315,
+        "restoreMs": 3.3064,
+        "totalMs": 1092.6877
       }
     },
     {
@@ -2068,8 +2068,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4995,
-            "p95Ms": 1.0606
+            "p50Ms": 0.4801,
+            "p95Ms": 1.0528
           }
         },
         "postSignal": {
@@ -2090,8 +2090,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.503,
-            "p95Ms": 1.124
+            "p50Ms": 0.4916,
+            "p95Ms": 1.6042
           }
         },
         "final": {
@@ -2112,8 +2112,8 @@
           "controlQueryCount": 8,
           "queryLatency": {
             "count": 208,
-            "p50Ms": 0.4966,
-            "p95Ms": 1.0739
+            "p50Ms": 0.4801,
+            "p95Ms": 1.1024
           }
         }
       },
@@ -2210,43 +2210,43 @@
         "latency": {
           "register": {
             "count": 3,
-            "p50Ms": 0.0223,
-            "p95Ms": 0.0468
+            "p50Ms": 0.0246,
+            "p95Ms": 0.0429
           },
           "derive": {
             "count": 49998,
-            "p50Ms": 0.0037,
-            "p95Ms": 0.0056
+            "p50Ms": 0.0035,
+            "p95Ms": 0.0047
           },
           "signal": {
             "count": 3,
-            "p50Ms": 0.0338,
-            "p95Ms": 67.6032
+            "p50Ms": 0.0389,
+            "p95Ms": 71.9447
           },
           "check": {
             "count": 4,
-            "p50Ms": 0.0023,
-            "p95Ms": 0.0078
+            "p50Ms": 0.0024,
+            "p95Ms": 0.0082
           },
           "validate": {
             "count": 4,
-            "p50Ms": 0.2599,
-            "p95Ms": 56.3877
+            "p50Ms": 0.1352,
+            "p95Ms": 51.7209
           },
           "repair": {
             "count": 4,
-            "p50Ms": 0.0305,
-            "p95Ms": 11.45
+            "p50Ms": 0.0246,
+            "p95Ms": 9.5104
           },
           "indexUpdate": {
             "count": 3,
-            "p50Ms": 0.1243,
-            "p95Ms": 0.1339
+            "p50Ms": 0.1249,
+            "p95Ms": 0.1847
           },
           "query": {
             "count": 208,
-            "p50Ms": 0.4966,
-            "p95Ms": 1.0739
+            "p50Ms": 0.4801,
+            "p95Ms": 1.1024
           }
         },
         "metadata": {
@@ -2258,21 +2258,21 @@
           "payloadStoredInProtocol": false
         },
         "heap": {
-          "beforeHeapUsedBytes": 339281944,
-          "afterHeapUsedBytes": 490363200,
-          "deltaBytes": 151081256,
-          "signedDeltaBytes": 151081256,
-          "beforeRssBytes": 592572416,
-          "afterRssBytes": 654307328,
+          "beforeHeapUsedBytes": 355496632,
+          "afterHeapUsedBytes": 489788272,
+          "deltaBytes": 134291640,
+          "signedDeltaBytes": 134291640,
+          "beforeRssBytes": 612081664,
+          "afterRssBytes": 649580544,
           "gcAvailable": false
         }
       },
       "timings": {
-        "corpusGenerationMs": 73416.0775,
-        "mutationMs": 7.8218,
-        "indexUpdateMs": 0.3589,
-        "restoreMs": 7.5181,
-        "totalMs": 1009.029
+        "corpusGenerationMs": 68366.2676,
+        "mutationMs": 6.9903,
+        "indexUpdateMs": 0.3998,
+        "restoreMs": 7.4301,
+        "totalMs": 978.0422
       }
     }
   ],

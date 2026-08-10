@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/memory-write.schema.json",
+  "title": "PREMiSE memory write",
+  "type": "object",
+  "required": [
+    "record"
+  ],
+  "properties": {
+    "record": {
+      "$ref": "./memory-record.schema.json"
+    },
+    "derived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": false
+}

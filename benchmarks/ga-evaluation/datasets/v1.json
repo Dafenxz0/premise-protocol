@@ -1,0 +1,154 @@
+{
+  "format": "ga-evaluation-dataset-manifest/1",
+  "version": "1.0.0",
+  "hash": "sha256",
+  "evidencePolicy": {
+    "requiredOrigin": "public-download",
+    "allowedDownloadHosts": [
+      "raw.githubusercontent.com"
+    ],
+    "forbiddenSchemes": [
+      "fixture",
+      "data",
+      "file"
+    ]
+  },
+  "datasets": [
+    {
+      "id": "github.requests.version.old",
+      "sourceId": "github.requests.version",
+      "adapter": "github",
+      "sourceUri": "github://psf/requests/src/requests/__version__.py",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/b7b549b54571d03950b16afd2d01bc6ff0348224/src/requests/__version__.py",
+      "repository": "psf/requests",
+      "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
+      "path": "src/requests/__version__.py",
+      "sha256": "48258dddf3888611721a8dd085e91a27cf12ef5ea882c1edc4dd216e4001a0d8",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "github.requests.version.new",
+      "sourceId": "github.requests.version",
+      "adapter": "github",
+      "sourceUri": "github://psf/requests/src/requests/__version__.py",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e/src/requests/__version__.py",
+      "repository": "psf/requests",
+      "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
+      "path": "src/requests/__version__.py",
+      "sha256": "abba90670b0370a3dc40d97c2dea46a35d4bec941ff10d7c3cf3098ef04a17f9",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "filesystem.requests.version.old",
+      "sourceId": "filesystem.requests.version",
+      "adapter": "filesystem",
+      "sourceUri": "file://public-dataset/requests/src/requests/__version__.py",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/b7b549b54571d03950b16afd2d01bc6ff0348224/src/requests/__version__.py",
+      "repository": "psf/requests",
+      "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
+      "path": "src/requests/__version__.py",
+      "sha256": "48258dddf3888611721a8dd085e91a27cf12ef5ea882c1edc4dd216e4001a0d8",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "filesystem.requests.version.new",
+      "sourceId": "filesystem.requests.version",
+      "adapter": "filesystem",
+      "sourceUri": "file://public-dataset/requests/src/requests/__version__.py",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e/src/requests/__version__.py",
+      "repository": "psf/requests",
+      "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
+      "path": "src/requests/__version__.py",
+      "sha256": "abba90670b0370a3dc40d97c2dea46a35d4bec941ff10d7c3cf3098ef04a17f9",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "git.requests.version.old",
+      "sourceId": "git.requests.version",
+      "adapter": "git",
+      "sourceUri": "git+https://github.com/psf/requests.git#src/requests/__version__.py",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/b7b549b54571d03950b16afd2d01bc6ff0348224/src/requests/__version__.py",
+      "repositoryUrl": "https://github.com/psf/requests.git",
+      "repository": "psf/requests",
+      "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
+      "path": "src/requests/__version__.py",
+      "sha256": "48258dddf3888611721a8dd085e91a27cf12ef5ea882c1edc4dd216e4001a0d8",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "git.requests.version.new",
+      "sourceId": "git.requests.version",
+      "adapter": "git",
+      "sourceUri": "git+https://github.com/psf/requests.git#src/requests/__version__.py",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e/src/requests/__version__.py",
+      "repositoryUrl": "https://github.com/psf/requests.git",
+      "repository": "psf/requests",
+      "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
+      "path": "src/requests/__version__.py",
+      "sha256": "abba90670b0370a3dc40d97c2dea46a35d4bec941ff10d7c3cf3098ef04a17f9",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "github.hello.world",
+      "sourceId": "github.hello.world",
+      "adapter": "github",
+      "sourceUri": "github://octocat/Hello-World/README",
+      "downloadUrl": "https://raw.githubusercontent.com/octocat/Hello-World/7fd1a60b01f91b314f59955a4e4d4e80d8edf11d/README",
+      "repository": "octocat/Hello-World",
+      "commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+      "path": "README",
+      "sha256": "03ba204e50d126e4674c005e04d82e84c21366780af1f43bd54a37816b6ab340",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "filesystem.nodeignore",
+      "sourceId": "filesystem.nodeignore",
+      "adapter": "filesystem",
+      "sourceUri": "file://public-dataset/github/gitignore/Node.gitignore",
+      "downloadUrl": "https://raw.githubusercontent.com/github/gitignore/57286c3887203259752b747db94e6c3ad10ec53d/Node.gitignore",
+      "repository": "github/gitignore",
+      "commit": "57286c3887203259752b747db94e6c3ad10ec53d",
+      "path": "Node.gitignore",
+      "sha256": "ae3ac05cd16b0f6c4251fd30d74c12866d1ba6daa365aacc2e32ddfc09a478f6",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "github.requests.readme",
+      "sourceId": "github.requests.readme",
+      "adapter": "github",
+      "sourceUri": "github://psf/requests/README.md",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e/README.md",
+      "repository": "psf/requests",
+      "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
+      "path": "README.md",
+      "sha256": "2a9268c9be5f4dc9abe9105740be7c5234babc3dd2b25eb11ca376c538a0c67b",
+      "mediaType": "text/markdown"
+    },
+    {
+      "id": "git.requests.pyproject.old",
+      "sourceId": "git.requests.pyproject",
+      "adapter": "git",
+      "sourceUri": "git+https://github.com/psf/requests.git#pyproject.toml",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/b7b549b54571d03950b16afd2d01bc6ff0348224/pyproject.toml",
+      "repositoryUrl": "https://github.com/psf/requests.git",
+      "repository": "psf/requests",
+      "commit": "b7b549b54571d03950b16afd2d01bc6ff0348224",
+      "path": "pyproject.toml",
+      "sha256": "249147c8688043884fd91b951a013c5bf0aef445894527ad75124a12a41225e1",
+      "mediaType": "text/plain"
+    },
+    {
+      "id": "git.requests.pyproject.new",
+      "sourceId": "git.requests.pyproject",
+      "adapter": "git",
+      "sourceUri": "git+https://github.com/psf/requests.git#pyproject.toml",
+      "downloadUrl": "https://raw.githubusercontent.com/psf/requests/1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e/pyproject.toml",
+      "repositoryUrl": "https://github.com/psf/requests.git",
+      "repository": "psf/requests",
+      "commit": "1f6589ec3a1ee910f9a65cc3ceac60b26677bc0e",
+      "path": "pyproject.toml",
+      "sha256": "345f26b9f691435e39d0eb6f7f4150a390f43175b22f8d61ac95e7f2827f0a77",
+      "mediaType": "text/plain"
+    }
+  ]
+}

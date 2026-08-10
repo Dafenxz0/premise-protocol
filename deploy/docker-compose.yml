@@ -1,0 +1,128 @@
+name: premise-v2
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-premise}
+      POSTGRES_USER: ${POSTGRES_USER:-premise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-not-for-production}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  migrate:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        BUILD_VERSION: ${PREMISE_BUILD_VERSION:-local}
+    user: "10001:10001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      MIGRATIONS_DIR: /app/deploy/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command: ["node", "/app/ops/migrate.mjs"]
+
+  premise:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        BUILD_VERSION: ${PREMISE_BUILD_VERSION:-local}
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      PREMISE_ENV: ${PREMISE_ENV:-development}
+      PREMISE_API_TOKEN: ${PREMISE_API_TOKEN:-}
+      PREMISE_STORE_MODE: postgres
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_MAX_BODY_BYTES: ${PREMISE_MAX_BODY_BYTES:-1048576}
+      PREMISE_HEALTH_PATH: /readyz
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-premise-v2}
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-service.namespace=premise,service.version=2}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_PROPAGATORS: ${OTEL_PROPAGATORS:-tracecontext,baggage}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "/app/ops/healthcheck.mjs"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      premise:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.132.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:8889:8889"
+    restart: unless-stopped
+
+  backup:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    profiles: ["ops"]
+    user: "10001:10001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      BACKUP_FILE: /backup/premise-v2-latest.json
+    volumes:
+      - ../.local/backups:/backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["node", "/app/ops/backup.mjs"]
+
+volumes:
+  postgres-data:
+  prometheus-data:

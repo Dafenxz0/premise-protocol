@@ -17,7 +17,8 @@ const envelope = {
 };
 
 const runtime = new PremiseRuntime({ tenantId: "tenant:http", now: () => at });
-const server = new PremiseServer({ runtime });
+const metrics = [];
+const server = new PremiseServer({ runtime, onMetric: (metric) => metrics.push(metric) });
 await server.listen({ host: "127.0.0.1", port: 0 });
 const address = server.server.address();
 assert.ok(address && typeof address === "object" && address.port > 0);
@@ -26,6 +27,7 @@ const base = `http://127.0.0.1:${address.port}`;
 const health = await fetch(`${base}/health`);
 assert.equal(health.status, 200);
 assert.equal((await health.json()).specVersion, "premise/2");
+assert.ok(/^[\x21-\x7e-]{10,128}$/u.test(health.headers.get("x-request-id") ?? ""));
 
 const stored = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ record: { envelope, content: "PREMiSE v2 exact context" } }) });
 assert.equal(stored.status, 201);
@@ -38,5 +40,17 @@ const fetched = await fetch(`${base}/v2/memories/${encodeURIComponent(envelope.m
 assert.equal(fetched.status, 200);
 assert.equal((await fetched.json()).content, "PREMiSE v2 exact context");
 await server.close();
+assert.ok(metrics.length >= 4);
+assert.ok(metrics.every((metric) => metric.durationMs >= 0 && metric.requestId.length > 0));
+
+const deniedRuntime = new PremiseRuntime({ tenantId: "tenant:denied", now: () => at });
+const denied = new PremiseServer({ runtime: deniedRuntime, authorize: () => false });
+await denied.listen({ host: "127.0.0.1", port: 0 });
+const deniedAddress = denied.server.address();
+assert.ok(deniedAddress && typeof deniedAddress === "object");
+const deniedResponse = await fetch(`http://127.0.0.1:${deniedAddress.port}/health`);
+assert.equal(deniedResponse.status, 401);
+assert.equal((await deniedResponse.json()).error, "UNAUTHORIZED");
+await denied.close();
 
 console.log("premise-server v2 HTTP tests passed");

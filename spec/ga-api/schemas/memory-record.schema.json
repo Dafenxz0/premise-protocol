@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/memory-record.schema.json",
+  "title": "PREMiSE memory record",
+  "type": "object",
+  "required": [
+    "envelope",
+    "content"
+  ],
+  "properties": {
+    "envelope": {
+      "$ref": "../../schemas/memory-envelope-v2.schema.json"
+    },
+    "content": {}
+  },
+  "additionalProperties": false
+}

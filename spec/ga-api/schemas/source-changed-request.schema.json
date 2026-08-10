@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/source-changed-request.schema.json",
+  "title": "PREMiSE source changed request",
+  "type": "object",
+  "required": [
+    "sourceUri",
+    "version"
+  ],
+  "properties": {
+    "sourceUri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "object",
+      "required": [
+        "scheme",
+        "token"
+      ],
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

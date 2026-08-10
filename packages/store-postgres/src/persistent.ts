@@ -1,5 +1,6 @@
 import { parseMemoryEnvelope, type MemoryEnvelope, type PremiseEvent } from "@premise/protocol-types";
 import { parsePremiseEvent } from "@premise/reference-ts";
+import { withPostgresTransaction, type PostgresAdapter, type PostgresQuery, type PostgresQueryResult } from "./driver.js";
 import {
   assertLookupKey,
   cloneJson,
@@ -66,21 +67,7 @@ VALUES (${POSTGRES_STORE_SCHEMA_VERSION})
 ON CONFLICT (version) DO NOTHING;
 `;
 
-export interface PostgresQueryResult<Row extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
-  readonly rows: readonly Row[];
-  readonly rowCount?: number | null;
-}
-
-export type PostgresQuery = <Row extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>>(
-  sql: string,
-  parameters?: readonly unknown[]
-) => Promise<PostgresQueryResult<Row>>;
-
-export interface PostgresAdapter {
-  readonly query: PostgresQuery;
-  readonly close?: () => Promise<void> | void;
-}
-
+export type { PostgresAdapter, PostgresQuery, PostgresQueryResult } from "./driver.js";
 export type PostgresDriver = PostgresAdapter;
 
 export interface PostgresStoreOptions {
@@ -233,18 +220,20 @@ export class PostgresPersistentStore implements PersistentStore {
   async saveSnapshot<T = unknown>(input: StoreSnapshot<T>): Promise<StoreSnapshot<T>> {
     const snapshot = normalizeSnapshot(input);
     await this.prepare();
-    await this.adapter.query(`
-      INSERT INTO premise_store_snapshots(memory_id, event_sequence, state_json, updated_at)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (memory_id) DO UPDATE SET
-        event_sequence = EXCLUDED.event_sequence,
-        state_json = EXCLUDED.state_json,
-        updated_at = EXCLUDED.updated_at
-      WHERE EXCLUDED.event_sequence >= premise_store_snapshots.event_sequence
-    `, [snapshot.memoryId, snapshot.sequence, JSON.stringify(snapshot.state), snapshot.updatedAt]);
-    const stored = await this.getSnapshot<T>(snapshot.memoryId);
-    if (stored === undefined) throw new Error(`Snapshot was not stored: ${snapshot.memoryId}`);
-    return cloneJson(stored);
+    return withPostgresTransaction(this.adapter, async (client) => {
+      await client.query(`
+        INSERT INTO premise_store_snapshots(memory_id, event_sequence, state_json, updated_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (memory_id) DO UPDATE SET
+          event_sequence = EXCLUDED.event_sequence,
+          state_json = EXCLUDED.state_json,
+          updated_at = EXCLUDED.updated_at
+        WHERE EXCLUDED.event_sequence >= premise_store_snapshots.event_sequence
+      `, [snapshot.memoryId, snapshot.sequence, JSON.stringify(snapshot.state), snapshot.updatedAt]);
+      const stored = await this.getSnapshotOn<T>(client, snapshot.memoryId);
+      if (stored === undefined) throw new Error(`Snapshot was not stored: ${snapshot.memoryId}`);
+      return cloneJson(stored);
+    });
   }
 
   async putSnapshot<T = unknown>(input: StoreSnapshot<T>): Promise<StoreSnapshot<T>> {
@@ -266,15 +255,17 @@ export class PostgresPersistentStore implements PersistentStore {
   async saveIdempotency<T = unknown>(input: IdempotencyRecord<T>): Promise<IdempotencyRecord<T>> {
     const record = normalizeIdempotency(input);
     await this.prepare();
-    await this.adapter.query(`
-      INSERT INTO premise_store_idempotency(idempotency_key, request_hash, response_json, created_at)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (idempotency_key) DO NOTHING
-    `, [record.key, record.requestHash ?? null, JSON.stringify(record.response), record.createdAt]);
-    const stored = await this.getIdempotency<T>(record.key);
-    if (stored === undefined) throw new Error(`Idempotency record was not stored: ${record.key}`);
-    assertSameRequest(record, stored);
-    return cloneJson(stored);
+    return withPostgresTransaction(this.adapter, async (client) => {
+      await client.query(`
+        INSERT INTO premise_store_idempotency(idempotency_key, request_hash, response_json, created_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (idempotency_key) DO NOTHING
+      `, [record.key, record.requestHash ?? null, JSON.stringify(record.response), record.createdAt]);
+      const stored = await this.getIdempotencyOn<T>(client, record.key);
+      if (stored === undefined) throw new Error(`Idempotency record was not stored: ${record.key}`);
+      assertSameRequest(record, stored);
+      return cloneJson(stored);
+    });
   }
 
   async putIdempotency<T = unknown>(input: IdempotencyRecord<T>): Promise<IdempotencyRecord<T>> {
@@ -309,7 +300,29 @@ export class PostgresPersistentStore implements PersistentStore {
   }
 
   private async runMigrations(): Promise<void> {
-    await this.adapter.query(POSTGRES_SCHEMA_SQL);
+    await withPostgresTransaction(this.adapter, async (client) => {
+      await client.query(POSTGRES_SCHEMA_SQL);
+    });
+  }
+
+  private async getSnapshotOn<T = unknown>(client: PostgresAdapter, memoryId: string): Promise<StoreSnapshot<T> | undefined> {
+    const result = await client.query(`
+      SELECT memory_id, event_sequence, state_json, updated_at
+      FROM premise_store_snapshots
+      WHERE memory_id = $1
+    `, [memoryId]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : cloneJson(storedSnapshot<T>(row));
+  }
+
+  private async getIdempotencyOn<T = unknown>(client: PostgresAdapter, key: string): Promise<IdempotencyRecord<T> | undefined> {
+    const result = await client.query(`
+      SELECT idempotency_key, request_hash, response_json, created_at
+      FROM premise_store_idempotency
+      WHERE idempotency_key = $1
+    `, [key]);
+    const row = result.rows[0];
+    return row === undefined ? undefined : cloneJson(storedIdempotency<T>(row));
   }
 
   private ensureOpen(): void {

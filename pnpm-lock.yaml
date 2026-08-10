@@ -63,6 +63,8 @@ importers:
         specifier: workspace:*
         version: link:../protocol-types
 
+  packages/connector-webhook: {}
+
   packages/context-engine: {}
 
   packages/index-hybrid: {}
@@ -113,6 +115,10 @@ importers:
       '@premise/protocol-types':
         specifier: workspace:*
         version: link:../protocol-types
+
+  packages/sdk: {}
+
+  packages/security-core: {}
 
   packages/store-postgres:
     dependencies:

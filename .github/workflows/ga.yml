@@ -1,0 +1,591 @@
+name: GA release gates
+
+on:
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "ops/**"
+      - "docs/ga-operations.md"
+      - ".github/workflows/ga.yml"
+      - "packages/**"
+      - "benchmarks/real-world-v2/**"
+      - "benchmarks/ga-evaluation/**"
+      - "benchmarks/ga-evaluation/holdout/**"
+      - "benchmarks/ga-load/**"
+      - "benchmarks/ga-soak/**"
+      - "benchmarks/ga-cost/**"
+      - "scripts/**"
+      - "spec/ga/**"
+      - "spec/ga-api/**"
+      - "docs/ga-*.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      run_external_holdout:
+        description: "Run the externally hosted blind holdout and require an independent attestation"
+        required: false
+        default: false
+        type: boolean
+      holdout_manifest_url:
+        description: "HTTPS URL of the externally published holdout manifest"
+        required: false
+        type: string
+      holdout_manifest_sha256:
+        description: "SHA-256 of the immutable holdout manifest"
+        required: false
+        type: string
+      holdout_attestation_url:
+        description: "HTTPS URL of the independent evaluator attestation"
+        required: false
+        type: string
+      holdout_attestation_sha256:
+        description: "SHA-256 of the independent attestation"
+        required: false
+        type: string
+      run_production_soak:
+        description: "Run the one-hour production-shaped availability soak"
+        required: false
+        default: false
+        type: boolean
+      run_million_load:
+        description: "Run the million-memory concurrency and recovery profile"
+        required: false
+        default: false
+        type: boolean
+      soak_duration_ms:
+        description: "Soak duration in milliseconds (must satisfy the GA minimum for certification)"
+        required: false
+        type: string
+      run_cost_evidence:
+        description: "Evaluate a pinned provider billing or metering export"
+        required: false
+        default: false
+        type: boolean
+      cost_input_url:
+        description: "HTTPS URL of the anonymized cost input JSON"
+        required: false
+        type: string
+      cost_input_sha256:
+        description: "SHA-256 of the cost input JSON"
+        required: false
+        type: string
+      run_rollback:
+        description: "Run the real Compose rollback smoke using supplied image references"
+        required: false
+        default: false
+        type: boolean
+      rollback_current_image:
+        description: "Immutable candidate image reference for rollback"
+        required: false
+        type: string
+      rollback_previous_image:
+        description: "Immutable previous image reference for rollback"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: premise-v2:ga-${{ github.sha }}
+  COMPOSE_FILE: deploy/docker-compose.yml
+  POSTGRES_PASSWORD: local-only-not-for-production
+  POSTGRES_DB: premise
+  POSTGRES_USER: premise
+  PREMISE_TENANT_ID: tenant:ga
+
+jobs:
+  security:
+    name: Security gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Dependency audit
+        run: |
+          mkdir -p .ga-artifacts
+          pnpm audit --audit-level=high --json > .ga-artifacts/pnpm-audit.json
+      - name: Verify GA acceptance manifest
+        run: pnpm ga:gate
+      - name: Verify GA benchmark and evidence harnesses
+        run: |
+          pnpm build
+          node benchmarks/ga-evaluation/holdout/contract.test.mjs
+          node benchmarks/ga-evaluation/holdout/runner.contract.test.mjs
+          node benchmarks/ga-evaluation/holdout/candidate.test.mjs
+          node benchmarks/ga-soak/self-check.mjs
+          node benchmarks/ga-cost/self-check.mjs
+          node --test tests/scripts-ga/ga-gate.test.mjs tests/scripts-ga/collect-ga-evidence.test.mjs
+      - name: Run cryptographic security verification
+        run: |
+          set -o pipefail
+          pnpm --filter @premise/security-core test
+          node scripts/verify-security.mjs | tee .ga-artifacts/security-verification.txt
+      - name: Filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: sarif
+          output: .ga-artifacts/trivy-filesystem.sarif
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-security-${{ github.sha }}
+          path: .ga-artifacts
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
+  deterministic-load:
+    name: Deterministic CI load gate
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the workspace
+        run: pnpm build
+      - name: Run deterministic load and recovery gate
+        run: |
+          node benchmarks/ga-load/runner.mjs --profile ci --concurrency 4 --enforce-gates
+          node benchmarks/ga-load/self-check.mjs
+      - name: Upload load evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-load-${{ github.sha }}
+          path: benchmarks/ga-load/results.json
+          if-no-files-found: error
+          retention-days: 14
+
+  million-load:
+    name: Million-memory load and recovery (certification)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_million_load == true) || startsWith(github.ref, 'refs/tags/v2.')
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the workspace
+        run: pnpm build
+      - name: Run the full million-memory profile
+        env:
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node benchmarks/ga-load/runner.mjs --profile full --output benchmarks/ga-load/results-full.json --enforce-gates
+          node benchmarks/ga-load/self-check.mjs --input benchmarks/ga-load/results-full.json
+      - name: Upload million-memory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-load-full-${{ github.sha }}
+          path: benchmarks/ga-load/results-full.json
+          if-no-files-found: error
+          retention-days: 30
+
+  external-github:
+    name: Real GitHub read-only benchmark
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run external GitHub benchmark in read-only mode
+        env:
+          PREMISE_GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node benchmarks/real-world-v2/runner.mjs --live --repetitions 20
+          node benchmarks/real-world-v2/report.mjs
+          node benchmarks/real-world-v2/self-check.mjs
+      - name: Upload external benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-github-${{ github.sha }}
+          path: |
+            benchmarks/real-world-v2/results.json
+            benchmarks/real-world-v2/report.md
+            benchmarks/real-world-v2/traces.jsonl
+          if-no-files-found: error
+          retention-days: 14
+
+  external-holdout:
+    name: Independent external blind holdout (opt-in)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_external_holdout == true) || startsWith(github.ref, 'refs/tags/v2.')
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      HOLDOUT_MANIFEST_URL: ${{ inputs.holdout_manifest_url || vars.PREMISE_HOLDOUT_MANIFEST_URL }}
+      HOLDOUT_MANIFEST_SHA256: ${{ inputs.holdout_manifest_sha256 || vars.PREMISE_HOLDOUT_MANIFEST_SHA256 }}
+      HOLDOUT_ATTESTATION_URL: ${{ inputs.holdout_attestation_url || vars.PREMISE_HOLDOUT_ATTESTATION_URL }}
+      HOLDOUT_ATTESTATION_SHA256: ${{ inputs.holdout_attestation_sha256 || vars.PREMISE_HOLDOUT_ATTESTATION_SHA256 }}
+      PREMISE_HOLDOUT_BEARER_TOKEN: ${{ secrets.PREMISE_HOLDOUT_BEARER_TOKEN }}
+      PREMISE_HOLDOUT_ATTESTATION_PUBLIC_KEY: ${{ secrets.PREMISE_HOLDOUT_ATTESTATION_PUBLIC_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PREMISE_CANDIDATE_COMMIT: ${{ github.sha }}
+      PREMISE_HOLDOUT_REQUIRE_INDEPENDENT: "1"
+      PREMISE_HOLDOUT_CANDIDATE: node benchmarks/ga-evaluation/holdout/candidate.mjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the v2 candidate runtime
+        run: pnpm build
+      - name: Verify the external holdout is configured
+        run: |
+          set -euo pipefail
+          test -n "${HOLDOUT_MANIFEST_URL:-}"
+          test -n "${HOLDOUT_MANIFEST_SHA256:-}"
+          test -n "${HOLDOUT_ATTESTATION_URL:-}"
+          test -n "${HOLDOUT_ATTESTATION_SHA256:-}"
+          test -n "${PREMISE_HOLDOUT_ATTESTATION_PUBLIC_KEY:-}"
+      - name: Run the pinned external holdout
+        run: |
+          set -euo pipefail
+          mkdir -p .ga-artifacts/holdout
+          node benchmarks/ga-evaluation/holdout/runner.mjs \
+            --manifest-url "$HOLDOUT_MANIFEST_URL" \
+            --manifest-sha256 "$HOLDOUT_MANIFEST_SHA256" \
+            --attestation-url "$HOLDOUT_ATTESTATION_URL" \
+            --attestation-sha256 "$HOLDOUT_ATTESTATION_SHA256" \
+            --attestation-public-key "$PREMISE_HOLDOUT_ATTESTATION_PUBLIC_KEY" \
+            --candidate "$PREMISE_HOLDOUT_CANDIDATE" \
+            --require-independent \
+            --output-dir .ga-artifacts/holdout | tee .ga-artifacts/holdout/runner.log
+      - name: Upload independent holdout evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-holdout-${{ github.sha }}
+          path: .ga-artifacts/holdout
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+
+  integration:
+    name: Build, smoke, load and recovery gates
+    needs: [security, deterministic-load, external-github]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local backup directory
+        run: |
+          mkdir -p .local/backups .ga-artifacts
+          chmod 0777 .local/backups
+      - name: Build immutable candidate image
+        run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
+      - name: Verify the image runs as non-root
+        run: test "$(docker inspect --format='{{.Config.User}}' "${IMAGE}")" = "10001:10001"
+      - name: Scan candidate image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: premise-v2:ga-${{ github.sha }}
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: sarif
+          output: .ga-artifacts/trivy-image.sarif
+      - name: Validate Compose configuration
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" --profile ops config --quiet
+      - name: Start the local production-shaped stack
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_BUILD_VERSION: ${{ github.sha }}
+        run: docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
+      - name: Wait for readiness
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/healthcheck.mjs; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f "${COMPOSE_FILE}" ps
+          exit 1
+      - name: Run v2 smoke test
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -o pipefail
+          docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/smoke.mjs | tee .ga-artifacts/smoke.json
+      - name: Run bounded CI load test
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -o pipefail
+          docker compose -f "${COMPOSE_FILE}" exec -T -e PREMISE_LOAD_REQUESTS=32 -e PREMISE_LOAD_CONCURRENCY=4 -e PREMISE_LOAD_MAX_P95_MS=750 premise node /app/ops/load-smoke.mjs | tee .ga-artifacts/load.json
+      - name: Verify Prometheus metrics endpoint
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          docker compose -f "${COMPOSE_FILE}" exec -T premise node --input-type=module -e "const r=await fetch('http://127.0.0.1:3000/metrics'); const t=await r.text(); if (!r.ok || !t.includes('premise_http_requests_total')) process.exit(1);"
+      - name: Create and verify a backup
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -o pipefail
+          docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup
+          docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup node /app/ops/restore-verify.mjs | tee .ga-artifacts/restore-verify.json
+          sudo chown "$(id -u):$(id -g)" .local/backups/premise-v2-latest.json
+          cp .local/backups/premise-v2-latest.json .ga-artifacts/premise-v2-latest.json
+      - name: Capture stack logs
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/compose.log
+      - name: Upload GA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-evidence-${{ github.sha }}
+          path: |
+            .ga-artifacts/**
+            deploy/**
+            ops/**
+            docs/ga-operations.md
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+      - name: Tear down local stack
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" --profile ops down -v
+
+  production-soak:
+    name: Production-shaped availability soak (certification)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_production_soak == true) || startsWith(github.ref, 'refs/tags/v2.')
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      SOAK_DURATION_MS: ${{ inputs.soak_duration_ms || vars.PREMISE_SOAK_DURATION_MS || '3600000' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Prepare soak directories
+        run: |
+          mkdir -p .local/backups .ga-artifacts
+          chmod 0777 .local/backups
+      - name: Build immutable candidate image
+        run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
+      - name: Start production-shaped stack
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_BUILD_VERSION: ${{ github.sha }}
+          PREMISE_TENANT_ID: tenant:ga
+        run: docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
+      - name: Wait for readiness
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 45); do
+            if docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/healthcheck.mjs; then exit 0; fi
+            sleep 2
+          done
+          docker compose -f "${COMPOSE_FILE}" ps
+          exit 1
+      - name: Run one-hour soak and enforce GA sample gates
+        env:
+          BASE_URL: http://127.0.0.1:3000
+          PREMISE_TENANT_ID: tenant:ga
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node benchmarks/ga-soak/runner.mjs \
+            --base-url "$BASE_URL" \
+            --duration-ms "$SOAK_DURATION_MS" \
+            --concurrency "${PREMISE_SOAK_CONCURRENCY:-16}" \
+            --output .ga-artifacts/soak-availability.json \
+            --enforce-ga
+      - name: Capture soak stack logs
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log
+      - name: Upload soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-soak-${{ github.sha }}
+          path: .ga-artifacts
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Tear down soak stack without deleting volumes
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" --profile ops down --remove-orphans
+
+  cost-evidence:
+    name: Provider cost evidence (certification)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_cost_evidence == true) || startsWith(github.ref, 'refs/tags/v2.')
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COST_INPUT_URL: ${{ inputs.cost_input_url || vars.PREMISE_COST_INPUT_URL }}
+      COST_INPUT_SHA256: ${{ inputs.cost_input_sha256 || vars.PREMISE_COST_INPUT_SHA256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Download and pin the anonymized cost input
+        run: |
+          set -euo pipefail
+          test -n "${COST_INPUT_URL:-}"
+          test -n "${COST_INPUT_SHA256:-}"
+          [[ "$COST_INPUT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          mkdir -p .ga-artifacts
+          curl --fail --location --proto '=https' --proto-redir '=https' --max-time 60 --max-filesize 1048576 "$COST_INPUT_URL" -o .ga-artifacts/cost-input.json
+          printf '%s  %s\n' "$COST_INPUT_SHA256" .ga-artifacts/cost-input.json | sha256sum --check --strict
+      - name: Calculate and enforce provider cost evidence
+        env:
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node benchmarks/ga-cost/runner.mjs --input .ga-artifacts/cost-input.json --output .ga-artifacts/cost-report.json
+          node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('.ga-artifacts/cost-report.json','utf8')); if (x.eligibleForGa !== true) { console.error(JSON.stringify(x)); process.exit(1); }"
+      - name: Upload cost evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-cost-${{ github.sha }}
+          path: .ga-artifacts
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+
+  rollback-certification:
+    name: Real Compose rollback (certification)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_rollback == true) || startsWith(github.ref, 'refs/tags/v2.')
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ROLLBACK_CURRENT_IMAGE: ${{ inputs.rollback_current_image || vars.PREMISE_ROLLBACK_CURRENT_IMAGE }}
+      ROLLBACK_PREVIOUS_IMAGE: ${{ inputs.rollback_previous_image || vars.PREMISE_ROLLBACK_PREVIOUS_IMAGE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify immutable rollback inputs
+        run: |
+          set -euo pipefail
+          test -n "${ROLLBACK_CURRENT_IMAGE:-}"
+          test -n "${ROLLBACK_PREVIOUS_IMAGE:-}"
+          test "$ROLLBACK_CURRENT_IMAGE" != "$ROLLBACK_PREVIOUS_IMAGE"
+      - name: Execute and capture rollback evidence
+        env:
+          PREMISE_ROLLBACK_CONFIRM: I_UNDERSTAND_ROLLBACK
+          PREMISE_ROLLBACK_CURRENT_IMAGE: ${{ env.ROLLBACK_CURRENT_IMAGE }}
+          PREMISE_ROLLBACK_PREVIOUS_IMAGE: ${{ env.ROLLBACK_PREVIOUS_IMAGE }}
+          ROLLBACK_SMOKE_PULL: "1"
+          ROLLBACK_SMOKE_REQUIRE_CLEAN: "1"
+          ROLLBACK_SMOKE_RESULT_FILE: .ga-artifacts/rollback-report.json
+          PREMISE_TENANT_ID: tenant:rollback-certification
+        run: |
+          set -euo pipefail
+          mkdir -p .ga-artifacts .local/backups
+          chmod 0777 .local/backups
+          node deploy/rollback-smoke.mjs
+      - name: Upload rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-rollback-${{ github.sha }}
+          path: .ga-artifacts
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Clean Compose services without deleting volumes
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" down --remove-orphans
+
+  ga-certification:
+    name: v2.0 GA certification decision
+    if: startsWith(github.ref, 'refs/tags/v2.') && always()
+    needs: [security, deterministic-load, million-load, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed unless every certification campaign passed
+        env:
+          SECURITY: ${{ needs.security.result }}
+          DETERMINISTIC_LOAD: ${{ needs.deterministic-load.result }}
+          MILLION_LOAD: ${{ needs.million-load.result }}
+          EXTERNAL_GITHUB: ${{ needs.external-github.result }}
+          EXTERNAL_HOLDOUT: ${{ needs.external-holdout.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          PRODUCTION_SOAK: ${{ needs.production-soak.result }}
+          COST_EVIDENCE: ${{ needs.cost-evidence.result }}
+          ROLLBACK: ${{ needs.rollback-certification.result }}
+        run: |
+          set -euo pipefail
+          for result in "$SECURITY" "$DETERMINISTIC_LOAD" "$MILLION_LOAD" "$EXTERNAL_GITHUB" "$EXTERNAL_HOLDOUT" "$INTEGRATION" "$PRODUCTION_SOAK" "$COST_EVIDENCE" "$ROLLBACK"; do
+            test "$result" = success
+          done
+          echo "All v2.0 GA certification campaigns passed; inspect and publish their pinned artifacts before release."

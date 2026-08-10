@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/ga-api/schemas/capabilities-response.schema.json",
+  "title": "PREMiSE capabilities response",
+  "type": "object",
+  "required": [
+    "specVersion",
+    "capabilities"
+  ],
+  "properties": {
+    "specVersion": {
+      "const": "premise/2"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": true
+}
