@@ -52,6 +52,15 @@ COPY --from=build --chown=10001:10001 /workspace/deploy ./deploy
 # dependencies must be resolvable from the image-level /app/node_modules.
 COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modules
 
+# pnpm workspace links are development-time metadata and are removed by the
+# production prune. Recreate only the internal packages needed by the server
+# so Node can resolve the published package exports from /app/ops.
+RUN mkdir -p /app/node_modules/@premise \
+ && for package in context-engine index-hybrid premise-server protocol-types reference-ts runtime-core; do \
+      ln -s "/app/packages/$package" "/app/node_modules/@premise/$package"; \
+    done \
+ && test -f /app/node_modules/@premise/premise-server/dist/v2.js
+
 # Fail the image build if the real Postgres driver is not present. This keeps
 # the Compose migration gate from discovering a broken runtime too late.
 RUN test -f /app/node_modules/pg/lib/index.js
