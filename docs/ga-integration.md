@@ -134,6 +134,13 @@ un namespace versionado (`sha256:v2:`); una migración debe tratar eventos
 legacy sin namespace como datos históricos y no asumir que su payload completo
 puede reconstruirse.
 
+En el despliegue PostgreSQL, las respuestas completadas de idempotencia se
+conservan siete días por defecto y se limpian en lotes cada hora. Se puede
+ajustar con `PREMISE_HTTP_IDEMPOTENCY_RETENTION_MS`; una vez vencida la
+retención, una clave antigua ya no garantiza replay y debe tratarse como una
+nueva operación. Las claims abandonadas también se depuran después de dos
+leases para evitar crecimiento indefinido.
+
 Retry-After se respeta para respuestas 429/5xx hasta el límite configurado.
 Se puede ajustar la política con maxRetries, retry: { baseDelayMs,
 maxDelayMs, jitter, retryOn } o las mismas opciones por petición.

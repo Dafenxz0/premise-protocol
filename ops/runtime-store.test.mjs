@@ -5,7 +5,7 @@ import { DurableMirrorStore } from "./runtime-store.mjs";
 const emptySnapshot = { format: "premise-runtime-snapshot", version: 1, capturedAt: "2026-08-10T00:00:00.000Z", records: [], events: [] };
 
 function record(memoryId, value) {
-  return { envelope: { memoryId }, content: { value } };
+  return { envelope: { memoryId, validity: { status: value % 2 === 0 ? "FRESH" : "STALE" } }, content: { value } };
 }
 
 function event(id) {
@@ -69,8 +69,10 @@ class AtomicPersistentFake extends PersistentFake {
 
 test("requires a strict bounded concurrency value", () => {
   assert.equal(new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "04" }).concurrency, 4);
+  assert.equal(new DurableMirrorStore(new PersistentFake(), emptySnapshot, { maxPendingWrites: 12_345 }).maxPendingWrites, 12_345);
   assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "4foo" }), /integer/);
   assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: 0 }), /integer/);
+  assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { maxPendingWrites: 0 }), /pending writes/);
 });
 
 test("batches ordered events when the persistent store supports it", async () => {
@@ -120,6 +122,36 @@ test("limits active writes and keeps cloning", async () => {
   assert.equal(store.pendingWrites, 0);
   assert.equal(persistent.maximumActive, 2);
   assert.equal(persistent.calls[0].value.content.value, 0);
+});
+
+test("maintains freshness counters without scanning records", async () => {
+  const persistent = new PersistentFake();
+  const store = new DurableMirrorStore(persistent, emptySnapshot, { concurrency: 2 });
+  store.put(record("memory:fresh", 0));
+  store.put(record("memory:stale", 1));
+  await tick();
+  assert.deepEqual(store.freshnessCounts, { FRESH: 1, STALE: 1, INVALID: 0, UNKNOWN: 0 });
+  while (persistent.gates.length > 0) {
+    persistent.release();
+    await tick();
+  }
+  await store.flush();
+  store.put(record("memory:fresh", 1));
+  assert.deepEqual(store.freshnessCounts, { FRESH: 0, STALE: 2, INVALID: 0, UNKNOWN: 0 });
+  await tick();
+  persistent.release();
+  await store.flush();
+});
+
+test("rejects new writes at the durable queue limit before mutating the mirror", async () => {
+  const persistent = new PersistentFake();
+  const store = new DurableMirrorStore(persistent, emptySnapshot, { concurrency: 1, maxPendingWrites: 1 });
+  store.put(record("memory:admitted", 0));
+  assert.throws(() => store.put(record("memory:rejected", 1)), (error) => error?.code === "PERSISTENCE_BACKPRESSURE");
+  assert.equal(store.get("memory:rejected"), undefined);
+  await tick();
+  persistent.release();
+  await store.flush();
 });
 
 test("flush waits for the writes present at its call, not later writes", async () => {

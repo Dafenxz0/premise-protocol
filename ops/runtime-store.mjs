@@ -1,5 +1,7 @@
 export const DEFAULT_DURABLE_WRITE_CONCURRENCY = 4;
 const MAX_DURABLE_WRITE_CONCURRENCY = 64;
+export const DEFAULT_MAX_PENDING_WRITES = 10_000;
+const MAX_PENDING_WRITES = 1_000_000;
 const MAX_EVENT_BATCH_SIZE = 64;
 
 function clone(value) {
@@ -21,6 +23,19 @@ function writeConcurrency(options = {}) {
   return value;
 }
 
+function maxPendingWrites(options = {}) {
+  const configured = options.maxPendingWrites ?? process.env.PREMISE_RUNTIME_MAX_PENDING_WRITES ?? DEFAULT_MAX_PENDING_WRITES;
+  const value = typeof configured === "number"
+    ? configured
+    : typeof configured === "string" && /^\d+$/u.test(configured.trim())
+      ? Number(configured.trim())
+      : Number.NaN;
+  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_PENDING_WRITES) {
+    throw new TypeError(`Durable mirror max pending writes must be an integer from 1 to ${MAX_PENDING_WRITES}`);
+  }
+  return value;
+}
+
 function snapshotFromMaps(records, events, capturedAt) {
   return {
     format: "premise-runtime-snapshot",
@@ -31,12 +46,22 @@ function snapshotFromMaps(records, events, capturedAt) {
   };
 }
 
+const FRESHNESS_STATES = ["FRESH", "STALE", "INVALID", "UNKNOWN"];
+
+function freshnessState(record) {
+  const status = record?.envelope?.validity?.status;
+  return FRESHNESS_STATES.includes(status) ? status : undefined;
+}
+
 export class DurableMirrorStore {
   constructor(persistent, snapshot, options = {}) {
     this.persistent = persistent;
     this.concurrency = writeConcurrency(options);
+    this.maxPendingWrites = maxPendingWrites(options);
     this.records = new Map(snapshot.records.map((record) => [record.envelope.memoryId, clone(record)]));
     this.events = new Map(snapshot.events.map((event) => [event.idempotencyKey, clone(event)]));
+    this.freshness = new Map(FRESHNESS_STATES.map((status) => [status, 0]));
+    for (const record of this.records.values()) this.adjustFreshness(record, 1);
     this.ready = [];
     this.tasks = new Set();
     this.recordTails = new Map();
@@ -52,6 +77,10 @@ export class DurableMirrorStore {
     this.revision = 0;
   }
 
+  get freshnessCounts() {
+    return Object.fromEntries(this.freshness);
+  }
+
   get(memoryId) {
     const record = this.records.get(memoryId);
     return record === undefined ? undefined : clone(record);
@@ -63,8 +92,12 @@ export class DurableMirrorStore {
 
   put(record) {
     this.ensureWritable();
+    this.ensureCapacity();
     const copy = clone(record);
+    const previous = this.records.get(copy.envelope.memoryId);
+    if (previous !== undefined) this.adjustFreshness(previous, -1);
     this.records.set(copy.envelope.memoryId, copy);
+    this.adjustFreshness(copy, 1);
     this.revision += 1;
     const dependencies = [];
     if (this.restoreTask !== undefined) dependencies.push(this.restoreTask);
@@ -81,13 +114,17 @@ export class DurableMirrorStore {
 
   putAndAppend(record, event) {
     this.ensureWritable();
+    this.ensureCapacity();
     const copy = clone(record);
     const eventCopy = clone(event);
     const existing = this.events.get(eventCopy.idempotencyKey);
     if (existing !== undefined && (existing.eventId !== eventCopy.eventId || existing.requestDigest !== eventCopy.requestDigest)) {
       throw new Error(`Conflicting idempotency key: ${eventCopy.idempotencyKey}`);
     }
+    const previous = this.records.get(copy.envelope.memoryId);
+    if (previous !== undefined) this.adjustFreshness(previous, -1);
     this.records.set(copy.envelope.memoryId, copy);
+    this.adjustFreshness(copy, 1);
     this.events.set(eventCopy.idempotencyKey, eventCopy);
     this.revision += 1;
     // A combined record/event task closes any open event batch. Otherwise a
@@ -123,6 +160,7 @@ export class DurableMirrorStore {
       if (existing.eventId !== copy.eventId || existing.requestDigest !== copy.requestDigest) throw new Error(`Conflicting idempotency key: ${copy.idempotencyKey}`);
       return;
     }
+    this.ensureCapacity();
     this.events.set(copy.idempotencyKey, copy);
     let batch = this.eventBatch;
     if (batch === undefined) {
@@ -163,9 +201,12 @@ export class DurableMirrorStore {
 
   restore(snapshot) {
     this.ensureWritable();
+    this.ensureCapacity();
     const copy = clone(snapshot);
     this.records = new Map(copy.records.map((record) => [record.envelope.memoryId, record]));
     this.events = new Map(copy.events.map((event) => [event.idempotencyKey, event]));
+    this.freshness = new Map(FRESHNESS_STATES.map((status) => [status, 0]));
+    for (const record of this.records.values()) this.adjustFreshness(record, 1);
     this.revision += 1;
     // Close the current event batch before enqueueing a restore barrier. New
     // events must wait for restore rather than forming a dependency cycle.
@@ -204,6 +245,19 @@ export class DurableMirrorStore {
   ensureWritable() {
     if (this.failure !== undefined) throw this.failure;
     if (this.closed) throw new Error("Durable mirror store is closed");
+  }
+
+  ensureCapacity() {
+    if (this.pendingWrites >= this.maxPendingWrites) {
+      const error = new Error("Durable persistence queue is full; retry after the current writes drain");
+      error.code = "PERSISTENCE_BACKPRESSURE";
+      throw error;
+    }
+  }
+
+  adjustFreshness(record, delta) {
+    const status = freshnessState(record);
+    if (status !== undefined) this.freshness.set(status, (this.freshness.get(status) ?? 0) + delta);
   }
 
   enqueue(action, dependencies = []) {

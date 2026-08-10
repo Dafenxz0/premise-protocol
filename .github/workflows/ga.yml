@@ -56,6 +56,15 @@ on:
         required: false
         default: false
         type: boolean
+      run_postgres_scale:
+        description: "Run the real PostgreSQL-backed scale and restart campaign"
+        required: false
+        default: false
+        type: boolean
+      postgres_scale_memories:
+        description: "Number of real PostgreSQL records to seed (default 1000000)"
+        required: false
+        type: string
       soak_duration_ms:
         description: "Soak duration in milliseconds (must satisfy the GA minimum for certification)"
         required: false
@@ -126,6 +135,8 @@ jobs:
           node benchmarks/ga-evaluation/holdout/runner.contract.test.mjs
           node benchmarks/ga-evaluation/holdout/candidate.test.mjs
           node benchmarks/ga-soak/self-check.mjs
+          node --check benchmarks/ga-load/postgres-scale.mjs
+          node benchmarks/ga-load/postgres-scale.test.mjs
           node benchmarks/ga-cost/self-check.mjs
           pnpm --filter @premise/index-hybrid test
           pnpm --filter @premise/runtime-core test
@@ -223,6 +234,140 @@ jobs:
           path: benchmarks/ga-load/results-full.json
           if-no-files-found: error
           retention-days: 30
+
+  postgres-scale:
+    name: Real PostgreSQL-backed scale and restart (certification)
+    if: (github.event_name == 'workflow_dispatch' && inputs.run_postgres_scale == true) || startsWith(github.ref, 'refs/tags/v2.')
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PREMISE_ENV: production
+      PREMISE_TENANT_ID: tenant:pg-scale
+      PREMISE_SCALE_MEMORIES: ${{ inputs.postgres_scale_memories || vars.PREMISE_POSTGRES_SCALE_MEMORIES || '1000000' }}
+      PREMISE_SCALE_REQUESTS: 1000
+      PREMISE_SCALE_CONCURRENCY: 32
+      PREMISE_SCALE_MIN_MEMORIES: 1000000
+      PREMISE_SCALE_MAX_P95_MS: 500
+      PREMISE_SCALE_MAX_P99_MS: 2000
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare PostgreSQL scale evidence directory
+        run: |
+          set -euo pipefail
+          mkdir -p .ga-artifacts
+          chmod 0777 .ga-artifacts
+      - name: Build immutable candidate image
+        run: docker build --pull --build-arg BUILD_VERSION="${GITHUB_SHA}" -f deploy/Dockerfile -t "${IMAGE}" .
+      - name: Start PostgreSQL only
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" up -d --no-build --no-deps postgres
+      - name: Wait for PostgreSQL
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 45); do
+            if docker compose -f "${COMPOSE_FILE}" exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; then exit 0; fi
+            sleep 2
+          done
+          docker compose -f "${COMPOSE_FILE}" ps
+          exit 1
+      - name: Apply migrations
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: docker compose -f "${COMPOSE_FILE}" run --rm --no-deps migrate
+      - name: Seed real PostgreSQL records
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker compose -f "${COMPOSE_FILE}" run --rm --no-deps \
+            -e PREMISE_SCALE_TENANT_ID="$PREMISE_TENANT_ID" \
+            -e PREMISE_SCALE_MEMORIES="$PREMISE_SCALE_MEMORIES" \
+            -e PREMISE_SCALE_MIN_MEMORIES="$PREMISE_SCALE_MIN_MEMORIES" \
+            -e PREMISE_TABLE_PREFIX=premise_v2 \
+            -e PREMISE_COMMIT="$PREMISE_COMMIT" \
+            premise node /app/benchmarks/ga-load/postgres-scale.mjs --mode seed | tee .ga-artifacts/postgres-scale-seed.log
+      - name: Start production-shaped API after real seed
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_BUILD_VERSION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          token="$(openssl rand -hex 32)"
+          echo "PREMISE_API_TOKEN=$token" >> "$GITHUB_ENV"
+          export PREMISE_API_TOKEN="$token"
+          docker compose -f "${COMPOSE_FILE}" up -d --no-build --no-deps premise
+      - name: Wait for API readiness after scale seed
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/healthcheck.mjs; then exit 0; fi
+            sleep 2
+          done
+          docker compose -f "${COMPOSE_FILE}" ps
+          docker compose -f "${COMPOSE_FILE}" logs --no-color premise
+          exit 1
+      - name: Benchmark real PostgreSQL-backed API
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker compose -f "${COMPOSE_FILE}" exec -T \
+            -e PREMISE_SCALE_TENANT_ID="$PREMISE_TENANT_ID" \
+            -e PREMISE_SCALE_MEMORIES="$PREMISE_SCALE_MEMORIES" \
+            -e PREMISE_SCALE_REQUESTS="$PREMISE_SCALE_REQUESTS" \
+            -e PREMISE_SCALE_CONCURRENCY="$PREMISE_SCALE_CONCURRENCY" \
+            -e PREMISE_SCALE_MIN_MEMORIES="$PREMISE_SCALE_MIN_MEMORIES" \
+            -e PREMISE_SCALE_MAX_P95_MS="$PREMISE_SCALE_MAX_P95_MS" \
+            -e PREMISE_SCALE_MAX_P99_MS="$PREMISE_SCALE_MAX_P99_MS" \
+            -e PREMISE_COMMIT="$PREMISE_COMMIT" \
+            premise node /app/benchmarks/ga-load/postgres-scale.mjs \
+            --mode benchmark --output /tmp/postgres-scale.json --trace /tmp/postgres-scale-traces.jsonl
+          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale.json .ga-artifacts/postgres-scale.json
+          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-traces.jsonl .ga-artifacts/postgres-scale-traces.jsonl
+      - name: Restart API and repeat recovery benchmark
+        env:
+          PREMISE_IMAGE: ${{ env.IMAGE }}
+          PREMISE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker compose -f "${COMPOSE_FILE}" restart premise
+          for attempt in $(seq 1 90); do
+            if docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/healthcheck.mjs; then break; fi
+            sleep 2
+          done
+          docker compose -f "${COMPOSE_FILE}" exec -T \
+            -e PREMISE_SCALE_TENANT_ID="$PREMISE_TENANT_ID" \
+            -e PREMISE_SCALE_MEMORIES="$PREMISE_SCALE_MEMORIES" \
+            -e PREMISE_SCALE_REQUESTS="$PREMISE_SCALE_REQUESTS" \
+            -e PREMISE_SCALE_CONCURRENCY="$PREMISE_SCALE_CONCURRENCY" \
+            -e PREMISE_SCALE_MIN_MEMORIES="$PREMISE_SCALE_MIN_MEMORIES" \
+            -e PREMISE_SCALE_MAX_P95_MS="$PREMISE_SCALE_MAX_P95_MS" \
+            -e PREMISE_SCALE_MAX_P99_MS="$PREMISE_SCALE_MAX_P99_MS" \
+            -e PREMISE_COMMIT="$PREMISE_COMMIT" \
+            premise node /app/benchmarks/ga-load/postgres-scale.mjs \
+            --mode benchmark --output /tmp/postgres-scale-restart.json --trace /tmp/postgres-scale-restart-traces.jsonl
+          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-restart.json .ga-artifacts/postgres-scale-restart.json
+          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-restart-traces.jsonl .ga-artifacts/postgres-scale-restart-traces.jsonl
+      - name: Upload real PostgreSQL scale evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-postgres-scale-${{ github.sha }}
+          path: .ga-artifacts
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Tear down PostgreSQL scale stack
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" down --remove-orphans -v
 
   external-github:
     name: Real GitHub read-only benchmark
@@ -612,7 +757,7 @@ jobs:
   ga-certification:
     name: v2.0 GA certification decision
     if: (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.')) && always()
-    needs: [security, deterministic-load, million-load, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification]
+    needs: [security, deterministic-load, million-load, postgres-scale, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification]
     runs-on: ubuntu-latest
     steps:
       - name: Fail closed unless every certification campaign passed
@@ -620,6 +765,7 @@ jobs:
           SECURITY: ${{ needs.security.result }}
           DETERMINISTIC_LOAD: ${{ needs.deterministic-load.result }}
           MILLION_LOAD: ${{ needs.million-load.result }}
+          POSTGRES_SCALE: ${{ needs.postgres-scale.result }}
           EXTERNAL_GITHUB: ${{ needs.external-github.result }}
           EXTERNAL_HOLDOUT: ${{ needs.external-holdout.result }}
           INTEGRATION: ${{ needs.integration.result }}
@@ -628,7 +774,7 @@ jobs:
           ROLLBACK: ${{ needs.rollback-certification.result }}
         run: |
           set -euo pipefail
-          for result in "$SECURITY" "$DETERMINISTIC_LOAD" "$MILLION_LOAD" "$EXTERNAL_GITHUB" "$EXTERNAL_HOLDOUT" "$INTEGRATION" "$PRODUCTION_SOAK" "$COST_EVIDENCE" "$ROLLBACK"; do
+          for result in "$SECURITY" "$DETERMINISTIC_LOAD" "$MILLION_LOAD" "$POSTGRES_SCALE" "$EXTERNAL_GITHUB" "$EXTERNAL_HOLDOUT" "$INTEGRATION" "$PRODUCTION_SOAK" "$COST_EVIDENCE" "$ROLLBACK"; do
             test "$result" = success
           done
           echo "All v2.0 GA certification campaigns passed; inspect and publish their pinned artifacts before release."

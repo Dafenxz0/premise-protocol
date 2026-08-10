@@ -115,14 +115,47 @@ docker compose -f deploy/docker-compose.yml exec -T \
   -e PREMISE_LOAD_REQUESTS=32 \
   -e PREMISE_LOAD_CONCURRENCY=4 \
   -e PREMISE_LOAD_MAX_P95_MS=500 \
-  premise node /app/ops/load-smoke.mjs
+premise node /app/ops/load-smoke.mjs
 ~~~
+
+### Campaña real contra PostgreSQL a escala
+
+El perfil `benchmarks/ga-load/runner.mjs --profile full` es útil para
+determinismo y recuperación del algoritmo, pero su store es sintético. No se
+debe presentar como evidencia de capacidad de PostgreSQL o de la API.
+
+La campaña separada `postgres-scale.mjs` escribe registros reales en las
+tablas PREMiSE, arranca la imagen production-shaped, mide lecturas y consultas
+HTTP concurrentes, conserva una traza JSONL y repite la medición después de
+reiniciar el servicio. Se ejecuta deliberadamente como una campaña opt-in de
+CI porque puede consumir muchos minutos, memoria, disco y WAL:
+
+~~~bash
+docker compose -f deploy/docker-compose.yml run --rm --no-deps premise \
+  node /app/benchmarks/ga-load/postgres-scale.mjs --mode seed
+docker compose -f deploy/docker-compose.yml exec -T premise \
+  node /app/benchmarks/ga-load/postgres-scale.mjs \
+  --mode benchmark --output /tmp/postgres-scale.json \
+  --trace /tmp/postgres-scale-traces.jsonl
+~~~
+
+Configura `PREMISE_SCALE_MEMORIES`, `PREMISE_SCALE_REQUESTS`,
+`PREMISE_SCALE_CONCURRENCY` y `PREMISE_SCALE_TENANT_ID`. La campaña no prueba
+por sí sola una capacidad universal: el informe debe conservar el commit, la
+versión de PostgreSQL, la imagen, el hardware, los umbrales y las trazas.
+Para que sea evidencia GA también debe repetirse tras un reinicio y revisarse
+con `postgres-scale.json`, `postgres-scale-restart.json` y los diagnósticos de
+PostgreSQL.
 
 El espejo durable procesa escrituras con concurrencia acotada para no bloquear
 todo el servicio ni saturar PostgreSQL. El valor por defecto es `4`; se puede
 ajustar por despliegue con `PREMISE_RUNTIME_WRITE_CONCURRENCY` (entero entre 1
-y 64). Las rutas de lectura no esperan esa cola; las mutaciones sí esperan su
-barrera de durabilidad antes de responder.
+y 64). También existe un límite de admisión de `10.000` trabajos pendientes,
+configurable con `PREMISE_RUNTIME_MAX_PENDING_WRITES`; al alcanzarlo la API
+responde `503 PERSISTENCE_BACKPRESSURE` con `Retry-After: 1` en vez de aceptar
+trabajo ilimitado y arriesgar la memoria del proceso. Las rutas de lectura no
+esperan esa cola; las mutaciones sí esperan su barrera de durabilidad antes de
+responder.
 
 Métricas Prometheus:
 

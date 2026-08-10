@@ -365,6 +365,8 @@ export class PremiseServer<T = unknown> {
         ? error
         : error instanceof SyntaxError
           ? new HttpError(400, "INVALID_JSON", "Request body is not valid JSON")
+          : error instanceof Error && (error as Error & { readonly code?: unknown }).code === "PERSISTENCE_BACKPRESSURE"
+            ? new HttpError(503, "PERSISTENCE_BACKPRESSURE", "Durable persistence is temporarily saturated", { "retry-after": "1" })
           : error instanceof TypeError
             ? new HttpError(400, "INVALID_REQUEST", error.message)
             : error instanceof Error && /Conflicting idempotency key/u.test(error.message)

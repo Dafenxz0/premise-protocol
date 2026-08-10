@@ -50,7 +50,7 @@
       "id": "load-and-recovery",
       "owner": "reliability",
       "requirement": "The declared reference profile survives million-scale load, concurrency, restart and corruption recovery.",
-      "evidence": ["load-full.json", "recovery-report.json"]
+      "evidence": ["load-full.json", "postgres-scale.json", "recovery-report.json"]
     },
     {
       "id": "operations",

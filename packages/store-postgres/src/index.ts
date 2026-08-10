@@ -68,6 +68,14 @@ export interface HttpIdempotencyRelease extends HttpIdempotencyRequest {
   readonly token: string;
 }
 
+export interface HttpIdempotencyPruneOptions {
+  /** Completed responses older than this duration are removed. */
+  readonly maxAgeMs?: number;
+  /** Abandoned in-progress claims older than this duration are removed. */
+  readonly inProgressMaxAgeMs?: number;
+  readonly limit?: number;
+}
+
 export interface PostgresReplayOptions {
   readonly consumerId?: string;
   readonly tenantId?: string;
@@ -471,6 +479,36 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
         WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3
           AND request_hash = $4 AND state = 'IN_PROGRESS' AND lease_token = $5
       `, [input.tenantId, input.operation, input.key, input.requestHash, input.token]);
+    });
+  }
+
+  async pruneHttpIdempotency(options: HttpIdempotencyPruneOptions = {}): Promise<number> {
+    if (this.tenantId === undefined) throw new Error("HTTP idempotency pruning requires a tenant-scoped PostgreSQL store");
+    const maxAgeMs = options.maxAgeMs ?? 7 * 24 * 60 * 60 * 1_000;
+    const inProgressMaxAgeMs = options.inProgressMaxAgeMs ?? 2 * HTTP_IDEMPOTENCY_LEASE_MS;
+    const limit = options.limit ?? 1_000;
+    if (!Number.isSafeInteger(maxAgeMs) || maxAgeMs <= 0) throw new TypeError("HTTP idempotency maxAgeMs must be a positive safe integer");
+    if (!Number.isSafeInteger(inProgressMaxAgeMs) || inProgressMaxAgeMs < HTTP_IDEMPOTENCY_LEASE_MS) throw new TypeError("HTTP idempotency inProgressMaxAgeMs is too short");
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10_000) throw new TypeError("HTTP idempotency prune limit must be between 1 and 10000");
+    return this.httpTransaction(this.tenantId, async (client) => {
+      const result = await client.query(`
+        WITH expired AS (
+          SELECT tenant_id, operation, idempotency_key
+          FROM ${this.runtime.idempotency}
+          WHERE tenant_id = $1
+            AND ((state = 'COMPLETED' AND updated_at < CURRENT_TIMESTAMP - ($2::bigint * INTERVAL '1 millisecond'))
+              OR (state = 'IN_PROGRESS' AND updated_at < CURRENT_TIMESTAMP - ($3::bigint * INTERVAL '1 millisecond')))
+          ORDER BY updated_at
+          FOR UPDATE SKIP LOCKED
+          LIMIT $4
+        )
+        DELETE FROM ${this.runtime.idempotency} AS target
+        USING expired
+        WHERE target.tenant_id = expired.tenant_id
+          AND target.operation = expired.operation
+          AND target.idempotency_key = expired.idempotency_key
+      `, [this.tenantId, maxAgeMs, inProgressMaxAgeMs, limit]);
+      return result.rowCount ?? result.rows.length;
     });
   }
 

@@ -52,6 +52,9 @@ COPY --from=build --chown=10001:10001 /workspace/deploy ./deploy
 # measure the same service/container network and PostgreSQL instance that it
 # is certifying, without exposing the database port to the host.
 COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-soak ./benchmarks/ga-soak
+# Keep the real PostgreSQL scale harness beside the runtime. It is invoked
+# only by the explicit GA scale campaign; the normal service never runs it.
+COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-load/postgres-scale.mjs ./benchmarks/ga-load/postgres-scale.mjs
 # Operations code is imported from /app/ops, so production-only connector
 # dependencies must be resolvable from the image-level /app/node_modules.
 COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modules

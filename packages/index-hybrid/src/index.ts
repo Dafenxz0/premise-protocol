@@ -463,6 +463,7 @@ export class HybridIndex<T = unknown> {
   private readonly defaultVectorWeight: number;
   private readonly documents = new Map<string, StoredDocument<T>>();
   private readonly documentFrequency = new Map<string, number>();
+  private readonly invertedIndex = new Map<string, Set<string>>();
   private totalDocumentLength = 0;
   private vectorDimensions: number | undefined;
 
@@ -537,6 +538,7 @@ export class HybridIndex<T = unknown> {
   clear(): void {
     this.documents.clear();
     this.documentFrequency.clear();
+    this.invertedIndex.clear();
     this.totalDocumentLength = 0;
     this.vectorDimensions = undefined;
   }
@@ -549,12 +551,17 @@ export class HybridIndex<T = unknown> {
     const minimumScore = options.minScore ?? 0;
     if (!Number.isFinite(minimumScore) || minimumScore < 0) throw new RangeError("minScore must be a finite non-negative number");
     if (options.filter !== undefined && options.filters !== undefined) throw new TypeError("Use either filter or filters, not both");
-    const filter = options.filter ?? options.filters;
-    const candidates = [...this.documents.values()].filter((stored) => filter === undefined || matchesFilter(filter, stored.document));
-    if (candidates.length === 0) return [];
-
     const queryTokens = tokenize(this.tokenizer, query);
     const distinctQueryTokens = unique(queryTokens);
+    const filter = options.filter ?? options.filters;
+    const candidateDocuments = weights.vectorWeight === 0
+      ? [...new Set(distinctQueryTokens.flatMap((token) => [...(this.invertedIndex.get(token) ?? [])]))]
+        .map((id) => this.documents.get(id))
+        .filter((stored): stored is StoredDocument<T> => stored !== undefined)
+      : [...this.documents.values()];
+    const candidates = candidateDocuments.filter((stored) => filter === undefined || matchesFilter(filter, stored.document));
+    if (candidates.length === 0) return [];
+
     const queryVector = weights.vectorWeight > 0 ? await embed(this.vectorProvider, query) : undefined;
     if (queryVector !== undefined && this.vectorDimensions !== undefined && queryVector.length !== this.vectorDimensions) {
       throw new RangeError(`Query vector dimension ${queryVector.length} does not match indexed dimension ${this.vectorDimensions}`);
@@ -636,7 +643,12 @@ export class HybridIndex<T = unknown> {
 
   private addStatistics(document: StoredDocument<T>): void {
     this.totalDocumentLength += document.tokens.length;
-    for (const token of new Set(document.tokens)) this.documentFrequency.set(token, (this.documentFrequency.get(token) ?? 0) + 1);
+    for (const token of new Set(document.tokens)) {
+      this.documentFrequency.set(token, (this.documentFrequency.get(token) ?? 0) + 1);
+      const postings = this.invertedIndex.get(token) ?? new Set<string>();
+      postings.add(document.document.id);
+      this.invertedIndex.set(token, postings);
+    }
   }
 
   private removeStatistics(document: StoredDocument<T>): void {
@@ -644,6 +656,11 @@ export class HybridIndex<T = unknown> {
     for (const token of new Set(document.tokens)) {
       const next = (this.documentFrequency.get(token) ?? 0) - 1;
       if (next <= 0) this.documentFrequency.delete(token); else this.documentFrequency.set(token, next);
+      const postings = this.invertedIndex.get(token);
+      if (postings !== undefined) {
+        postings.delete(document.document.id);
+        if (postings.size === 0) this.invertedIndex.delete(token);
+      }
     }
   }
 }

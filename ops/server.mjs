@@ -17,7 +17,11 @@ const config = {
   apiToken: process.env.PREMISE_API_TOKEN,
   storeMode: process.env.PREMISE_STORE_MODE ?? "postgres",
   tablePrefix: process.env.PREMISE_TABLE_PREFIX ?? "premise_v2",
-  maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024)
+  maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024),
+  runtimeWriteConcurrency: integer("PREMISE_RUNTIME_WRITE_CONCURRENCY", 4, 1, 64),
+  runtimeMaxPendingWrites: integer("PREMISE_RUNTIME_MAX_PENDING_WRITES", 10_000, 1, 1_000_000),
+  httpIdempotencyRetentionMs: integer("PREMISE_HTTP_IDEMPOTENCY_RETENTION_MS", 7 * 24 * 60 * 60 * 1_000, 60 * 60 * 1_000, 365 * 24 * 60 * 60 * 1_000),
+  httpIdempotencyCleanupIntervalMs: integer("PREMISE_HTTP_IDEMPOTENCY_CLEANUP_INTERVAL_MS", 60 * 60 * 1_000, 60 * 1_000, 24 * 60 * 60 * 1_000)
 };
 
 if (config.storeMode !== "postgres" && config.storeMode !== "memory") throw new Error("PREMISE_STORE_MODE must be postgres or memory");
@@ -33,7 +37,10 @@ let app;
 if (config.storeMode === "postgres") {
   try {
     database = await openPgClient();
-    const opened = await openDurableMirror(database, config.tablePrefix, config.tenantId);
+    const opened = await openDurableMirror(database, config.tablePrefix, config.tenantId, {
+      concurrency: config.runtimeWriteConcurrency,
+      maxPendingWrites: config.runtimeMaxPendingWrites
+    });
     store = opened.mirror;
     idempotencyStore = opened.persistent;
   } catch (error) {
@@ -184,7 +191,7 @@ const httpServer = createServer(async (request, response) => {
     const ready = store.failure === undefined;
     response.statusCode = 200;
     response.setHeader("content-type", "text/plain; version=0.0.4; charset=utf-8");
-    response.end(metrics.render({ storeReady: ready, pendingWrites: store.pendingWrites ?? 0, records: store.list() }));
+    response.end(metrics.render({ storeReady: ready, pendingWrites: store.pendingWrites ?? 0, maxPendingWrites: store.maxPendingWrites ?? 0, freshness: store.freshnessCounts }));
     return;
   }
 
@@ -204,10 +211,21 @@ await new Promise((resolve) => httpServer.listen(config.port, config.host, resol
 console.log(`PREMiSE v2 listening on ${config.host}:${config.port} (${config.storeMode})`);
 
 let shuttingDown = false;
+let idempotencyCleanupTimer;
+if (idempotencyStore !== undefined && typeof idempotencyStore.pruneHttpIdempotency === "function") {
+  const cleanup = () => void idempotencyStore.pruneHttpIdempotency({ maxAgeMs: config.httpIdempotencyRetentionMs }).catch((error) => {
+    console.error("PREMiSE v2 idempotency cleanup failed", error?.code ?? error?.name ?? "database error");
+  });
+  idempotencyCleanupTimer = setInterval(cleanup, config.httpIdempotencyCleanupIntervalMs);
+  idempotencyCleanupTimer.unref?.();
+  cleanup();
+}
+
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`PREMiSE v2 shutting down (${signal})`);
+  if (idempotencyCleanupTimer !== undefined) clearInterval(idempotencyCleanupTimer);
   await new Promise((resolve) => httpServer.close(() => resolve()));
   try { await store.flush?.(); } catch { /* a failed queue is already reflected in readiness */ }
   await database?.close?.();

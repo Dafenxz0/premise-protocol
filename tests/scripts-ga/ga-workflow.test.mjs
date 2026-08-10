@@ -8,7 +8,7 @@ test("GA certification is fail-closed for manual runs and required evidence cann
   const workflow = await readFile(workflowPath, "utf8");
 
   assert.match(workflow, /if:\s*\(github\.event_name == 'workflow_dispatch' \|\| startsWith\(github\.ref, 'refs\/tags\/v2\.'\)\) && always\(\)/u);
-  assert.match(workflow, /needs:\s*\[security, deterministic-load, million-load, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification\]/u);
+  assert.match(workflow, /needs:\s*\[security, deterministic-load, million-load, postgres-scale, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification\]/u);
   assert.doesNotMatch(workflow, /premise:\/tmp\/soak-availability\.json\s*\\\s*\.ga-artifacts\/soak-availability\.json\s*\|\| true/u);
 
   const certification = workflow.slice(workflow.indexOf("  ga-certification:"));
