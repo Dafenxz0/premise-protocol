@@ -33,3 +33,31 @@ node benchmarks/ga-soak/runner.mjs `
 También se pueden configurar `PREMISE_SOAK_DURATION_MS`, `PREMISE_SOAK_CONCURRENCY`, `PREMISE_SOAK_REQUEST_TIMEOUT_MS`, `PREMISE_SOAK_SEED_COUNT`, `PREMISE_SOAK_HEALTH_PATH`, `PREMISE_SOAK_OPERATIONS`, `PREMISE_SOAK_LATENCY_SAMPLE_SIZE` y `PREMISE_SOAK_OUTPUT`.
 
 El benchmark escribe `benchmarks/ga-soak/results.json` salvo que se indique `--output PATH`.
+
+## Diagnostico PostgreSQL y acceptance check
+
+Para conservar evidencia de por que una ventana es lenta, ejecuta el diagnostico
+contra la misma base de datos PostgreSQL que usa el target. La conexion solo lee
+las vistas `pg_stat_checkpointer` (o `pg_stat_bgwriter` en PostgreSQL 16 y
+anteriores), `pg_stat_wal`, `pg_stat_database` y `pg_stat_activity`; no modifica
+el store ni la configuracion del servicio.
+
+```powershell
+$env:BASE_URL = "http://127.0.0.1:3000"
+$env:PREMISE_SOAK_DATABASE_URL = "postgresql://<user>:<password>@127.0.0.1:5432/<db>"
+node benchmarks/ga-soak/diagnostic.mjs `
+  --duration-ms 3600000 `
+  --concurrency 16 `
+  --seed-count 16 `
+  --output benchmarks/ga-soak/diagnostic-results.json
+```
+
+Cada resultado conserva `metrics.byOperation.<operation>.latency` y las
+muestras completas en `postgresTelemetry.samples`. `postgresTelemetry.summary`
+contiene los deltas de checkpoints, WAL, transacciones, bloques y conexiones.
+El proceso termina con codigo distinto de cero y `acceptance.classification`
+`checkpoint-dominated` cuando el tiempo acumulado de escritura/sync de
+checkpoints alcanza 100 ms y el 25% de la ventana medida. El resultado incluye
+acciones para revisar la base de datos y repetir la prueba; no aplica cambios
+de runtime ni de deployment. Usa `--report-only` para conservar el artefacto
+sin hacer fallar el proceso.

@@ -79,6 +79,42 @@ export class DurableMirrorStore {
     });
   }
 
+  putAndAppend(record, event) {
+    this.ensureWritable();
+    const copy = clone(record);
+    const eventCopy = clone(event);
+    const existing = this.events.get(eventCopy.idempotencyKey);
+    if (existing !== undefined && (existing.eventId !== eventCopy.eventId || existing.requestDigest !== eventCopy.requestDigest)) {
+      throw new Error(`Conflicting idempotency key: ${eventCopy.idempotencyKey}`);
+    }
+    this.records.set(copy.envelope.memoryId, copy);
+    this.events.set(eventCopy.idempotencyKey, eventCopy);
+    this.revision += 1;
+    // A combined record/event task closes any open event batch. Otherwise a
+    // later appendEvent could join that batch while this task waits for it.
+    this.eventBatch = undefined;
+    const dependencies = [];
+    if (this.restoreTask !== undefined) dependencies.push(this.restoreTask);
+    if (this.lastEventTask !== undefined) dependencies.push(this.lastEventTask);
+    const recordTail = this.recordTails.get(copy.envelope.memoryId);
+    if (recordTail !== undefined) dependencies.push(recordTail);
+    const task = this.enqueue(async () => {
+      if (typeof this.persistent.putAndAppend === "function") {
+        await this.persistent.putAndAppend(clone(copy), clone(eventCopy));
+        return;
+      }
+      await this.persistent.put(clone(copy));
+      await this.persistent.appendEvent(clone(eventCopy));
+    }, dependencies);
+    this.recordTails.set(copy.envelope.memoryId, task);
+    this.lastEventTask = task;
+    this.pendingPuts.add(task);
+    task.done.then(() => {
+      this.pendingPuts.delete(task);
+      if (this.recordTails.get(copy.envelope.memoryId) === task) this.recordTails.delete(copy.envelope.memoryId);
+    });
+  }
+
   appendEvent(event) {
     this.ensureWritable();
     const copy = clone(event);
@@ -106,6 +142,15 @@ export class DurableMirrorStore {
 
   hasEvent(idempotencyKey) {
     return this.events.has(idempotencyKey);
+  }
+
+  getEvent(idempotencyKey) {
+    const event = this.events.get(idempotencyKey);
+    return event === undefined ? undefined : clone(event);
+  }
+
+  countEvents() {
+    return this.events.size;
   }
 
   listEvents() {

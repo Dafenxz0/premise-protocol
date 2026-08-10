@@ -19,6 +19,7 @@ export interface AsyncRuntimeStore<T> {
   get(memoryId: string): Promise<RuntimeRecord<T> | undefined>;
   list(): Promise<readonly RuntimeRecord<T>[]>;
   put(record: RuntimeRecord<T>): Promise<void>;
+  putAndAppend?(record: RuntimeRecord<T>, event: V2Event): Promise<void>;
   appendEvent(event: V2Event): Promise<void>;
   hasEvent(idempotencyKey: string): Promise<boolean>;
   listEvents(): Promise<readonly V2Event[]>;

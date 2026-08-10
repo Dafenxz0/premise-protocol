@@ -29,8 +29,12 @@ export interface RuntimeStore<T> {
   get(memoryId: string): RuntimeRecord<T> | undefined;
   list(): readonly RuntimeRecord<T>[];
   put(record: RuntimeRecord<T>): void;
+  /** Persist a record and its causally related event atomically when supported. */
+  putAndAppend?(record: RuntimeRecord<T>, event: V2Event): void;
+  getEvent?(idempotencyKey: string): V2Event | undefined;
   appendEvent(event: V2Event): void;
   hasEvent(idempotencyKey: string): boolean;
+  countEvents?(): number;
   listEvents(): readonly V2Event[];
   snapshot(capturedAt: string): RuntimeSnapshot<T>;
   restore(snapshot: RuntimeSnapshot<T>): void;
@@ -118,6 +122,16 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
     this._revision += 1;
   }
 
+  putAndAppend(record: RuntimeRecord<T>, event: V2Event): void {
+    this.put(record);
+    this.appendEvent(event);
+  }
+
+  getEvent(idempotencyKey: string): V2Event | undefined {
+    const event = this.events.get(idempotencyKey);
+    return event === undefined ? undefined : cloneJson(event);
+  }
+
   appendEvent(event: V2Event): void {
     const existing = this.events.get(event.idempotencyKey);
     if (existing !== undefined) {
@@ -129,6 +143,10 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
 
   hasEvent(idempotencyKey: string): boolean {
     return this.events.has(idempotencyKey);
+  }
+
+  countEvents(): number {
+    return this.events.size;
   }
 
   listEvents(): readonly V2Event[] {
@@ -181,9 +199,10 @@ export class PremiseRuntime<T = unknown> {
     const envelope = parseMemoryEnvelopeV2(record.envelope);
     this.assertTenant(envelope.tenantId);
     if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
-    this.store.put({ envelope, content: cloneJson(record.content) });
-    this.indexRecord({ envelope, content: record.content });
-    this.emit("MemoryRegistered", envelope.memoryId, { envelope }, eventId ?? `register:${envelope.memoryId}`);
+    const stored = { envelope, content: cloneJson(record.content) };
+    const event = this.emit("MemoryRegistered", envelope.memoryId, { envelope }, eventId ?? `register:${envelope.memoryId}`, false);
+    this.persistRecordAndEvent(stored, event);
+    this.indexRecord(stored);
     this.syncStoreRevision();
   }
 
@@ -196,9 +215,10 @@ export class PremiseRuntime<T = unknown> {
       const dependency = this.store.get(dependencyId);
       if (dependency === undefined || dependency.envelope.tenantId !== this.tenantId) throw new Error(`Missing required dependency: ${dependencyId}`);
     }
-    this.store.put({ envelope, content: cloneJson(record.content) });
-    this.indexRecord({ envelope, content: record.content });
-    this.emit("MemoryDerived", envelope.memoryId, { dependsOn: envelope.dependsOn }, eventId ?? `derive:${envelope.memoryId}`);
+    const stored = { envelope, content: cloneJson(record.content) };
+    const event = this.emit("MemoryDerived", envelope.memoryId, { dependsOn: envelope.dependsOn }, eventId ?? `derive:${envelope.memoryId}`, false);
+    this.persistRecordAndEvent(stored, event);
+    this.indexRecord(stored);
     this.syncStoreRevision();
   }
 
@@ -207,10 +227,11 @@ export class PremiseRuntime<T = unknown> {
     const next = parseMemoryEnvelopeV2(envelope);
     if (next.memoryId !== memoryId) throw new Error("Replacement must keep the memory ID");
     this.assertTenant(next.tenantId);
-    this.store.put({ envelope: next, content: cloneJson(content) });
+    const stored = { envelope: next, content: cloneJson(content) };
+    const event = this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, eventId ?? `replace:${memoryId}:${next.contentDigest ?? "none"}`, false);
+    this.persistRecordAndEvent(stored, event);
     this.deindexRecord(current);
-    this.indexRecord({ envelope: next, content });
-    this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, eventId ?? `replace:${memoryId}:${next.contentDigest ?? "none"}`);
+    this.indexRecord(stored);
     this.syncStoreRevision();
   }
 
@@ -262,8 +283,9 @@ export class PremiseRuntime<T = unknown> {
     for (const memoryId of affected) {
       const record = this.store.get(memoryId);
       if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
-      this.store.put({ envelope: this.withStatus(record.envelope, "STALE"), content: record.content });
-      this.emit("MemoryStaled", memoryId, { sourceUri, version }, `${sourceEvent.eventId}:stale:${memoryId}`);
+      const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
+      const staleEvent = this.emit("MemoryStaled", memoryId, { sourceUri, version }, `${sourceEvent.eventId}:stale:${memoryId}`, false);
+      this.persistRecordAndEvent(stored, staleEvent);
     }
     this.syncStoreRevision();
     return affected;
@@ -292,11 +314,16 @@ export class PremiseRuntime<T = unknown> {
     return memoryId === undefined ? events : events.filter((event) => event.memoryId === memoryId);
   }
 
+  eventCount(): number {
+    return typeof this.store.countEvents === "function" ? this.store.countEvents() : this.store.listEvents().length;
+  }
+
   private applyValidation(record: RuntimeRecord<T>, report: RuntimeValidationReport, eventId?: string): RuntimeValidationReport {
     if (report.memoryId !== record.envelope.memoryId) throw new Error("Validation report memory ID does not match record");
     const status: V2MemoryStatus = report.result === "UNCHANGED" ? "FRESH" : report.result === "CHANGED" || report.result === "MISSING" ? "INVALID" : "UNKNOWN";
-    this.store.put({ envelope: this.withStatus(record.envelope, status), content: record.content });
-    this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`);
+    const stored = { envelope: this.withStatus(record.envelope, status), content: record.content };
+    const event = this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`, false);
+    this.persistRecordAndEvent(stored, event);
     this.syncStoreRevision();
     return { ...report, status };
   }
@@ -375,8 +402,18 @@ export class PremiseRuntime<T = unknown> {
     return [...ids].sort((left, right) => (this.recordOrder.get(left) ?? Number.MAX_SAFE_INTEGER) - (this.recordOrder.get(right) ?? Number.MAX_SAFE_INTEGER));
   }
 
-  private emit(type: V2Event["type"], memoryId: string | undefined, payload: Readonly<Record<string, unknown>>, idempotencyKey: string): V2Event {
-    const existing = this.store.listEvents().find((event) => event.idempotencyKey === idempotencyKey);
+  private persistRecordAndEvent(record: RuntimeRecord<T>, event: V2Event): void {
+    if (typeof this.store.putAndAppend === "function") this.store.putAndAppend(record, event);
+    else {
+      this.store.put(record);
+      this.store.appendEvent(event);
+    }
+  }
+
+  private emit(type: V2Event["type"], memoryId: string | undefined, payload: Readonly<Record<string, unknown>>, idempotencyKey: string, persist = true): V2Event {
+    const existing = typeof this.store.getEvent === "function"
+      ? this.store.getEvent(idempotencyKey)
+      : this.store.listEvents().find((event) => event.idempotencyKey === idempotencyKey);
     if (existing !== undefined) return existing;
     const eventId = `evt_${this.tenantId}_${++this.sequence}`;
     const event: V2Event = {
@@ -391,7 +428,7 @@ export class PremiseRuntime<T = unknown> {
       ...(memoryId ? { memoryId } : {}),
       payload
     };
-    this.store.appendEvent(event);
+    if (persist) this.store.appendEvent(event);
     return event;
   }
 

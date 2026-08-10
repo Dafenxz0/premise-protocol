@@ -39,6 +39,7 @@ const affected = runtime.signalSourceChanged("github://acme/repo/commit/main", {
 assert.deepEqual(affected, ["memory:source", "memory:derived"]);
 assert.deepEqual(runtime.check(["memory:source", "memory:derived"]).map((item) => item.status), ["STALE", "STALE"]);
 assert.deepEqual(runtime.history().map((item) => item.type), ["MemoryRegistered", "MemoryDerived", "SourceChanged", "MemoryStaled", "MemoryStaled"]);
+assert.equal(runtime.eventCount(), runtime.history().length);
 
 const report = await runtime.revalidate("memory:source", async (evidence) => ({ memoryId: "memory:source", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri, version: { scheme: "github.commit", token: "b2" } }));
 assert.equal(report.status, "FRESH");

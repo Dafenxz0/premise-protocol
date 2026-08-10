@@ -22,6 +22,51 @@ No hay credenciales reales en el repositorio. Los ficheros deploy/.env.example y
 
 El proceso se configura con un tenant por instancia. El backup y el restore operativos cubren ese tenant; para varios tenants se ejecuta una operación por tenant o se usa un rol de administración específico del entorno.
 
+## PostgreSQL checkpoint/WAL and pool
+
+The `postgres` service activates `deploy/postgres/postgresql.conf` through a
+read-only bind mount. This is a conservative PostgreSQL 16 baseline, not a
+replacement for measuring the target provider and host.
+
+- `checkpoint_timeout=15min` reduces timed checkpoint churn during sustained
+  writes; `checkpoint_completion_target=0.9` spreads checkpoint I/O over the
+  interval.
+- `max_wal_size=2GB` and `min_wal_size=256MB` absorb short write bursts and
+  recycle WAL. `max_wal_size` is a soft limit, so leave disk headroom and
+  monitor `pg_stat_bgwriter` and free space before increasing it.
+- `wal_compression=pglz` compresses full-page WAL images. It trades CPU for
+  less WAL/I/O without disabling `full_page_writes`.
+- `fsync=on`, `full_page_writes=on`, and `synchronous_commit=on` are explicit
+  because the API acknowledges durable writes; this baseline does not use
+  `synchronous_commit=off`.
+- `PREMISE_DB_POOL_SIZE=8` aligns with the existing durable-write concurrency
+  of `4`, leaving four pool slots for reads/control in the API process.
+  `max_connections=64` leaves room for migration, backup, monitoring, and
+  operator sessions. If the API is scaled out, calculate
+  `replicas * pool + maintenance` before changing `max_connections`.
+
+Memory knobs such as `shared_buffers`, `work_mem`, and `effective_cache_size`
+are intentionally not fixed here: they depend on host memory and query shape.
+The `max_connections` change is a startup setting, so recreate/restart the
+PostgreSQL service after changing this file. Preserve a backup and check free
+space in `PGDATA` before rollout.
+
+Reproducible contract and Compose validation:
+
+~~~powershell
+node --test deploy/postgres-config.test.mjs
+docker compose -f deploy/docker-compose.yml --profile ops config --quiet
+docker compose -f deploy/docker-compose.yml up -d --force-recreate postgres
+docker compose -f deploy/docker-compose.yml exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT name, setting, sourcefile FROM pg_settings WHERE name IN (''checkpoint_timeout'', ''checkpoint_completion_target'', ''max_wal_size'', ''min_wal_size'', ''wal_compression'', ''max_connections'', ''fsync'', ''full_page_writes'', ''synchronous_commit'') ORDER BY name;"'
+~~~
+
+The last command must show the expected effective values and their
+`sourcefile`. If `ALTER SYSTEM` has replaced one, resolve that override before
+attributing a performance result to this baseline. The PostgreSQL references
+for the trade-offs are [WAL configuration](https://www.postgresql.org/docs/16/runtime-config-wal.html),
+[WAL tuning](https://www.postgresql.org/docs/16/wal-configuration.html), and
+[external configuration files](https://www.postgresql.org/docs/16/runtime-config-file-locations.html).
+
 ## Arranque local
 
 Desde la raíz del repositorio:

@@ -61,6 +61,12 @@ class BatchPersistentFake extends PersistentFake {
   }
 }
 
+class AtomicPersistentFake extends PersistentFake {
+  putAndAppend(recordValue, eventValue) {
+    return this.start("put-events", { record: recordValue, event: eventValue });
+  }
+}
+
 test("requires a strict bounded concurrency value", () => {
   assert.equal(new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "04" }).concurrency, 4);
   assert.throws(() => new DurableMirrorStore(new PersistentFake(), emptySnapshot, { concurrency: "4foo" }), /integer/);
@@ -77,6 +83,19 @@ test("batches ordered events when the persistent store supports it", async () =>
   assert.equal(persistent.calls.length, 1);
   assert.equal(persistent.calls[0].kind, "events");
   assert.deepEqual(persistent.calls[0].value.map(({ eventId }) => eventId), ["event:batch:1", "event:batch:2"]);
+  persistent.release();
+  await store.flush();
+});
+
+test("atomically persists a record and its related event", async () => {
+  const persistent = new AtomicPersistentFake();
+  const store = new DurableMirrorStore(persistent, emptySnapshot, { concurrency: 2 });
+  store.putAndAppend(record("memory:atomic", 1), event("atomic"));
+  await tick();
+  await tick();
+  assert.deepEqual(persistent.calls.map(({ kind }) => kind), ["put-events"]);
+  assert.equal(persistent.calls[0].value.record.envelope.memoryId, "memory:atomic");
+  assert.equal(persistent.calls[0].value.event.eventId, "event:atomic");
   persistent.release();
   await store.flush();
 });

@@ -150,7 +150,7 @@ export class PremiseServer<T = unknown> {
       if (principal === false) throw new HttpError(401, "UNAUTHORIZED", "Request is not authorized");
       metricTenant = principal.tenantId;
       if (method === "GET" && url.pathname === "/health") {
-        jsonResponse(response, 200, { ok: true, specVersion: SPEC_VERSION_V2, memories: this.runtime.list(principal).length, events: this.runtime.history().length });
+        jsonResponse(response, 200, { ok: true, specVersion: SPEC_VERSION_V2, memories: this.runtime.list(principal).length, events: this.runtime.eventCount() });
         return;
       }
       if (method === "GET" && url.pathname === "/v2/capabilities") {

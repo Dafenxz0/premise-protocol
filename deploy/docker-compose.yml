@@ -3,6 +3,7 @@ name: premise-v2
 services:
   postgres:
     image: postgres:16.4-alpine
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-premise}
       POSTGRES_USER: ${POSTGRES_USER:-premise}
@@ -13,6 +14,7 @@ services:
       timeout: 5s
       retries: 20
     volumes:
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
 
@@ -26,6 +28,7 @@ services:
     user: "10001:10001"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
       MIGRATIONS_DIR: /app/deploy/migrations
     depends_on:
@@ -60,6 +63,7 @@ services:
       PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
       PREMISE_MAX_BODY_BYTES: ${PREMISE_MAX_BODY_BYTES:-1048576}
       PREMISE_RUNTIME_WRITE_CONCURRENCY: ${PREMISE_RUNTIME_WRITE_CONCURRENCY:-4}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_HEALTH_PATH: /readyz
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-premise-v2}
@@ -114,6 +118,7 @@ services:
     user: "10001:10001"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
       BACKUP_FILE: /backup/premise-v2-latest.json

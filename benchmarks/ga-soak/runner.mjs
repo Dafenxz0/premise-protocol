@@ -530,6 +530,8 @@ export async function runSoak(input = {}) {
 
   const metrics = makeMetrics(config);
   const state = { runId, seedRecords: setup.seedRecords, records: new Map(), nextSequence: 0 };
+  const measuredWindow = input.measuredWindow;
+  if (setup.ok && typeof measuredWindow?.start === "function") await measuredWindow.start({ runId });
   const measuredStart = performance.now();
   if (setup.ok) {
     const deadline = measuredStart + config.durationMs;
@@ -544,6 +546,7 @@ export async function runSoak(input = {}) {
     await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
   }
   const ended = performance.now();
+  if (setup.ok && typeof measuredWindow?.end === "function") await measuredWindow.end({ runId });
   const endedAt = new Date().toISOString();
   const summary = summarizeMetrics(metrics);
   const commit = commitMetadata();
