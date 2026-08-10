@@ -359,8 +359,8 @@ jobs:
             -e PREMISE_COMMIT="$PREMISE_COMMIT" \
             premise node /app/benchmarks/ga-load/postgres-scale.mjs \
             --mode benchmark --output /tmp/postgres-scale.json --trace /tmp/postgres-scale-traces.jsonl | tee .ga-artifacts/postgres-scale-run.log
-          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale.json .ga-artifacts/postgres-scale.json
-          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-traces.jsonl .ga-artifacts/postgres-scale-traces.jsonl
+          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/postgres-scale.json && cat /tmp/postgres-scale.json' > .ga-artifacts/postgres-scale.json
+          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/postgres-scale-traces.jsonl && cat /tmp/postgres-scale-traces.jsonl' > .ga-artifacts/postgres-scale-traces.jsonl
       - name: Restart API and repeat recovery benchmark
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -383,8 +383,8 @@ jobs:
             -e PREMISE_COMMIT="$PREMISE_COMMIT" \
             premise node /app/benchmarks/ga-load/postgres-scale.mjs \
             --mode benchmark --output /tmp/recovery-report.json --trace /tmp/recovery-report-traces.jsonl | tee .ga-artifacts/recovery-report-run.log
-          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/recovery-report.json .ga-artifacts/recovery-report.json
-          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/recovery-report-traces.jsonl .ga-artifacts/recovery-report-traces.jsonl
+          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/recovery-report.json && cat /tmp/recovery-report.json' > .ga-artifacts/recovery-report.json
+          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/recovery-report-traces.jsonl && cat /tmp/recovery-report-traces.jsonl' > .ga-artifacts/recovery-report-traces.jsonl
       - name: Verify PostgreSQL scale raw evidence
         if: always()
         run: |
