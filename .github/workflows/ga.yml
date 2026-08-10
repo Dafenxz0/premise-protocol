@@ -722,9 +722,9 @@ jobs:
       - name: Copy in-network soak diagnostic evidence
         if: always()
         run: |
-          docker compose -f "${COMPOSE_FILE}" cp \
-            premise:/tmp/soak-availability.json \
-            .ga-artifacts/soak-availability.json
+          docker compose -f "${COMPOSE_FILE}" exec -T premise \
+            sh -ec 'test -s /tmp/soak-availability.json && cat /tmp/soak-availability.json' \
+            > .ga-artifacts/soak-availability.json
       - name: Capture soak stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log
