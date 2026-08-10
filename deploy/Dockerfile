@@ -48,7 +48,13 @@ COPY --from=build --chown=10001:10001 /workspace/node_modules ./node_modules
 COPY --from=build --chown=10001:10001 /workspace/packages ./packages
 COPY --from=build --chown=10001:10001 /workspace/ops ./ops
 COPY --from=build --chown=10001:10001 /workspace/deploy ./deploy
-COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./deploy/node_modules
+# Operations code is imported from /app/ops, so production-only connector
+# dependencies must be resolvable from the image-level /app/node_modules.
+COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modules
+
+# Fail the image build if the real Postgres driver is not present. This keeps
+# the Compose migration gate from discovering a broken runtime too late.
+RUN test -f /app/node_modules/pg/index.js
 
 # TypeScript is a build-time dependency of the workspace, not a runtime dependency.
 RUN rm -rf /app/node_modules/.pnpm/@typescript+typescript-linux-x64@* \
