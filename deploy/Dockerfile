@@ -54,7 +54,7 @@ COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modul
 
 # Fail the image build if the real Postgres driver is not present. This keeps
 # the Compose migration gate from discovering a broken runtime too late.
-RUN test -f /app/node_modules/pg/index.js
+RUN test -f /app/node_modules/pg/lib/index.js
 
 # TypeScript is a build-time dependency of the workspace, not a runtime dependency.
 RUN rm -rf /app/node_modules/.pnpm/@typescript+typescript-linux-x64@* \

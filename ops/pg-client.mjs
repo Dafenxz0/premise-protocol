@@ -1,7 +1,11 @@
 const DEFAULT_POOL_SIZE = 10;
 
 async function loadPool() {
-  const module = await import("../deploy/node_modules/pg/index.js");
+  // Resolve the package through Node's package exports/main metadata. The pg
+  // package currently exposes lib/index.js rather than a root index.js, and
+  // production images intentionally keep dependency layout an implementation
+  // detail.
+  const module = await import("pg");
   const Pool = module.Pool ?? module.default?.Pool;
   if (typeof Pool !== "function") throw new Error("The pg driver is not available in the deployment image");
   return Pool;
