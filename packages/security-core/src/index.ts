@@ -3,13 +3,16 @@ import {
   createDecipheriv,
   createHash,
   createHmac,
+  createPrivateKey,
+  createPublicKey,
   generateKeyPairSync,
   randomBytes,
   randomUUID,
   sign,
   timingSafeEqual,
   verify,
-  type KeyLike as NodeKeyLike
+  type KeyLike as NodeKeyLike,
+  type KeyObjectLike
 } from "node:crypto";
 
 export const ENCRYPTED_PAYLOAD_FORMAT = "premise-encrypted-payload" as const;
@@ -148,9 +151,40 @@ function securityPayloadBytes(value: unknown): Uint8Array {
   return typeof value === "string" || value instanceof Uint8Array ? bytes(value) : bytes(canonicalize(value));
 }
 
+function parseEd25519Key(value: Ed25519Key, kind: "private" | "public"): KeyObjectLike {
+  if (value === undefined || value === null) throw new Error("an Ed25519 key is required");
+  const key: KeyObjectLike = typeof value === "object" && !(value instanceof Uint8Array)
+    ? value as KeyObjectLike
+    : value instanceof Uint8Array
+      ? kind === "private"
+        ? createPrivateKey({ key: value, format: "der", type: "pkcs8" })
+        : createPublicKey({ key: value, format: "der", type: "spki" })
+      : kind === "private"
+        ? createPrivateKey(value)
+        : createPublicKey(value);
+  if (key.type !== kind || key.asymmetricKeyType !== "ed25519") throw new Error("the key algorithm is not Ed25519");
+  return key;
+}
+
+function signingKey(value: Ed25519Key): NodeKeyLike {
+  try {
+    return parseEd25519Key(value, "private");
+  } catch {
+    throw new SecurityError("SIGNING_FAILED", "Ed25519 private key is invalid");
+  }
+}
+
+function verificationKey(value: Ed25519Key): NodeKeyLike | undefined {
+  try {
+    return parseEd25519Key(value, "public");
+  } catch {
+    return undefined;
+  }
+}
+
 export interface Ed25519KeyObject {
-  readonly type: string;
-  readonly asymmetricKeyType?: string;
+  readonly type: "private" | "public";
+  readonly asymmetricKeyType: "ed25519";
 }
 
 export type Ed25519Key = Ed25519KeyObject | string | Uint8Array;
@@ -170,8 +204,10 @@ export function generateEd25519KeyPair(): Ed25519KeyPair {
 
 export function signEd25519(payload: unknown, privateKey: Ed25519Key): string {
   if (privateKey === undefined || privateKey === null) invalid("an Ed25519 private key is required");
+  const payloadBytes = securityPayloadBytes(payload);
+  const key = signingKey(privateKey);
   try {
-    return base64Encode(sign(null, securityPayloadBytes(payload), privateKey as NodeKeyLike));
+    return base64Encode(sign(null, payloadBytes, key));
   } catch {
     throw new SecurityError("SIGNING_FAILED", "Ed25519 signing failed");
   }
@@ -186,8 +222,10 @@ export function verifyEd25519(payload: unknown, signature: string, publicKey: Ed
     return false;
   }
   if (signatureBytes.length !== 64) return false;
+  const key = verificationKey(publicKey);
+  if (key === undefined) return false;
   try {
-    return verify(null, securityPayloadBytes(payload), publicKey as NodeKeyLike, signatureBytes);
+    return verify(null, securityPayloadBytes(payload), key, signatureBytes);
   } catch {
     return false;
   }
@@ -705,6 +743,9 @@ export function sanitizeSecrets<T = unknown>(value: T, options: SecretSanitizerO
 
 export type AuditOutcome = "allow" | "deny" | "allowed" | "denied" | "success" | "failure";
 
+const AUDIT_OUTCOMES = new Set<AuditOutcome>(["allow", "deny", "allowed", "denied", "success", "failure"]);
+const AUDIT_HASH_PATTERN = /^sha256:[0-9a-f]{64}$/u;
+
 export interface AuditEventInput {
   readonly tenantId: string;
   readonly subjectId?: string;
@@ -746,18 +787,57 @@ function auditHash(entry: Omit<AuditEntry, "hash">): string {
   return digest(canonicalize(unsignedAuditEntry(entry)));
 }
 
+function auditEntryShape(entry: unknown, sequence: number, previousHash: string): entry is AuditEntry {
+  if (!isRecord(entry)) return false;
+  const hasSubject = Object.hasOwn(entry, "subjectId");
+  const expectedKeys = new Set(["format", "version", "sequence", "eventId", "occurredAt", "tenantId", ...(hasSubject ? ["subjectId"] : []), "action", "outcome", "data", "previousHash", "hash"]);
+  const actualKeys = Object.keys(entry);
+  if (actualKeys.length !== expectedKeys.size || actualKeys.some((key) => !expectedKeys.has(key))) return false;
+  if (
+    entry.format !== AUDIT_LOG_FORMAT ||
+    entry.version !== AUDIT_LOG_VERSION ||
+    entry.sequence !== sequence ||
+    typeof entry.eventId !== "string" ||
+    typeof entry.occurredAt !== "string" ||
+    typeof entry.tenantId !== "string" ||
+    (hasSubject && typeof entry.subjectId !== "string") ||
+    typeof entry.action !== "string" ||
+    typeof entry.outcome !== "string" ||
+    !AUDIT_OUTCOMES.has(entry.outcome as AuditOutcome) ||
+    !Object.hasOwn(entry, "data") ||
+    entry.previousHash !== previousHash ||
+    (entry.previousHash !== AUDIT_GENESIS_HASH && !AUDIT_HASH_PATTERN.test(entry.previousHash)) ||
+    typeof entry.hash !== "string" ||
+    !AUDIT_HASH_PATTERN.test(entry.hash)
+  ) return false;
+  try {
+    identifier(entry.eventId, "eventId");
+    printable(entry.occurredAt, "occurredAt", 128);
+    identifier(entry.tenantId, "tenantId");
+    if (hasSubject) identifier(entry.subjectId as string, "subjectId");
+    identifier(entry.action, "action");
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 export function verifyAuditChain(entries: readonly AuditEntry[]): boolean {
   if (!Array.isArray(entries)) return false;
   let previousHash: string = AUDIT_GENESIS_HASH;
+  const eventIds = new Set<string>();
+  const hashes = new Set<string>();
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
-    if (entry === undefined || entry.format !== AUDIT_LOG_FORMAT || entry.version !== AUDIT_LOG_VERSION || entry.sequence !== index + 1 || entry.previousHash !== previousHash || typeof entry.hash !== "string") return false;
     try {
+      if (!auditEntryShape(entry, index + 1, previousHash) || eventIds.has(entry.eventId) || hashes.has(entry.hash)) return false;
       const { hash: _hash, ...withoutHash } = entry;
       if (auditHash(withoutHash) !== entry.hash) return false;
     } catch {
       return false;
     }
+    eventIds.add(entry.eventId);
+    hashes.add(entry.hash);
     previousHash = entry.hash;
   }
   return true;

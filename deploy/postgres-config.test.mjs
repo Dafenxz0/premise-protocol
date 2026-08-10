@@ -6,6 +6,7 @@ const config = await readFile(new URL("./postgres/postgresql.conf", import.meta.
 const compose = await readFile(new URL("./docker-compose.yml", import.meta.url), "utf8");
 const dockerfile = await readFile(new URL("./Dockerfile", import.meta.url), "utf8");
 const productionEnv = await readFile(new URL("./config/production.env.example", import.meta.url), "utf8");
+const prometheus = await readFile(new URL("./prometheus.yml", import.meta.url), "utf8");
 
 function setting(text, name) {
   const match = text.match(new RegExp(`^\\s*${name}\\s*=\\s*([^\\s#]+)\\s*(?:#.*)?$`, "mu"));
@@ -42,8 +43,31 @@ test("Compose activates the checked-in config and leaves pool headroom", () => {
   assert.ok(Number(setting(config, "max_connections")) >= Number(pool) + 16);
 });
 
+test("Compose provisions and uses a non-bypass RLS application role", () => {
+  assert.match(compose, /^\s+db-roles:\s*$/mu);
+  assert.match(compose, /CREATE ROLE %I LOGIN NOSUPERUSER NOBYPASSRLS/u);
+  assert.match(compose, /ALTER ROLE %I WITH LOGIN NOSUPERUSER NOBYPASSRLS/u);
+  assert.match(compose, /migrate:[\s\S]*?db-roles:\s*\n\s+condition: service_completed_successfully/u);
+  assert.match(compose, /DATABASE_URL: \$\{MIGRATIONS_DATABASE_URL:-postgresql:\/\/\$\{POSTGRES_USER:-premise\}/u);
+  assert.match(compose, /PREMISE_DB_USER: \$\{PREMISE_DB_USER:-premise_app\}/u);
+  const databaseUrls = [...compose.matchAll(/^\s+DATABASE_URL:\s+(.+)$/gmu)].map((match) => match[1]);
+  assert.equal(databaseUrls.length, 3);
+  assert.ok(databaseUrls.slice(1).every((value) => value.includes("PREMISE_DB_USER") && !value.includes("POSTGRES_USER:-")));
+});
+
+test("Prometheus receives a dedicated metrics bearer through environment expansion", () => {
+  assert.match(compose, /--config\.expand-env/u);
+  assert.equal((compose.match(/^\s+PREMISE_METRICS_TOKEN:/gmu) ?? []).length, 2);
+  assert.match(prometheus, /authorization:\s*\n\s+type:\s+Bearer\s*\n\s+credentials:\s+\$\{PREMISE_METRICS_TOKEN\}/u);
+  assert.doesNotMatch(prometheus, /PREMISE_API_TOKEN/u);
+});
+
 test("production example pins the same pool budget", () => {
   assert.match(productionEnv, /^PREMISE_DB_POOL_SIZE=8$/mu);
+  assert.match(productionEnv, /^PREMISE_DB_USER=__INJECT_DB_APP_USER__$/mu);
+  assert.match(productionEnv, /^PREMISE_METRICS_TOKEN=__INJECT_METRICS_TOKEN__$/mu);
+  assert.match(productionEnv, /DATABASE_URL must resolve to the NOSUPERUSER\/NOBYPASSRLS application role/u);
+  assert.match(productionEnv, /^MIGRATIONS_DATABASE_URL=__INJECT_MIGRATIONS_FROM_SECRET_MANAGER__$/mu);
 });
 
 test("production image carries the in-network soak diagnostic", () => {

@@ -30,6 +30,7 @@ const JSON_EVIDENCE = Object.freeze({
   "backup-restore.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "backup and restore" }),
   "external-holdout.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "independent external holdout" }),
   "load-full.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "million-scale load" }),
+  "postgres-scale.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "real PostgreSQL scale" }),
   "recovery-report.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "failure and recovery" }),
   "operations-smoke.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "production-shaped operations" }),
   "rollback-report.json": Object.freeze({ metadata: Object.freeze(["schema", "commit", "generatedAt", "source", "trace"]), purpose: "deployment rollback" }),
@@ -58,7 +59,9 @@ function validTimestamp(value) {
 
 function validCommit(value) {
   if (typeof value === "string") return /^[0-9a-f]{40}$/iu.test(value);
-  return value !== null && typeof value === "object" && !Array.isArray(value) && typeof value.value === "string" && /^[0-9a-f]{40}$/iu.test(value.value);
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  if (Object.keys(value).some((key) => key !== "value" && key !== "source")) return false;
+  return typeof value.value === "string" && /^[0-9a-f]{40}$/iu.test(value.value) && (value.source === undefined || typeof value.source === "string" && value.source.trim().length > 0);
 }
 
 function independenceSignal(document) {
@@ -175,10 +178,13 @@ async function inspectEvidenceFile(evidenceRoot, requirement) {
       result.failures.push(failure("metadata-missing", `${requirement.name} is missing non-empty metadata field '${field}'.`, { field }));
     }
   }
-  for (const field of ["schema", "commit"]) {
+  for (const field of ["schema", "format"]) {
     if (meaningful(document[field]) && typeof document[field] !== "string") {
       result.failures.push(failure("metadata-invalid", `${requirement.name} metadata field '${field}' must be a non-empty string.`, { field }));
     }
+  }
+  if (meaningful(document.schema) && meaningful(document.format) && document.schema !== document.format) {
+    result.failures.push(failure("schema-mismatch", `${requirement.name} declares different schema and format identifiers.`, { fields: ["schema", "format"] }));
   }
   if (meaningful(document.generatedAt) && !validTimestamp(document.generatedAt)) {
     result.failures.push(failure("metadata-invalid", `${requirement.name} has an invalid generatedAt timestamp.`, { field: "generatedAt" }));

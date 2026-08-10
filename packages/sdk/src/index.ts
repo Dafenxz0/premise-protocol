@@ -1,6 +1,7 @@
 export const SDK_VERSION = "2.0.0" as const;
 export const API_SPEC_VERSION = "premise/2" as const;
 export const SPEC_VERSION_V2 = API_SPEC_VERSION;
+export const MAX_QUERY_HITS = 1_000 as const;
 
 export type V2MemoryStatus = "FRESH" | "STALE" | "INVALID" | "UNKNOWN";
 export type V2ValidityPolicy = "IMMUTABLE" | "VERSIONED" | "TTL" | "MANUAL";
@@ -452,6 +453,13 @@ function requiredString(value: unknown, label: string): string {
   return value;
 }
 
+function visibleAscii(value: unknown, label: string, maxLength: number): string {
+  if (typeof value !== "string" || value.length < 1 || value.length > maxLength || !/^[\x21-\x7e]+$/u.test(value)) {
+    throw new TypeError(`${label} must be 1-${maxLength} visible ASCII characters`);
+  }
+  return value;
+}
+
 function positiveInteger(value: number, label: string, allowZero = false): number {
   if (!Number.isSafeInteger(value) || (allowZero ? value < 0 : value <= 0)) throw new RangeError(label + " must be a " + (allowZero ? "non-negative" : "positive") + " safe integer");
   return value;
@@ -546,14 +554,22 @@ function errorDescription(status: number, body: unknown): {
   if (typeof body === "string" && body.length > 0) return { code: fallbackCode, message: body };
   if (isRecord(body)) {
     const rawError = body.error;
-    if (typeof rawError === "string" && rawError.length > 0) return { code: fallbackCode, message: rawError };
+    const topLevelMessage = typeof body.message === "string" && body.message.length > 0 ? body.message : undefined;
+    const topLevelDetails = Array.isArray(body.details) ? body.details : undefined;
+    if (typeof rawError === "string" && rawError.length > 0) {
+      return {
+        code: topLevelMessage === undefined ? fallbackCode : rawError,
+        message: topLevelMessage ?? rawError,
+        ...(topLevelDetails === undefined ? {} : { details: topLevelDetails })
+      };
+    }
     if (isRecord(rawError)) {
       const code = typeof rawError.code === "string" && rawError.code.length > 0 ? rawError.code : fallbackCode;
       const message = typeof rawError.message === "string" && rawError.message.length > 0 ? rawError.message : "PREMiSE API request failed";
       const details = Array.isArray(rawError.details) ? rawError.details : undefined;
       return { code, message, ...(details === undefined ? {} : { details }) };
     }
-    if (typeof body.message === "string" && body.message.length > 0) return { code: fallbackCode, message: body.message };
+    if (topLevelMessage !== undefined) return { code: fallbackCode, message: topLevelMessage, ...(topLevelDetails === undefined ? {} : { details: topLevelDetails }) };
   }
   return { code: fallbackCode, message: "PREMiSE API request failed with HTTP " + status };
 }
@@ -608,16 +624,25 @@ function normalizeQueryCall(
 }
 
 function queryBody(input: QueryRequest): Record<string, unknown> {
+  if (!isRecord(input)) throw new TypeError("query input must be an object");
   requiredString(input.query, "query");
+  if (input.options !== undefined && !isRecord(input.options)) throw new TypeError("options must be an object");
+  const options = input.options;
+  if (options?.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit < 0 || options.limit > MAX_QUERY_HITS)) {
+    throw new RangeError(`options.limit must be an integer from 0 to ${MAX_QUERY_HITS}`);
+  }
   if (input.maxTokens !== undefined) positiveInteger(input.maxTokens, "maxTokens");
   if (input.pageSize !== undefined) positiveInteger(input.pageSize, "pageSize");
+  if (input.pageSize !== undefined && input.pageSize > MAX_QUERY_HITS) {
+    throw new RangeError(`pageSize must be an integer from 1 to ${MAX_QUERY_HITS}`);
+  }
   if (input.pageToken !== undefined) requiredString(input.pageToken, "pageToken");
-  const options = input.pageSize !== undefined && (input.options === undefined || input.options.limit === undefined)
-    ? { ...(input.options ?? {}), limit: input.pageSize }
-    : input.options;
+  const effectiveOptions = input.pageSize !== undefined && (options === undefined || options.limit === undefined)
+    ? { ...(options ?? {}), limit: input.pageSize }
+    : options;
   return {
     query: input.query,
-    ...(options === undefined ? {} : { options }),
+    ...(effectiveOptions === undefined ? {} : { options: effectiveOptions }),
     ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
     ...(input.pageSize === undefined ? {} : { pageSize: input.pageSize }),
     ...(input.pageToken === undefined ? {} : { pageToken: input.pageToken })
@@ -626,11 +651,17 @@ function queryBody(input: QueryRequest): Record<string, unknown> {
 
 function normalizeQueryResponse<T>(value: unknown): QueryResponse<T> {
   if (!isRecord(value) || !Array.isArray(value.hits)) throw new PremiseDecodeError("PREMiSE query response must contain a hits array");
-  const context = isRecord(value.context) ? value.context as ContextPlan : { selected: [] };
-  if (value.nextPageToken !== undefined && typeof value.nextPageToken !== "string") {
+  if (!isRecord(value.context) || !Array.isArray(value.context.selected)) {
+    throw new PremiseDecodeError("PREMiSE query response must contain a context.selected array");
+  }
+  const context = value.context as ContextPlan;
+  if (value.nextPageToken !== undefined && (typeof value.nextPageToken !== "string" || value.nextPageToken.length === 0)) {
     throw new PremiseDecodeError("PREMiSE query response nextPageToken must be a string");
   }
-  if (isRecord(value.page) && value.page.nextPageToken !== undefined && typeof value.page.nextPageToken !== "string") {
+  if (value.page !== undefined && !isRecord(value.page)) {
+    throw new PremiseDecodeError("PREMiSE query response page must be an object");
+  }
+  if (isRecord(value.page) && value.page.nextPageToken !== undefined && (typeof value.page.nextPageToken !== "string" || value.page.nextPageToken.length === 0)) {
     throw new PremiseDecodeError("PREMiSE query response page.nextPageToken must be a string");
   }
   return {
@@ -639,6 +670,18 @@ function normalizeQueryResponse<T>(value: unknown): QueryResponse<T> {
     context,
     ...(value.nextPageToken === undefined ? {} : { nextPageToken: value.nextPageToken })
   } as QueryResponse<T>;
+}
+
+function assertApiSpecVersion(value: unknown, label: string): void {
+  if (!isRecord(value) || value.specVersion !== API_SPEC_VERSION) {
+    throw new PremiseSdkError(`${label} must declare specVersion ${API_SPEC_VERSION}`, "INVALID_RESPONSE", { body: value });
+  }
+}
+
+function assertMemoryRecordVersion(value: unknown): void {
+  if (!isRecord(value) || !isRecord(value.envelope) || value.envelope.specVersion !== API_SPEC_VERSION) {
+    throw new PremiseSdkError(`PREMiSE memory response must use specVersion ${API_SPEC_VERSION}`, "INVALID_RESPONSE", { body: value });
+  }
 }
 
 function retryAfterMilliseconds(error: PremiseHttpError, now: number): number | undefined {
@@ -686,16 +729,22 @@ export class PremiseClient<T = unknown> {
     this.logger = options.logger ?? (() => undefined);
   }
 
-  health(options?: RequestOptions): Promise<HealthResponse> {
-    return this.request<HealthResponse>("GET", "health", undefined, options);
+  async health(options?: RequestOptions): Promise<HealthResponse> {
+    const value = await this.request<unknown>("GET", "health", undefined, options);
+    assertApiSpecVersion(value, "PREMiSE health response");
+    return value as HealthResponse;
   }
 
-  capabilities(options?: RequestOptions): Promise<CapabilitiesResponse> {
-    return this.request<CapabilitiesResponse>("GET", "v2/capabilities", undefined, options);
+  async capabilities(options?: RequestOptions): Promise<CapabilitiesResponse> {
+    const value = await this.request<unknown>("GET", "v2/capabilities", undefined, options);
+    assertApiSpecVersion(value, "PREMiSE capabilities response");
+    return value as CapabilitiesResponse;
   }
 
-  getMemory<TContent = T>(memoryId: string, options?: RequestOptions): Promise<MemoryRecord<TContent>> {
-    return this.request<MemoryRecord<TContent>>("GET", "v2/memories/" + encodeURIComponent(requiredString(memoryId, "memoryId")), undefined, options);
+  async getMemory<TContent = T>(memoryId: string, options?: RequestOptions): Promise<MemoryRecord<TContent>> {
+    const value = await this.request<unknown>("GET", "v2/memories/" + encodeURIComponent(requiredString(memoryId, "memoryId")), undefined, options);
+    assertMemoryRecordVersion(value);
+    return value as MemoryRecord<TContent>;
   }
 
   registerMemory(record: MemoryRecord<T>, options?: RequestOptions): Promise<StoreMemoryResponse> {
@@ -786,6 +835,7 @@ export class PremiseClient<T = unknown> {
     const request = typeof input === "string"
       ? { sourceUri: requiredString(input, "sourceUri"), version: versionOrOptions as VersionReference }
       : input;
+    if (!isRecord(request)) throw new TypeError("sourceChanged input must be an object");
     requiredString(request.sourceUri, "sourceUri");
     if (!isRecord(request.version) || typeof request.version.scheme !== "string" || typeof request.version.token !== "string") {
       throw new TypeError("version must contain scheme and token strings");
@@ -849,12 +899,12 @@ export class PremiseClient<T = unknown> {
     }
 
     const requestId = options?.requestId ?? headers.get("x-request-id") ?? makeRequestId();
-    headers.set("x-request-id", requiredString(requestId, "requestId"));
+    headers.set("x-request-id", visibleAscii(requestId, "requestId", 128));
 
     let idempotencyKey: string | undefined;
     if (method !== "GET" && method !== "HEAD") {
       idempotencyKey = options?.idempotencyKey ?? headers.get("idempotency-key") ?? makeIdempotencyKey();
-      headers.set("idempotency-key", requiredString(idempotencyKey, "idempotencyKey"));
+      headers.set("idempotency-key", visibleAscii(idempotencyKey, "idempotencyKey", 256));
     }
     return { headers, body: serializedBody, idempotencyKey, requestId };
   }

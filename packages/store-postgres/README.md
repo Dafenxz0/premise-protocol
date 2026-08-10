@@ -51,6 +51,7 @@ No construyas un store v2 sin `tenantId` para tráfico normal: ese modo está pe
 - `appendEvent()` usa `UNIQUE (tenant_id, idempotency_key)` y compara el evento completo ante una repetición; un mismo idempotency key con otro payload falla.
 - `putAndAppend()` guarda record y evento en una única transacción.
 - `snapshot()` usa `REPEATABLE READ` y persiste el snapshot; `restore()` borra y repuebla records, eventos, snapshots y checkpoints de forma atómica.
+- `loadIncrementally({ batchSize, onRecord, onEvent })` recorre records y eventos por páginas keyset dentro de una vista `REPEATABLE READ READ ONLY`; es la ruta de hidratación de arranque y no construye ni persiste un `RuntimeSnapshot` monolítico. La indexación completa de la API sigue siendo un coste separado.
 - `replay(handler, { consumerId, batchSize })` bloquea el checkpoint del consumidor. El cursor solo avanza después de que el handler termina; si falla, la transacción hace rollback y el lote se puede reintentar. Usa consumidores distintos para replay paralelo independiente.
 
 ## Despliegue y checks

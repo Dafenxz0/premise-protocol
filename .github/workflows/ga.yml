@@ -224,14 +224,17 @@ jobs:
           PREMISE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          node benchmarks/ga-load/runner.mjs --profile full --output benchmarks/ga-load/results-full.json --enforce-gates
-          node benchmarks/ga-load/self-check.mjs --input benchmarks/ga-load/results-full.json
+          node benchmarks/ga-load/runner.mjs --profile full --output benchmarks/ga-load/load-full.json --enforce-gates
+          node benchmarks/ga-load/self-check.mjs --input benchmarks/ga-load/load-full.json
+      - name: Verify million-memory raw evidence
+        if: always()
+        run: test -s benchmarks/ga-load/load-full.json
       - name: Upload million-memory evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: premise-ga-load-full-${{ github.sha }}
-          path: benchmarks/ga-load/results-full.json
+          path: benchmarks/ga-load/load-full.json
           if-no-files-found: error
           retention-days: 30
 
@@ -274,6 +277,8 @@ jobs:
           done
           docker compose -f "${COMPOSE_FILE}" ps
           exit 1
+      - name: Provision PostgreSQL application role
+        run: docker compose -f "${COMPOSE_FILE}" run --rm --no-deps db-roles
       - name: Apply migrations
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -297,9 +302,12 @@ jobs:
           PREMISE_BUILD_VERSION: ${{ github.sha }}
         run: |
           set -euo pipefail
-          token="$(openssl rand -hex 32)"
-          echo "PREMISE_API_TOKEN=$token" >> "$GITHUB_ENV"
-          export PREMISE_API_TOKEN="$token"
+          api_token="$(openssl rand -hex 32)"
+          metrics_token="$(openssl rand -hex 32)"
+          echo "PREMISE_API_TOKEN=$api_token" >> "$GITHUB_ENV"
+          echo "PREMISE_METRICS_TOKEN=$metrics_token" >> "$GITHUB_ENV"
+          export PREMISE_API_TOKEN="$api_token"
+          export PREMISE_METRICS_TOKEN="$metrics_token"
           docker compose -f "${COMPOSE_FILE}" up -d --no-build --no-deps premise
       - name: Wait for API readiness after scale seed
         env:
@@ -329,7 +337,7 @@ jobs:
             -e PREMISE_SCALE_MAX_P99_MS="$PREMISE_SCALE_MAX_P99_MS" \
             -e PREMISE_COMMIT="$PREMISE_COMMIT" \
             premise node /app/benchmarks/ga-load/postgres-scale.mjs \
-            --mode benchmark --output /tmp/postgres-scale.json --trace /tmp/postgres-scale-traces.jsonl
+            --mode benchmark --output /tmp/postgres-scale.json --trace /tmp/postgres-scale-traces.jsonl | tee .ga-artifacts/postgres-scale-run.log
           docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale.json .ga-artifacts/postgres-scale.json
           docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-traces.jsonl .ga-artifacts/postgres-scale-traces.jsonl
       - name: Restart API and repeat recovery benchmark
@@ -353,9 +361,22 @@ jobs:
             -e PREMISE_SCALE_MAX_P99_MS="$PREMISE_SCALE_MAX_P99_MS" \
             -e PREMISE_COMMIT="$PREMISE_COMMIT" \
             premise node /app/benchmarks/ga-load/postgres-scale.mjs \
-            --mode benchmark --output /tmp/postgres-scale-restart.json --trace /tmp/postgres-scale-restart-traces.jsonl
-          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-restart.json .ga-artifacts/postgres-scale-restart.json
-          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/postgres-scale-restart-traces.jsonl .ga-artifacts/postgres-scale-restart-traces.jsonl
+            --mode benchmark --output /tmp/recovery-report.json --trace /tmp/recovery-report-traces.jsonl | tee .ga-artifacts/recovery-report-run.log
+          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/recovery-report.json .ga-artifacts/recovery-report.json
+          docker compose -f "${COMPOSE_FILE}" cp premise:/tmp/recovery-report-traces.jsonl .ga-artifacts/recovery-report-traces.jsonl
+      - name: Verify PostgreSQL scale raw evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          for file in \
+            .ga-artifacts/postgres-scale.json \
+            .ga-artifacts/postgres-scale-traces.jsonl \
+            .ga-artifacts/postgres-scale-run.log \
+            .ga-artifacts/recovery-report.json \
+            .ga-artifacts/recovery-report-traces.jsonl \
+            .ga-artifacts/recovery-report-run.log; do
+            test -s "$file"
+          done
       - name: Upload real PostgreSQL scale evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -395,6 +416,13 @@ jobs:
           node benchmarks/real-world-v2/runner.mjs --live --repetitions 20
           node benchmarks/real-world-v2/report.mjs
           node benchmarks/real-world-v2/self-check.mjs
+      - name: Verify external GitHub raw evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s benchmarks/real-world-v2/results.json
+          test -s benchmarks/real-world-v2/traces.jsonl
+          test -s benchmarks/real-world-v2/report.md
       - name: Upload external benchmark evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -460,6 +488,17 @@ jobs:
             --candidate "$PREMISE_HOLDOUT_CANDIDATE" \
             --require-independent \
             --output-dir .ga-artifacts/holdout | tee .ga-artifacts/holdout/runner.log
+      - name: Verify external holdout raw evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          for file in \
+            .ga-artifacts/holdout/external-holdout.json \
+            .ga-artifacts/holdout/dataset-manifest.json \
+            .ga-artifacts/holdout/responses.jsonl \
+            .ga-artifacts/holdout/runner.log; do
+            test -s "$file"
+          done
       - name: Upload independent holdout evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -551,7 +590,7 @@ jobs:
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
         run: |
-          docker compose -f "${COMPOSE_FILE}" exec -T premise node --input-type=module -e "const r=await fetch('http://127.0.0.1:3000/metrics'); const t=await r.text(); if (!r.ok || !t.includes('premise_http_requests_total')) process.exit(1);"
+          docker compose -f "${COMPOSE_FILE}" exec -T premise node --input-type=module -e 'const r=await fetch("http://127.0.0.1:3000/metrics", { headers: { authorization: `Bearer ${process.env.PREMISE_METRICS_TOKEN}` } }); const t=await r.text(); if (!r.ok || !t.includes("premise_http_requests_total")) process.exit(1);'
       - name: Create and verify a backup
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -609,6 +648,7 @@ jobs:
           set -euo pipefail
           export PREMISE_ENV=production
           export PREMISE_API_TOKEN="$(openssl rand -hex 32)"
+          export PREMISE_METRICS_TOKEN="$(openssl rand -hex 32)"
           docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
       - name: Wait for readiness
         env:
@@ -644,7 +684,7 @@ jobs:
             --duration-ms "$SOAK_DURATION_MS" \
             --concurrency "${PREMISE_SOAK_CONCURRENCY:-16}" \
             --output /tmp/soak-availability.json \
-            --enforce-ga
+            --enforce-ga | tee .ga-artifacts/soak-run.log
       - name: Copy in-network soak diagnostic evidence
         if: always()
         run: |
@@ -654,6 +694,13 @@ jobs:
       - name: Capture soak stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log
+      - name: Verify soak raw evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s .ga-artifacts/soak-availability.json
+          test -s .ga-artifacts/soak-run.log
+          test -s .ga-artifacts/soak-compose.log
       - name: Upload soak evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -697,6 +744,12 @@ jobs:
           set -euo pipefail
           node benchmarks/ga-cost/runner.mjs --input .ga-artifacts/cost-input.json --output .ga-artifacts/cost-report.json
           node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('.ga-artifacts/cost-report.json','utf8')); if (x.eligibleForGa !== true) { console.error(JSON.stringify(x)); process.exit(1); }"
+      - name: Verify provider cost raw evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s .ga-artifacts/cost-input.json
+          test -s .ga-artifacts/cost-report.json
       - name: Upload cost evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -741,6 +794,9 @@ jobs:
           mkdir -p .ga-artifacts .local/backups
           chmod 0777 .local/backups
           node deploy/rollback-smoke.mjs
+      - name: Verify rollback raw evidence
+        if: always()
+        run: test -s .ga-artifacts/rollback-report.json
       - name: Upload rollback evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -756,7 +812,7 @@ jobs:
 
   ga-certification:
     name: v2.0 GA certification decision
-    if: (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.')) && always()
+    if: always() && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v2.'))
     needs: [security, deterministic-load, million-load, postgres-scale, external-github, external-holdout, integration, production-soak, cost-evidence, rollback-certification]
     runs-on: ubuntu-latest
     steps:

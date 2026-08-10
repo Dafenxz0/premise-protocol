@@ -35,6 +35,19 @@
           "additionalProperties": true
         }
       ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[\\x21-\\x7e]+$"
+    },
+    "details": {
+      "type": "array"
     }
   },
   "additionalProperties": true

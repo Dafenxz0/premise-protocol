@@ -3,8 +3,11 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { URL } from "node:url";
 import { ContextEngine, type ContextCandidate } from "@premise/context-engine";
 import { HybridIndex, type SearchOptions } from "@premise/index-hybrid";
-import { SPEC_VERSION_V2 } from "@premise/protocol-types";
+import { SPEC_VERSION_V2, V2EnvelopeValidationError } from "@premise/protocol-types";
 import { PremiseRuntime, type RuntimePrincipal, type RuntimeRecord, type RuntimeValidator } from "@premise/runtime-core";
+
+export const HTTP_IDEMPOTENCY_PROTOCOL = "premise-http-idempotency/1" as const;
+export const HTTP_REQUEST_HASH_PREFIX = "sha256:http-v1:" as const;
 
 export interface PremiseServerOptions<T> {
   readonly runtime: PremiseRuntime<T>;
@@ -103,7 +106,13 @@ export interface PremiseServerMetric {
 }
 
 class HttpError extends Error {
-  constructor(readonly status: number, readonly code: string, message: string, readonly headers: Readonly<Record<string, string>> = {}) {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly headers: Readonly<Record<string, string>> = {},
+    readonly details?: readonly unknown[]
+  ) {
     super(message);
     this.name = "HttpError";
   }
@@ -124,6 +133,20 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(serialized) as T;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requiredInputString(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) throw new TypeError(`${label} must be a non-empty string`);
+  return value;
+}
+
+function positiveSafeInteger(value: unknown, label: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) <= 0) throw new RangeError(`${label} must be a positive safe integer`);
+  return value as number;
+}
+
 export interface ServerAddress {
   readonly host: string;
   readonly port: number;
@@ -140,6 +163,8 @@ function readBody(request: IncomingMessage, maxBodyBytes: number): Promise<strin
   return new Promise((resolve, reject) => {
     let body = "";
     let bytes = 0;
+    let settled = false;
+    const decoder = new TextDecoder();
     const declaredLength = request.headers["content-length"];
     if (typeof declaredLength === "string" && /^\d+$/u.test(declaredLength) && Number(declaredLength) > maxBodyBytes) {
       reject(new HttpError(413, "PAYLOAD_TOO_LARGE", "Request body exceeds the configured limit"));
@@ -147,30 +172,46 @@ function readBody(request: IncomingMessage, maxBodyBytes: number): Promise<strin
       return;
     }
     request.on("data", (chunk) => {
-      const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+      if (settled) return;
+      const text = typeof chunk === "string" ? chunk : "";
       bytes += typeof chunk === "string" ? utf8Bytes(chunk) : chunk.byteLength;
       if (bytes > maxBodyBytes) {
+        settled = true;
         reject(new HttpError(413, "PAYLOAD_TOO_LARGE", "Request body exceeds the configured limit"));
         request.resume();
         return;
       }
-      body += text;
+      body += typeof chunk === "string" ? text : decoder.decode(chunk, { stream: true });
     });
-    request.on("end", () => resolve(body));
-    request.on("error", reject);
+    request.on("end", () => {
+      if (settled) return;
+      settled = true;
+      body += decoder.decode();
+      resolve(body);
+    });
+    request.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
   });
 }
 
 function parseJson(body: string): Record<string, unknown> {
-  if (body.length === 0) return {};
+  if (body.length === 0) throw new TypeError("Request body is required");
   const value: unknown = JSON.parse(body);
-  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Request body must be a JSON object");
+  if (!isRecord(value)) throw new TypeError("Request body must be a JSON object");
   return value as Record<string, unknown>;
 }
 
 function routeMemoryId(pathname: string): string | undefined {
   const match = /^\/v2\/memories\/([^/]+)$/u.exec(pathname);
-  return match?.[1] === undefined ? undefined : decodeURIComponent(match[1]);
+  if (match?.[1] === undefined) return undefined;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    throw new HttpError(400, "INVALID_MEMORY_ID", "memoryId is not valid URL encoding");
+  }
 }
 
 function requestPrincipal(request: IncomingMessage, fallback: RuntimePrincipal, allowTenantHeader: boolean): RuntimePrincipal {
@@ -204,7 +245,7 @@ function canonicalJson(value: unknown): string {
 
 function requestHash(operation: string, pathname: string, principal: RuntimePrincipal, payload: unknown): string {
   const canonical = canonicalJson({
-    protocol: "premise-http-idempotency/1",
+    protocol: HTTP_IDEMPOTENCY_PROTOCOL,
     operation,
     pathname,
     tenantId: principal.tenantId,
@@ -212,7 +253,7 @@ function requestHash(operation: string, pathname: string, principal: RuntimePrin
     roles: principal.roles ?? [],
     payload
   });
-  return `sha256:http-v1:${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
+  return `${HTTP_REQUEST_HASH_PREFIX}${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
 }
 
 export class PremiseServer<T = unknown> {
@@ -270,7 +311,7 @@ export class PremiseServer<T = unknown> {
       const requestedPrincipal = requestPrincipal(request, this.principal, this.allowTenantHeader);
       const principal = this.authorize === undefined ? requestedPrincipal : await this.authorize(request, requestedPrincipal);
       if (principal === false) throw new HttpError(401, "UNAUTHORIZED", "Request is not authorized");
-      const idempotencyKey = requestIdempotencyKey(request);
+      const idempotencyKey = method === "POST" ? requestIdempotencyKey(request) : undefined;
       metricTenant = principal.tenantId;
       if (method === "GET" && url.pathname === "/health") {
         jsonResponse(response, 200, { ok: true, specVersion: SPEC_VERSION_V2, memories: this.runtime.list(principal).length, events: this.runtime.eventCount() });
@@ -290,14 +331,14 @@ export class PremiseServer<T = unknown> {
       if (method === "POST" && url.pathname === "/v2/memories") {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
         const record = input.record as RuntimeRecord<T>;
-        if (!record || typeof record !== "object") throw new Error("record is required");
+        if (!isRecord(record)) throw new TypeError("record is required");
         const operation = input.derived === true ? "derive" : "register";
         const result = await this.executeMutation({
           idempotencyKey,
           operation,
           pathname: url.pathname,
           principal,
-          payload: input,
+          payload: { record, derived: input.derived === true },
           action: async () => {
             if (input.derived === true) this.runtime.derive(record, idempotencyKey); else this.runtime.register(record, idempotencyKey);
             await this.index.upsert(this.indexDocument(record));
@@ -309,12 +350,34 @@ export class PremiseServer<T = unknown> {
       }
       if (method === "POST" && url.pathname === "/v2/query") {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
-        const query = typeof input.query === "string" ? input.query : "";
-        const options = (input.options ?? {}) as SearchOptions;
-        if (options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit < 0 || options.limit > this.maxQueryHits)) {
-          throw new HttpError(400, "INVALID_QUERY_LIMIT", `options.limit must be an integer from 0 to ${this.maxQueryHits}`);
+        const query = requiredInputString(input.query, "query");
+        if (input.options !== undefined && !isRecord(input.options)) throw new TypeError("options must be an object");
+        const options = input.options ?? {};
+        if (options.filter !== undefined && options.filters !== undefined) throw new TypeError("Use either options.filter or options.filters, not both");
+        const requestedFilter = options.filter ?? options.filters;
+        if (requestedFilter !== undefined && !isRecord(requestedFilter)) throw new TypeError("options.filter must be an object");
+        let limit: number | undefined;
+        if (options.limit !== undefined) {
+          if (typeof options.limit !== "number" || !Number.isSafeInteger(options.limit) || options.limit < 0 || options.limit > this.maxQueryHits) {
+            throw new HttpError(400, "INVALID_QUERY_LIMIT", `options.limit must be an integer from 0 to ${this.maxQueryHits}`);
+          }
+          limit = options.limit;
         }
-        const hits = await this.index.search(query, { ...options, filter: { tenantId: principal.tenantId } });
+        let pageSize: number | undefined;
+        if (input.pageSize !== undefined) {
+          if (typeof input.pageSize !== "number" || !Number.isSafeInteger(input.pageSize) || input.pageSize < 1 || input.pageSize > this.maxQueryHits) {
+            throw new HttpError(400, "INVALID_QUERY_LIMIT", `pageSize must be an integer from 1 to ${this.maxQueryHits}`);
+          }
+          pageSize = input.pageSize;
+        }
+        if (input.pageToken !== undefined) throw new HttpError(501, "PAGINATION_UNSUPPORTED", "This PREMiSE server does not support pageToken yet");
+        const { filter, filters, ...searchOptions } = options;
+        const scopedOptions = {
+          ...searchOptions,
+          ...(pageSize === undefined || limit !== undefined ? {} : { limit: pageSize }),
+          filter: { ...(requestedFilter as Record<string, unknown> | undefined), tenantId: principal.tenantId }
+        } as unknown as SearchOptions;
+        const hits = await this.index.search(query, scopedOptions);
         const candidates: ContextCandidate[] = [];
         for (const hit of hits) {
           const record = this.runtime.get(hit.id, principal);
@@ -323,7 +386,8 @@ export class PremiseServer<T = unknown> {
           if (state === undefined) continue;
           candidates.push({ id: hit.id, text: hit.text, score: hit.score, freshness: state.status, topic: record.envelope.evidence[0]?.sourceUri ?? hit.id, metadata: { tenantId: record.envelope.tenantId } });
         }
-        const plan = this.context.select({ candidates, tokenBudget: typeof input.maxTokens === "number" ? input.maxTokens : 4_096 });
+        const tokenBudget = input.maxTokens === undefined ? 4_096 : positiveSafeInteger(input.maxTokens, "maxTokens");
+        const plan = this.context.select({ candidates, tokenBudget });
         jsonResponse(response, 200, { hits, context: plan });
         return;
       }
@@ -331,6 +395,7 @@ export class PremiseServer<T = unknown> {
         if (this.validator === undefined) { jsonResponse(response, 501, { error: "No validator configured" }); return; }
         const id = routeMemoryId(url.pathname.replace(/\/revalidate$/u, ""));
         if (id === undefined) { jsonResponse(response, 404, { error: "memory not found" }); return; }
+        if (this.runtime.get(id, principal) === undefined) { jsonResponse(response, 404, { error: "memory not found" }); return; }
         const result = await this.executeMutation({
           idempotencyKey,
           operation: "revalidate",
@@ -344,15 +409,18 @@ export class PremiseServer<T = unknown> {
       }
       if (method === "POST" && url.pathname === "/v2/source-changed") {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
-        if (typeof input.sourceUri !== "string" || typeof input.version !== "object" || input.version === null) throw new Error("sourceUri and version are required");
-        const sourceUri = input.sourceUri;
-        const version = input.version as { scheme: string; token: string };
+        const sourceUri = requiredInputString(input.sourceUri, "sourceUri");
+        if (!isRecord(input.version)) throw new TypeError("version must be an object");
+        const version = {
+          scheme: requiredInputString(input.version.scheme, "version.scheme"),
+          token: requiredInputString(input.version.token, "version.token")
+        };
         const result = await this.executeMutation({
           idempotencyKey,
           operation: "source-changed",
           pathname: url.pathname,
           principal,
-          payload: input,
+          payload: { sourceUri, version },
           action: async () => ({ status: 202, body: { affected: this.runtime.signalSourceChanged(sourceUri, version, idempotencyKey) } })
         });
         jsonResponse(response, result.status, result.body, result.headers);
@@ -365,14 +433,34 @@ export class PremiseServer<T = unknown> {
         ? error
         : error instanceof SyntaxError
           ? new HttpError(400, "INVALID_JSON", "Request body is not valid JSON")
-          : error instanceof Error && (error as Error & { readonly code?: unknown }).code === "PERSISTENCE_BACKPRESSURE"
-            ? new HttpError(503, "PERSISTENCE_BACKPRESSURE", "Durable persistence is temporarily saturated", { "retry-after": "1" })
-          : error instanceof TypeError
-            ? new HttpError(400, "INVALID_REQUEST", error.message)
-            : error instanceof Error && /Conflicting idempotency key/u.test(error.message)
-              ? new HttpError(409, "IDEMPOTENCY_CONFLICT", error.message)
-              : new HttpError(500, "INTERNAL_ERROR", "Internal server error");
-      jsonResponse(response, httpError.status, { error: httpError.code, message: httpError.message, requestId }, httpError.headers);
+          : error instanceof V2EnvelopeValidationError
+            ? new HttpError(422, "VALIDATION_ERROR", error.message, {}, error.issues)
+            : error instanceof Error && (error as Error & { readonly code?: unknown }).code === "PERSISTENCE_BACKPRESSURE"
+              ? new HttpError(503, "PERSISTENCE_BACKPRESSURE", "Durable persistence is temporarily saturated", { "retry-after": "1" })
+              : error instanceof Error && /Conflicting idempotency key/u.test(error.message)
+                ? new HttpError(409, "IDEMPOTENCY_CONFLICT", "Idempotency-Key was reused with a different request")
+                : error instanceof Error && /Memory already registered/u.test(error.message)
+                  ? new HttpError(409, "MEMORY_ALREADY_EXISTS", "The memory already exists")
+                  : error instanceof Error && /Missing required dependency/u.test(error.message)
+                    ? new HttpError(422, "MISSING_DEPENDENCY", "A required dependency is not available")
+                    : error instanceof Error && /Memory not found or inaccessible/u.test(error.message)
+                      ? new HttpError(404, "MEMORY_NOT_FOUND", "Memory not found")
+                      : error instanceof Error && /Tenant boundary violation/u.test(error.message)
+                        ? new HttpError(403, "TENANT_FORBIDDEN", "The memory belongs to another tenant")
+                        : error instanceof TypeError || error instanceof RangeError || error instanceof URIError
+                          ? new HttpError(400, "INVALID_REQUEST", error.message)
+                          : new HttpError(500, "INTERNAL_ERROR", "Internal server error");
+      jsonResponse(
+        response,
+        httpError.status,
+        {
+          error: httpError.code,
+          message: httpError.message,
+          requestId,
+          ...(httpError.details === undefined ? {} : { details: httpError.details })
+        },
+        httpError.headers
+      );
     } finally {
       this.onMetric?.({ requestId, method: (request.method ?? "GET").toUpperCase(), path: request.url ?? "/", status: response.statusCode, durationMs: Date.now() - startedAt, ...(metricTenant ? { tenantId: metricTenant } : {}) });
     }

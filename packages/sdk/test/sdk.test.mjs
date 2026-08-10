@@ -4,7 +4,9 @@ import { readFile } from "node:fs/promises";
 import {
   PremiseClient,
   PremiseHttpError,
+  PremiseDecodeError,
   PremisePaginationError,
+  PremiseSdkError,
   PremiseTimeoutError
 } from "../dist/index.js";
 
@@ -70,6 +72,10 @@ const server = createServer(async (request, response) => {
     }
     if (memoryId === "forbidden") {
       json(response, 403, { error: { code: "FORBIDDEN", message: "tenant denied", details: [{ field: "tenant" }] } });
+      return;
+    }
+    if (memoryId === "typed-error") {
+      json(response, 400, { error: "INVALID_MEMORY_ID", message: "memoryId is not valid" });
       return;
     }
     json(response, 200, { ...record, envelope: { ...record.envelope, memoryId } });
@@ -147,6 +153,16 @@ try {
   const capabilities = await client.capabilities();
   assert.deepEqual(capabilities.capabilities, ["TENANCY", "RETRIEVAL"]);
 
+  const wrongVersionClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ specVersion: "premise/1", capabilities: [] }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => wrongVersionClient.capabilities(),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
+
   const stored = await client.registerMemory(record, { idempotencyKey: "memory-write:1" });
   assert.deepEqual(stored, { memoryId: "memory:acme:1", status: "stored" });
   const registerRequest = requests.find(({ path, body }) => path === "/v2/memories" && body?.derived === undefined);
@@ -197,10 +213,34 @@ try {
       && error.code === "FORBIDDEN"
       && error.details?.length === 1
   );
+  await assert.rejects(
+    () => client.getMemory("typed-error", { maxRetries: 0 }),
+    (error) => error instanceof PremiseHttpError && error.code === "INVALID_MEMORY_ID" && error.message === "memoryId is not valid"
+  );
 
   await assert.rejects(
     () => client.query({ query: "slow" }, { timeoutMs: 5, maxRetries: 0 }),
     (error) => error instanceof PremiseTimeoutError && error.timeoutMs === 5
+  );
+
+  await assert.rejects(() => client.query({ query: "too-many", options: { limit: 1_001 } }), /options\.limit/);
+  await assert.rejects(
+    () => client.sourceChanged("file:///notes.txt", { scheme: "test", token: "v2" }, { idempotencyKey: "é" }),
+    /idempotencyKey must be 1-256 visible ASCII characters/
+  );
+  await assert.rejects(
+    () => client.health({ requestId: "bad\nrequest" }),
+    /requestId must be 1-128 visible ASCII characters/
+  );
+
+  const malformedResponseClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ hits: [] }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedResponseClient.query({ query: "missing-context" }),
+    (error) => error instanceof PremiseDecodeError
   );
 
   const cyclicClient = new PremiseClient({
@@ -233,6 +273,7 @@ try {
   const openapi = JSON.parse(await readFile(new URL("../../../spec/ga-api/openapi.json", import.meta.url), "utf8"));
   assert.equal(openapi.openapi, "3.1.0");
   assert.ok(openapi.paths["/v2/query"]);
+  assert.equal(openapi.components.parameters.IdempotencyKeyHeader.required, false);
   for (const file of [
     "error.schema.json",
     "memory-record.schema.json",

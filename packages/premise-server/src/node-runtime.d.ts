@@ -48,5 +48,5 @@ declare module "node:url" {
 }
 
 declare class TextDecoder {
-  decode(input?: Uint8Array): string;
+  decode(input?: Uint8Array, options?: { readonly stream?: boolean }): string;
 }

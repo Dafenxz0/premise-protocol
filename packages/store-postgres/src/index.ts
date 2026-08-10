@@ -85,6 +85,18 @@ export interface PostgresReplayOptions {
 
 export type PostgresReplayHandler = (event: V2Event, sequence: number) => Promise<void> | void;
 
+export interface PostgresRuntimeLoadOptions<T = unknown> {
+  /** Maximum number of rows materialized per database page. */
+  readonly batchSize?: number;
+  readonly onRecord: (record: RuntimeRecord<T>) => Promise<void> | void;
+  readonly onEvent: (event: V2Event, sequence: number) => Promise<void> | void;
+}
+
+export interface PostgresRuntimeLoadResult {
+  readonly records: number;
+  readonly events: number;
+}
+
 interface RuntimeTables {
   readonly prefix: string;
   readonly schema: string;
@@ -217,6 +229,8 @@ export const POSTGRES_RUNTIME_MIGRATIONS = migrationSql(tables("premise_v2"));
 export const POSTGRES_RUNTIME_SCHEMA_SQL = migrationBundle("premise_v2");
 export const POSTGRES_RUNTIME_SPEC_VERSION = SPEC_VERSION_V2;
 const HTTP_IDEMPOTENCY_LEASE_MS = 60_000;
+export const DEFAULT_POSTGRES_RUNTIME_LOAD_BATCH_SIZE = 1_000;
+export const MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE = 10_000;
 
 function cloneJson<T>(value: T): T {
   const serialized = json(value, "PREMiSE runtime value");
@@ -273,6 +287,14 @@ function rowHeaders(row: Readonly<Record<string, unknown>>): Readonly<Record<str
 
 function assertDateTime(value: string, label: string): void {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new TypeError(`${label} must be an ISO date-time`);
+}
+
+function loadBatchSize(value: number | undefined): number {
+  const result = value ?? DEFAULT_POSTGRES_RUNTIME_LOAD_BATCH_SIZE;
+  if (!Number.isSafeInteger(result) || result < 1 || result > MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE) {
+    throw new TypeError(`load batchSize must be an integer between 1 and ${MAX_POSTGRES_RUNTIME_LOAD_BATCH_SIZE}`);
+  }
+  return result;
 }
 
 function runtimeRecord<T>(row: Readonly<Record<string, unknown>>): RuntimeRecord<T> {
@@ -530,6 +552,83 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
         : await client.query(`SELECT event_json::text AS event_json FROM ${this.runtime.events} WHERE tenant_id = $1 ORDER BY sequence`, [this.tenantId]);
       return result.rows.map((row) => cloneJson(runtimeEvent(row)));
     });
+  }
+
+  /**
+   * Loads the live runtime state without constructing or persisting a
+   * monolithic RuntimeSnapshot. Keyset pagination keeps each page bounded;
+   * REPEATABLE READ makes the record and event walk one consistent view.
+   */
+  async loadIncrementally(options: PostgresRuntimeLoadOptions<T>): Promise<PostgresRuntimeLoadResult> {
+    if (options === null || typeof options !== "object") throw new TypeError("load options are required");
+    if (typeof options.onRecord !== "function" || typeof options.onEvent !== "function") throw new TypeError("load options require onRecord and onEvent callbacks");
+    const batchSize = loadBatchSize(options.batchSize);
+    return this.transaction(async (client) => {
+      let recordTenantCursor = "";
+      let recordMemoryCursor = "";
+      let records = 0;
+      while (true) {
+        const result = this.tenantId === undefined
+          ? await client.query<Readonly<Record<string, unknown>>>(`
+              SELECT tenant_id, envelope_json::text AS envelope_json, content_json::text AS content_json
+              FROM ${this.runtime.records}
+              WHERE (tenant_id, memory_id) > ($1, $2)
+              ORDER BY tenant_id, memory_id
+              LIMIT $3
+            `, [recordTenantCursor, recordMemoryCursor, batchSize])
+          : await client.query<Readonly<Record<string, unknown>>>(`
+              SELECT tenant_id, envelope_json::text AS envelope_json, content_json::text AS content_json
+              FROM ${this.runtime.records}
+              WHERE tenant_id = $1 AND memory_id > $2
+              ORDER BY memory_id
+              LIMIT $3
+            `, [this.tenantId, recordMemoryCursor, batchSize]);
+        if (result.rows.length === 0) break;
+        for (const row of result.rows) {
+          const record = runtimeRecord<T>(row);
+          const rowTenant = rowText(row, "tenant_id");
+          if (rowTenant !== record.envelope.tenantId) throw new Error(`PostgreSQL record tenant mismatch: ${record.envelope.memoryId}`);
+          this.assertTenant(record.envelope.tenantId);
+          await options.onRecord(record);
+          recordTenantCursor = rowTenant;
+          recordMemoryCursor = record.envelope.memoryId;
+          records += 1;
+        }
+        if (result.rows.length < batchSize) break;
+      }
+
+      let eventCursor = 0;
+      let events = 0;
+      while (true) {
+        const result = this.tenantId === undefined
+          ? await client.query<Readonly<Record<string, unknown>>>(`
+              SELECT sequence, tenant_id, event_json::text AS event_json
+              FROM ${this.runtime.events}
+              WHERE sequence > $1
+              ORDER BY sequence
+              LIMIT $2
+            `, [eventCursor, batchSize])
+          : await client.query<Readonly<Record<string, unknown>>>(`
+              SELECT sequence, tenant_id, event_json::text AS event_json
+              FROM ${this.runtime.events}
+              WHERE tenant_id = $1 AND sequence > $2
+              ORDER BY sequence
+              LIMIT $3
+            `, [this.tenantId, eventCursor, batchSize]);
+        if (result.rows.length === 0) break;
+        for (const row of result.rows) {
+          const event = runtimeEvent(row);
+          const rowTenant = rowText(row, "tenant_id");
+          if (rowTenant !== event.tenantId) throw new Error(`PostgreSQL event tenant mismatch: ${event.eventId}`);
+          this.assertTenant(event.tenantId);
+          eventCursor = rowSequence(row, "sequence");
+          await options.onEvent(event, eventCursor);
+          events += 1;
+        }
+        if (result.rows.length < batchSize) break;
+      }
+      return { records, events };
+    }, { isolation: "repeatable read", readOnly: true });
   }
 
   async snapshot(capturedAt: string): Promise<RuntimeSnapshot<T>> {

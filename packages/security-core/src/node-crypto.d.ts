@@ -11,7 +11,15 @@ declare module "node:crypto" {
     readonly privateKey: KeyObjectLike;
   }
 
+  export interface KeyObjectInput {
+    readonly key: string | Uint8Array;
+    readonly format?: "pem" | "der";
+    readonly type?: "pkcs1" | "pkcs8" | "sec1" | "spki";
+  }
+
   export function generateKeyPairSync(type: "ed25519"): KeyPairKeyObjectResult;
+  export function createPrivateKey(key: KeyLike | KeyObjectInput): KeyObjectLike;
+  export function createPublicKey(key: KeyLike | KeyObjectInput): KeyObjectLike;
   export function sign(algorithm: null, data: string | Uint8Array, key: KeyLike): Uint8Array;
   export function verify(algorithm: null, data: string | Uint8Array, key: KeyLike, signature: string | Uint8Array): boolean;
 

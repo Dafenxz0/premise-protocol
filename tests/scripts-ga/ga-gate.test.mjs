@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -11,6 +11,12 @@ import {
 } from "../../scripts/ga-gate.mjs";
 
 const generatedAt = "2026-08-10T12:00:00.000Z";
+
+test("public README and acceptance manifest use the same evidence names", async () => {
+  const manifest = await loadAcceptanceManifest();
+  const readme = await readFile(new URL("../../spec/ga/README.md", import.meta.url), "utf8");
+  for (const requirement of listEvidenceRequirements(manifest)) assert.ok(readme.includes(`\`${requirement.name}\``), `README is missing canonical evidence name ${requirement.name}`);
+});
 
 async function makeEvidenceDirectory(t, mutate = () => {}) {
   const directory = await mkdtemp(join(tmpdir(), "premise-ga-evidence-"));
@@ -92,6 +98,49 @@ test("legacy-shaped JSON is reported as incompatible instead of being silently e
   assert.ok(artifact.failures.some((item) => item.code === "metadata-missing" && item.field === "schema"));
   assert.ok(artifact.incompatibilities.some((item) => item.code === "ga-evidence-metadata-contract"));
   assert.ok(result.incompatibilities.some((item) => item.artifact === "security-report.json"));
+});
+
+test("canonical GA artifacts accept the PostgreSQL commit metadata object when schema and format agree", async (t) => {
+  const evidenceDirectory = await makeEvidenceDirectory(t, async (directory) => {
+    const path = join(directory, "postgres-scale.json");
+    const document = JSON.parse(await import("node:fs/promises").then(({ readFile }) => readFile(path, "utf8")));
+    document.commit = { value: document.commit, source: "github.sha" };
+    document.format = document.schema;
+    await writeFile(path, `${JSON.stringify(document)}\n`, "utf8");
+  });
+  const result = await runGaGate({ rootDir: repositoryRoot, strict: true, evidenceRoot: evidenceDirectory });
+  const artifact = result.evidence.artifacts.find((item) => item.name === "postgres-scale.json");
+
+  assert.equal(artifact.verified, true);
+  assert.equal(result.exitCode, 0);
+});
+
+test("commit metadata remains fail-closed for short or malformed SHA values", async (t) => {
+  const evidenceDirectory = await makeEvidenceDirectory(t, async (directory) => {
+    const path = join(directory, "postgres-scale.json");
+    const document = JSON.parse(await import("node:fs/promises").then(({ readFile }) => readFile(path, "utf8")));
+    document.commit = { value: "not-a-full-commit", source: "github.sha" };
+    await writeFile(path, `${JSON.stringify(document)}\n`, "utf8");
+  });
+  const result = await runGaGate({ rootDir: repositoryRoot, strict: true, evidenceRoot: evidenceDirectory });
+  const artifact = result.evidence.artifacts.find((item) => item.name === "postgres-scale.json");
+
+  assert.equal(result.exitCode, 1);
+  assert.ok(artifact.failures.some((item) => item.code === "metadata-invalid" && item.field === "commit"));
+});
+
+test("GA evidence rejects a schema and format naming mismatch", async (t) => {
+  const evidenceDirectory = await makeEvidenceDirectory(t, async (directory) => {
+    const path = join(directory, "postgres-scale.json");
+    const document = JSON.parse(await import("node:fs/promises").then(({ readFile }) => readFile(path, "utf8")));
+    document.format = "legacy/postgres-scale/1";
+    await writeFile(path, `${JSON.stringify(document)}\n`, "utf8");
+  });
+  const result = await runGaGate({ rootDir: repositoryRoot, strict: true, evidenceRoot: evidenceDirectory });
+  const artifact = result.evidence.artifacts.find((item) => item.name === "postgres-scale.json");
+
+  assert.equal(result.exitCode, 1);
+  assert.ok(artifact.failures.some((item) => item.code === "schema-mismatch"));
 });
 
 test("external holdout can be contract-valid but ineligible without independent reproduction", async (t) => {

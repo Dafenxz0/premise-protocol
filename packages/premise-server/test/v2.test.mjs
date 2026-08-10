@@ -34,8 +34,18 @@ const stored = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "
 assert.equal(stored.status, 201);
 const storedReplay = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "http-register-1" }, body: registerBody });
 assert.equal(storedReplay.status, 201, "replaying a successful mutation with the same Idempotency-Key must be safe");
+const storedDefaultReplay = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "http-register-1" }, body: JSON.stringify({ record: { envelope, content: "PREMiSE v2 exact context" }, derived: false }) });
+assert.equal(storedDefaultReplay.status, 201, "omitting the default derived=false must not change the idempotency digest");
 const storedConflict = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "http-register-1" }, body: JSON.stringify({ record: { envelope, content: "different request" } }) });
 assert.equal(storedConflict.status, 409, "reusing an Idempotency-Key with a different payload must be rejected");
+
+const invalidEnvelope = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "invalid-envelope-1" }, body: JSON.stringify({ record: { envelope: { specVersion: "premise/2" }, content: "broken" } }) });
+assert.equal(invalidEnvelope.status, 422);
+assert.equal((await invalidEnvelope.json()).error, "VALIDATION_ERROR");
+
+const invalidKey = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "bad key" }, body: registerBody });
+assert.equal(invalidKey.status, 400);
+assert.equal((await invalidKey.json()).error, "INVALID_IDEMPOTENCY_KEY");
 
 const query = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", maxTokens: 100 }) });
 assert.equal(query.status, 200);
@@ -43,6 +53,18 @@ assert.equal((await query.json()).context.selected.length, 1);
 const oversizedQuery = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { limit: 1001 } }) });
 assert.equal(oversizedQuery.status, 400);
 assert.equal((await oversizedQuery.json()).error, "INVALID_QUERY_LIMIT");
+
+const missingQuery = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
+assert.equal(missingQuery.status, 400);
+assert.equal((await missingQuery.json()).error, "INVALID_REQUEST");
+
+const unsupportedPage = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", pageToken: "page-2" }) });
+assert.equal(unsupportedPage.status, 501);
+assert.equal((await unsupportedPage.json()).error, "PAGINATION_UNSUPPORTED");
+
+const invalidVersion = await fetch(`${base}/v2/source-changed`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sourceUri: "file:///http", version: { scheme: "file.mtime" } }) });
+assert.equal(invalidVersion.status, 400);
+assert.equal((await invalidVersion.json()).error, "INVALID_REQUEST");
 
 const fetched = await fetch(`${base}/v2/memories/${encodeURIComponent(envelope.memoryId)}`);
 assert.equal(fetched.status, 200);
@@ -61,6 +83,24 @@ assert.equal(runtime.history().filter((event) => event.type === "MemoryStaled").
 await server.close();
 assert.ok(metrics.length >= 4);
 assert.ok(metrics.every((metric) => metric.durationMs >= 0 && metric.requestId.length > 0));
+
+const capturedSearchOptions = [];
+const scopedRuntime = new PremiseRuntime({ tenantId: "tenant:filter", now: () => at });
+const scopedServer = new PremiseServer({
+  runtime: scopedRuntime,
+  index: {
+    async upsert() {},
+    async search(_query, options) { capturedSearchOptions.push(options); return []; }
+  }
+});
+await scopedServer.listen({ host: "127.0.0.1", port: 0 });
+const scopedAddress = scopedServer.server.address();
+assert.ok(scopedAddress && typeof scopedAddress === "object");
+const scopedQuery = await fetch(`http://127.0.0.1:${scopedAddress.port}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", options: { filters: { topic: "release" } } }) });
+assert.equal(scopedQuery.status, 200);
+assert.deepEqual(capturedSearchOptions[0].filter, { topic: "release", tenantId: "tenant:filter" });
+assert.equal(capturedSearchOptions[0].filters, undefined);
+await scopedServer.close();
 
 const deniedRuntime = new PremiseRuntime({ tenantId: "tenant:denied", now: () => at });
 const denied = new PremiseServer({ runtime: deniedRuntime, authorize: () => false });

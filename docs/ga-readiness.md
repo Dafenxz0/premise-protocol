@@ -221,6 +221,30 @@ decisión GA exige además leerlos, verificar sus firmas/digests, repetir lo que
 requiera independencia y comprobar que los claims publicados no exceden lo
 que los datos permiten afirmar.
 
+### Expediente de la campana manual
+
+El workflow publica los nombres canonicos `load-full.json`,
+`postgres-scale.json`, `recovery-report.json` y `soak-availability.json`.
+Estos nombres deben coincidir con `spec/ga/acceptance.json`; un nombre de job o
+un `results-full.json` no sustituye al artefacto publico canonico.
+
+Los informes deben conservar evidencia raw. La campana PostgreSQL conserva
+`postgres-scale-traces.jsonl` y `recovery-report-traces.jsonl`, ademas de sus
+logs de ejecucion; el soak conserva el JSON del diagnostico, la salida raw del
+runner y los logs del stack. Subir un directorio que solo contiene un log de
+preparacion no convierte un job fallido o incompleto en evidencia GA.
+
+La inspeccion exige `schema`, `commit`, `generatedAt`, `source` y `trace`. Si
+aparece `format`, debe ser igual a `schema`; `commit` puede ser el SHA completo
+o un objeto con `value` igual a ese SHA. Esto corrige la forma del contrato sin
+cambiar umbrales ni sustituir una revision independiente.
+
+En una ejecucion manual, cualquier job de certificacion con resultado
+`skipped`, `failure`, `cancelled` o sin resultado bloquea GA. La decision final
+debe ejecutarse aunque haya dependencias omitidas y exigir `success` en los
+diez resultados: seguridad, carga CI, carga de un millon, escala PostgreSQL,
+GitHub, holdout, integracion, soak, coste y rollback.
+
 ## Glosario breve
 
 - **Holdout**: conjunto de tareas reservado hasta la evaluación final; sirve

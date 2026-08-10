@@ -3,6 +3,10 @@ const MAX_DURABLE_WRITE_CONCURRENCY = 64;
 export const DEFAULT_MAX_PENDING_WRITES = 10_000;
 const MAX_PENDING_WRITES = 1_000_000;
 const MAX_EVENT_BATCH_SIZE = 64;
+const DEFAULT_STARTUP_BATCH_SIZE = 1_000;
+const MAX_STARTUP_BATCH_SIZE = 10_000;
+const hydrateRecord = Symbol("hydrateRecord");
+const hydrateEvent = Symbol("hydrateEvent");
 
 function clone(value) {
   const serialized = JSON.stringify(value);
@@ -88,6 +92,23 @@ export class DurableMirrorStore {
 
   list() {
     return [...this.records.values()].map(clone);
+  }
+
+  [hydrateRecord](record) {
+    const copy = clone(record);
+    const previous = this.records.get(copy.envelope.memoryId);
+    if (previous !== undefined) this.adjustFreshness(previous, -1);
+    this.records.set(copy.envelope.memoryId, copy);
+    this.adjustFreshness(copy, 1);
+  }
+
+  [hydrateEvent](event) {
+    const copy = clone(event);
+    const existing = this.events.get(copy.idempotencyKey);
+    if (existing !== undefined && (existing.eventId !== copy.eventId || existing.requestDigest !== copy.requestDigest)) {
+      throw new Error(`Conflicting idempotency key during startup: ${copy.idempotencyKey}`);
+    }
+    this.events.set(copy.idempotencyKey, copy);
   }
 
   put(record) {
@@ -343,6 +364,40 @@ export class DurableMirrorStore {
 export async function openDurableMirror(client, tablePrefix, tenantId, options = {}) {
   const { PostgresRuntimeStore } = await import("@premise/store-postgres");
   const persistent = new PostgresRuntimeStore(client, { tablePrefix, tenantId });
-  const snapshot = await persistent.snapshot(new Date().toISOString());
-  return { mirror: new DurableMirrorStore(persistent, snapshot, options), persistent };
+  const configuredBatchSize = options.startupBatchSize ?? process.env.PREMISE_RUNTIME_STARTUP_BATCH_SIZE ?? DEFAULT_STARTUP_BATCH_SIZE;
+  const startupBatchSize = typeof configuredBatchSize === "number"
+    ? configuredBatchSize
+    : typeof configuredBatchSize === "string" && /^\d+$/u.test(configuredBatchSize.trim())
+      ? Number(configuredBatchSize.trim())
+      : Number.NaN;
+  if (!Number.isSafeInteger(startupBatchSize) || startupBatchSize < 1 || startupBatchSize > MAX_STARTUP_BATCH_SIZE) {
+    await persistent.close().catch(() => undefined);
+    throw new TypeError(`PREMISE_RUNTIME_STARTUP_BATCH_SIZE must be an integer from 1 to ${MAX_STARTUP_BATCH_SIZE}`);
+  }
+  if (typeof persistent.loadIncrementally !== "function") {
+    await persistent.close().catch(() => undefined);
+    throw new Error("PostgresRuntimeStore incremental startup loader is required");
+  }
+  const emptySnapshot = {
+    format: "premise-runtime-snapshot",
+    version: 1,
+    capturedAt: new Date().toISOString(),
+    records: [],
+    events: []
+  };
+  const mirror = new DurableMirrorStore(persistent, emptySnapshot, options);
+  try {
+    // This bounds PostgreSQL hydration only. server.mjs still builds its full
+    // query index from mirror.list() after this function returns; that separate
+    // 1M-record indexing cost remains an explicit capacity risk.
+    await persistent.loadIncrementally({
+      batchSize: startupBatchSize,
+      onRecord: (record) => mirror[hydrateRecord](record),
+      onEvent: (event) => mirror[hydrateEvent](event)
+    });
+    return { mirror, persistent };
+  } catch (error) {
+    await persistent.close().catch(() => undefined);
+    throw error;
+  }
 }

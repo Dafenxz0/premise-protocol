@@ -4,7 +4,7 @@ import { URL } from "node:url";
 import { PremiseServer } from "@premise/premise-server/v2";
 import { InMemoryRuntimeStore, PremiseRuntime } from "@premise/runtime-core";
 import { Metrics } from "./metrics.mjs";
-import { createBearerAuthorizer } from "./auth.mjs";
+import { assertRlsSafeDatabaseRole, authorizeOperationalRequest, createBearerAuthorizer } from "./auth.mjs";
 import { openPgClient } from "./pg-client.mjs";
 import { openDurableMirror } from "./runtime-store.mjs";
 import { shouldFlushDurableWrite } from "./route-durability.mjs";
@@ -15,6 +15,7 @@ const config = {
   tenantId: required("PREMISE_TENANT_ID", "tenant:local"),
   environment: process.env.PREMISE_ENV ?? "development",
   apiToken: process.env.PREMISE_API_TOKEN,
+  metricsToken: process.env.PREMISE_METRICS_TOKEN,
   storeMode: process.env.PREMISE_STORE_MODE ?? "postgres",
   tablePrefix: process.env.PREMISE_TABLE_PREFIX ?? "premise_v2",
   maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024),
@@ -26,6 +27,7 @@ const config = {
 
 if (config.storeMode !== "postgres" && config.storeMode !== "memory") throw new Error("PREMISE_STORE_MODE must be postgres or memory");
 const authorize = createBearerAuthorizer({ environment: config.environment, token: config.apiToken, tenantId: config.tenantId });
+const authorizeMetrics = createBearerAuthorizer({ environment: config.environment, token: config.metricsToken, tokenName: "PREMISE_METRICS_TOKEN", tenantId: config.tenantId });
 
 const metrics = new Metrics();
 let database;
@@ -37,6 +39,7 @@ let app;
 if (config.storeMode === "postgres") {
   try {
     database = await openPgClient();
+    assertRlsSafeDatabaseRole(await database.query("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user"));
     const opened = await openDurableMirror(database, config.tablePrefix, config.tenantId, {
       concurrency: config.runtimeWriteConcurrency,
       maxPendingWrites: config.runtimeMaxPendingWrites
@@ -183,11 +186,21 @@ const httpServer = createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && pathname === "/readyz") {
+    if (!authorizeOperationalRequest(authorize, request, { tenantId: config.tenantId, subjectId: "premise-ops" }, { allowLoopback: true })) {
+      response.setHeader("www-authenticate", "Bearer");
+      json(response, 401, { ok: false, error: "unauthorized", requestId });
+      return;
+    }
     const result = await readiness();
     json(response, result.ready ? 200 : 503, { ok: result.ready, ...result });
     return;
   }
   if (request.method === "GET" && pathname === "/metrics") {
+    if (!authorizeOperationalRequest(authorizeMetrics, request, { tenantId: config.tenantId, subjectId: "premise-metrics" })) {
+      response.setHeader("www-authenticate", "Bearer");
+      json(response, 401, { ok: false, error: "unauthorized", requestId });
+      return;
+    }
     const ready = store.failure === undefined;
     response.statusCode = 200;
     response.setHeader("content-type", "text/plain; version=0.0.4; charset=utf-8");

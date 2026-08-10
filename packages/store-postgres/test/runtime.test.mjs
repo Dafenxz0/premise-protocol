@@ -14,6 +14,7 @@ const envelope = {
   dependsOn: [],
   signatures: []
 };
+const secondEnvelope = { ...envelope, memoryId: "memory:postgres-runtime-2", evidence: [{ ...envelope.evidence[0], evidenceId: "evidence:2", sourceUri: "memory://postgres-runtime-2" }] };
 const event = {
   specVersion: "premise/2",
   tenantId: "tenant:acme",
@@ -48,6 +49,16 @@ class InMemoryPostgresClient {
       this.records.set(key, { envelope_json: values.length >= 4 ? values[2] : values[1], content_json: values.length >= 4 ? values[3] : values[2] });
       return statement.includes("RETURNING memory_id") ? { rows: [{ memory_id: key }], rowCount: 1 } : { rows: [] };
     }
+    if (statement.startsWith('SELECT tenant_id, envelope_json::text AS envelope_json, content_json::text AS content_json FROM "premise_v2_records"')) {
+      const limit = Number(values.at(-1));
+      const afterTenant = values.length === 3 ? String(values[0]) : "";
+      const afterMemory = values.length === 3 ? String(values[1]) : "";
+      const rows = [...this.records.values()]
+        .map((row) => ({ ...row, tenant_id: JSON.parse(row.envelope_json).tenantId }))
+        .sort((left, right) => left.tenant_id.localeCompare(right.tenant_id) || JSON.parse(left.envelope_json).memoryId.localeCompare(JSON.parse(right.envelope_json).memoryId))
+        .filter((row) => row.tenant_id > afterTenant || (row.tenant_id === afterTenant && JSON.parse(row.envelope_json).memoryId > afterMemory));
+      return { rows: rows.slice(0, limit) };
+    }
     if (statement.startsWith("SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM \"premise_v2_records\" WHERE")) {
       const row = this.records.get(values.at(-1));
       return { rows: row === undefined ? [] : [row] };
@@ -57,9 +68,18 @@ class InMemoryPostgresClient {
     }
     if (statement.startsWith("INSERT INTO \"premise_v2_events\"")) {
       if (this.events.has(values[1])) return { rows: [] };
-      const row = { event_id: values[2], event_json: values[3] };
+      const row = { sequence: this.events.size + 1, tenant_id: values[0], event_id: values[2], event_json: values[3] };
       this.events.set(values[1], row);
       return statement.includes("RETURNING") ? { rows: [row] } : { rows: [] };
+    }
+    if (statement.startsWith('SELECT sequence, tenant_id, event_json::text AS event_json FROM "premise_v2_events"')) {
+      const cursor = Number(values.at(-2));
+      const tenant = values.length === 3 ? values[0] : undefined;
+      const limit = Number(values.at(-1));
+      const rows = [...this.events.values()]
+        .filter((row) => row.sequence > cursor && (tenant === undefined || row.tenant_id === tenant))
+        .sort((left, right) => left.sequence - right.sequence);
+      return { rows: rows.slice(0, limit) };
     }
     if (statement.startsWith("SELECT event_id, event_json::text AS event_json FROM \"premise_v2_events\" WHERE")) {
       const row = this.events.get(values.at(-1));
@@ -140,6 +160,26 @@ await store.appendEvent(event);
 await store.appendEvent(event);
 await assert.rejects(() => store.appendEvent({ ...event, eventId: "event:postgres-runtime:conflict", requestDigest: "sha256:other" }), /Conflicting idempotency key/);
 assert.equal((await store.listEvents()).length, 1);
+
+await store.put({ envelope: secondEnvelope, content: { answer: 43 } });
+const loadedRecords = [];
+const loadedEvents = [];
+const queryStart = client.queries.length;
+assert.deepEqual(await store.loadIncrementally({
+  batchSize: 1,
+  onRecord: (record) => loadedRecords.push(record),
+  onEvent: (loadedEvent, sequence) => loadedEvents.push({ event: loadedEvent, sequence })
+}), { records: 2, events: 1 });
+assert.deepEqual(loadedRecords.map(({ envelope: loadedEnvelope }) => loadedEnvelope.memoryId), [envelope.memoryId, secondEnvelope.memoryId]);
+assert.equal(loadedEvents[0].sequence, 1);
+const loadQueries = client.queries.slice(queryStart).map(({ statement }) => statement);
+assert.ok(loadQueries.filter((statement) => statement.startsWith('SELECT tenant_id, envelope_json')).length >= 2);
+assert.ok(loadQueries.filter((statement) => statement.startsWith('SELECT sequence, tenant_id, event_json')).length >= 2);
+assert.equal(loadQueries.some((statement) => statement.includes("snapshot_json")), false);
+await assert.rejects(() => store.loadIncrementally({ batchSize: 10_001, onRecord: () => undefined, onEvent: () => undefined }), /batchSize/);
+await assert.rejects(() => store.loadIncrementally({ batchSize: 1, onRecord: () => { throw new Error("startup hydration failed"); }, onEvent: () => undefined }), /startup hydration failed/);
+const scopedStore = new PostgresRuntimeStore(client, { tenantId: "tenant:acme" });
+assert.deepEqual(await scopedStore.loadIncrementally({ batchSize: 1, onRecord: () => undefined, onEvent: () => undefined }), { records: 2, events: 1 });
 
 const request = { tenantId: "tenant:acme", operation: "register", key: "http:1", requestHash: "sha256:http-v1:one" };
 const claim = await store.claimHttpIdempotency(request);
