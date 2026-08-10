@@ -100,6 +100,13 @@ function requestPrincipal(request: IncomingMessage, fallback: RuntimePrincipal, 
   return { tenantId, ...(subjectId ? { subjectId } : {}), ...(fallback.roles ? { roles: fallback.roles } : {}) };
 }
 
+function requestIdempotencyKey(request: IncomingMessage): string | undefined {
+  const value = request.headers["idempotency-key"];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !/^[\x21-\x7e]{1,256}$/u.test(value)) throw new HttpError(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency-Key must be 1-256 visible ASCII characters");
+  return value;
+}
+
 export class PremiseServer<T = unknown> {
   readonly server: Server;
   readonly runtime: PremiseRuntime<T>;
@@ -145,6 +152,7 @@ export class PremiseServer<T = unknown> {
     try {
       const url = new URL(request.url ?? "/", "http://premise.local");
       const method = (request.method ?? "GET").toUpperCase();
+      const idempotencyKey = requestIdempotencyKey(request);
       const requestedPrincipal = requestPrincipal(request, this.principal, this.allowTenantHeader);
       const principal = this.authorize === undefined ? requestedPrincipal : await this.authorize(request, requestedPrincipal);
       if (principal === false) throw new HttpError(401, "UNAUTHORIZED", "Request is not authorized");
@@ -168,7 +176,7 @@ export class PremiseServer<T = unknown> {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
         const record = input.record as RuntimeRecord<T>;
         if (!record || typeof record !== "object") throw new Error("record is required");
-        if (input.derived === true) this.runtime.derive(record); else this.runtime.register(record);
+        if (input.derived === true) this.runtime.derive(record, idempotencyKey); else this.runtime.register(record, idempotencyKey);
         await this.index.upsert(this.indexDocument(record));
         jsonResponse(response, 201, { memoryId: record.envelope.memoryId, status: "stored" });
         return;
@@ -194,19 +202,27 @@ export class PremiseServer<T = unknown> {
         if (this.validator === undefined) { jsonResponse(response, 501, { error: "No validator configured" }); return; }
         const id = routeMemoryId(url.pathname.replace(/\/revalidate$/u, ""));
         if (id === undefined) { jsonResponse(response, 404, { error: "memory not found" }); return; }
-        jsonResponse(response, 200, await this.runtime.revalidate(id, this.validator));
+        jsonResponse(response, 200, await this.runtime.revalidate(id, this.validator, idempotencyKey));
         return;
       }
       if (method === "POST" && url.pathname === "/v2/source-changed") {
         const input = parseJson(await readBody(request, this.maxBodyBytes));
         if (typeof input.sourceUri !== "string" || typeof input.version !== "object" || input.version === null) throw new Error("sourceUri and version are required");
-        jsonResponse(response, 202, { affected: this.runtime.signalSourceChanged(input.sourceUri, input.version as { scheme: string; token: string }) });
+        jsonResponse(response, 202, { affected: this.runtime.signalSourceChanged(input.sourceUri, input.version as { scheme: string; token: string }, idempotencyKey) });
         return;
       }
       jsonResponse(response, 404, { error: "route not found" });
     } catch (error) {
       this.logger(error instanceof Error ? error.stack ?? error.message : String(error));
-      const httpError = error instanceof HttpError ? error : error instanceof SyntaxError ? new HttpError(400, "INVALID_JSON", "Request body is not valid JSON") : error instanceof TypeError ? new HttpError(400, "INVALID_REQUEST", error.message) : new HttpError(500, "INTERNAL_ERROR", "Internal server error");
+      const httpError = error instanceof HttpError
+        ? error
+        : error instanceof SyntaxError
+          ? new HttpError(400, "INVALID_JSON", "Request body is not valid JSON")
+          : error instanceof TypeError
+            ? new HttpError(400, "INVALID_REQUEST", error.message)
+            : error instanceof Error && /Conflicting idempotency key/u.test(error.message)
+              ? new HttpError(409, "IDEMPOTENCY_CONFLICT", error.message)
+              : new HttpError(500, "INTERNAL_ERROR", "Internal server error");
       jsonResponse(response, httpError.status, { error: httpError.code, message: httpError.message, requestId });
     } finally {
       this.onMetric?.({ requestId, method: (request.method ?? "GET").toUpperCase(), path: request.url ?? "/", status: response.statusCode, durationMs: Date.now() - startedAt, ...(metricTenant ? { tenantId: metricTenant } : {}) });

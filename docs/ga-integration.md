@@ -118,11 +118,14 @@ await premise.sourceChanged(
 );
 ~~~
 
-No reutilices una clave propia para payloads distintos. El servidor v2 actual
-acepta estos headers y mantiene las rutas existentes, aunque su implementación
-HTTP actual no expone una caché de replay para todas las operaciones; una
-repetición lógica explícita de una escritura sigue siendo responsabilidad de
-la aplicación.
+No reutilices una clave propia para payloads distintos. El servidor v2 propaga
+`Idempotency-Key` a los eventos de registro, derivación, reemplazo,
+revalidación y `source-changed`: una repetición con el mismo payload devuelve
+el resultado de la operación sin crear otro evento; si cambia el payload,
+responde `409 IDEMPOTENCY_CONFLICT`. Para que este contrato sobreviva a un
+reinicio o a varias réplicas, el runtime debe usar un store duradero y
+compartido, como el adapter PostgreSQL; el store en memoria solo garantiza
+replay durante la vida del proceso.
 
 Retry-After se respeta para respuestas 429/5xx hasta el límite configurado.
 Se puede ajustar la política con maxRetries, retry: { baseDelayMs,

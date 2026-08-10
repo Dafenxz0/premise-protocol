@@ -94,8 +94,22 @@ function usability(status: V2MemoryStatus): RuntimeCheckItem["decision"] {
   return "REVALIDATE";
 }
 
-function digestFor(value: string): `sha256:${string}` {
-  return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") {
+    const serialized = JSON.stringify(value);
+    if (serialized === undefined) throw new TypeError("PREMiSE request values must be JSON serializable");
+    return serialized;
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+  if (typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`).join(",")}}`;
+  }
+  throw new TypeError("PREMiSE request values must be JSON serializable");
+}
+
+function digestFor(value: unknown): `sha256:${string}` {
+  return `sha256:${createHash("sha256").update(canonicalJson(value), "utf8").digest("hex")}`;
 }
 
 export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
@@ -198,9 +212,16 @@ export class PremiseRuntime<T = unknown> {
   register(record: RuntimeRecord<T>, eventId?: string): void {
     const envelope = parseMemoryEnvelopeV2(record.envelope);
     this.assertTenant(envelope.tenantId);
-    if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
+    if (eventId === undefined && this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     const stored = { envelope, content: cloneJson(record.content) };
-    const event = this.emit("MemoryRegistered", envelope.memoryId, { envelope }, eventId ?? `register:${envelope.memoryId}`, false);
+    const idempotencyKey = eventId ?? `register:${envelope.memoryId}`;
+    const replay = this.eventFor(idempotencyKey);
+    const event = this.emit("MemoryRegistered", envelope.memoryId, { envelope }, idempotencyKey, false, { envelope, content: stored.content });
+    if (replay !== undefined) {
+      if (this.store.get(envelope.memoryId) === undefined) throw new Error(`Idempotent event has no corresponding memory: ${idempotencyKey}`);
+      return;
+    }
+    if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     this.persistRecordAndEvent(stored, event);
     this.indexRecord(stored);
     this.syncStoreRevision();
@@ -209,14 +230,21 @@ export class PremiseRuntime<T = unknown> {
   derive(record: RuntimeRecord<T>, eventId?: string): void {
     const envelope = parseMemoryEnvelopeV2(record.envelope);
     this.assertTenant(envelope.tenantId);
-    if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
+    if (eventId === undefined && this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     if (envelope.dependsOn.length === 0) throw new Error("Derived memory must have at least one dependency");
     for (const dependencyId of envelope.dependsOn) {
       const dependency = this.store.get(dependencyId);
       if (dependency === undefined || dependency.envelope.tenantId !== this.tenantId) throw new Error(`Missing required dependency: ${dependencyId}`);
     }
     const stored = { envelope, content: cloneJson(record.content) };
-    const event = this.emit("MemoryDerived", envelope.memoryId, { dependsOn: envelope.dependsOn }, eventId ?? `derive:${envelope.memoryId}`, false);
+    const idempotencyKey = eventId ?? `derive:${envelope.memoryId}`;
+    const replay = this.eventFor(idempotencyKey);
+    const event = this.emit("MemoryDerived", envelope.memoryId, { dependsOn: envelope.dependsOn }, idempotencyKey, false, { envelope, content: stored.content });
+    if (replay !== undefined) {
+      if (this.store.get(envelope.memoryId) === undefined) throw new Error(`Idempotent event has no corresponding memory: ${idempotencyKey}`);
+      return;
+    }
+    if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     this.persistRecordAndEvent(stored, event);
     this.indexRecord(stored);
     this.syncStoreRevision();
@@ -228,7 +256,10 @@ export class PremiseRuntime<T = unknown> {
     if (next.memoryId !== memoryId) throw new Error("Replacement must keep the memory ID");
     this.assertTenant(next.tenantId);
     const stored = { envelope: next, content: cloneJson(content) };
-    const event = this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, eventId ?? `replace:${memoryId}:${next.contentDigest ?? "none"}`, false);
+    const idempotencyKey = eventId ?? `replace:${memoryId}:${next.contentDigest ?? "none"}`;
+    const replay = this.eventFor(idempotencyKey);
+    const event = this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, idempotencyKey, false, { memoryId, envelope: next, content: stored.content });
+    if (replay !== undefined) return;
     this.persistRecordAndEvent(stored, event);
     this.deindexRecord(current);
     this.indexRecord(stored);
@@ -410,11 +441,19 @@ export class PremiseRuntime<T = unknown> {
     }
   }
 
-  private emit(type: V2Event["type"], memoryId: string | undefined, payload: Readonly<Record<string, unknown>>, idempotencyKey: string, persist = true): V2Event {
-    const existing = typeof this.store.getEvent === "function"
+  private eventFor(idempotencyKey: string): V2Event | undefined {
+    return typeof this.store.getEvent === "function"
       ? this.store.getEvent(idempotencyKey)
       : this.store.listEvents().find((event) => event.idempotencyKey === idempotencyKey);
-    if (existing !== undefined) return existing;
+  }
+
+  private emit(type: V2Event["type"], memoryId: string | undefined, payload: Readonly<Record<string, unknown>>, idempotencyKey: string, persist = true, requestPayload: unknown = payload): V2Event {
+    const requestDigest = digestFor({ type, memoryId: memoryId ?? null, request: requestPayload });
+    const existing = this.eventFor(idempotencyKey);
+    if (existing !== undefined) {
+      if (existing.type !== type || existing.memoryId !== memoryId || existing.requestDigest !== requestDigest) throw new Error(`Conflicting idempotency key: ${idempotencyKey}`);
+      return existing;
+    }
     const eventId = `evt_${this.tenantId}_${++this.sequence}`;
     const event: V2Event = {
       specVersion: SPEC_VERSION_V2,
@@ -422,7 +461,7 @@ export class PremiseRuntime<T = unknown> {
       eventId,
       operationId: eventId,
       idempotencyKey,
-      requestDigest: digestFor(`${type}:${idempotencyKey}`),
+      requestDigest,
       type,
       occurredAt: this.now(),
       ...(memoryId ? { memoryId } : {}),

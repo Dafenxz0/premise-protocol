@@ -29,8 +29,13 @@ assert.equal(health.status, 200);
 assert.equal((await health.json()).specVersion, "premise/2");
 assert.ok(/^[\x21-\x7e-]{10,128}$/u.test(health.headers.get("x-request-id") ?? ""));
 
-const stored = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ record: { envelope, content: "PREMiSE v2 exact context" } }) });
+const registerBody = JSON.stringify({ record: { envelope, content: "PREMiSE v2 exact context" } });
+const stored = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "http-register-1" }, body: registerBody });
 assert.equal(stored.status, 201);
+const storedReplay = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "http-register-1" }, body: registerBody });
+assert.equal(storedReplay.status, 201, "replaying a successful mutation with the same Idempotency-Key must be safe");
+const storedConflict = await fetch(`${base}/v2/memories`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "http-register-1" }, body: JSON.stringify({ record: { envelope, content: "different request" } }) });
+assert.equal(storedConflict.status, 409, "reusing an Idempotency-Key with a different payload must be rejected");
 
 const query = await fetch(`${base}/v2/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: "PREMiSE", maxTokens: 100 }) });
 assert.equal(query.status, 200);

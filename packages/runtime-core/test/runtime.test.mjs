@@ -52,6 +52,16 @@ assert.equal(runtime.applyEvent(event), false);
 assert.throws(() => runtime.register({ envelope: envelope("memory:source"), content: {} }), /already registered/);
 assert.equal(runtime.get("memory:other", { tenantId: "tenant:other" }), undefined);
 
+const idempotent = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+const idempotentEnvelope = envelope("memory:idempotent");
+idempotent.register({ envelope: idempotentEnvelope, content: { value: "first" } }, "request:register:idempotent");
+idempotent.replace("memory:idempotent", { value: "second" }, envelope("memory:idempotent", [], "FRESH", "tenant:acme", "github://acme/repo/second"), "request:replace:idempotent");
+assert.throws(
+  () => idempotent.replace("memory:idempotent", { value: "third" }, envelope("memory:idempotent", [], "FRESH", "tenant:acme", "github://acme/repo/third"), "request:replace:idempotent"),
+  /Conflicting idempotency key/
+);
+assert.equal(idempotent.get("memory:idempotent").content.value, "second", "a conflicting idempotency key must not overwrite the first request");
+
 const snapshot = runtime.snapshot();
 const restored = new PremiseRuntime({ store: new InMemoryRuntimeStore(), tenantId: "tenant:acme", now: () => at });
 restored.restore(snapshot);
