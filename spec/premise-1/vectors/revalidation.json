@@ -1,0 +1,12 @@
+{
+  "id": "revalidation",
+  "operation": "revalidate",
+  "memoryId": "m-revalidate",
+  "results": [
+    { "result": "UNCHANGED", "expected": { "state": "FRESH", "decision": "USE" } },
+    { "result": "CHANGED", "expected": { "state": "INVALID", "decision": "REJECT" } },
+    { "result": "MISSING", "expected": { "state": "INVALID", "decision": "REJECT" } },
+    { "result": "UNKNOWN", "expected": { "state": "UNKNOWN", "decision": "REJECT" } }
+  ],
+  "expected": { "state": "FRESH", "decision": "USE" }
+}

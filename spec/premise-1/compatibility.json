@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "format": "premise-compatibility/1",
+  "specVersion": "premise/1",
+  "profile": "PREMiSE-compatible premise/1",
+  "requiredCapabilities": ["RECORD", "DEPENDENCY", "REVALIDATION", "TENANCY", "IDEMPOTENCY"],
+  "optionalCapabilities": ["RETRIEVAL", "GATE"],
+  "rules": [
+    { "id": "exact-version", "effect": "reject", "condition": "specVersion !== 'premise/1'" },
+    { "id": "closed-contract", "effect": "reject", "condition": "unknown fields or capabilities are present" },
+    { "id": "required-profile", "effect": "reject", "condition": "a required capability is absent" },
+    { "id": "tenant-isolation", "effect": "reject", "condition": "tenantId is absent or crosses operation scope" },
+    { "id": "idempotent-writes", "effect": "replay-or-reject", "condition": "same scope key has a different requestDigest" },
+    { "id": "safe-decision", "effect": "reject", "condition": "INVALID, OPEN conflict, or invalid dependency is presented as USE" }
+  ],
+  "legacy": {
+    "premise/0.1": "explicit adapter required; provenance maps to evidence and tenantId is supplied out of band",
+    "premise/2": "explicit adapter and negotiation required; no prefix or silent downgrade is allowed"
+  }
+}

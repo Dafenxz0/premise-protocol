@@ -1,0 +1,7 @@
+{
+  "id": "toctou-rejection",
+  "operation": "write",
+  "validatedVersion": "v1",
+  "writeVersion": "v2",
+  "expected": { "state": "STALE", "decision": "REVALIDATE", "toctouEscaped": false }
+}

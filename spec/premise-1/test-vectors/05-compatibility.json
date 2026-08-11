@@ -1,0 +1,32 @@
+{
+  "format": "premise-test-vector/1",
+  "protocol": "premise/1",
+  "vectorId": "compatibility",
+  "category": "negative",
+  "description": "La compatibilidad es explícita: faltan capacidades, versiones ajenas y campos desconocidos se rechazan.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-11T10:00:00Z" },
+    "memories": [],
+    "events": []
+  },
+  "steps": [
+    {
+      "id": "missing-required-capability",
+      "operation": "capabilities",
+      "input": { "specVersion": "premise/1", "profile": "PREMiSE-compatible premise/1", "capabilities": ["RECORD", "REVALIDATION"] },
+      "expect": { "compatible": false, "missing": ["DEPENDENCY", "TENANCY", "IDEMPOTENCY"], "events": [] }
+    },
+    {
+      "id": "wrong-version",
+      "operation": "capabilities",
+      "input": { "specVersion": "premise/2", "profile": "PREMiSE-compatible premise/1", "capabilities": ["RECORD", "DEPENDENCY", "REVALIDATION", "TENANCY", "IDEMPOTENCY"] },
+      "expect": { "compatible": false, "error": "UNSUPPORTED_SPEC_VERSION", "events": [] }
+    },
+    {
+      "id": "unknown-field",
+      "operation": "register",
+      "input": { "envelope": { "specVersion": "premise/1", "tenantId": "tenant:compat", "memoryId": "memory:compat:1", "evidence": [{ "evidenceId": "e:1", "sourceUri": "source://compat/1", "observedAt": "2026-08-11T10:00:00Z" }], "validity": { "status": "FRESH", "checkedAt": "2026-08-11T10:00:00Z", "policy": "MANUAL" }, "dependsOn": [], "unexpected": true } },
+      "expect": { "accepted": false, "error": "UNKNOWN_FIELD", "events": [], "stateUnchanged": true }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "benchmark": "PremiseBench-Agent",
+  "version": "0.1.0",
+  "status": "experimental",
+  "smoke": {
+    "worlds": ["filesystem"],
+    "provider": "deterministic-control",
+    "defaultTasks": 100,
+    "defaultSeed": 20260811,
+    "holdout": false
+  },
+  "realCampaign": {
+    "minimumTasks": 200,
+    "worlds": ["filesystem", "github", "postgres"],
+    "providers": ["provider-a", "provider-b", "provider-c"],
+    "holdout": "independent-blind-required",
+    "statusWithoutCredentials": "NOT_RUN"
+  },
+  "baselines": ["A", "B", "C", "D", "E", "F", "G", "H"],
+  "metrics": ["unsafeActionsPer100", "tasksCompletedPer100", "falseBlocksPer100", "changesDetectedPer100", "revalidationsPer100", "requestsPer100", "tokensPerTask", "p50Ms", "p95Ms", "recoveredPer100", "toctouEscapesPer100"]
+}

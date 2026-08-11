@@ -1,0 +1,70 @@
+{
+  "format": "premise-test-vector/1",
+  "protocol": "premise/1",
+  "vectorId": "state-transitions",
+  "category": "transition",
+  "description": "Una fuente pasa por FRESH, STALE, UNKNOWN e INVALID; solo replace puede reparar INVALID.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-11T10:00:00Z" },
+    "memories": [],
+    "events": []
+  },
+  "steps": [
+    {
+      "id": "register",
+      "operation": "register",
+      "input": {
+        "envelope": {
+          "specVersion": "premise/1",
+          "tenantId": "tenant:vector",
+          "memoryId": "memory:vector:state",
+          "evidence": [{ "evidenceId": "e:state:1", "sourceUri": "source://vector/state", "observedAt": "2026-08-11T10:00:00Z", "version": { "scheme": "revision", "token": "r1" }, "validator": { "id": "vector", "operation": "read" } }],
+          "validity": { "status": "FRESH", "checkedAt": "2026-08-11T10:00:00Z", "policy": "VERSIONED" },
+          "dependsOn": []
+        }
+      },
+      "expect": { "accepted": true, "status": "FRESH" }
+    },
+    {
+      "id": "source-change",
+      "operation": "signal",
+      "input": { "memoryId": "memory:vector:state", "sourceUri": "source://vector/state", "version": { "scheme": "revision", "token": "r2" } },
+      "expect": {
+        "accepted": true,
+        "status": "STALE",
+        "decision": "REVALIDATE",
+        "events": [
+          { "type": "SourceChanged", "memoryId": "memory:vector:state", "at": "2026-08-11T10:00:00Z" },
+          { "type": "MemoryStaled", "memoryId": "memory:vector:state", "at": "2026-08-11T10:00:00Z" }
+        ]
+      }
+    },
+    {
+      "id": "validator-unknown",
+      "operation": "validate",
+      "input": { "memoryId": "memory:vector:state", "result": "UNKNOWN", "status": "UNKNOWN", "checkedAt": "2026-08-11T10:00:00Z" },
+      "expect": { "accepted": true, "status": "UNKNOWN", "decision": "REJECT", "events": [{ "type": "MemoryRevalidated", "memoryId": "memory:vector:state", "at": "2026-08-11T10:00:00Z" }] }
+    },
+    {
+      "id": "validator-changed",
+      "operation": "validate",
+      "input": { "memoryId": "memory:vector:state", "result": "CHANGED", "status": "INVALID", "checkedAt": "2026-08-11T10:00:00Z", "version": { "scheme": "revision", "token": "r2" } },
+      "expect": { "accepted": true, "status": "INVALID", "decision": "REJECT", "events": [{ "type": "MemoryRevalidated", "memoryId": "memory:vector:state", "at": "2026-08-11T10:00:00Z" }] }
+    },
+    {
+      "id": "replace-invalid",
+      "operation": "replace",
+      "input": {
+        "envelope": {
+          "specVersion": "premise/1",
+          "tenantId": "tenant:vector",
+          "memoryId": "memory:vector:state",
+          "evidence": [{ "evidenceId": "e:state:2", "sourceUri": "source://vector/state", "observedAt": "2026-08-11T10:00:00Z", "version": { "scheme": "revision", "token": "r2" }, "validator": { "id": "vector", "operation": "read" } }],
+          "validity": { "status": "FRESH", "checkedAt": "2026-08-11T10:00:00Z", "policy": "VERSIONED" },
+          "dependsOn": []
+        }
+      },
+      "expect": { "accepted": true, "status": "FRESH", "decision": "USE", "events": [{ "type": "MemoryReplaced", "memoryId": "memory:vector:state", "at": "2026-08-11T10:00:00Z" }] }
+    }
+  ]
+}

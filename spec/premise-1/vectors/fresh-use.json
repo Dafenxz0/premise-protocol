@@ -1,0 +1,16 @@
+{
+  "id": "fresh-use",
+  "operation": "check",
+  "tenant": "team-a",
+  "memory": {
+    "specVersion": "premise/1",
+    "memoryId": "m-fresh",
+    "tenantId": "team-a",
+    "evidence": [{ "evidenceId": "e-1", "source": "config", "version": "v1", "observedAt": "2026-08-11T10:00:00Z", "validity": "FRESH" }],
+    "dependencies": [],
+    "invalidation": null
+  },
+  "observations": { "config": { "available": true, "version": "v1" } },
+  "target": "m-fresh",
+  "expected": { "state": "FRESH", "decision": "USE" }
+}

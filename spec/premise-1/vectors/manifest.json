@@ -1,0 +1,14 @@
+{
+  "specVersion": "premise/1",
+  "vectors": [
+    "fresh-use.json",
+    "stale-version.json",
+    "invalid-invalidation.json",
+    "unknown-source.json",
+    "dependency-cascade.json",
+    "revalidation.json",
+    "idempotent-replay.json",
+    "tenant-isolation.json",
+    "toctou-rejection.json"
+  ]
+}
