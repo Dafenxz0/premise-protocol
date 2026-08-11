@@ -28,6 +28,12 @@ const signedEnvelope = (memoryId) => {
 class CountingStore extends InMemoryRuntimeStore {
   putCalls = 0;
   eventCalls = 0;
+  getCalls = 0;
+
+  get(memoryId) {
+    this.getCalls += 1;
+    return super.get(memoryId);
+  }
 
   put(record) {
     this.putCalls += 1;
@@ -45,6 +51,14 @@ runtime.register({ envelope: envelope("memory:source"), content: { value: "sourc
 runtime.derive({ envelope: envelope("memory:derived", ["memory:source"]), content: { value: "derived" } });
 assert.deepEqual(runtime.check(["memory:source", "memory:derived"]).map((item) => item.decision), ["USABLE", "USABLE"]);
 
+const batchStore = new CountingStore();
+const batch = new PremiseRuntime({ store: batchStore, tenantId: "tenant:acme", now: () => at });
+batch.register({ envelope: envelope("memory:batch"), content: {} });
+batchStore.getCalls = 0;
+assert.deepEqual(batch.checkMany(["memory:batch", "memory:missing", "memory:batch"]).map((item) => item.memoryId), ["memory:batch", "memory:missing", "memory:batch"]);
+assert.equal(batchStore.getCalls, 2, "checkMany must read each memory ID once");
+assert.deepEqual(batch.check(["memory:batch", "memory:missing"]), batch.checkMany(["memory:batch", "memory:missing"]));
+
 const affected = runtime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b2" });
 assert.deepEqual(affected, ["memory:source", "memory:derived"]);
 assert.deepEqual(runtime.check(["memory:source", "memory:derived"]).map((item) => item.status), ["STALE", "STALE"]);
@@ -54,6 +68,53 @@ assert.equal(runtime.eventCount(), runtime.history().length);
 const report = await runtime.revalidate("memory:source", async (evidence) => ({ memoryId: "memory:source", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri, version: { scheme: "github.commit", token: "b2" } }));
 assert.equal(report.status, "FRESH");
 assert.equal(runtime.get("memory:source").content.value, "source");
+
+const sharedEvidence = { ...envelope("memory:shared-a").evidence[0], evidenceId: "evidence:shared" };
+const sharedA = { ...envelope("memory:shared-a"), evidence: [sharedEvidence] };
+const sharedB = { ...envelope("memory:shared-b"), evidence: [sharedEvidence] };
+const shared = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+shared.register({ envelope: sharedA, content: { value: "a" } });
+shared.register({ envelope: sharedB, content: { value: "b" } });
+let sharedCalls = 0;
+const sharedReports = await shared.revalidateMany(["memory:shared-a", "memory:shared-b"], async (evidence) => {
+  sharedCalls += 1;
+  return { memoryId: "ignored-by-batch", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri };
+});
+assert.equal(sharedCalls, 1, "revalidateMany must validate an identical evidence key once");
+assert.deepEqual(sharedReports.map((item) => [item.memoryId, item.status]), [["memory:shared-a", "FRESH"], ["memory:shared-b", "FRESH"]]);
+assert.deepEqual(shared.checkMany(["memory:shared-a", "memory:shared-b"]).map((item) => item.status), ["FRESH", "FRESH"]);
+
+const fallback = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+fallback.register({ envelope: { ...envelope("memory:fallback-a"), evidence: [{ ...sharedEvidence, sourceUri: "github://acme/repo/a" }] }, content: {} });
+fallback.register({ envelope: { ...envelope("memory:fallback-b"), evidence: [{ ...sharedEvidence, sourceUri: "github://acme/repo/b" }] }, content: {} });
+let fallbackCalls = 0;
+await fallback.revalidateMany(["memory:fallback-a", "memory:fallback-b"], async (evidence) => {
+  fallbackCalls += 1;
+  return { memoryId: "ignored-by-batch", result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri };
+});
+assert.equal(fallbackCalls, 2, "same evidenceId with different payloads must use the conservative fallback");
+
+const concurrent = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+concurrent.register({ envelope: envelope("memory:concurrent-a", [], "FRESH", "tenant:acme", "github://acme/repo/concurrent-a"), content: {} });
+concurrent.register({ envelope: envelope("memory:concurrent-b", [], "FRESH", "tenant:acme", "github://acme/repo/concurrent-b"), content: {} });
+const entered = [];
+let release;
+let timeout;
+const barrier = new Promise((resolve, reject) => {
+  release = resolve;
+  timeout = setTimeout(() => reject(new Error("revalidateMany did not validate independent groups concurrently")), 250);
+});
+const concurrentReports = await concurrent.revalidateMany(["memory:concurrent-b", "memory:concurrent-a", "memory:concurrent-b"], async (evidence) => {
+  entered.push(evidence.sourceUri);
+  if (entered.length === 2) {
+    clearTimeout(timeout);
+    release();
+  }
+  await barrier;
+  return { memoryId: "ignored-by-batch", result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri };
+});
+assert.deepEqual(entered, ["github://acme/repo/concurrent-b", "github://acme/repo/concurrent-a"], "independent evidence groups must enter validation together");
+assert.deepEqual(concurrentReports.map((item) => item.memoryId), ["memory:concurrent-b", "memory:concurrent-a", "memory:concurrent-b"]);
 
 const event = runtime.history("memory:source")[0];
 assert.ok(event);

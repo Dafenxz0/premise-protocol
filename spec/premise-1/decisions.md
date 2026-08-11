@@ -34,6 +34,40 @@ Un adapter sin `GATE` puede exponer datos, pero no puede afirmar que protegió
 una acción con PREMiSE. `RETRIEVAL` tampoco cambia la decisión: solo filtra o
 etiqueta resultados que otra capa ya recuperó.
 
+## Revalidacion agrupada
+
+La revalidacion puede agrupar memorias solo cuando comparten `sourceUri`,
+tenant o ambito de autorizacion, contexto de consulta, politica de validez y
+la version de fuente que se comprueba. El resultado debe poder atribuirse
+completamente a cada envelope y sus dependencias.
+
+No se puede agrupar si alguno de esos datos difiere, si la fuente exige
+ordenacion o aislamiento por consumidor, si hay dependencias distintas, o si
+un resultado parcial no permite decidir cada memoria por separado. En esos
+casos se revalida individualmente. La agrupacion reduce trabajo externo, pero
+no fusiona estados ni altera la tabla normativa: cada memoria conserva su
+`USE`, `REVALIDATE` o `REJECT`.
+
+## Escritura protegida
+
+Una operacion de escritura debe seguir el patron `revalidate-and-act`:
+
+1. revalidar la evidencia necesaria;
+2. ejecutar `check` de nuevo;
+3. escribir solo si la decision es `USE`, pasando al CAS la version o token
+   observado por esa revalidacion.
+
+`REVALIDATE` no permite escribir y `REJECT` bloquea la operacion. Un fallo de
+CAS obliga a observar, actualizar y revalidar antes de reintentar; no se puede
+reutilizar una decision `USE` anterior. Una lectura seguida de una escritura
+incondicional no es equivalente a CAS.
+
+## Coste desconocido
+
+La ausencia de telemetria de coste no implica coste cero. Peticiones,
+lecturas, tokens, latencia o dinero no observados deben conservarse como
+`unknown`/`null`; no se imputan como `0` ni se usan para afirmar eficiencia.
+
 ## Forma portable
 
 La respuesta conceptual de `check` es:

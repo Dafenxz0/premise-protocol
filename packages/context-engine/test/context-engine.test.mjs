@@ -119,6 +119,76 @@ const wordTokens = (text) => text.trim().length === 0 ? 0 : text.trim().split(/\
 }
 
 {
+  let estimateCalls = 0;
+  const result = selectContext({
+    tokenBudget: 20,
+    chunkSizeTokens: 20,
+    tokenEstimator: (text) => {
+      estimateCalls += 1;
+      return wordTokens(text);
+    },
+    candidates: [
+      { id: "fresh-a", content: "same fresh context" },
+      { id: "fresh-b", content: "same fresh context" }
+    ]
+  });
+  assert.deepEqual(result.selected.map((chunk) => chunk.id), ["fresh-a"]);
+  assert.equal(estimateCalls, 1);
+  assert.ok(result.omitted.some((entry) => entry.id === "fresh-b" && entry.reason === "duplicate"));
+}
+
+{
+  let estimateCalls = 0;
+  const candidates = Array.from({ length: 3_000 }, (_, index) => ({
+    id: `scale-${index}`,
+    topic: `topic-${index % 32}`,
+    content: "shared context for scale testing"
+  }));
+  const result = selectContext({
+    candidates,
+    tokenBudget: 64,
+    chunkSizeTokens: 64,
+    tokenEstimator: (text) => {
+      estimateCalls += 1;
+      return wordTokens(text);
+    }
+  });
+  assert.equal(result.stats.candidateCount, 3_000);
+  assert.equal(result.stats.chunkCount, 3_000);
+  assert.equal(result.trace.length, 3_000);
+  assert.equal(result.selected.length, 1);
+  assert.equal(estimateCalls, 1);
+}
+
+{
+  let estimateCalls = 0;
+  const candidates = Array.from({ length: 4096 }, (_, index) => ({
+    id: `scale-${index}`,
+    topic: `topic-${index % 32}`,
+    dedupeKey: `scale-${index}`,
+    content: `shared context ${index % 32}`,
+    score: (index % 11) / 10
+  }));
+  const request = {
+    candidates,
+    tokenBudget: 128,
+    chunkSizeTokens: 8,
+    freshnessGate: { now: "2026-08-10T00:00:00.000Z" },
+    tokenEstimator: (text) => {
+      estimateCalls += 1;
+      return wordTokens(text);
+    }
+  };
+  const result = selectContext(request);
+  const reference = selectContext({ ...request, tokenEstimator: wordTokens });
+  assert.deepEqual(result, reference);
+  assert.equal(estimateCalls, 32);
+  assert.equal(result.stats.candidateCount, 4096);
+  assert.equal(result.trace.length, 4096);
+  assert.ok(result.selected.length > 0);
+}
+
+{
   const result = selectContext({
     tokenBudget: 12,
     chunkSizeTokens: 12,

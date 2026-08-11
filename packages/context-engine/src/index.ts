@@ -459,7 +459,13 @@ function materializeUnits(source: SourceDescriptor, chunkSizeTokens: number, est
     const outputPieces = pieces.length === 0 ? [""] : pieces;
     for (let index = 0; index < outputPieces.length; index += 1) {
       const piece = outputPieces[index]!;
-      const pieceTokens = piece.length === 0 ? 0 : outputPieces.length === 1 && canUseDeclared ? declared! : tokenCount(piece, estimator);
+      const pieceTokens = piece.length === 0
+        ? 0
+        : outputPieces.length === 1 && canUseDeclared
+          ? declared!
+          : outputPieces.length === 1 && piece === text
+            ? estimated
+            : tokenCount(piece, estimator);
       const baseId = outputPieces.length === 1 && segment.requestedId === undefined
         ? source.sourceId
         : `${source.sourceId}#${segment.requestedId ?? index + 1}`;
@@ -722,6 +728,14 @@ export class ContextEngine {
       usableTokenBudget
     );
     const estimator = request.tokenEstimator ?? this.options.tokenEstimator ?? defaultTokenEstimator;
+    const tokenCache = new Map<string, number>();
+    const cachedEstimator: TokenEstimator = (text) => {
+      const cached = tokenCache.get(text);
+      if (cached !== undefined) return cached;
+      const estimated = estimator(text);
+      tokenCache.set(text, estimated);
+      return estimated;
+    };
     const gate = mergeGate(this.options.freshnessGate, request.freshnessGate, request.now);
     if (gate.maxAgeMs !== undefined && (typeof gate.maxAgeMs !== "number" || !Number.isFinite(gate.maxAgeMs) || gate.maxAgeMs < 0)) {
       throw new RangeError("freshnessGate.maxAgeMs must be a non-negative finite number");
@@ -739,12 +753,14 @@ export class ContextEngine {
         sources.push(source);
       }
     }
-    const sourceMap = new Map(sources.map((source) => [source.sourceId, source]));
+    const sourceMap = new Map<string, SourceDescriptor>();
+    for (const source of sources) sourceMap.set(source.sourceId, source);
     const units: Unit[] = [];
     const unitIds = new Set<string>();
-    for (const source of sources) units.push(...materializeUnits(source, limits.chunkSizeTokens, estimator, units.length, unitIds));
+    for (const source of sources) units.push(...materializeUnits(source, limits.chunkSizeTokens, cachedEstimator, units.length, unitIds));
     const traceRecords = units.map(internalTrace);
-    const recordsById = new Map(traceRecords.map((record) => [record.unit.id, record]));
+    const recordsById = new Map<string, InternalTrace>();
+    for (const record of traceRecords) recordsById.set(record.unit.id, record);
     const hierarchyMemo = new Map<string, HierarchyInfo>();
     const hierarchyStates = new Map<string, "visiting" | "done">();
     for (const unit of units) {

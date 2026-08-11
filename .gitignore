@@ -1,6 +1,7 @@
 node_modules/
 .pnpm-store/
 .codex-remote-attachments/
+.tmp/
 
 benchmarks/premisebench-agent/artifacts/
 reference/typescript/dist/
