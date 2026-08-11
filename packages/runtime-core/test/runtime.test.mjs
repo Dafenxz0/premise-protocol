@@ -58,6 +58,9 @@ batchStore.getCalls = 0;
 assert.deepEqual(batch.checkMany(["memory:batch", "memory:missing", "memory:batch"]).map((item) => item.memoryId), ["memory:batch", "memory:missing", "memory:batch"]);
 assert.equal(batchStore.getCalls, 2, "checkMany must read each memory ID once");
 assert.deepEqual(batch.check(["memory:batch", "memory:missing"]), batch.checkMany(["memory:batch", "memory:missing"]));
+batchStore.getCalls = 0;
+assert.equal(batch.retrieve(["memory:batch", "memory:batch"]).length, 1);
+assert.equal(batchStore.getCalls, 1, "retrieve must reuse one local store read per unique memory");
 
 const affected = runtime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b2" });
 assert.deepEqual(affected, ["memory:source", "memory:derived"]);
@@ -65,9 +68,43 @@ assert.deepEqual(runtime.check(["memory:source", "memory:derived"]).map((item) =
 assert.deepEqual(runtime.history().map((item) => item.type), ["MemoryRegistered", "MemoryDerived", "SourceChanged", "MemoryStaled", "MemoryStaled"]);
 assert.equal(runtime.eventCount(), runtime.history().length);
 
+const burst = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+const burstA = envelope("memory:burst-a", [], "FRESH", "tenant:acme", "github://acme/repo/burst-a");
+const burstB = envelope("memory:burst-b", [], "FRESH", "tenant:acme", "github://acme/repo/burst-b");
+const burstBoth = {
+  ...envelope("memory:burst-both", [], "FRESH", "tenant:acme", "github://acme/repo/burst-a"),
+  evidence: [
+    { ...burstA.evidence[0], evidenceId: "memory:burst-both:a" },
+    { ...burstB.evidence[0], evidenceId: "memory:burst-both:b" }
+  ]
+};
+burst.register({ envelope: burstA, content: {} });
+burst.register({ envelope: burstB, content: {} });
+burst.register({ envelope: burstBoth, content: {} });
+assert.deepEqual(burst.signalSourcesChanged([
+  { sourceUri: "github://acme/repo/burst-a", version: { scheme: "github.commit", token: "b2" }, eventId: "source:burst:a", observation: { value: "attested" } },
+  { sourceUri: "github://acme/repo/burst-b", version: { scheme: "github.commit", token: "b2" }, eventId: "source:burst:b" }
+]), ["memory:burst-a", "memory:burst-b", "memory:burst-both"]);
+assert.deepEqual(burst.history().find((item) => item.type === "SourceChanged")?.payload.observation, { value: "attested" });
+assert.equal(burst.history("memory:burst-both").filter((item) => item.type === "MemoryStaled").length, 1, "a burst must stale a multi-source memory once");
+assert.equal(burst.history("memory:burst-both").find((item) => item.type === "MemoryStaled")?.payload.changes.length, 2);
+assert.deepEqual(burst.history("memory:burst-both").find((item) => item.type === "MemoryStaled")?.payload.changes[0].observation, { value: "attested" });
+assert.deepEqual(burst.signalSourcesChanged([]), []);
+const burstEventsBeforeReplay = burst.history().length;
+assert.deepEqual(burst.signalSourcesChanged([
+  { sourceUri: "github://acme/repo/burst-a", version: { scheme: "github.commit", token: "b2" }, eventId: "source:burst:a", observation: { value: "attested" } },
+  { sourceUri: "github://acme/repo/burst-a", version: { scheme: "github.commit", token: "b2" }, eventId: "source:burst:a", observation: { value: "attested" } }
+]), ["memory:burst-a", "memory:burst-both"]);
+assert.equal(burst.history().length, burstEventsBeforeReplay, "duplicate source notifications must be idempotent");
+
 const report = await runtime.revalidate("memory:source", async (evidence) => ({ memoryId: "memory:source", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri, version: { scheme: "github.commit", token: "b2" } }));
 assert.equal(report.status, "FRESH");
 assert.equal(runtime.get("memory:source").content.value, "source");
+const rejectedCommit = await runtime.revalidateAndAct("memory:source", {
+  expectedVersion: "b2",
+  commit: () => ({ accepted: false, reason: "VERSION_MISMATCH", observedVersion: "b3" })
+});
+assert.deepEqual(rejectedCommit, { accepted: false, memoryId: "memory:source", expectedVersion: "b2", reason: "VERSION_MISMATCH", observedVersion: "b3" });
 
 const sharedEvidence = { ...envelope("memory:shared-a").evidence[0], evidenceId: "evidence:shared" };
 const sharedA = { ...envelope("memory:shared-a"), evidence: [sharedEvidence] };
@@ -115,6 +152,59 @@ const concurrentReports = await concurrent.revalidateMany(["memory:concurrent-b"
 });
 assert.deepEqual(entered, ["github://acme/repo/concurrent-b", "github://acme/repo/concurrent-a"], "independent evidence groups must enter validation together");
 assert.deepEqual(concurrentReports.map((item) => item.memoryId), ["memory:concurrent-b", "memory:concurrent-a", "memory:concurrent-b"]);
+
+const dedupStore = new CountingStore();
+const dedup = new PremiseRuntime({ store: dedupStore, tenantId: "tenant:acme", now: () => at });
+const dedupEvidence = { ...envelope("memory:batch-dedup-a").evidence[0], evidenceId: "evidence:batch-dedup" };
+dedup.register({ envelope: { ...envelope("memory:batch-dedup-a"), evidence: [dedupEvidence] }, content: { value: "a" } });
+dedup.register({ envelope: { ...envelope("memory:batch-dedup-b"), evidence: [dedupEvidence] }, content: { value: "b" } });
+dedup.register({ envelope: envelope("memory:batch-dedup-c"), content: { value: "c" } });
+dedupStore.getCalls = 0;
+dedupStore.putCalls = 0;
+let dedupValidatorCalls = 0;
+const dedupIds = ["memory:batch-dedup-b", "memory:batch-dedup-a", "memory:batch-dedup-b", "memory:batch-dedup-c", "memory:batch-dedup-a"];
+const dedupReports = await dedup.revalidateMany(dedupIds, async (evidence) => {
+  dedupValidatorCalls += 1;
+  return { memoryId: "ignored-by-batch", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri };
+});
+assert.equal(dedupStore.getCalls, 3, "revalidateMany must read each unique memory exactly once before validation");
+assert.equal(dedupValidatorCalls, 2, "revalidateMany must validate shared evidence once and distinct evidence once");
+assert.equal(dedupStore.putCalls, 3, "duplicate memory IDs must not apply validation more than once");
+assert.deepEqual(dedupReports.map((item) => item.memoryId), dedupIds, "batch reports must restore the caller's duplicate-ID order");
+
+const cascadeStore = new CountingStore();
+const cascade = new PremiseRuntime({ store: cascadeStore, tenantId: "tenant:acme", now: () => at });
+const cascadeSourceA = "github://acme/repo/cascade-a";
+const cascadeSourceB = "github://acme/repo/cascade-b";
+const cascadeSourceC = "github://acme/repo/cascade-unrelated";
+cascade.register({ envelope: envelope("memory:cascade-a", [], "FRESH", "tenant:acme", cascadeSourceA), content: { value: "a" } });
+cascade.register({ envelope: envelope("memory:cascade-b", [], "FRESH", "tenant:acme", cascadeSourceB), content: { value: "b" } });
+cascade.derive({ envelope: envelope("memory:cascade-join", ["memory:cascade-a", "memory:cascade-b"]), content: { value: "join" } });
+cascade.derive({ envelope: envelope("memory:cascade-leaf", ["memory:cascade-join"]), content: { value: "leaf" } });
+cascade.derive({ envelope: envelope("memory:cascade-branch", ["memory:cascade-a"]), content: { value: "branch" } });
+cascade.register({ envelope: envelope("memory:cascade-unrelated", [], "FRESH", "tenant:acme", cascadeSourceC), content: { value: "unrelated" } });
+cascadeStore.putCalls = 0;
+cascadeStore.eventCalls = 0;
+const cascadeA = cascade.signalSourceChanged(cascadeSourceA, { scheme: "github.commit", token: "a2" });
+assert.deepEqual(cascadeA, ["memory:cascade-a", "memory:cascade-join", "memory:cascade-branch", "memory:cascade-leaf"]);
+assert.equal(new Set(cascadeA).size, cascadeA.length, "a converging cascade must return each affected memory once");
+assert.equal(cascadeStore.putCalls, 4, "the first source change must write each affected memory once");
+assert.equal(cascadeStore.eventCalls, 5, "the first source change must append one source event and one stale event per memory");
+assert.deepEqual(cascade.checkMany(cascadeA).map((item) => item.status), ["STALE", "STALE", "STALE", "STALE"]);
+
+const cascadeB = cascade.signalSourceChanged(cascadeSourceB, { scheme: "github.commit", token: "b2" });
+assert.deepEqual(cascadeB, ["memory:cascade-b", "memory:cascade-join", "memory:cascade-leaf"]);
+assert.equal(new Set(cascadeB).size, cascadeB.length, "a second source change must not duplicate converged dependents");
+assert.equal(cascadeStore.putCalls, 5, "a second source change must only write the newly fresh root");
+assert.equal(cascade.history().filter((item) => item.type === "MemoryStaled").length, 5, "already stale cascade nodes must not emit duplicate stale events");
+assert.equal(cascade.get("memory:cascade-unrelated").envelope.validity.status, "FRESH", "unrelated source branches must remain fresh");
+
+const cascadePutsAfterTwoChanges = cascadeStore.putCalls;
+const cascadeEventsAfterTwoChanges = cascadeStore.eventCalls;
+assert.deepEqual(cascade.signalSourceChanged(cascadeSourceA, { scheme: "github.commit", token: "a3" }), cascadeA);
+assert.equal(cascadeStore.putCalls, cascadePutsAfterTwoChanges, "a newer change must not rewrite an already stale cascade");
+assert.equal(cascadeStore.eventCalls, cascadeEventsAfterTwoChanges + 1, "a newer change must still append its source event");
+assert.equal(cascade.history().filter((item) => item.type === "MemoryStaled").length, 5);
 
 const event = runtime.history("memory:source")[0];
 assert.ok(event);
@@ -204,5 +294,69 @@ assert.throws(() => signedRuntime.register({ envelope: envelope("memory:unsigned
 assert.throws(() => new PremiseRuntime({ tenantId: "tenant:acme", requireSignedEnvelopes: true }), /signatureVerification/);
 const tampered = { ...signedEnvelope("memory:tampered"), confidence: { ...signedEnvelope("memory:tampered").confidence, method: "tampered" } };
 assert.throws(() => signedRuntime.register({ envelope: tampered, content: {} }), /signature|Invalid PREMiSE/);
+
+const raceStore = new CountingStore();
+const race = new PremiseRuntime({ store: raceStore, tenantId: "tenant:acme", now: () => at });
+const raceSourceUri = "github://acme/repo/race";
+race.register({ envelope: envelope("memory:race-source", [], "FRESH", "tenant:acme", raceSourceUri), content: { value: "source" } });
+race.derive({ envelope: envelope("memory:race-derived", ["memory:race-source"]), content: { value: "derived" } });
+race.derive({ envelope: envelope("memory:race-leaf", ["memory:race-derived"]), content: { value: "leaf" } });
+let releaseRaceValidation;
+let enterRaceValidation;
+const raceValidationReleased = new Promise((resolve) => { releaseRaceValidation = resolve; });
+const raceValidationEntered = new Promise((resolve) => { enterRaceValidation = resolve; });
+const pendingRaceValidation = race.revalidateMany(["memory:race-source"], async (evidence) => {
+  enterRaceValidation();
+  await raceValidationReleased;
+  return { memoryId: "ignored-by-batch", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri, version: { scheme: "github.commit", token: "a1" } };
+});
+await raceValidationEntered;
+const raceFirstChange = race.signalSourceChanged(raceSourceUri, { scheme: "github.commit", token: "b2" });
+const raceSecondChange = race.signalSourceChanged(raceSourceUri, { scheme: "github.commit", token: "b3" });
+assert.deepEqual(raceFirstChange, ["memory:race-source", "memory:race-derived", "memory:race-leaf"]);
+assert.deepEqual(raceSecondChange, raceFirstChange);
+releaseRaceValidation();
+let raceValidationError;
+try {
+  await pendingRaceValidation;
+} catch (error) {
+  raceValidationError = error;
+}
+assert.ok(raceValidationError, "a stale revalidation batch must reject after a concurrent mutation");
+assert.match(String(raceValidationError), /conflict|stale|changed|revision|concurrent/i, "a rejected stale batch must identify the concurrent mutation");
+assert.deepEqual(
+  race.checkMany(["memory:race-source", "memory:race-derived", "memory:race-leaf"]).map((item) => item.status),
+  ["STALE", "STALE", "STALE"],
+  "a source change during validation must not be overwritten by a stale batch result"
+);
+
+class ConditionalRaceStore extends InMemoryRuntimeStore {
+  raced = false;
+
+  putAndAppendIfUnchanged(expected, record, event) {
+    if (!this.raced) {
+      this.raced = true;
+      super.put({ ...expected, content: { value: "external-writer" } });
+    }
+    return super.putAndAppendIfUnchanged(expected, record, event);
+  }
+}
+
+const conditionalRaceStore = new ConditionalRaceStore();
+const conditionalRace = new PremiseRuntime({ store: conditionalRaceStore, tenantId: "tenant:acme", now: () => at });
+conditionalRace.register({ envelope: envelope("memory:conditional-race"), content: { value: "original" } });
+await assert.rejects(
+  conditionalRace.revalidate("memory:conditional-race", async (evidence) => ({
+    memoryId: "memory:conditional-race",
+    evidenceId: evidence.evidenceId,
+    result: "UNCHANGED",
+    status: "FRESH",
+    checkedAt: at,
+    sourceUri: evidence.sourceUri,
+    version: { scheme: "github.commit", token: "b2" }
+  })),
+  /concurrent mutation/i
+);
+assert.equal(conditionalRace.get("memory:conditional-race").content.value, "external-writer", "conditional persistence must preserve a concurrent writer");
 
 console.log("runtime-core tests passed");
