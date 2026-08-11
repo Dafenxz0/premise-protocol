@@ -1,19 +1,20 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { artifactUrl } from "./paths.mjs";
 
 function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-const result = JSON.parse(await readFile(new URL("./results.json", import.meta.url), "utf8"));
-const taskBytes = await readFile(new URL("./tasks.json", import.meta.url));
-const traceBytes = await readFile(new URL("./traces.jsonl", import.meta.url));
+const result = JSON.parse(await readFile(artifactUrl("results.json"), "utf8"));
+const taskBytes = await readFile(artifactUrl("tasks.json"));
+const traceBytes = await readFile(artifactUrl("traces.jsonl"));
 const manifest = JSON.parse(taskBytes.toString("utf8"));
 const traceLines = traceBytes.toString("utf8").trim().split(/\r?\n/u).filter(Boolean);
 
 assert.equal(result.format, "premise-v2-real-world-benchmark/2", "unexpected real-world-v2 format");
-assert.ok(result.mode === "offline-temporal-fixture" || result.mode === "live-github-readonly", "unknown benchmark mode");
+assert.ok(result.mode === "offline-temporal-fixture" || result.mode === "live-github-readonly" || result.mode === "live-github-readonly-multi", "unknown benchmark mode");
 assert.ok(Number.isInteger(result.tasks) && result.tasks >= 100, "at least 100 paired tasks are required");
 assert.equal(manifest.format, "premise-v2-benchmark-task-manifest/1", "task manifest format is missing");
 assert.equal(manifest.tasks.length, result.tasks, "task manifest count does not match result");
@@ -70,14 +71,17 @@ if (result.mode === "offline-temporal-fixture") {
   assert.ok(result.limitations.some((limitation) => /deterministic fixture/u.test(limitation)), "offline fixture limitation is missing");
 }
 
-if (result.mode === "live-github-readonly") {
+if (result.mode === "live-github-readonly" || result.mode === "live-github-readonly-multi") {
   const direct = strategies.get("direct-read");
-  assert.equal(result.source.class, "external-live-observation", "live source is not classified as external");
+  assert.ok(result.source.class === "external-live-observation" || result.source.class === "external-live-multi-observation", "live source is not classified as external");
   assert.equal(result.source.readOnly, true, "live benchmark is not read-only");
   assert.equal(direct.requests, result.tasks, "direct-read must perform one real GitHub request per task");
   assert.ok(direct.traces.every((trace) => Number.isInteger(trace.status) && trace.status >= 200 && trace.status < 400), "direct-read traces must include successful HTTP statuses");
   assert.ok(result.source.endpointsObserved.every((endpoint) => /^sha256:[0-9a-f]{64}$/u.test(endpoint.bodySha256)), "live source body hashes are missing");
   assert.ok(result.limitations.some((limitation) => /mutation recovery/u.test(limitation)), "live mutation limitation is missing");
+  if (result.mode === "live-github-readonly-multi") {
+    assert.ok(Array.isArray(result.source.repositories) && result.source.repositories.length >= 2, "multi-repository live campaign needs at least two repositories");
+  }
 }
 
 if (result.connectors?.postgres !== undefined) {

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { artifactUrl } from "./paths.mjs";
 
-const result = JSON.parse(await readFile(new URL("./results.json", import.meta.url), "utf8"));
+const result = JSON.parse(await readFile(artifactUrl("results.json"), "utf8"));
 const format = (value) => value === null || value === undefined ? "—" : value;
 const rows = result.strategies
   .map((strategy) => `| ${strategy.strategy} | ${strategy.baseline ? "Sí" : "No"} | ${strategy.protocol} | ${format(strategy.precisionPer100)}/100 | ${format(strategy.freshnessPer100)}/100 | ${format(strategy.requestsPer100)}/100 | ${format(strategy.costProxy.responseBytesPer100Tasks)} B/100 | ${format(strategy.p50Ms)} ms | ${format(strategy.p95Ms)} ms | ${format(strategy.errorsPer100)}/100 |`)
@@ -53,5 +54,5 @@ Source class: **${result.source.class}**. Read-only: **${result.source.readOnly}
 
 ${result.limitations.map((limitation) => `- ${limitation}`).join("\n")}
 `;
-await writeFile(new URL("./report.md", import.meta.url), report, "utf8");
+await writeFile(artifactUrl("report.md"), report, "utf8");
 console.log(report);

@@ -15,9 +15,11 @@ test("GA certification is fail-closed for manual runs and required evidence cann
   assert.match(workflow, /\.ga-artifacts\/recovery-report\.json/u);
   assert.doesNotMatch(workflow, /\.ga-artifacts\/postgres-scale-restart\.json/u);
   assert.match(workflow, /scripts\/generate-ga-signing-key\.mjs/u);
+  assert.match(workflow, /chmod 0644 \.local\/premise_signature_public_keys\.json/u);
   assert.match(workflow, /PREMISE_REQUIRE_SIGNED_ENVELOPES=1/u);
   assert.match(workflow, /PREMISE_SIGNATURE_PRIVATE_KEY_FILE=\/run\/secrets\/premise_signature_private_key\.pem/u);
   assert.match(workflow, /-v "\$PWD\/\.local\/premise_signature_private_key\.pem:\/run\/secrets\/premise_signature_private_key\.pem:ro"/u);
+  assert.match(workflow, /PREMISE_GITHUB_REPOS:.*Dafenxz0\/forgeboard,Dafenxz0\/pando,Dafenxz0\/riceme-readme-generator/u);
 
   const postgresScale = workflow.slice(workflow.indexOf("  postgres-scale:"), workflow.indexOf("  external-github:"));
   const roleProvision = postgresScale.indexOf('run: docker compose -f "${COMPOSE_FILE}" run --rm --no-deps db-roles');

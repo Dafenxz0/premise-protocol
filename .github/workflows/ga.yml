@@ -279,6 +279,7 @@ jobs:
           node scripts/generate-ga-signing-key.mjs \
             --public .local/premise_signature_public_keys.json \
             --private .local/premise_signature_private_key.pem
+          chmod 0644 .local/premise_signature_public_keys.json
           chmod 0644 .local/premise_signature_private_key.pem
           echo "PREMISE_REQUIRE_SIGNED_ENVELOPES=1" >> "$GITHUB_ENV"
           echo "PREMISE_SIGNATURE_KEYS_FILE=/run/secrets/premise_signature_public_keys.json" >> "$GITHUB_ENV"
@@ -424,7 +425,7 @@ jobs:
         run: docker compose -f "${COMPOSE_FILE}" down --remove-orphans -v
 
   external-github:
-    name: Real GitHub read-only benchmark
+    name: Real GitHub repositories read-only benchmark
     needs: security
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -443,7 +444,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Run external GitHub benchmark in read-only mode
         env:
-          PREMISE_GITHUB_REPO: ${{ github.repository }}
+          PREMISE_GITHUB_REPOS: ${{ vars.PREMISE_GITHUB_BENCHMARK_REPOS || 'Dafenxz0/forgeboard,Dafenxz0/pando,Dafenxz0/riceme-readme-generator' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node benchmarks/real-world-v2/runner.mjs --live --repetitions 20
@@ -682,6 +683,7 @@ jobs:
           node scripts/generate-ga-signing-key.mjs \
             --public .local/premise_signature_public_keys.json \
             --private .local/premise_signature_private_key.pem
+          chmod 0644 .local/premise_signature_public_keys.json
           chmod 0644 .local/premise_signature_private_key.pem
           echo "PREMISE_REQUIRE_SIGNED_ENVELOPES=1" >> "$GITHUB_ENV"
           echo "PREMISE_SIGNATURE_KEYS_FILE=/run/secrets/premise_signature_public_keys.json" >> "$GITHUB_ENV"

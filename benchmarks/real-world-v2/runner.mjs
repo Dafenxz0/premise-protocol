@@ -2,11 +2,11 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { runPostgresReadOnly } from "./postgres.mjs";
+import { artifactDirectoryUrl, artifactUrl } from "./paths.mjs";
 
-const outputDirectory = new URL("./", import.meta.url);
-const outputPath = new URL("./results.json", import.meta.url);
-const tracePath = new URL("./traces.jsonl", import.meta.url);
-const taskPath = new URL("./tasks.json", import.meta.url);
+const outputPath = artifactUrl("results.json");
+const tracePath = artifactUrl("traces.jsonl");
+const taskPath = artifactUrl("tasks.json");
 
 const OFFLINE_BASE = Object.freeze({
   "repository.defaultBranch": "main",
@@ -284,7 +284,7 @@ function labelCommitment(tasks, labelFor) {
   return sha256Json(tasks.map((task) => ({ taskId: task.id, label: labelFor(task) })));
 }
 
-function publicTaskManifest({ mode, seed, tasks, repository = "acme/fixture" }) {
+function publicTaskManifest({ mode, seed, tasks, repository = "acme/fixture", repositories }) {
   return {
     format: "premise-v2-benchmark-task-manifest/1",
     version: "v1",
@@ -294,6 +294,7 @@ function publicTaskManifest({ mode, seed, tasks, repository = "acme/fixture" }) 
     source: {
       adapter: "github",
       repository,
+      ...(repositories === undefined ? {} : { repositories }),
       readOnly: true
     },
     tasks: tasks.map((task) => ({
@@ -398,12 +399,12 @@ async function githubGet(path, token, headers = {}) {
   return { status: response.status, body, rawText, ...metadata };
 }
 
-function githubTasks(owner, repository, endpoints, repetitions) {
+function githubTasks(owner, repository, endpoints, repetitions, taskPrefix = "") {
   const taskCount = Math.max(100, repetitions * endpoints.length);
   return Array.from({ length: taskCount }, (_, index) => {
     const endpoint = endpoints[index % endpoints.length];
     return {
-      id: `live-${index + 1}`,
+      id: `${taskPrefix ? `${taskPrefix}-` : ""}live-${index + 1}`,
       prompt: TASK_PROMPTS[endpoint.key],
       source: `github://${owner}/${repository}/${endpoint.key}`,
       key: endpoint.key,
@@ -413,8 +414,8 @@ function githubTasks(owner, repository, endpoints, repetitions) {
   });
 }
 
-async function runLive(repetitions, seed) {
-  const { owner, repository } = parseRepo(process.env.PREMISE_GITHUB_REPO);
+async function runLiveRepository(repositoryValue, repetitions, seed) {
+  const { owner, repository } = parseRepo(repositoryValue);
   const token = process.env.GITHUB_TOKEN;
   const endpoints = [
     { key: "repository", path: `/repos/${owner}/${repository}` },
@@ -438,7 +439,7 @@ async function runLive(repetitions, seed) {
     }
   }
   if (availableEndpoints.length < 2) throw new Error("Live repository exposed fewer than two benchmark endpoints; check repository visibility and token permissions");
-  const tasks = githubTasks(owner, repository, availableEndpoints, repetitions);
+  const tasks = githubTasks(owner, repository, availableEndpoints, repetitions, `${owner}-${repository}`);
   const direct = await measure("direct-read", tasks, (task) => truth.get(task.key), async (task) => {
     const response = await githubGet(task.path, token);
     return {
@@ -518,20 +519,118 @@ async function runLive(repetitions, seed) {
   };
 }
 
+function aggregateLiveStrategy(strategyName, rows) {
+  const traces = rows.flatMap((row) => row.traces);
+  const tasks = rows.reduce((total, row) => total + row.tasks, 0);
+  const correct = rows.reduce((total, row) => total + row.correct, 0);
+  const errors = rows.reduce((total, row) => total + row.errors, 0);
+  const freshness = rows.reduce((total, row) => total + row.freshness, 0);
+  const freshnessEligible = rows.reduce((total, row) => total + row.freshnessEligible, 0);
+  const requests = rows.reduce((total, row) => total + row.requests, 0);
+  const responseBytes = rows.reduce((total, row) => total + row.responseBytes, 0);
+  const latencies = traces.map((trace) => trace.latencyMs).filter((value) => Number.isFinite(value));
+  const info = metadataFor(strategyName);
+  return {
+    strategy: strategyName,
+    ...info,
+    tasks,
+    correct,
+    correctPer100: Number((correct * 100 / tasks).toFixed(2)),
+    precision: correct,
+    precisionPer100: Number((correct * 100 / tasks).toFixed(2)),
+    errors,
+    errorsPer100: Number((errors * 100 / tasks).toFixed(2)),
+    freshness,
+    freshnessEligible,
+    freshnessPer100: freshnessEligible === 0 ? null : Number((freshness * 100 / freshnessEligible).toFixed(2)),
+    requests,
+    requestsPer100: Number((requests * 100 / tasks).toFixed(2)),
+    responseBytes,
+    responseBytesPer100: Number((responseBytes * 100 / tasks).toFixed(2)),
+    costProxy: {
+      model: "request-count-plus-response-bytes",
+      requestUnits: requests,
+      requestUnitsPer100Tasks: Number((requests * 100 / tasks).toFixed(2)),
+      responseBytes,
+      responseBytesPer100Tasks: Number((responseBytes * 100 / tasks).toFixed(2)),
+      currency: null,
+      estimatedUsd: null,
+      billingEvidence: false
+    },
+    p50Ms: Number(percentile(latencies, 0.5).toFixed(3)),
+    p95Ms: Number(percentile(latencies, 0.95).toFixed(3)),
+    p99Ms: Number(percentile(latencies, 0.99).toFixed(3)),
+    traces
+  };
+}
+
+function parseRepositories(value) {
+  const repositories = (value ?? "")
+    .split(/[\s,]+/u)
+    .map((repository) => repository.trim())
+    .filter(Boolean);
+  if (repositories.length === 0) throw new Error("PREMISE_GITHUB_REPOS must contain at least one owner/repository");
+  return [...new Set(repositories)].map((repository) => {
+    parseRepo(repository);
+    return repository;
+  });
+}
+
+async function runLiveMulti(repetitions, seed) {
+  const repositories = parseRepositories(process.env.PREMISE_GITHUB_REPOS);
+  const campaigns = [];
+  for (const repository of repositories) campaigns.push(await runLiveRepository(repository, repetitions, seed));
+  const strategyNames = campaigns[0].strategies.map((strategy) => strategy.strategy);
+  const strategies = strategyNames.map((strategyName) => aggregateLiveStrategy(
+    strategyName,
+    campaigns.map((campaign) => campaign.strategies.find((strategy) => strategy.strategy === strategyName))
+  ));
+  return {
+    mode: "live-github-readonly-multi",
+    seed,
+    tasks: campaigns.flatMap((campaign) => campaign.tasks),
+    labels: campaigns.flatMap((campaign) => campaign.labels),
+    strategies,
+    source: {
+      class: "external-live-multi-observation",
+      adapter: "github-api",
+      apiBase: "https://api.github.com",
+      repositories: campaigns.map((campaign) => campaign.source.repository),
+      networkAccess: true,
+      readOnly: true,
+      tokenProvided: Boolean(process.env.GITHUB_TOKEN),
+      endpointsObserved: campaigns.flatMap((campaign) => campaign.source.endpointsObserved)
+    },
+    limitations: [
+      "Read-only campaign across multiple real repositories; no repository mutation is performed.",
+      "The repositories are live but not controlled by the benchmark, so this run cannot prove mutation recovery.",
+      "Exact payload equality validates connector consistency, not semantic model quality or universal product efficacy.",
+      "A release claim requires repeated runs, a changed-source campaign, and an independent reproduction.",
+      "GitHub API request counts and response bytes are transparent cost proxies, not billing evidence."
+    ]
+  };
+}
+
 function parseOption(args, prefix, fallback) {
   const value = args.find((item) => item.startsWith(`${prefix}=`));
   return value === undefined ? fallback : value.slice(prefix.length + 1);
 }
 
 async function writeArtifacts(campaign, connector) {
-  const repository = campaign.source.repository ?? "acme/fixture";
-  const manifest = publicTaskManifest({ mode: campaign.mode, seed: campaign.seed, tasks: campaign.tasks, repository });
+  const repository = campaign.source.repository ?? campaign.source.repositories?.join(",") ?? "acme/fixture";
+  const manifest = publicTaskManifest({
+    mode: campaign.mode,
+    seed: campaign.seed,
+    tasks: campaign.tasks,
+    repository,
+    repositories: campaign.source.repositories
+  });
   const taskText = stableJson(manifest);
   const connectorTraces = connector?.traces ?? [];
   const traceEntries = campaign.strategies.flatMap((strategy) => strategy.traces).concat(connectorTraces);
   const traceText = `${traceEntries.map((trace) => JSON.stringify({ mode: campaign.mode, ...trace })).join("\n")}\n`;
   const labelCommitment = sha256Json(campaign.labels);
-  await mkdir(outputDirectory, { recursive: true });
+  await mkdir(artifactDirectoryUrl(), { recursive: true });
   await writeFile(taskPath, taskText, "utf8");
   await writeFile(tracePath, traceText, "utf8");
   const result = {
@@ -552,7 +651,7 @@ async function writeArtifacts(campaign, connector) {
     taskManifest: manifest,
     evidence: {
       execution: {
-        class: campaign.mode === "live-github-readonly" ? "external-live-observation" : "local-runner",
+        class: campaign.mode.startsWith("live-github-") ? "external-live-observation" : "local-runner",
         independent: false,
         blind: true,
         labelsExported: false
@@ -579,7 +678,7 @@ async function writeArtifacts(campaign, connector) {
     },
     claims: {
       eligibleForPublicProductClaim: false,
-      reason: "A local run or a single read-only observation is not independent validation of production efficacy."
+      reason: "A local run or a read-only observation is not independent validation of production efficacy."
     },
     limitations: campaign.limitations,
     strategies: campaign.strategies,
@@ -595,7 +694,11 @@ const offline = args.has("--offline") || !live;
 const repetitions = Math.max(1, Number.parseInt(parseOption(process.argv.slice(2), "--repetitions", "20"), 10) || 20);
 const seed = parseOption(process.argv.slice(2), "--seed", process.env.PREMISE_BENCHMARK_SEED ?? "premise-v2-real-world-v1");
 const postgresRequested = args.has("--postgres");
-const campaign = live && !offline ? await runLive(repetitions, seed) : await runOffline(seed);
+const campaign = live && !offline
+  ? (process.env.PREMISE_GITHUB_REPOS
+    ? await runLiveMulti(repetitions, seed)
+    : await runLiveRepository(process.env.PREMISE_GITHUB_REPO, repetitions, seed))
+  : await runOffline(seed);
 const postgres = postgresRequested ? await runPostgresReadOnly({ seed }) : undefined;
 const result = await writeArtifacts(campaign, postgres);
 console.log(JSON.stringify({

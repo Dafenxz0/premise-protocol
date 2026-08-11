@@ -75,6 +75,17 @@ node benchmarks/real-world-v2/report.mjs
 node benchmarks/real-world-v2/self-check.mjs
 ```
 
+También se puede ejecutar la misma campaña emparejada contra varios
+repositorios reales:
+
+```powershell
+$env:PREMISE_GITHUB_REPOS = "Dafenxz0/forgeboard,Dafenxz0/pando,Dafenxz0/riceme-readme-generator"
+$env:GITHUB_TOKEN = "<token de solo lectura>"
+node benchmarks/real-world-v2/runner.mjs --live --repetitions=20 --seed=premise-v2-github-multi-v1
+node benchmarks/real-world-v2/report.mjs
+node benchmarks/real-world-v2/self-check.mjs
+```
+
 La campaña hace peticiones `GET` reales al API de GitHub, registra status,
 ETag, hashes del cuerpo, rate-limit y latencia, y nunca modifica el repositorio.
 Los endpoints que no existen se excluyen de forma explícita; si quedan menos de
