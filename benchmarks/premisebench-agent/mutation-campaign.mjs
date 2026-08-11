@@ -253,6 +253,12 @@ function createContext(task, world, memory, agentInput) {
       telemetry.recordProtocol("local-check", { observedVersion: memory.version }, { state });
       return { state };
     },
+    sourceChanged() {
+      localChecks += 1;
+      const changed = world.mutationEvent !== null && world.mutationEvent.version !== memory.version;
+      telemetry.recordProtocol("source-change-probe", { observedVersion: memory.version }, { changed });
+      return changed;
+    },
     async sourceRead(reason) {
       externalReads += 1;
       const result = world.read();
@@ -304,14 +310,14 @@ function percentile(values, fraction) {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * fraction) - 1))] ?? 0;
 }
 
-async function runArm(arm, task) {
+async function runArm(arm, task, strategies = mutationStrategies) {
   const world = createWorld(task);
   const initial = world.initial;
   const agentInput = { taskId: task.taskId, prompt: task.prompt, source: task.source, memory: initial };
   if (task.mutationWindow === "before-action") world.mutate();
   const { context, counters } = createContext(task, world, initial, agentInput);
   const started = performance.now();
-  await mutationStrategies[arm].run(context);
+  const decision = await strategies[arm].run(context);
   const evaluation = world.evaluate();
   const latencyMs = performance.now() - started;
   const measured = counters();
@@ -321,6 +327,8 @@ async function runArm(arm, task) {
     mutation: evaluation.changed,
     unsafeAction: evaluation.unsafe,
     completed: evaluation.correct,
+    actionAttempted: evaluation.action !== null || decision?.kind === "reject",
+    safeAttempt: (evaluation.action !== null || decision?.kind === "reject") && !evaluation.unsafe,
     falseBlock: evaluation.falseBlock,
     changeDetected: evaluation.changed && (evaluation.correct || measured.localChecks > 0),
     recovered: evaluation.recovered,
@@ -355,7 +363,7 @@ async function runArm(arm, task) {
   };
 }
 
-function aggregate(arm, traces) {
+function aggregate(arm, traces, strategies = mutationStrategies) {
   const count = traces.length;
   const sum = (key) => traces.reduce((total, trace) => total + trace[key], 0);
   const rate = (key) => (traces.filter((trace) => trace[key]).length * 100) / count;
@@ -378,7 +386,7 @@ function aggregate(arm, traces) {
   const agentVisibleCostProxy = initialAgentInput.costUsd + externalOperations.costUsd;
   return {
     arm,
-    name: mutationStrategies[arm].name,
+    name: strategies[arm].name,
     tasks: count,
     mutations: sum("mutation"),
     unsafeActionsPer100: rate("unsafeAction"),
@@ -431,11 +439,11 @@ function aggregate(arm, traces) {
   };
 }
 
-function blindReport(candidates, tasks, round, seed) {
+function blindReport(candidates, tasks, round, seed, strategies = mutationStrategies) {
   const taskSetHash = sha(tasks.map(({ taskId, prompt, source }) => ({ taskId, prompt, source })));
   const normalized = candidates.map((candidate) => {
     if (candidate.traces.length !== tasks.length) throw new Error(`candidate ${candidate.id} has wrong task count`);
-    return { id: candidate.id, traces: candidate.traces, metrics: aggregate(candidate.arm, candidate.traces) };
+    return { id: candidate.id, traces: candidate.traces, metrics: aggregate(candidate.arm, candidate.traces, strategies) };
   });
   const scored = normalized.map(({ id, traces, metrics }) => ({
     id,
@@ -590,4 +598,15 @@ async function main() {
   }, null, 2));
 }
 
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+
+export {
+  aggregate,
+  blindReport,
+  createContext,
+  createWorld,
+  makePublicManifest,
+  makeTasks,
+  runArm,
+  sha
+};
