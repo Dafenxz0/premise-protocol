@@ -296,9 +296,8 @@ function payload(seed, index, world, large, revision, dependencySources = [], va
   const decoyCount = large ? GIANT_CONTEXT_DECOYS : NORMAL_CONTEXT_DECOYS;
   const target = `resource-${sha(`${seed}:${index}:target`).slice(7, 19)}`;
   const records = Array.from({ length: decoyCount }, (_, decoy) => ({
-    id: `reference-${decoy + 1}`,
-    role: "distractor",
-    source: `${world}:reference-${sha(`${seed}:${index}:decoy:${decoy}`).slice(7, 17)}`,
+    id: `r${decoy + 1}`,
+    role: "d",
     digest: sha(`${seed}:${index}:decoy-value:${decoy}`).slice(7, 23)
   }));
   const targetRecord = {
@@ -344,11 +343,12 @@ function content({ seed, index, world, revision, large, blocked = false, suffix 
     value,
     revision,
     checksum: sha({ seed, index, value, revision }).slice(7, 23),
-    dependencies: dependencies.map(({ source, version, initial }) => ({
-      source,
-      version,
-      content: clone(initial)
-    }))
+    // The full dependency snapshots are already exposed once in
+    // `memory.dependencies`. Repeating each payload here made the LLM start
+    // envelope grow quadratically with fan-in while adding no protocol signal.
+    // Keep the edge and its version in the main snapshot; the evaluator keeps
+    // the complete private dependency state for mutation/revalidation checks.
+    dependencies: dependencies.map(({ source, version }) => ({ source, version }))
   };
   if (world === "filesystem") return { ...base, path: "config.json", mode: "0600" };
   if (world === "git") return { ...base, branch: "main", path: "config.json" };
