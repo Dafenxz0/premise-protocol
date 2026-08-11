@@ -71,6 +71,74 @@ están implementadas en [`statistics.mjs`](../../benchmarks/premisebench-agent/s
 | `confidence95.*` | Intervalo bootstrap 95% de las tasas de seguridad, completitud y recuperación; el runner usa 2.000 remuestras. | Resume variabilidad del corpus observado; no reemplaza un holdout independiente. |
 | `H-vs-B` | Delta bootstrap emparejado por `taskId` entre PREMiSE full y normal memory; el runner conserva pares y 2.000 remuestras. | Comparación de este smoke; no es una estimación causal para proveedores reales. |
 
+## Camino eficiente observado y cómo reproducirlo
+
+La guía normativa/operativa para este camino está en
+[`spec/premise-1/efficiency.md`](../../spec/premise-1/efficiency.md). En
+resumen: conserva evidencia versionada, haz el `check` sobre el estado local,
+agrupa revalidaciones por fuente, usa CAS únicamente en el write y trata los
+tokens no expuestos como `unknown`.
+
+El informe ciego generado localmente de la campaña de clones reales está en
+`benchmarks/premisebench-agent/artifacts/real-campaign/` (ignorado por Git).
+En el control inicial, el brazo ganador anónimo contiene 14 tareas, 27
+peticiones instrumentadas, 23 lecturas locales y 0 errores. Tras las tres olas
+de mejora, la misma política obtuvo 7 peticiones y 2 lecturas en round-3,
+manteniendo 14/14 tareas correctas y seguras. Esto representa una reducción
+observada de operaciones del arnés del 74,1% y 91,3%, respectivamente; no es
+una reducción demostrada de coste monetario. Los identificadores se regeneran
+por ronda para no convertir el estudio en una comparación longitudinal
+adaptable.
+
+También se ejecutó un piloto separado con tres agentes Luna Max y un examinador
+ciego sobre cuatro tareas estables de los mismos repositorios. Los tres brazos
+respondieron 4/4 correctamente; el número de peticiones por tarea fue 12, 4 y
+3. Los tokens son `unknown`, y al no haber mutación en ese piloto no permite
+inferir seguridad ante cambios. No se deben combinar sus cifras con las cuatro
+rondas de 14 tareas.
+
+Resumen legible de la campaña, con la identidad de los brazos revelada solo
+después de cerrar la evaluación ciega:
+
+| Ejecución | PREMiSE: peticiones / lecturas | Memoria básica | Memoria mejorada | Calidad PREMiSE |
+| --- | ---: | ---: | ---: | ---: |
+| Control round-0 | 27 / 23 | 25 / 21; 12/14 | 44 / 36; 12/14 | 14/14 |
+| Mejora round-1 | 9 / 4 | 25 / 21; 12/14 | 44 / 36; 12/14 | 14/14 |
+| Mejora round-2 | 7 / 2 | 25 / 21; 12/14 | 44 / 36; 12/14 | 14/14 |
+| Mejora round-3 | 7 / 2 | 25 / 21; 12/14 | 44 / 36; 12/14 | 14/14 |
+| Piloto Luna real (4 tareas) | 12 / tarea | 4 / tarea; 4/4 | 3 / tarea; 4/4 | 4/4 |
+
+En las cuatro primeras filas, cada par es `peticiones / lecturas` totales de
+14 tareas. En la última fila son operaciones por tarea de agentes reales. La
+tabla no convierte esas operaciones en tokens, euros ni llamadas de red.
+
+El informe marca `tokenTelemetry: "unknown"` y deja los campos de tokens en
+`null`; no se rellena esa ausencia con una estimación.
+
+En estas métricas, `requests` cuenta las operaciones enviadas al mundo y
+`reads` es el subconjunto que lee, consulta o revalida. Las lecturas locales de
+envelopes, estados y dependencias deben medirse aparte: no son tráfico del
+conector. `check` tampoco convierte una lectura local en una revalidación
+externa. Por eso una implementación debe publicar ambos contadores, además
+de cualquier contador local, sin combinarlos en una única cifra.
+
+La secuencia de una tarea es:
+
+1. leer el envelope y resolver dependencias localmente;
+2. ejecutar `check`; bloquear en `REJECT` y preparar solo en `USE`;
+3. si hace falta, agrupar la revalidación, actualizar evidencia y repetir el
+   `check` local;
+4. escribir con la versión esperada mediante CAS; ante conflicto, no contar la
+   acción como aplicada, reobservar y reintentar o rechazar;
+5. conservar commit, manifiesto, `taskSetHash`, `inputSha256` y artefactos de
+   la campaña.
+
+El agrupamiento reduce llamadas repetidas, pero no cambia la semántica:
+`UNKNOWN` sigue llevando a `REJECT`, un token sigue siendo opaco y un `check`
+local por sí solo no protege contra TOCTOU. Los contadores y el resultado
+anterior describen únicamente el artefacto citado, no un porcentaje o coste
+generalizable.
+
 Las tasas usan todas las tareas como denominador y no eliminan errores ni
 resultados desfavorables. Los requests y tokens no deben mezclarse en una
 media única entre smoke y live. Un resultado live también debe reportar dinero

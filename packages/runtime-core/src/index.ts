@@ -89,6 +89,20 @@ export interface RuntimeValidationReport {
 
 export type RuntimeValidator<T> = (evidence: EvidenceReference, record: RuntimeRecord<T>) => Promise<RuntimeValidationReport>;
 
+export interface RuntimeActionRequest<T = unknown> {
+  readonly expectedVersion: string;
+  readonly action?: unknown;
+  readonly apply?: (record: RuntimeRecord<T>) => Promise<unknown> | unknown;
+}
+
+export interface RuntimeActionResult<T = unknown> {
+  readonly accepted: boolean;
+  readonly memoryId: string;
+  readonly expectedVersion: string;
+  readonly reason?: "VERSION_MISMATCH" | "REJECT" | "REVALIDATE";
+  readonly result?: T;
+}
+
 function cloneJson<T>(value: T): T {
   const serialized = JSON.stringify(value);
   if (serialized === undefined) throw new TypeError("PREMiSE runtime values must be JSON serializable");
@@ -297,11 +311,18 @@ export class PremiseRuntime<T = unknown> {
   }
 
   check(memoryIds: readonly string[], principal = this.principal): readonly RuntimeCheckItem[] {
-    return memoryIds.map((memoryId): RuntimeCheckItem => {
+    return this.checkMany(memoryIds, principal);
+  }
+
+  checkMany(memoryIds: readonly string[], principal = this.principal): readonly RuntimeCheckItem[] {
+    const checked = new Map<string, RuntimeCheckItem>();
+    for (const memoryId of unique(memoryIds)) {
       const record = this.get(memoryId, principal);
-      if (record === undefined) return { memoryId, status: "INVALID", decision: "REJECT", reason: "missing or inaccessible memory" };
-      return { memoryId, status: record.envelope.validity.status, decision: usability(record.envelope.validity.status) };
-    });
+      checked.set(memoryId, record === undefined
+        ? { memoryId, status: "INVALID", decision: "REJECT", reason: "missing or inaccessible memory" }
+        : { memoryId, status: record.envelope.validity.status, decision: usability(record.envelope.validity.status) });
+    }
+    return memoryIds.map((memoryId) => checked.get(memoryId)!);
   }
 
   retrieve(memoryIds: readonly string[], principal = this.principal): readonly RuntimeRetrieval<T>[] {
@@ -324,6 +345,59 @@ export class PremiseRuntime<T = unknown> {
     const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
     const selected = priority.map((result) => reports.find((report) => report.result === result)).find((report): report is RuntimeValidationReport => report !== undefined) ?? reports[0]!;
     return this.applyValidation(record, selected, eventId);
+  }
+
+  async revalidateMany(memoryIds: readonly string[], validator: RuntimeValidator<T>, eventId?: string): Promise<readonly RuntimeValidationReport[]> {
+    const ids = unique(memoryIds);
+    const records = new Map(ids.map((memoryId) => [memoryId, this.require(memoryId)]));
+    const grouped = new Map<string, Promise<RuntimeValidationReport>>();
+    const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
+
+    const pending = ids.map((memoryId) => {
+      const record = records.get(memoryId)!;
+      const validations = record.envelope.evidence.map((evidence) => {
+        const key = `${evidence.evidenceId}:${canonicalJson(evidence)}`;
+        // Sharing is conservative: differing evidence payloads with the same key fall back to separate validation.
+        let validation = grouped.get(key);
+        if (validation === undefined) {
+          validation = Promise.resolve().then(() => validator(evidence, record));
+          grouped.set(key, validation);
+        }
+        return validation.then((report) => ({ ...report, memoryId }));
+      });
+      return Promise.all(validations).then((reports): { memoryId: string; report: RuntimeValidationReport } => ({
+        memoryId,
+        report: record.envelope.evidence.length === 0
+          ? { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: this.now(), reason: "memory has no evidence" }
+          : priority.map((result) => reports.find((report) => report.result === result)).find((report): report is RuntimeValidationReport => report !== undefined) ?? reports[0]!
+      }));
+    });
+    const selected = new Map((await Promise.all(pending)).map(({ memoryId, report }) => [memoryId, report]));
+
+    const applied = new Map(ids.map((memoryId) => {
+      const report = selected.get(memoryId)!;
+      return [memoryId, this.applyValidation(records.get(memoryId)!, report, eventId === undefined ? undefined : `${eventId}:${memoryId}`)] as const;
+    }));
+    return memoryIds.map((memoryId) => applied.get(memoryId)!);
+  }
+
+  /**
+   * Guard an external side effect with the version observed by the caller.
+   * The adapter performing the side effect still MUST provide its own atomic
+   * CAS; this method prevents a caller from reusing a version that PREMiSE
+   * has already replaced during revalidation.
+   */
+  async revalidateAndAct(memoryId: string, request: RuntimeActionRequest<T>): Promise<RuntimeActionResult<T>> {
+    const record = this.require(memoryId);
+    const versions = record.envelope.evidence.map((evidence) => evidence.version?.token).filter((token): token is string => typeof token === "string");
+    if (versions.length === 0 || versions.some((version) => version !== request.expectedVersion)) {
+      return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "VERSION_MISMATCH" };
+    }
+    const check = this.check([memoryId])[0]!;
+    if (check.decision === "REJECT") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REJECT" };
+    if (check.decision === "REVALIDATE") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REVALIDATE" };
+    const result = request.apply === undefined ? undefined : await request.apply(record);
+    return { accepted: true, memoryId, expectedVersion: request.expectedVersion, ...(result === undefined ? {} : { result: result as T }) };
   }
 
   signalSourceChanged(sourceUri: string, version: VersionReference, eventId?: string): readonly string[] {
@@ -377,7 +451,7 @@ export class PremiseRuntime<T = unknown> {
   private applyValidation(record: RuntimeRecord<T>, report: RuntimeValidationReport, eventId?: string): RuntimeValidationReport {
     if (report.memoryId !== record.envelope.memoryId) throw new Error("Validation report memory ID does not match record");
     const status: V2MemoryStatus = report.result === "UNCHANGED" ? "FRESH" : report.result === "CHANGED" || report.result === "MISSING" ? "INVALID" : "UNKNOWN";
-    const stored = { envelope: this.withStatus(record.envelope, status), content: record.content };
+    const stored = { envelope: this.withValidation(record.envelope, report, status), content: record.content };
     const event = this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`, false);
     this.persistRecordAndEvent(stored, event);
     this.syncStoreRevision();
@@ -386,6 +460,16 @@ export class PremiseRuntime<T = unknown> {
 
   private withStatus(envelope: MemoryEnvelopeV2, status: V2MemoryStatus): MemoryEnvelopeV2 {
     return parseMemoryEnvelopeV2({ ...envelope, validity: { ...envelope.validity, status, checkedAt: this.now() } });
+  }
+
+  private withValidation(envelope: MemoryEnvelopeV2, report: RuntimeValidationReport, status: V2MemoryStatus): MemoryEnvelopeV2 {
+    if (report.result !== "UNCHANGED" || report.version === undefined) return this.withStatus(envelope, status);
+    const evidence = envelope.evidence.map((item) => {
+      const matches = report.evidenceId === undefined || item.evidenceId === report.evidenceId;
+      const sameSource = report.sourceUri === undefined || item.sourceUri === report.sourceUri;
+      return matches && sameSource ? { ...item, version: report.version, observedAt: report.checkedAt } : item;
+    });
+    return parseMemoryEnvelopeV2({ ...envelope, evidence, validity: { ...envelope.validity, status, checkedAt: this.now() } });
   }
 
   private dependentClosure(seeds: readonly string[]): readonly string[] {
