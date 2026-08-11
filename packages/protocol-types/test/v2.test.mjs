@@ -1,13 +1,22 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync, sign } from "node:crypto";
 import {
+  MemoryV2SignatureReplayStore,
   SPEC_VERSION_V2,
   V2EnvelopeValidationError,
   classifyIdempotency,
+  canonicalizeMemoryEnvelopeV2,
+  canonicalizeMemoryEnvelopeV2Signature,
   isMemoryEnvelopeV2,
   isV2Event,
   isV2OperationRequest,
   migrateV1Envelope,
+  parseAndVerifyMemoryEnvelopeV2,
+  parseAndVerifyMemoryEnvelopeV2Async,
   parseMemoryEnvelopeV2,
+  verifyMemoryEnvelopeV2,
+  verifyMemoryEnvelopeV2SignaturesAsync,
+  verifyMemoryEnvelopeV2Signatures,
   validateMemoryEnvelopeV2
 } from "../dist/index.js";
 
@@ -103,5 +112,52 @@ assert.equal(isMemoryEnvelopeV2(migrated), true);
 assert.throws(() => parseMemoryEnvelopeV2({ ...valid, tenantId: "" }), V2EnvelopeValidationError);
 assert.throws(() => migrateV1Envelope(v1, { tenantId: "" }), V2EnvelopeValidationError);
 assert.throws(() => migrateV1Envelope({ ...v1, specVersion: SPEC_VERSION_V2 }, { tenantId: "tenant:acme" }), V2EnvelopeValidationError);
+
+const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+const unsigned = { ...structuredClone(valid), signatures: [] };
+const signatureMetadata = { signatureId: "sig:real", signerId: "agent:1", keyId: "key:ed25519", algorithm: "ed25519", signedAt: at, evidenceId: "e:pr" };
+const signatureValue = sign(null, Buffer.from(canonicalizeMemoryEnvelopeV2Signature(unsigned, signatureMetadata), "utf8"), privateKey).toString("base64");
+const signedEnvelope = { ...unsigned, signatures: [{ ...signatureMetadata, value: signatureValue }] };
+const replayStore = new MemoryV2SignatureReplayStore();
+assert.equal(canonicalizeMemoryEnvelopeV2({ ...signedEnvelope, signatures: [{ ...signedEnvelope.signatures[0], value: "different" }] }), canonicalizeMemoryEnvelopeV2(signedEnvelope));
+assert.equal(verifyMemoryEnvelopeV2Signatures(signedEnvelope, { keys: new Map([["key:ed25519", publicKey]]), replayStore }).verified, true);
+assert.equal(verifyMemoryEnvelopeV2(signedEnvelope, { keys: new Map([["key:ed25519", publicKey]]), replayStore }), false, "the same signature must be rejected as replay");
+assert.equal(parseAndVerifyMemoryEnvelopeV2({ ...unsigned, signatures: [{ ...signatureMetadata, value: signatureValue }] }, { keys: new Map([["key:ed25519", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }).memoryId, valid.memoryId);
+assert.equal(verifyMemoryEnvelopeV2({ ...signedEnvelope, memoryId: "memory:tampered" }, { keys: new Map([["key:ed25519", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }), false, "tampering must fail cryptographic verification");
+assert.equal(verifyMemoryEnvelopeV2({ ...signedEnvelope, signatures: [{ ...signedEnvelope.signatures[0], signedAt: new Date().toISOString() }] }, { keys: new Map([["key:ed25519", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }), false, "signature metadata tampering must fail cryptographic verification");
+const invalidAlgorithm = { ...signedEnvelope, signatures: [{ ...signedEnvelope.signatures[0], algorithm: "rsa-sha256" }] };
+assert.equal(validateMemoryEnvelopeV2(invalidAlgorithm).some(({ path }) => path === "$.signatures[0].algorithm"), true);
+assert.equal(verifyMemoryEnvelopeV2Signatures(invalidAlgorithm, { keys: new Map([["key:ed25519", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }).verified, false, "unsupported algorithms must be rejected");
+assert.equal(verifyMemoryEnvelopeV2Signatures(signedEnvelope, { keys: new Map([["key:other", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }).verified, false, "unknown keyIds must be rejected");
+assert.equal(verifyMemoryEnvelopeV2Signatures({ ...signedEnvelope, signatures: [{ ...signedEnvelope.signatures[0], value: "not-base64" }] }, { keys: new Map([["key:ed25519", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }).verified, false, "invalid signature encoding must be rejected");
+assert.equal(verifyMemoryEnvelopeV2({ ...unsigned, signatures: [] }, { keys: new Map([["key:ed25519", publicKey]]), replayStore: new MemoryV2SignatureReplayStore() }), false, "unsigned envelopes must be rejected by the crypto verifier");
+
+const asyncAt = new Date().toISOString();
+const asyncSignatureMetadata = { signatureId: "sig:async", signerId: "agent:async", keyId: "key:ed25519", algorithm: "ed25519", signedAt: asyncAt, evidenceId: "e:pr" };
+const asyncSignatureValue = sign(null, Buffer.from(canonicalizeMemoryEnvelopeV2Signature(unsigned, asyncSignatureMetadata), "utf8"), privateKey).toString("base64");
+const asyncSignedEnvelope = { ...unsigned, signatures: [{ ...asyncSignatureMetadata, value: asyncSignatureValue }] };
+const durableReplay = {
+  claims: [],
+  accepted: new Set(),
+  async claim(claim) {
+    this.claims.push(claim);
+    if (this.accepted.has(claim.key)) return false;
+    this.accepted.add(claim.key);
+    return true;
+  },
+  async claimMany(claims) {
+    this.claims.push(...claims);
+    if (claims.some((claim) => this.accepted.has(claim.key)) || new Set(claims.map((claim) => claim.key)).size !== claims.length) return false;
+    for (const claim of claims) this.accepted.add(claim.key);
+    return true;
+  }
+};
+assert.equal((await verifyMemoryEnvelopeV2SignaturesAsync(asyncSignedEnvelope, { keys: new Map([["key:ed25519", publicKey]]), replayStore: durableReplay, now: () => asyncAt })).verified, true);
+assert.equal(durableReplay.claims[0].tenantId, unsigned.tenantId, "durable replay claims must be tenant scoped");
+assert.equal((await verifyMemoryEnvelopeV2SignaturesAsync(asyncSignedEnvelope, { keys: new Map([["key:ed25519", publicKey]]), replayStore: durableReplay, now: () => asyncAt })).verified, false, "durable replay must reject a signature after restart-equivalent state reuse");
+assert.equal((await verifyMemoryEnvelopeV2SignaturesAsync(asyncSignedEnvelope, { keys: new Map([["key:ed25519", publicKey]]), replayStore: { claim: async () => true, claimMany: async () => { throw new Error("database unavailable"); } }, now: () => asyncAt })).issues[0].code, "REPLAY_STORE_UNAVAILABLE");
+const staleAsync = { ...asyncSignedEnvelope, signatures: [{ ...asyncSignedEnvelope.signatures[0], signedAt: "2020-01-01T00:00:00.000Z" }] };
+assert.equal((await verifyMemoryEnvelopeV2SignaturesAsync(staleAsync, { keys: new Map([["key:ed25519", publicKey]]), replayStore: { claim: async () => true, claimMany: async () => true }, now: () => asyncAt, maxClockSkewMs: 1_000 })).issues[0].code, "SIGNATURE_TIME_INVALID");
+assert.equal((await parseAndVerifyMemoryEnvelopeV2Async(asyncSignedEnvelope, { keys: new Map([["key:ed25519", publicKey]]), replayStore: { claim: async () => true, claimMany: async () => true }, now: () => asyncAt })).memoryId, valid.memoryId);
 
 console.log("protocol-types v2 contract tests passed");

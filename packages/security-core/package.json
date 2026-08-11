@@ -12,6 +12,6 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node test/security.test.mjs"
+    "test": "pnpm build && node test/security.test.mjs && node test/external-key-provider.test.mjs && node test/audit-sink.test.mjs"
   }
 }

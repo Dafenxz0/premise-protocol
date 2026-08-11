@@ -2,7 +2,8 @@ name: premise-v2
 
 services:
   postgres:
-    image: postgres:16.4-alpine
+    image: ${PREMISE_POSTGRES_IMAGE:-postgres:16.4-alpine}
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-premise}
       POSTGRES_USER: ${POSTGRES_USER:-premise}
@@ -13,8 +14,44 @@ services:
       timeout: 5s
       retries: 20
     volumes:
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
+    stop_grace_period: 1m
+
+  db-roles:
+    image: ${PREMISE_POSTGRES_IMAGE:-postgres:16.4-alpine}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-premise}
+      POSTGRES_USER: ${POSTGRES_USER:-premise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-not-for-production}
+      PREMISE_DB_USER: ${PREMISE_DB_USER:-premise_app}
+      PREMISE_DB_PASSWORD: ${PREMISE_DB_PASSWORD:-local-only-app-password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        case "$$PREMISE_DB_USER" in
+          ''|*[!A-Za-z0-9_]* ) echo "PREMISE_DB_USER must be a simple SQL role name" >&2; exit 1 ;;
+        esac
+        test "$$PREMISE_DB_USER" != "$$POSTGRES_USER"
+        test -n "$$PREMISE_DB_PASSWORD"
+        case "$$PREMISE_DB_PASSWORD" in __* ) echo "PREMISE_DB_PASSWORD must be injected, not a placeholder" >&2; exit 1 ;; esac
+        PGPASSWORD="$$POSTGRES_PASSWORD" psql -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -v app_user="$${PREMISE_DB_USER}" -v app_password="$${PREMISE_DB_PASSWORD}" <<'SQL'
+        SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD %L', :'app_user', :'app_password')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') \gexec
+        SELECT format('ALTER ROLE %I WITH LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD %L', :'app_user', :'app_password') \gexec
+        SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_user') \gexec
+        SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'app_user') \gexec
+        SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', :'app_user') \gexec
+        SELECT format('GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO %I', :'app_user') \gexec
+        SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I', current_user, :'app_user') \gexec
+        SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO %I', current_user, :'app_user') \gexec
+        SQL
 
   migrate:
     image: ${PREMISE_IMAGE:-premise-v2:local}
@@ -23,14 +60,25 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         BUILD_VERSION: ${PREMISE_BUILD_VERSION:-local}
+        PREMISE_NODE_BUILD_IMAGE: ${PREMISE_NODE_BUILD_IMAGE:-node:24.19.0-bookworm-slim}
+        PREMISE_NODE_RUNTIME_IMAGE: ${PREMISE_NODE_RUNTIME_IMAGE:-node:24.19.0-bookworm-slim}
     user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
       MIGRATIONS_DIR: /app/deploy/migrations
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-roles:
+        condition: service_completed_successfully
     restart: "no"
     command: ["node", "/app/ops/migrate.mjs"]
 
@@ -41,7 +89,10 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         BUILD_VERSION: ${PREMISE_BUILD_VERSION:-local}
+        PREMISE_NODE_BUILD_IMAGE: ${PREMISE_NODE_BUILD_IMAGE:-node:24.19.0-bookworm-slim}
+        PREMISE_NODE_RUNTIME_IMAGE: ${PREMISE_NODE_RUNTIME_IMAGE:-node:24.19.0-bookworm-slim}
     user: "10001:10001"
+    init: true
     read_only: true
     tmpfs:
       - /tmp
@@ -55,18 +106,29 @@ services:
       HOST: 0.0.0.0
       PREMISE_ENV: ${PREMISE_ENV:-development}
       PREMISE_API_TOKEN: ${PREMISE_API_TOKEN:-}
+      PREMISE_METRICS_TOKEN: ${PREMISE_METRICS_TOKEN:-local-only-metrics-token}
       PREMISE_STORE_MODE: postgres
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
       PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_REQUIRE_SIGNED_ENVELOPES: ${PREMISE_REQUIRE_SIGNED_ENVELOPES:-0}
+      PREMISE_SIGNATURE_KEYS_FILE: ${PREMISE_SIGNATURE_KEYS_FILE:-}
+      PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS: ${PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS:-300000}
       PREMISE_MAX_BODY_BYTES: ${PREMISE_MAX_BODY_BYTES:-1048576}
       PREMISE_RUNTIME_WRITE_CONCURRENCY: ${PREMISE_RUNTIME_WRITE_CONCURRENCY:-4}
+      PREMISE_RUNTIME_MAX_PENDING_WRITES: ${PREMISE_RUNTIME_MAX_PENDING_WRITES:-10000}
+      PREMISE_HTTP_IDEMPOTENCY_RETENTION_MS: ${PREMISE_HTTP_IDEMPOTENCY_RETENTION_MS:-604800000}
+      PREMISE_HTTP_IDEMPOTENCY_CLEANUP_INTERVAL_MS: ${PREMISE_HTTP_IDEMPOTENCY_CLEANUP_INTERVAL_MS:-3600000}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_HEALTH_PATH: /readyz
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${PREMISE_DB_USER:-premise_app}:${PREMISE_DB_PASSWORD:-local-only-app-password}@postgres:5432/${POSTGRES_DB:-premise}}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-premise-v2}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-service.namespace=premise,service.version=2}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
       OTEL_PROPAGATORS: ${OTEL_PROPAGATORS:-tracecontext,baggage}
+    secrets:
+      - source: premise_signature_public_keys
+        target: premise_signature_public_keys.json
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -79,13 +141,17 @@ services:
       start_period: 15s
       retries: 6
     restart: unless-stopped
+    stop_grace_period: 30s
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: ${PREMISE_PROMETHEUS_IMAGE:-prom/prometheus:v3.5.0}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
+    secrets:
+      - source: premise_metrics_token
+        target: premise_metrics_token
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
@@ -98,7 +164,7 @@ services:
     restart: unless-stopped
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.132.0
+    image: ${PREMISE_OTEL_IMAGE:-otel/opentelemetry-collector-contrib:0.132.0}
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
@@ -112,18 +178,87 @@ services:
     image: ${PREMISE_IMAGE:-premise-v2:local}
     profiles: ["ops"]
     user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${PREMISE_DB_USER:-premise_app}:${PREMISE_DB_PASSWORD:-local-only-app-password}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
       PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
       PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
-      BACKUP_FILE: /backup/premise-v2-latest.json
+      BACKUP_FILE: /backup/premise-v2-latest.ndjson
     volumes:
-      - ../.local/backups:/backup
+      - ../.local/backups:/backup:rw
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-roles:
+        condition: service_completed_successfully
     command: ["node", "/app/ops/backup.mjs"]
+
+  restore-verify:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    profiles: ["ops"]
+    # Verification creates isolated temporary tables, so it uses the migration
+    # owner rather than granting DDL to the long-lived application role.
+    user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
+      PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      BACKUP_FILE: /backup/premise-v2-latest.ndjson
+    volumes:
+      - ../.local/backups:/backup:ro
+    depends_on:
+      db-roles:
+        condition: service_completed_successfully
+    command: ["node", "/app/ops/restore-verify.mjs"]
+
+  restore:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    profiles: ["ops"]
+    # Destructive restore also needs the migration owner for forward-compatible
+    # schema checks; the API role never receives DDL privileges.
+    user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
+      PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      BACKUP_FILE: /backup/premise-v2-latest.ndjson
+    volumes:
+      - ../.local/backups:/backup:rw
+    depends_on:
+      db-roles:
+        condition: service_completed_successfully
+    command: ["node", "/app/ops/restore.mjs"]
 
 volumes:
   postgres-data:
   prometheus-data:
+
+secrets:
+  premise_metrics_token:
+    file: ${PREMISE_METRICS_TOKEN_FILE:-../.local/premise_metrics_token}
+  premise_signature_public_keys:
+    file: ${PREMISE_SIGNATURE_KEYS_SOURCE:-../.local/premise_signature_public_keys.json}

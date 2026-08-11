@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash, generateKeyPairSync } from "node:crypto";
 import {
   AUDIT_GENESIS_HASH,
   AclPolicy,
@@ -30,6 +31,9 @@ const signature = signEd25519(signed, keys.privateKey);
 assert.equal(verifyEd25519(signed, signature, keys.publicKey), true);
 assert.equal(verifyEd25519({ ...signed, payload: { ...signed.payload, value: 8 } }, signature, keys.publicKey), false, "signed tampering must fail");
 assert.equal(verifyEd25519(signed, `${signature.slice(0, -2)}aa`, keys.publicKey), false, "invalid signature must fail");
+const rsaKeys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+assert.throws(() => signEd25519(signed, rsaKeys.privateKey), (error) => error?.code === "SIGNING_FAILED", "RSA private keys must not enter the Ed25519 signer");
+assert.equal(verifyEd25519(signed, signature, rsaKeys.publicKey), false, "RSA public keys must not enter the Ed25519 verifier");
 assert.equal(canonicalize({ b: 2, a: 1 }), '{"a":1,"b":2}');
 
 const body = JSON.stringify({ event: "memory.updated", value: 3 });
@@ -109,5 +113,8 @@ assert.equal(first.data.authorization, "[REDACTED]");
 const tamperedAudit = audit.entries().map((entry) => entry === second ? { ...entry, data: { result: "tampered" } } : entry);
 assert.equal(verifyAuditChain(tamperedAudit), false, "audit tampering must break the hash chain");
 assert.equal(JSON.stringify(audit.entries()).includes(webhookSecret), false, "audit entries must not contain secrets");
+const { hash: _validHash, ...malformedUnsigned } = first;
+const malformedHash = `sha256:${createHash("sha256").update(canonicalize({ ...malformedUnsigned, unexpected: true })).digest("hex")}`;
+assert.equal(verifyAuditChain([{ ...malformedUnsigned, unexpected: true, hash: malformedHash }]), false, "audit verification must reject fields outside the signed schema");
 
 console.log("security-core deterministic security tests passed");

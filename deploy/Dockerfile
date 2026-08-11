@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24.19.0-bookworm-slim AS build
+ARG PREMISE_NODE_BUILD_IMAGE=node:24.19.0-bookworm-slim
+ARG PREMISE_NODE_RUNTIME_IMAGE=node:24.19.0-bookworm-slim
+
+FROM ${PREMISE_NODE_BUILD_IMAGE} AS build
 
 ARG BUILD_VERSION=local
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
@@ -26,7 +29,7 @@ RUN cd /opt/deploy-deps && npm ci --omit=dev --ignore-scripts --no-audit --no-fu
 RUN pnpm build
 RUN pnpm prune --prod
 
-FROM node:24.19.0-bookworm-slim AS runtime
+FROM ${PREMISE_NODE_RUNTIME_IMAGE} AS runtime
 
 ARG BUILD_VERSION=local
 ENV NODE_ENV=production \
@@ -48,6 +51,13 @@ COPY --from=build --chown=10001:10001 /workspace/node_modules ./node_modules
 COPY --from=build --chown=10001:10001 /workspace/packages ./packages
 COPY --from=build --chown=10001:10001 /workspace/ops ./ops
 COPY --from=build --chown=10001:10001 /workspace/deploy ./deploy
+# Keep the production-shaped soak diagnostic beside the runtime so CI can
+# measure the same service/container network and PostgreSQL instance that it
+# is certifying, without exposing the database port to the host.
+COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-soak ./benchmarks/ga-soak
+# Keep the real PostgreSQL scale harness beside the runtime. It is invoked
+# only by the explicit GA scale campaign; the normal service never runs it.
+COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-load/postgres-scale.mjs ./benchmarks/ga-load/postgres-scale.mjs
 # Operations code is imported from /app/ops, so production-only connector
 # dependencies must be resolvable from the image-level /app/node_modules.
 COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modules

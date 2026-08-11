@@ -44,3 +44,18 @@ Metadata filters accept direct equality and `$eq`, `$ne`, `$in`, `$nin`,
 `$exists`, numeric range operators, `$contains`, and `$prefix`. A predicate can
 be supplied when a structured filter is not enough. `upsert` creates or
 replaces a document, `update` requires an existing id, and `delete` removes it.
+
+## Query contract
+
+`limit` defaults to `10`, accepts `0` (no results), and must be a safe integer
+from `0` through `10,000`. `candidateLimit` is an optional safe-integer hint
+for adapters that need a bounded candidate window before ranking. If supplied,
+it must be at least the effective `limit` (at least `1`) and no greater than
+`10,000`. `HybridIndex` validates the hint but ignores it because its in-memory
+ranking keeps exact top-k behavior; a persistent adapter may use it as an
+approximation/performance trade-off.
+
+Invalid limits, weights, filters, or vectors reject the query with `RangeError`
+or `TypeError`; callers should not silently clamp values. The exported
+`DEFAULT_SEARCH_LIMIT`, `MAX_SEARCH_LIMIT`, and `MAX_SEARCH_CANDIDATE_LIMIT`
+constants are available when an SDK or adapter needs to mirror these bounds.

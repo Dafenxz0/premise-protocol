@@ -10,12 +10,15 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
 const BENCHMARK_DIR = new URL("../", import.meta.url);
+export const CAMPAIGN_MANIFEST_URL = new URL("../manifest/v1.json", import.meta.url);
 export const DATASET_MANIFEST_URL = new URL("../datasets/v1.json", import.meta.url);
-export const TASK_MANIFEST_URL = new URL("../manifest/v1.json", import.meta.url);
+export const PROMPT_MANIFEST_URL = new URL("../prompts/v1.json", import.meta.url);
+export const LABEL_MANIFEST_URL = new URL("../labels/v1.json", import.meta.url);
+export const TASK_MANIFEST_URL = PROMPT_MANIFEST_URL;
 export const OUTPUT_DIR_URL = new URL("../outputs/", import.meta.url);
 export const PROTOCOL_VERSION = "ga-evaluation/1";
-export const RESULT_FORMAT = "ga-evaluation-result/1";
-export const RUNNER_VERSION = "ga-evaluation-runner/1.0.0";
+export const RESULT_FORMAT = "ga-evaluation-result/2";
+export const RUNNER_VERSION = "ga-evaluation-runner/1.1.0";
 
 const PUBLIC_DOWNLOAD_HEADERS = {
   accept: "application/octet-stream",
@@ -28,6 +31,28 @@ export const COST_MODEL = Object.freeze({
   computePerMsUsd: 0.00000002,
   note: "Source-operation proxy; excludes model tokens, provider billing, bandwidth, and human review."
 });
+
+const SYNTHETIC_MARKER_PATTERN = /(?:^|[/:._-])(?:fixture|synthetic|mock|fake|dummy)(?:[/:._-]|$)/iu;
+
+function syntheticMarkers(value, path = "manifest", found = []) {
+  if (typeof value === "string") {
+    if (/\.(?:syntheticMarkers|forbiddenSchemes)\[\d+\]$/u.test(path)) return found;
+    if (SYNTHETIC_MARKER_PATTERN.test(value)) found.push({ path, value });
+    return found;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => syntheticMarkers(entry, `${path}[${index}]`, found));
+    return found;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, entry] of Object.entries(value)) syntheticMarkers(entry, `${path}.${key}`, found);
+  }
+  return found;
+}
+
+export function detectSyntheticMarkers(value) {
+  return syntheticMarkers(value);
+}
 
 function fail(message) {
   throw new Error(`[ga-evaluation] ${message}`);
@@ -58,7 +83,7 @@ function isPublicUrl(value, allowedHosts = ["raw.githubusercontent.com", "github
 
 function assertNoFixtureFields(value, path = "manifest") {
   if (typeof value === "string") {
-    if (/\.evidencePolicy\.forbiddenSchemes\[/u.test(path)) return;
+    if (/\.evidencePolicy\.(?:forbiddenSchemes|syntheticMarkers)\[/u.test(path)) return;
     if (isFixtureReference(value)) fail(`fixture value is forbidden at ${path}`);
     return;
   }
@@ -73,6 +98,8 @@ function assertNoFixtureFields(value, path = "manifest") {
 
 export function assertExternalEvidence(evidence) {
   if (!evidence || evidence.kind !== "external" || evidence.origin !== "public-download") fail("only verified public-download evidence may be presented as external evidence");
+  if (evidence.evidenceClass !== undefined && evidence.evidenceClass !== "external-public-static") fail("external evidence has an unsupported evidence class");
+  if (evidence.syntheticData !== false) fail("external evidence must explicitly exclude synthetic data");
   isPublicUrl(evidence.downloadUrl);
   if (!/^[a-f0-9]{64}$/u.test(evidence.sha256)) fail("external evidence must carry a verified sha256");
   if (isFixtureReference(evidence.datasetId) || isFixtureReference(evidence.sourceUri)) fail("fixture evidence cannot be promoted to external evidence");
@@ -128,6 +155,8 @@ export function validateDatasetManifest(manifest) {
   if (manifest.hash !== "sha256") fail("dataset manifest must use sha256");
   if (!Array.isArray(manifest.datasets) || manifest.datasets.length < 1) fail("dataset manifest must contain datasets");
   assertNoFixtureFields(manifest, "datasets");
+  if (manifest.evidencePolicy?.syntheticDataAllowed !== false) fail("dataset evidence policy must reject synthetic data");
+  if (detectSyntheticMarkers(manifest).length > 0) fail("dataset manifest contains a synthetic or fixture marker");
   const ids = new Set();
   for (const [index, dataset] of manifest.datasets.entries()) {
     const label = `dataset[${index}]`;
@@ -137,6 +166,8 @@ export function validateDatasetManifest(manifest) {
     requireString(dataset.sourceId, `${label}.sourceId`);
     if (!["github", "filesystem", "git"].includes(dataset.adapter)) fail(`${label}.adapter must be github, filesystem, or git`);
     requireString(dataset.sourceUri, `${label}.sourceUri`);
+    if (dataset.evidenceClass !== "external-public-static") fail(`${label}.evidenceClass must be external-public-static`);
+    if (dataset.syntheticData !== false) fail(`${label}.syntheticData must be false`);
     isPublicUrl(dataset.downloadUrl, manifest.evidencePolicy.allowedDownloadHosts);
     if (!/^[a-f0-9]{64}$/u.test(dataset.sha256)) fail(`${label}.sha256 must be a lowercase 64-character digest`);
     if (!/^[0-9a-f]{40}$/u.test(dataset.commit)) fail(`${label}.commit must be a full commit id`);
@@ -148,14 +179,38 @@ export function validateDatasetManifest(manifest) {
 
 const ALLOWED_ORACLES = new Set(["regex", "regexBoolean", "contains", "trimmedText"]);
 
-export function validateTaskManifest(manifest, datasets) {
-  if (manifest?.format !== "ga-evaluation-task-manifest/1") fail("unexpected task manifest format");
-  requireString(manifest.version, "task manifest version");
-  if (manifest.blindProtocol !== PROTOCOL_VERSION) fail(`task manifest must target ${PROTOCOL_VERSION}`);
-  if (!Array.isArray(manifest.tasks) || manifest.tasks.length < 1) fail("task manifest must contain tasks");
-  assertNoFixtureFields(manifest, "tasks");
+function validateOracle(oracle, label) {
+  if (!oracle || !ALLOWED_ORACLES.has(oracle.kind)) fail(`${label}.oracle kind is unsupported`);
+  if (["regex", "regexBoolean"].includes(oracle.kind)) {
+    requireString(oracle.pattern, `${label}.oracle.pattern`);
+    new RegExp(oracle.pattern, oracle.flags ?? "u");
+    if (oracle.kind === "regex" && !Number.isInteger(oracle.group)) fail(`${label}.oracle.group must be an integer`);
+  }
+  if (oracle.kind === "contains") requireString(oracle.needle, `${label}.oracle.needle`);
+  return oracle;
+}
+
+export function validateCampaignManifest(manifest) {
+  if (manifest?.format !== "ga-evaluation-campaign-manifest/1") fail("unexpected campaign manifest format");
+  requireString(manifest.version, "campaign manifest version");
+  for (const field of ["promptManifest", "labelManifest", "datasetManifest"]) requireString(manifest[field], `campaign ${field}`);
+  if (manifest.blindProtocol !== PROTOCOL_VERSION) fail(`campaign manifest must target ${PROTOCOL_VERSION}`);
+  if (manifest.evidencePolicy?.sourceClass !== "external-public-static") fail("campaign source evidence must be external-public-static");
+  if (manifest.evidencePolicy?.executionClass !== "local-runner") fail("campaign execution evidence must be local-runner");
+  if (manifest.evidencePolicy?.syntheticDataAllowed !== false) fail("campaign manifest must reject synthetic data");
+  if (manifest.evidencePolicy?.independentEvidence !== false) fail("local campaign cannot claim independent evidence");
+  if (detectSyntheticMarkers(manifest).length > 0) fail("campaign manifest contains a synthetic or fixture marker");
+  return manifest;
+}
+
+export function validatePromptManifest(manifest, datasets) {
+  if (manifest?.format !== "ga-evaluation-prompt-manifest/1") fail("unexpected prompt manifest format");
+  requireString(manifest.version, "prompt manifest version");
+  if (manifest.blindProtocol !== PROTOCOL_VERSION) fail(`prompt manifest must target ${PROTOCOL_VERSION}`);
+  if (!Array.isArray(manifest.tasks) || manifest.tasks.length < 1) fail("prompt manifest must contain tasks");
+  assertNoFixtureFields(manifest, "prompts");
+  if (detectSyntheticMarkers(manifest).length > 0) fail("prompt manifest contains a synthetic or fixture marker");
   const ids = new Set();
-  const datasetById = new Map(datasets.datasets.map((dataset) => [dataset.id, dataset]));
   const sourceIds = new Set(datasets.datasets.map((dataset) => dataset.sourceId));
   const splitCounts = { visible: 0, hidden: 0, holdout: 0 };
   for (const [index, task] of manifest.tasks.entries()) {
@@ -167,18 +222,8 @@ export function validateTaskManifest(manifest, datasets) {
     splitCounts[task.split] += 1;
     requireString(task.sourceId, `${label}.sourceId`);
     if (!sourceIds.has(task.sourceId)) fail(`${label}.sourceId has no dataset`);
-    requireString(task.snapshot, `${label}.snapshot`);
-    const dataset = datasetById.get(task.snapshot);
-    if (!dataset || dataset.sourceId !== task.sourceId) fail(`${label}.snapshot does not match sourceId`);
     requireString(task.prompt, `${label}.prompt`);
-    if (!task.oracle || !ALLOWED_ORACLES.has(task.oracle.kind)) fail(`${label}.oracle kind is unsupported`);
-    if (["regex", "regexBoolean"].includes(task.oracle.kind)) {
-      requireString(task.oracle.pattern, `${label}.oracle.pattern`);
-      new RegExp(task.oracle.pattern, task.oracle.flags ?? "u");
-      if (task.oracle.kind === "regex" && !Number.isInteger(task.oracle.group)) fail(`${label}.oracle.group must be an integer`);
-    }
-    if (task.oracle.kind === "contains") requireString(task.oracle.needle, `${label}.oracle.needle`);
-    for (const forbidden of ["answer", "expected", "gold", "goldAnswer"]) if (Object.hasOwn(task, forbidden)) fail(`${label} leaks forbidden field ${forbidden}`);
+    for (const forbidden of ["answer", "expected", "gold", "goldAnswer", "snapshot", "oracle"]) if (Object.hasOwn(task, forbidden)) fail(`${label} leaks answer-key field ${forbidden}`);
   }
   for (const [split, definition] of Object.entries(manifest.splits)) {
     if (splitCounts[split] < definition.minimumTasks) fail(`${split} split has ${splitCounts[split]} tasks; expected at least ${definition.minimumTasks}`);
@@ -186,14 +231,53 @@ export function validateTaskManifest(manifest, datasets) {
   return { ...manifest, taskIds: ids, splitCounts };
 }
 
+export function validateTaskManifest(manifest, datasets) {
+  return validatePromptManifest(manifest, datasets);
+}
+
+export function validateLabelManifest(manifest, prompts, datasets) {
+  if (manifest?.format !== "ga-evaluation-label-manifest/1") fail("unexpected label manifest format");
+  requireString(manifest.version, "label manifest version");
+  if (manifest.blindProtocol !== PROTOCOL_VERSION) fail(`label manifest must target ${PROTOCOL_VERSION}`);
+  if (!Array.isArray(manifest.labels) || manifest.labels.length !== prompts.tasks.length) fail("label manifest must contain exactly one label per prompt");
+  assertNoFixtureFields(manifest, "labels");
+  if (detectSyntheticMarkers(manifest).length > 0) fail("label manifest contains a synthetic or fixture marker");
+  const datasetById = new Map(datasets.datasets.map((dataset) => [dataset.id, dataset]));
+  const promptById = new Map(prompts.tasks.map((task) => [task.id, task]));
+  const labels = new Map();
+  for (const [index, label] of manifest.labels.entries()) {
+    const labelName = `label[${index}]`;
+    const id = requireString(label.id, `${labelName}.id`);
+    if (labels.has(id)) fail(`duplicate label id: ${id}`);
+    const prompt = promptById.get(id);
+    if (!prompt) fail(`${labelName}.id does not match a prompt`);
+    requireString(label.snapshot, `${labelName}.snapshot`);
+    const dataset = datasetById.get(label.snapshot);
+    if (!dataset || dataset.sourceId !== prompt.sourceId) fail(`${labelName}.snapshot does not match the prompt source`);
+    validateOracle(label.oracle, labelName);
+    labels.set(id, Object.freeze({ id, snapshot: label.snapshot, oracle: label.oracle }));
+  }
+  return { ...manifest, labels, labelIds: new Set(labels.keys()) };
+}
+
 export async function loadManifests() {
-  const [datasetText, taskText] = await Promise.all([
+  const [campaignText, datasetText, promptText, labelText] = await Promise.all([
+    readFile(CAMPAIGN_MANIFEST_URL, "utf8"),
     readFile(DATASET_MANIFEST_URL, "utf8"),
-    readFile(TASK_MANIFEST_URL, "utf8")
+    readFile(PROMPT_MANIFEST_URL, "utf8"),
+    readFile(LABEL_MANIFEST_URL, "utf8")
   ]);
+  const campaign = validateCampaignManifest(JSON.parse(campaignText));
   const datasets = validateDatasetManifest(JSON.parse(datasetText));
-  const tasks = validateTaskManifest(JSON.parse(taskText), datasets);
-  return { datasets, tasks };
+  const prompts = validatePromptManifest(JSON.parse(promptText), datasets);
+  const labels = validateLabelManifest(JSON.parse(labelText), prompts, datasets);
+  if (campaign.promptManifest !== "../prompts/v1.json" || campaign.labelManifest !== "../labels/v1.json" || campaign.datasetManifest !== "../datasets/v1.json") fail("campaign manifest references unexpected benchmark inputs");
+  if (prompts.labelManifest !== "../labels/v1.json" || labels.taskManifest !== "../prompts/v1.json") fail("prompt and label manifests are not separated by their declared references");
+  const tasks = {
+    ...prompts,
+    tasks: prompts.tasks.map((prompt) => ({ ...prompt, ...labels.labels.get(prompt.id) }))
+  };
+  return { campaign, datasets, prompts, labels, tasks };
 }
 
 async function fetchPublicBytes(entry) {
@@ -230,6 +314,8 @@ export async function verifyDatasets(datasets, { runtimeRoot = join(fileURLToPat
       externalEvidence: {
         kind: "external",
         origin: "public-download",
+        evidenceClass: entry.evidenceClass,
+        syntheticData: entry.syntheticData,
         datasetId: entry.id,
         sourceUri: entry.sourceUri,
         downloadUrl: entry.downloadUrl,
@@ -410,6 +496,8 @@ export class SourceBroker {
     return {
       kind: "external",
       origin: "public-download",
+      evidenceClass: entry.evidenceClass,
+      syntheticData: entry.syntheticData,
       datasetId: entry.id,
       sourceUri: entry.sourceUri,
       downloadUrl: entry.downloadUrl,
@@ -427,7 +515,7 @@ export function publicTask(task, datasets) {
     taskId: `opaque-${sha256(task.id).slice(0, 16)}`,
     prompt: task.prompt,
     source: {
-      id: task.sourceId,
+      id: `opaque-source-${sha256(task.sourceId).slice(0, 16)}`,
       uri: dataset.sourceUri,
       adapter: dataset.adapter
     },
@@ -465,10 +553,6 @@ function verifiedContent(task, datasets, preflight) {
   return { content: textFromBytes(bytes), entry, version: { scheme: entry.adapter === "git" ? "git.commit+blob" : `${entry.adapter}.sha256`, token: record.versionToken } };
 }
 
-function metricForTrace(trace) {
-  return trace.available ? 1 : 0;
-}
-
 export function summarizeMetrics(strategy, traces, brokerMetrics, warmupRequests = 0) {
   const tasks = traces.length;
   const available = traces.filter((trace) => trace.available).length;
@@ -500,6 +584,8 @@ export function summarizeMetrics(strategy, traces, brokerMetrics, warmupRequests
   }
   return {
     strategy,
+    baseline: strategy === "retrieval-no-protocol",
+    protocol: strategy === "PREMiSE" ? "version-gated" : strategy === "retrieval-no-protocol" ? "none" : strategy,
     tasks,
     denominators: {
       correctRate: tasks,
@@ -509,13 +595,18 @@ export function summarizeMetrics(strategy, traces, brokerMetrics, warmupRequests
     },
     correct,
     correctRate: round(tasks === 0 ? 0 : correct / tasks, 6),
+    correctPer100: round(tasks === 0 ? 0 : correct * 100 / tasks, 3),
     freshnessCount: fresh,
     freshnessRate: round(available === 0 ? 0 : fresh / available, 6),
+    freshnessPer100Available: round(available === 0 ? 0 : fresh * 100 / available, 3),
     falsePositiveCount: falsePositives,
     falsePositiveRate: round(tasks === 0 ? 0 : falsePositives / tasks, 6),
     available,
     availabilityRate: round(tasks === 0 ? 0 : available / tasks, 6),
+    availabilityPer100: round(tasks === 0 ? 0 : available * 100 / tasks, 3),
     errors,
+    errorRate: round(tasks === 0 ? 0 : errors / tasks, 6),
+    errorsPer100: round(tasks === 0 ? 0 : errors * 100 / tasks, 3),
     requests,
     warmupRequests,
     requestsPerTask: round(tasks === 0 ? 0 : requests / tasks, 6),
@@ -523,6 +614,7 @@ export function summarizeMetrics(strategy, traces, brokerMetrics, warmupRequests
     versionRequests: brokerMetrics.versionRequests,
     adapterRequests: brokerMetrics.byAdapter,
     costUsd: round(costUsd, 8),
+    costPer1000TasksUsd: round(tasks === 0 ? 0 : costUsd * 1000 / tasks, 8),
     latencyMs: {
       p50: round(percentile(latencies, 0.5)),
       p95: round(percentile(latencies, 0.95)),
@@ -688,22 +780,23 @@ async function runCandidate(command, tasks, datasets, preflight, options = {}) {
     let lastEvidence;
     let error;
     try {
-      await writeLine(child.stdin, { type: "task", task: publicTask(task, datasets) });
+      const taskForCandidate = publicTask(task, datasets);
+      await writeLine(child.stdin, { type: "task", task: taskForCandidate });
       while (true) {
         const raw = await nextLine(iterator, taskTimeoutMs);
         let message;
         try { message = JSON.parse(raw); } catch { fail("candidate emitted non-JSON stdout"); }
         if (!message || typeof message.type !== "string") fail("candidate message must contain type");
         if (message.type === "read" || message.type === "version") {
-          if (message.sourceId !== task.sourceId) fail("candidate requested a source outside the active task");
+          if (message.sourceId !== taskForCandidate.source.id) fail("candidate requested a source outside the active task");
           if (message.type === "read") {
-            const evidence = await broker.read(message.sourceId);
+            const evidence = await broker.read(task.sourceId);
             lastEvidence = evidence;
-            await writeLine(child.stdin, { type: "evidence", requestId: message.requestId ?? null, sourceId: task.sourceId, content: evidence.content, version: evidence.version, sourceUri: evidence.sourceUri, adapter: evidence.adapter, provenance: evidence.provenance });
+            await writeLine(child.stdin, { type: "evidence", requestId: message.requestId ?? null, sourceId: taskForCandidate.source.id, content: evidence.content, version: evidence.version, sourceUri: evidence.sourceUri, adapter: evidence.adapter, provenance: evidence.provenance });
           } else {
-            const evidence = await broker.version(message.sourceId);
+            const evidence = await broker.version(task.sourceId);
             lastEvidence = evidence;
-            await writeLine(child.stdin, { type: "version", requestId: message.requestId ?? null, sourceId: task.sourceId, version: evidence.version, sourceUri: evidence.sourceUri, adapter: evidence.adapter, provenance: evidence.provenance });
+            await writeLine(child.stdin, { type: "version", requestId: message.requestId ?? null, sourceId: taskForCandidate.source.id, version: evidence.version, sourceUri: evidence.sourceUri, adapter: evidence.adapter, provenance: evidence.provenance });
           }
           continue;
         }
@@ -767,7 +860,7 @@ export function expandTasks(taskManifest, split, repetitions = 1) {
 }
 
 export function renderMarkdown(result) {
-  const rows = result.metrics.map((metric) => `| ${metric.strategy} | ${metric.tasks} | ${(metric.correctRate * 100).toFixed(2)}% | ${(metric.freshnessRate * 100).toFixed(2)}% | ${(metric.falsePositiveRate * 100).toFixed(2)}% | ${(metric.availabilityRate * 100).toFixed(2)}% | ${metric.latencyMs.p50} / ${metric.latencyMs.p95} / ${metric.latencyMs.p99} | ${metric.requests} | $${metric.costUsd.toFixed(8)} |`).join("\n");
+  const rows = result.metrics.map((metric) => `| ${metric.strategy}${metric.baseline ? " (baseline without protocol)" : ""} | ${metric.tasks} | ${(metric.correctRate * 100).toFixed(2)}% | ${(metric.freshnessRate * 100).toFixed(2)}% | ${(metric.falsePositiveRate * 100).toFixed(2)}% | ${(metric.availabilityRate * 100).toFixed(2)}% | ${(metric.errorRate * 100).toFixed(2)}% | ${metric.latencyMs.p50} / ${metric.latencyMs.p95} / ${metric.latencyMs.p99} | ${metric.requests} | $${metric.costPer1000TasksUsd.toFixed(8)} |`).join("\n");
   const splitRows = result.metrics.flatMap((metric) => Object.entries(metric.bySplit).map(([split, value]) => `| ${metric.strategy} | ${split} | ${value.tasks} | ${(value.correctRate * 100).toFixed(2)}% | ${(value.freshnessRate * 100).toFixed(2)}% | ${(value.falsePositiveRate * 100).toFixed(2)}% | ${(value.availabilityRate * 100).toFixed(2)}% | ${value.latencyMs.p50} / ${value.latencyMs.p95} / ${value.latencyMs.p99} |`)).join("\n");
   return `# GA Evaluation ${result.benchmark.manifestVersion}\n\n` +
     `Run: \`${result.benchmark.runId}\`  \n` +
@@ -776,27 +869,30 @@ export function renderMarkdown(result) {
     `Tasks: **${result.benchmark.tasks}**  \n` +
     `Blind protocol: \`${result.benchmark.blindProtocol}\`  \n\n` +
     `## Verification\n\n` +
+    `- Source evidence: **${result.evidence.source.class}**; pinned and hash-verified: **${result.evidence.source.hashesVerified}**\n` +
+    `- Execution evidence: **${result.evidence.execution.class}**; independent: **${result.evidence.execution.independent}**\n` +
+    `- Synthetic data accepted: **${result.evidence.syntheticData.accepted}**; detected markers: **${result.evidence.syntheticData.detectedMarkers}**\n` +
     `- Datasets verified: **${result.verification.datasetsVerified}**\n` +
     `- Hash algorithm: **${result.verification.hashAlgorithm}**\n` +
-    `- External evidence only: **${result.verification.externalOnly}**\n` +
+    `- External source evidence only: **${result.verification.externalOnly}**\n` +
     `- Fixture evidence accepted: **${result.verification.fixtureEvidenceAccepted}**\n` +
     `- Dataset verification requests: **${result.verification.datasetVerificationRequests}**\n\n` +
     `## Aggregate metrics\n\n` +
-    `Rates use all selected tasks except freshness, whose denominator is available answers. Latency is p50 / p95 / p99 in milliseconds.\n\n` +
-    `| Strategy | Tasks | Correct | Freshness | False positives | Availability | Latency p50 / p95 / p99 ms | Requests | Estimated cost |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|\n${rows}\n\n` +
+    `Accuracy uses all selected tasks; freshness uses available answers; availability is a usable USE answer; latency is p50 / p95 / p99 in milliseconds including errors.\n\n` +
+    `| Strategy | Tasks | Accuracy | Freshness | False positives | Availability | Error rate | Latency p50 / p95 / p99 ms | Requests | Cost proxy / 1,000 tasks |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n${rows}\n\n` +
     `## Split metrics\n\n` +
     `| Strategy | Split | Tasks | Correct | Freshness | False positives | Availability | Latency p50 / p95 / p99 ms |\n|---|---|---:|---:|---:|---:|---:|---:|\n${splitRows}\n\n` +
     `## Allowed claims\n\n` +
-    `- This run supports only the reported exact-answer, source-freshness, false-positive, availability, request, latency, and source-operation cost observations for this manifest, dataset hashes, runner version, and environment.\n` +
+    `- This run supports only the reported exact-answer, source-freshness, false-positive, availability, request, latency, and source-operation cost observations for this manifest, dataset hashes, runner version, and local execution environment.\n` +
     `- A PREMiSE result here means the version-gated reference behavior named **PREMiSE**; it is not a claim about every implementation or deployment.\n` +
-    `- Public-source evidence was fetched and hash-checked before evaluation.\n\n` +
+    `- Public-source evidence was fetched and hash-checked before evaluation; the metrics and runner execution remain local evidence.\n\n` +
     `## Claims not allowed\n\n` +
     `- No universal truth, model intelligence, semantic retrieval quality, production SLA, provider invoice, security guarantee, or causal product uplift may be inferred from this run.\n` +
     `- Static public snapshots do not prove recovery from a live mutation. The changed-snapshot tasks measure a reproducible version transition, not a live repository mutation campaign.\n` +
-    `- Holdout numbers must not be tuned on and must not be reported without the manifest, dataset hashes, raw traces, and independent reproduction.\n`;
+    `- Holdout numbers must not be tuned on and must not be reported as independent without an external holdout attestation.\n`;
 }
 
-export function buildResult({ runId, generatedAt, split, repetitions, tasks, datasets, taskManifest, preflight, strategies, candidateCommand }) {
+export function buildResult({ runId, generatedAt, split, repetitions, tasks, datasets, taskManifest, labelManifest, preflight, strategies, candidateCommand }) {
   const allTraces = strategies.flatMap((strategy) => strategy.traces);
   const verification = {
     datasetsVerified: preflight.verifiedDatasetCount,
@@ -817,13 +913,22 @@ export function buildResult({ runId, generatedAt, split, repetitions, tasks, dat
       runId,
       generatedAt,
       manifestVersion: taskManifest.version,
+      promptManifestVersion: taskManifest.version,
+      labelManifestVersion: labelManifest?.version ?? taskManifest.version,
       datasetManifestVersion: datasets.version,
       blindProtocol: PROTOCOL_VERSION,
       blind: true,
       split,
       repetitions,
       tasks: tasks.length,
-      candidate: candidateCommand ? "external-candidate" : "reference-strategies"
+      candidate: candidateCommand ? "external-candidate" : "reference-strategies",
+      baselineStrategy: "retrieval-no-protocol"
+    },
+    evidence: {
+      source: { class: "external-public-static", hashesVerified: true, live: false, syntheticData: false },
+      execution: { class: "local-runner", independent: false, liveConnector: false },
+      syntheticData: { accepted: false, detectedMarkers: 0, method: "manifest-reference-denylist-and-pinned-public-commit" },
+      eligibleForPublicClaim: false
     },
     verification,
     costModel: COST_MODEL,
@@ -831,7 +936,7 @@ export function buildResult({ runId, generatedAt, split, repetitions, tasks, dat
     traceCount: allTraces.length,
     claims: {
       allowed: ["exact answer rate for this task manifest", "source-version freshness", "false-positive rate as wrong USE answers", "task availability", "source-operation request count", "local latency percentiles", "source-operation cost proxy"],
-      forbidden: ["universal truth", "model quality outside this task parser", "production SLA", "provider invoice", "causal product uplift", "live mutation recovery from static snapshots"]
+      forbidden: ["universal truth", "model quality outside this task parser", "production SLA", "provider invoice", "causal product uplift", "live mutation recovery from static snapshots", "independent external evidence"]
     }
   };
 }

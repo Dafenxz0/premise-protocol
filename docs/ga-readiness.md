@@ -44,6 +44,23 @@ Los números de esta tabla son **umbrales de salida** definidos en
 | Disponibilidad | Proporción de servicio operativo durante la ventana acordada, con un denominador explícito. | ≥ 99,9% | Soak suficiente, health/readiness y peticiones reales, alertas, interrupciones registradas y recuperación observada. |
 | Coste | Coste atribuible a ejecutar el workload, expresado por 1.000 operaciones. | ≤ 0,05 USD | Medición de infraestructura y servicios realmente usados, periodo, proveedor, región, consumo, almacenamiento, red y reglas de prorrateo documentados. |
 
+### Perfil de latencia de PostgreSQL a escala
+
+El gate agregado conserva el umbral publico de p95 <= 500 ms y p99 <= 2.000
+ms. El informe de la campana PostgreSQL tambien exige colas separadas por
+operacion, con al menos 100 muestras de cada una:
+
+| Operacion | p95 maximo | Por que |
+| --- | ---: | --- |
+| `retrieve` | 500 ms | Lectura directa de una memoria persistida. |
+| `query` | 500 ms | Consulta lexical sobre el indice FTS persistido. |
+| `register` | 1.000 ms | Escritura durable: incluye confirmacion de persistencia y evento. |
+
+El p99 maximo es 2.000 ms y la tasa de error maxima es 0,1 % para todas las
+operaciones. Esta diferenciacion no oculta la cola: hace explicito que una
+escritura durable tiene un presupuesto distinto, mientras que el resultado
+global sigue sujeto al umbral publico de 500 ms.
+
 ### Cómo no malinterpretar estos números
 
 La precisión depende de las tareas y del oracle; no es una medida de verdad
@@ -220,6 +237,55 @@ La etiqueta `evidence-checked` solo indica que se encontraron artefactos. La
 decisión GA exige además leerlos, verificar sus firmas/digests, repetir lo que
 requiera independencia y comprobar que los claims publicados no exceden lo
 que los datos permiten afirmar.
+
+Desde esta rama, el gate también comprueba el contenido mínimo de los claims
+críticos; no acepta un JSON con `schema`, `commit` y `trace` como sustituto de
+una campaña pasada. En concreto:
+
+- `security-report.json` debe declarar `status: "pass"`, KMS/HSM externo,
+  rotación, revocación, recuperación, mínimos privilegios, TLS impuesto,
+  OIDC/equivalente, autorización, aislamiento de tenants y auditoría durable.
+  Debe enlazar un informe de revisión separado por SHA-256, con atestación
+  Ed25519, cero hallazgos críticos/altos abiertos y `claims.eligibleForGa: true`.
+- `threat-model.md` debe explicar explícitamente esos límites y dejar claro que
+  PREMiSE no es un KMS/HSM, proveedor de identidad ni garantía universal de
+  seguridad o compliance.
+- `external-holdout.json` debe ser `INDEPENDENT_EVIDENCE`, tener atestación
+  verificada, al menos 200 tareas y cumplir precisión/frescura; un booleano
+  `independent` aislado no es suficiente.
+- `cost-report.json`, `soak-availability.json` y `rollback-report.json` deben
+  declarar respectivamente medición real y umbral, soak de duración/volumen
+  completos, y secuencia A→B→A observada con datos preservados.
+
+Estas comprobaciones son un cierre de claims, no una auditoría mágica: el script
+valida la forma, los vínculos y los resultados declarados, pero una persona
+separada debe confirmar la identidad del revisor, las firmas, los permisos, la
+infraestructura, la factura y la ausencia de tuning contra el holdout. Si la
+verificación humana no existe, el estado público sigue siendo `candidate`.
+
+### Expediente de la campana manual
+
+El workflow publica los nombres canonicos `load-full.json`,
+`postgres-scale.json`, `recovery-report.json` y `soak-availability.json`.
+Estos nombres deben coincidir con `spec/ga/acceptance.json`; un nombre de job o
+un `results-full.json` no sustituye al artefacto publico canonico.
+
+Los informes deben conservar evidencia raw. La campana PostgreSQL conserva
+`postgres-scale-traces.jsonl` y `recovery-report-traces.jsonl`, ademas de sus
+logs de ejecucion; el soak conserva el JSON del diagnostico, la salida raw del
+runner y los logs del stack. Subir un directorio que solo contiene un log de
+preparacion no convierte un job fallido o incompleto en evidencia GA.
+
+La inspeccion exige `schema`, `commit`, `generatedAt`, `source` y `trace`. Si
+aparece `format`, debe ser igual a `schema`; `commit` puede ser el SHA completo
+o un objeto con `value` igual a ese SHA. Esto corrige la forma del contrato sin
+cambiar umbrales ni sustituir una revision independiente.
+
+En una ejecucion manual, cualquier job de certificacion con resultado
+`skipped`, `failure`, `cancelled` o sin resultado bloquea GA. La decision final
+debe ejecutarse aunque haya dependencias omitidas y exigir `success` en los
+diez resultados: seguridad, carga CI, carga de un millon, escala PostgreSQL,
+GitHub, holdout, integracion, soak, coste y rollback.
 
 ## Glosario breve
 

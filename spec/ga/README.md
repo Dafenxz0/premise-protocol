@@ -42,7 +42,7 @@ o un resultado de una fixture no satisface el gate.
 | Seguridad criptográfica | `security-report.json`, `threat-model.md` | Que las primitivas, límites, amenazas, permisos, auditoría y respuesta ante fallos están probados y revisados. |
 | Persistencia real | `postgres-integration.json`, `backup-restore.json` | Que PostgreSQL real, migraciones, aislamiento por tenant, backup y restore funcionan en el entorno declarado. |
 | Evaluación externa ciega | `external-holdout.json`, `dataset-manifest.json` | Que un holdout oculto, con hashes públicos y runner independiente, alcanza los umbrales de precisión y frescura. |
-| Carga y recuperación | `load-full.json`, `recovery-report.json` | Que el perfil de referencia soporta la escala, concurrencia, reinicio, corrupción y recuperación declaradas. |
+| Carga y recuperación | `load-full.json`, `postgres-scale.json`, `recovery-report.json` | Que el perfil de referencia soporta la escala, concurrencia, persistencia PostgreSQL, reinicio, corrupción y recuperación declaradas. |
 | Operación | `operations-smoke.json`, `rollback-report.json` | Que el despliegue es reproducible y que métricas, alertas, backup y rollback se observaron en una secuencia real. |
 | Disponibilidad y coste | `soak-availability.json`, `cost-report.json` | Que un soak de duración suficiente cumple el SLO y que el coste procede de facturación o medición real, no solo de un modelo local. |
 | API estable | `sdk-contract.json`, `openapi-validation.json` | Que SDK, OpenAPI, schemas, paginación, errores tipados y política de compatibilidad son utilizables por integradores. |
@@ -63,6 +63,14 @@ con hash:
 6. al menos un baseline comparable cuando se mida una mejora;
 7. instrucciones para reproducirlo y una firma o digest que permita detectar
    sustituciones.
+
+En la campaña de `.github/workflows/ga.yml`, los nombres públicos canónicos son
+`load-full.json`, `postgres-scale.json`, `recovery-report.json` y
+`soak-availability.json`. Los informes no sustituyen a la evidencia raw: los
+artefactos de carga PostgreSQL deben conservar sus `*-traces.jsonl` y logs de
+ejecución; el soak debe conservar su JSON, salida raw del runner y logs del
+stack. Un job que no produce alguno de esos ficheros no tiene evidencia GA,
+aunque el upload de un directorio pueda contener otros logs.
 
 Los datos sensibles, tokens, contenido privado y secretos no se publican. La
 redacción debe dejar claro qué se eliminó y conservar un digest del artefacto

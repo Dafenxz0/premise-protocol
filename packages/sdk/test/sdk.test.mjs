@@ -2,10 +2,16 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import {
+  SDK_RELEASE_CHANNEL,
+  SDK_VERSION,
+  PremiseAbortError,
   PremiseClient,
   PremiseHttpError,
+  PremiseDecodeError,
   PremisePaginationError,
-  PremiseTimeoutError
+  PremiseSdkError,
+  PremiseTimeoutError,
+  isRetryablePremiseError
 } from "../dist/index.js";
 
 const at = "2026-08-10T10:00:00Z";
@@ -72,6 +78,14 @@ const server = createServer(async (request, response) => {
       json(response, 403, { error: { code: "FORBIDDEN", message: "tenant denied", details: [{ field: "tenant" }] } });
       return;
     }
+    if (memoryId === "typed-error") {
+      json(response, 400, { error: "INVALID_MEMORY_ID", message: "memoryId is not valid" });
+      return;
+    }
+    if (memoryId === "body-request-id") {
+      json(response, 429, { error: "TEMPORARY", message: "try later", requestId: "request-from-body" });
+      return;
+    }
     json(response, 200, { ...record, envelope: { ...record.envelope, memoryId } });
     return;
   }
@@ -136,6 +150,10 @@ const client = new PremiseClient({
 });
 
 try {
+  assert.equal(SDK_VERSION, "2.0.0-rc.1");
+  assert.equal(SDK_RELEASE_CHANNEL, "candidate");
+  assert.throws(() => new PremiseClient({ baseUrl, requireHttps: true }), /baseUrl must use https/);
+
   const health = await client.health();
   assert.equal(health.specVersion, "premise/2");
   const healthRequest = requests.find(({ path }) => path === "/health");
@@ -146,6 +164,16 @@ try {
 
   const capabilities = await client.capabilities();
   assert.deepEqual(capabilities.capabilities, ["TENANCY", "RETRIEVAL"]);
+
+  const wrongVersionClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ specVersion: "premise/1", capabilities: [] }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => wrongVersionClient.capabilities(),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
 
   const stored = await client.registerMemory(record, { idempotencyKey: "memory-write:1" });
   assert.deepEqual(stored, { memoryId: "memory:acme:1", status: "stored" });
@@ -197,10 +225,109 @@ try {
       && error.code === "FORBIDDEN"
       && error.details?.length === 1
   );
+  await assert.rejects(
+    () => client.getMemory("typed-error", { maxRetries: 0 }),
+    (error) => error instanceof PremiseHttpError && error.code === "INVALID_MEMORY_ID" && error.message === "memoryId is not valid"
+  );
+  await assert.rejects(
+    () => client.getMemory("body-request-id", { maxRetries: 0 }),
+    (error) => error instanceof PremiseHttpError
+      && error.status === 429
+      && error.requestId === "request-from-body"
+      && isRetryablePremiseError(error)
+  );
 
   await assert.rejects(
     () => client.query({ query: "slow" }, { timeoutMs: 5, maxRetries: 0 }),
     (error) => error instanceof PremiseTimeoutError && error.timeoutMs === 5
+  );
+  const abortController = new AbortController();
+  const abortedQuery = client.query({ query: "slow" }, { signal: abortController.signal, timeoutMs: 1_000, maxRetries: 0 });
+  abortController.abort();
+  await assert.rejects(
+    () => abortedQuery,
+    (error) => error instanceof PremiseAbortError
+  );
+
+  await assert.rejects(() => client.query({ query: "too-many", options: { limit: 1_001 } }), /options\.limit/);
+  await assert.rejects(
+    () => client.query({ query: "ambiguous-filter", options: { filter: {}, filters: {} } }),
+    /Use either options\.filter or options\.filters/
+  );
+  await assert.rejects(
+    () => client.sourceChanged("file:///notes.txt", { scheme: "test", token: "v2" }, { idempotencyKey: "é" }),
+    /idempotencyKey must be 1-256 visible ASCII characters/
+  );
+  await assert.rejects(
+    () => client.health({ requestId: "bad\nrequest" }),
+    /requestId must be 1-128 visible ASCII characters/
+  );
+
+  const malformedResponseClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ hits: [] }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedResponseClient.query({ query: "missing-context" }),
+    (error) => error instanceof PremiseDecodeError
+  );
+
+  const malformedHitClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ hits: [{ id: "memory:1", text: "ok", score: "not-a-number" }], context: { selected: [] } }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedHitClient.query({ query: "invalid-hit" }),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
+
+  const malformedHealthClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ ok: true, specVersion: "premise/2", memories: "1", events: 0 }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedHealthClient.health(),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
+
+  const malformedStoreClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ memoryId: "memory:1" }), { status: 201, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedStoreClient.registerMemory(record),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
+
+  const malformedRevalidationClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ memoryId: "memory:1", result: "NOT_A_RESULT", status: "FRESH", checkedAt: at }), { status: 200, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedRevalidationClient.revalidate("memory:1"),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
+
+  const malformedSourceChangedClient = new PremiseClient({
+    baseUrl,
+    maxRetries: 0,
+    fetch: async () => new Response(JSON.stringify({ affected: [42] }), { status: 202, headers: { "content-type": "application/json" } })
+  });
+  await assert.rejects(
+    () => malformedSourceChangedClient.sourceChanged("file:///notes.txt", { scheme: "test", token: "v2" }),
+    (error) => error instanceof PremiseSdkError && error.code === "INVALID_RESPONSE"
+  );
+
+  assert.throws(
+    () => client.registerMemory({ ...record, envelope: { ...record.envelope, specVersion: "premise/1" } }),
+    (error) => error instanceof PremiseSdkError
+      && error.code === "INVALID_REQUEST"
+      && /PREMiSE memory request must use specVersion premise\/2/.test(error.message)
   );
 
   const cyclicClient = new PremiseClient({
@@ -233,6 +360,7 @@ try {
   const openapi = JSON.parse(await readFile(new URL("../../../spec/ga-api/openapi.json", import.meta.url), "utf8"));
   assert.equal(openapi.openapi, "3.1.0");
   assert.ok(openapi.paths["/v2/query"]);
+  assert.equal(openapi.components.parameters.IdempotencyKeyHeader.required, false);
   for (const file of [
     "error.schema.json",
     "memory-record.schema.json",

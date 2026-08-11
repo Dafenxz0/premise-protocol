@@ -21,6 +21,15 @@ Un resultado normal se clasifica como `CANDIDATE_EVIDENCE`. Es una observación 
 
 Por tanto, la ejecución de tests locales nunca puede producir evidencia externa.
 
+Para cerrar el gate GA no basta con que la atestación sea válida. El resultado
+debe conservar `status: "INDEPENDENT_EVIDENCE"`, `evidence.class:
+"independent"` y `eligibleForPublicClaim: true`; además debe incluir al menos
+200 tareas, precisión ≥ 95 %, frescura ≥ 99 %, denominador de frescura no nulo,
+`writeRequests: 0`, y las verificaciones de que los labels se cargaron después
+del candidato, nunca se le enviaron y no procedían de fixtures. El gate lee los
+umbrales de `spec/ga/acceptance.json` y rechaza un documento que solo tenga
+metadatos o un booleano `independent: true`.
+
 ## Contrato de los documentos externos
 
 El evaluador publica un manifiesto con este esquema conceptual. Los valores de URL y hash siguientes son ilustrativos; no son una campaña real y no deben copiarse como evidencia.
@@ -72,6 +81,12 @@ El evaluador publica un manifiesto con este esquema conceptual. Los valores de U
 
 La inmutabilidad se prueba por contenido: los tres bytes descargados se recalculan con SHA-256 antes de parsearse. HTTPS, una URL externa y un hash no prueban que el editor sea independiente; por eso el resultado sigue siendo candidato hasta verificar la atestación separada.
 
+La clave pública de la atestación debe llegar por un canal de confianza distinto
+del repositorio del candidato. La presencia de una firma válida demuestra que el
+payload fue firmado por la clave configurada; la decisión de independencia exige
+además verificar quién controla esa clave, quién custodia el corpus y que el
+runner no fue ajustado contra las labels.
+
 ## Ejecución real
 
 Se necesitan una URL real, su hash publicado por el evaluador y un candidato. No se admite `--manifest-file`, `file://`, `fixture://`, `data:` ni hosts locales/privados.
@@ -89,6 +104,11 @@ node benchmarks/ga-evaluation/holdout/runner.mjs --require-independent
 También se pueden pasar `--manifest-url`, `--manifest-sha256`, `--candidate` y `--output-dir`. Para un manifiesto privado se usa `PREMISE_HOLDOUT_BEARER_TOKEN`; nunca se debe incrustar un secreto en la URL. El token se queda en el proceso del runner y se elimina del entorno del candidato.
 
 Si falta la URL, el hash o el candidato, el proceso termina con estado `NOT_ELIGIBLE` y código 2. Si se pide `--require-independent` sin atestación, sin clave, sin commit completo o con cualquier hash/firma incorrectos, termina cerrado y no escribe un pass. Sin `--require-independent`, una campaña válida puede producir `CANDIDATE_EVIDENCE`, explícitamente no elegible para una reclamación independiente.
+
+Un resultado independiente tampoco autoriza claims universales: solo respalda
+las tareas, fuentes, hashes, commit, runner y atestación concretos. No demuestra
+por sí solo disponibilidad, coste, TLS/OIDC, custodia KMS/HSM, seguridad
+operativa ni calidad de conectores distintos de GitHub.
 
 El protocolo NDJSON que recibe el candidato es deliberadamente pequeño:
 

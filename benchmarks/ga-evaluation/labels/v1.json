@@ -1,0 +1,31 @@
+{
+  "format": "ga-evaluation-label-manifest/1",
+  "version": "1.0.0",
+  "suite": "ga-evaluation",
+  "taskManifest": "../prompts/v1.json",
+  "blindProtocol": "ga-evaluation/1",
+  "labels": [
+    { "id": "visible-001", "snapshot": "github.requests.version.old", "oracle": { "kind": "regex", "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "visible-002", "snapshot": "github.requests.version.old", "oracle": { "kind": "regex", "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)", "group": 1 } },
+    { "id": "visible-003", "snapshot": "github.requests.version.new", "oracle": { "kind": "regex", "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "visible-004", "snapshot": "github.requests.version.new", "oracle": { "kind": "regex", "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)", "group": 1 } },
+    { "id": "visible-005", "snapshot": "filesystem.requests.version.old", "oracle": { "kind": "regex", "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "visible-006", "snapshot": "filesystem.requests.version.new", "oracle": { "kind": "regex", "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "visible-007", "snapshot": "git.requests.version.old", "oracle": { "kind": "regex", "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "visible-008", "snapshot": "git.requests.version.new", "oracle": { "kind": "regex", "pattern": "__version__\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "visible-009", "snapshot": "github.hello.world", "oracle": { "kind": "trimmedText" } },
+    { "id": "visible-010", "snapshot": "filesystem.nodeignore", "oracle": { "kind": "contains", "needle": "node_modules/" } },
+    { "id": "hidden-001", "snapshot": "filesystem.requests.version.old", "oracle": { "kind": "regex", "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)", "group": 1 } },
+    { "id": "hidden-002", "snapshot": "filesystem.requests.version.new", "oracle": { "kind": "regex", "pattern": "__build__\\s*=\\s*(0x[0-9a-fA-F]+)", "group": 1 } },
+    { "id": "hidden-003", "snapshot": "git.requests.version.old", "oracle": { "kind": "regexBoolean", "pattern": "__title__\\s*=\\s*[\"']requests[\"']" } },
+    { "id": "hidden-004", "snapshot": "git.requests.version.new", "oracle": { "kind": "regexBoolean", "pattern": "__title__\\s*=\\s*[\"']requests[\"']" } },
+    { "id": "hidden-005", "snapshot": "github.hello.world", "oracle": { "kind": "contains", "needle": "Hello World" } },
+    { "id": "hidden-006", "snapshot": "filesystem.nodeignore", "oracle": { "kind": "contains", "needle": "# Logs" } },
+    { "id": "holdout-001", "snapshot": "filesystem.nodeignore", "oracle": { "kind": "contains", "needle": "coverage" } },
+    { "id": "holdout-002", "snapshot": "git.requests.pyproject.old", "oracle": { "kind": "regex", "pattern": "requires-python\\s*=\\s*[\"']([^\"']+)[\"']", "group": 1 } },
+    { "id": "holdout-003", "snapshot": "git.requests.pyproject.old", "oracle": { "kind": "contains", "needle": "dynamic = [\"version\"]" } },
+    { "id": "holdout-004", "snapshot": "git.requests.pyproject.new", "oracle": { "kind": "contains", "needle": "chardet" } },
+    { "id": "holdout-005", "snapshot": "github.requests.readme", "oracle": { "kind": "regex", "pattern": "^# ([^\\r\\n]+)", "group": 1, "flags": "m" } },
+    { "id": "holdout-006", "snapshot": "github.requests.readme", "oracle": { "kind": "contains", "needle": "Python HTTP for Humans" } }
+  ]
+}

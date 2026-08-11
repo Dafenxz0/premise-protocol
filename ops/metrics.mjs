@@ -51,7 +51,7 @@ export class Metrics {
     this.persistenceFailures += 1;
   }
 
-  render({ storeReady, pendingWrites, records }) {
+  render({ storeReady, pendingWrites, maxPendingWrites, records, freshness: freshnessInput }) {
     const lines = [
       "# HELP premise_build_info PREMiSE v2 build information.",
       "# TYPE premise_build_info gauge",
@@ -74,9 +74,16 @@ export class Metrics {
     }
 
     const freshness = new Map(FRESHNESS_STATES.map((status) => [status, 0]));
-    for (const record of records) {
-      const status = record.envelope?.validity?.status;
-      if (freshness.has(status)) freshness.set(status, freshness.get(status) + 1);
+    if (freshnessInput !== undefined && freshnessInput !== null && typeof freshnessInput === "object") {
+      for (const status of FRESHNESS_STATES) {
+        const value = freshnessInput[status];
+        if (Number.isSafeInteger(value) && value >= 0) freshness.set(status, value);
+      }
+    } else {
+      for (const record of records ?? []) {
+        const status = record.envelope?.validity?.status;
+        if (freshness.has(status)) freshness.set(status, freshness.get(status) + 1);
+      }
     }
     lines.push("# HELP premise_freshness_records Loaded memories by freshness state.", "# TYPE premise_freshness_records gauge");
     for (const status of FRESHNESS_STATES) lines.push(`premise_freshness_records${labelSuffix({ status })} ${freshness.get(status)}`);
@@ -87,6 +94,9 @@ export class Metrics {
       "# HELP premise_store_pending_writes Writes waiting for PostgreSQL acknowledgement.",
       "# TYPE premise_store_pending_writes gauge",
       `premise_store_pending_writes ${pendingWrites}`,
+      "# HELP premise_store_pending_write_limit Maximum admitted durable writes before backpressure.",
+      "# TYPE premise_store_pending_write_limit gauge",
+      `premise_store_pending_write_limit ${maxPendingWrites ?? 0}`,
       "# HELP premise_store_persistence_failures_total Failed persistence batches.",
       "# TYPE premise_store_persistence_failures_total counter",
       `premise_store_persistence_failures_total ${this.persistenceFailures}`

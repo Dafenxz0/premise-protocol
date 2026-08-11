@@ -32,8 +32,19 @@ const envelope = {
   signatures: []
 };
 
-const stored = await request("/v2/memories", { method: "POST", body: JSON.stringify({ record: { envelope, content: "PREMiSE v2 smoke" } }) });
+const registerBody = JSON.stringify({ record: { envelope, content: "PREMiSE v2 smoke" } });
+const idempotencyKey = `smoke:register:${memoryId}`;
+const stored = await request("/v2/memories", { method: "POST", headers: { "idempotency-key": idempotencyKey }, body: registerBody });
 if (stored.memoryId !== memoryId) throw new Error("registered memory ID did not round-trip");
+const replay = await request("/v2/memories", { method: "POST", headers: { "idempotency-key": idempotencyKey }, body: registerBody });
+if (replay.memoryId !== memoryId || replay.status !== "stored") throw new Error("idempotent register replay did not return the original response");
+const conflictResponse = await fetch(new URL("/v2/memories", baseUrl), {
+  method: "POST",
+  headers: { "content-type": "application/json", "x-premise-tenant": tenantId, "idempotency-key": idempotencyKey },
+  body: JSON.stringify({ record: { envelope, content: "PREMiSE v2 conflicting smoke request" } })
+});
+const conflictBody = await conflictResponse.json();
+if (conflictResponse.status !== 409 || conflictBody.error !== "IDEMPOTENCY_CONFLICT") throw new Error("idempotency conflict was not rejected with 409");
 const fetched = await request(`/v2/memories/${encodeURIComponent(memoryId)}`);
 if (fetched.content !== "PREMiSE v2 smoke") throw new Error("stored content did not round-trip");
 const query = await request("/v2/query", { method: "POST", body: JSON.stringify({ query: "PREMiSE smoke", maxTokens: 128 }) });

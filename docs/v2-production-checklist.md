@@ -2,6 +2,13 @@
 
 Este documento separa lo que ya está implementado de lo que todavía requiere infraestructura o evidencia externa. Un release no debe convertir un “adapter” en una promesa de disponibilidad.
 
+## Contrato de la campana GA
+
+- [ ] Publicar `load-full.json`, `postgres-scale.json`, `recovery-report.json` y `soak-availability.json` con commit completo, esquema, fuente, timestamp y trazas raw.
+- [ ] Conservar `postgres-scale-traces.jsonl`, `recovery-report-traces.jsonl`, logs de ejecucion y logs del stack; un directorio con un unico log no satisface el gate.
+- [ ] Ejecutar todos los jobs de certificacion requeridos; `skipped`, `failure`, `cancelled` o un resultado ausente bloquean la decision.
+- [ ] Verificar que `schema` y `format` no discrepan y que cada artefacto esta ligado al SHA de la campana.
+
 ## Listo en el repositorio
 
 - [x] Contrato v2 aditivo y migración v1 explícita.

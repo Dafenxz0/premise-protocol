@@ -335,6 +335,7 @@ async function readiness(config, audit, expectedImage, label) {
       lastHealthcheck = healthcheck.ok === false ? healthcheck : { ok: true, exitCode: healthcheck.exitCode };
       if (lastHealthcheck.ok === true) {
         const health = await httpJson(config, "/health");
+        assertCondition(audit, `${label}-health`, health.status === 200 && health.body?.ok === true, { status: health.status, bodyOk: health.body?.ok === true });
         return {
           label,
           startedAt,

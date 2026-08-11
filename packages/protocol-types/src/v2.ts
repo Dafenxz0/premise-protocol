@@ -61,7 +61,7 @@ export interface DeclaredSignature {
   readonly signatureId: string;
   readonly signerId: string;
   readonly keyId: string;
-  readonly algorithm: string;
+  readonly algorithm: "ed25519";
   readonly value: string;
   readonly signedAt: string;
   readonly evidenceId?: string;
@@ -79,7 +79,7 @@ export interface MemoryEnvelopeV2 {
   readonly temporal: TemporalDeclaration;
   readonly validity: V2Validity;
   readonly dependsOn: readonly string[];
-  /** Declarations only; this package does not verify cryptographic signatures. */
+  /** Detached Ed25519 signature declarations verified by `verifyMemoryEnvelopeV2Signatures`. */
   readonly signatures: readonly DeclaredSignature[];
 }
 
@@ -332,7 +332,8 @@ function validateSignature(value: unknown, path: string, evidenceIds: ReadonlySe
     return false;
   }
   rejectUnknown(value, path, new Set(["signatureId", "signerId", "keyId", "algorithm", "value", "signedAt", "evidenceId"]), issues);
-  for (const field of ["signatureId", "signerId", "keyId", "algorithm", "value"] as const) if (!isNonEmptyString(value[field])) add(issues, `${path}.${field}`, "must be a non-empty string");
+  for (const field of ["signatureId", "signerId", "keyId", "value"] as const) if (!isNonEmptyString(value[field])) add(issues, `${path}.${field}`, "must be a non-empty string");
+  if (value.algorithm !== "ed25519") add(issues, `${path}.algorithm`, "must equal ed25519");
   if (!isDateTime(value.signedAt)) add(issues, `${path}.signedAt`, "must be an ISO date-time string");
   if (has(value, "evidenceId")) {
     if (!isNonEmptyString(value.evidenceId)) add(issues, `${path}.evidenceId`, "must be a non-empty string");

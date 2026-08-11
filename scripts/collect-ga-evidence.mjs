@@ -1,6 +1,6 @@
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspectEvidenceDirectory, loadAcceptanceManifest, listEvidenceRequirements } from "./ga-gate.mjs";
 
@@ -22,6 +22,7 @@ export function parseArgs(argv) {
   let source;
   let generatedAt;
   let help = false;
+  let strictMaps = false;
   const mappings = [];
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -30,6 +31,10 @@ export function parseArgs(argv) {
     const inlineValue = separator === -1 ? undefined : argument.slice(separator + 1);
     if (flag === "--help" || flag === "-h") {
       help = true;
+      continue;
+    }
+    if (flag === "--strict-maps") {
+      strictMaps = true;
       continue;
     }
     const valueFor = (name) => {
@@ -47,7 +52,7 @@ export function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${argument}`);
   }
   if (!help && (!input || !output)) throw new Error("--input and --output are required");
-  return { input, output, commit, source, generatedAt, mappings, help };
+  return { input, output, commit, source, generatedAt, mappings, strictMaps, help };
 }
 
 async function walkFiles(directory, prefix = "") {
@@ -70,7 +75,99 @@ async function fileDetails(filePath) {
   };
 }
 
-async function resolveSource({ inputRoot, target, explicitSource, files, failures }) {
+function safeRelativeReference(value) {
+  return typeof value === "string" && value.trim().length > 0 && !isAbsolute(value) && !value.split(/[\\/]/u).includes("..");
+}
+
+function referencedFiles(document) {
+  return [
+    ["trace.path", document?.trace?.path],
+    ["backup.path", document?.backup?.path],
+    ["spec.path", document?.spec?.path]
+  ].filter(([, value], index, references) => typeof value === "string" && references.findIndex(([, candidate]) => candidate === value) === index)
+    .map(([field, path]) => ({ field, path }));
+}
+
+async function resolveReferencedSource({ inputRoot, reportSource, field, reference, files, failures, target, strictMaps }) {
+  if (!safeRelativeReference(reference)) {
+    failures.push({ target, code: "unsafe-dependency", message: `${field} must reference a relative file inside the input directory: ${reference}` });
+    return null;
+  }
+  const exact = new Map();
+  for (const candidate of [resolve(dirname(reportSource.absolutePath), reference), resolve(inputRoot, reference)]) {
+    if (isPathInside(inputRoot, candidate)) {
+      const match = files.find((file) => resolve(file.absolutePath) === candidate);
+      if (match) exact.set(match.absolutePath, match);
+    }
+  }
+  if (exact.size === 1) return [...exact.values()][0];
+  if (exact.size > 1) {
+    failures.push({ target, code: "ambiguous-dependency", message: `${field} resolves to more than one input file: ${reference}` });
+    return null;
+  }
+  if (strictMaps) {
+    failures.push({ target, code: "missing-dependency", message: `${field} must resolve next to its report in strict collection mode: ${reference}` });
+    return null;
+  }
+  const candidates = files.filter((file) => basename(file.relativePath) === basename(reference));
+  if (candidates.length !== 1) {
+    failures.push({
+      target,
+      code: candidates.length === 0 ? "missing-dependency" : "ambiguous-dependency",
+      message: candidates.length === 0 ? `${field} points to a missing raw evidence file: ${reference}` : `${field} points to an ambiguous raw evidence basename: ${reference}`,
+      ...(candidates.length > 1 ? { candidates: candidates.map((candidate) => candidate.relativePath) } : {})
+    });
+    return null;
+  }
+  return candidates[0];
+}
+
+async function collectReferencedFiles({ inputRoot, outputRoot, files, copiedReports, failures, strictMaps }) {
+  const dependencies = [];
+  const copied = new Map();
+  for (const [target, report] of copiedReports) {
+    let document;
+    try {
+      document = JSON.parse(await readFile(report.targetPath, "utf8"));
+    } catch {
+      continue;
+    }
+    for (const { field, path: reference } of referencedFiles(document)) {
+      const sourceFile = await resolveReferencedSource({ inputRoot, reportSource: report.sourceFile, field, reference, files, failures, target, strictMaps });
+      if (!sourceFile) continue;
+      const targetPath = resolve(outputRoot, reference);
+      if (!isPathInside(outputRoot, targetPath)) {
+        failures.push({ target, code: "unsafe-dependency", message: `${field} escapes the output directory: ${reference}` });
+        continue;
+      }
+      const existing = copied.get(targetPath);
+      if (existing !== undefined) {
+        if (resolve(existing.sourceFile.absolutePath) !== resolve(sourceFile.absolutePath)) failures.push({ target, code: "dependency-conflict", message: `Different input files claim the same raw evidence path: ${reference}` });
+        dependencies.push({ evidence: target, field, path: reference, source: sourceFile.relativePath, status: "reused", ...existing.details });
+        continue;
+      }
+      await mkdir(dirname(targetPath), { recursive: true });
+      await copyFile(sourceFile.absolutePath, targetPath);
+      const details = await fileDetails(targetPath);
+      copied.set(targetPath, { sourceFile, details });
+      dependencies.push({ evidence: target, field, path: reference, source: sourceFile.relativePath, status: "copied", ...details });
+    }
+  }
+  return dependencies;
+}
+
+async function prepareOutputDirectory(outputRoot) {
+  try {
+    const info = await stat(outputRoot);
+    if (!info.isDirectory()) throw new Error(`Output path is not a directory: ${outputRoot}`);
+    if ((await readdir(outputRoot)).length > 0) throw new Error(`Output directory must be empty before collecting evidence: ${outputRoot}`);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    await mkdir(outputRoot, { recursive: true });
+  }
+}
+
+async function resolveSource({ inputRoot, target, explicitSource, files, failures, strictMaps }) {
   if (explicitSource !== undefined) {
     const sourcePath = isAbsolute(explicitSource) ? resolve(explicitSource) : resolve(inputRoot, explicitSource);
     if (!isPathInside(inputRoot, sourcePath)) {
@@ -88,6 +185,11 @@ async function resolveSource({ inputRoot, target, explicitSource, files, failure
       failures.push({ target, code: "source-missing", message: `Mapped source does not exist: ${explicitSource}` });
       return null;
     }
+  }
+
+  if (strictMaps) {
+    failures.push({ target, code: "mapping-required", message: `Strict collection requires an explicit --map for ${target}.` });
+    return null;
   }
 
   const directPath = resolve(inputRoot, target);
@@ -115,6 +217,7 @@ export async function collectGaEvidence({
   commit = process.env.GITHUB_SHA ?? null,
   source = null,
   generatedAt = new Date().toISOString(),
+  strictMaps = false,
   manifest
 }) {
   const inputRoot = resolve(inputDir);
@@ -122,7 +225,7 @@ export async function collectGaEvidence({
   const inputInfo = await stat(inputRoot);
   if (!inputInfo.isDirectory()) throw new Error(`Input path is not a directory: ${inputRoot}`);
   if (isPathInside(inputRoot, outputRoot)) throw new Error("Output directory must not be inside the input directory.");
-  await mkdir(outputRoot, { recursive: true });
+  await prepareOutputDirectory(outputRoot);
 
   const resolvedManifest = manifest ?? await loadAcceptanceManifest();
   const requirements = listEvidenceRequirements(resolvedManifest);
@@ -143,13 +246,15 @@ export async function collectGaEvidence({
 
   const files = await walkFiles(inputRoot);
   const collected = [];
+  const copiedReports = new Map();
   for (const requirement of requirements) {
     const sourceFile = await resolveSource({
       inputRoot,
       target: requirement.name,
       explicitSource: mappingByTarget.get(requirement.name),
       files,
-      failures
+      failures,
+      strictMaps
     });
     if (!sourceFile) {
       collected.push({ evidence: requirement.name, status: "missing", source: null, bytes: 0, sha256: null });
@@ -161,13 +266,16 @@ export async function collectGaEvidence({
       collected.push({ evidence: requirement.name, status: "rejected", source: sourceFile.relativePath, bytes: 0, sha256: null });
       continue;
     }
+    await mkdir(dirname(targetPath), { recursive: true });
     await copyFile(sourceFile.absolutePath, targetPath);
-    const details = await fileDetails(sourceFile.absolutePath);
+    const details = await fileDetails(targetPath);
     const status = details.bytes > 0 ? "copied" : "copied-empty";
     if (details.bytes === 0) failures.push({ target: requirement.name, code: "empty-source", message: `Input artifact for ${requirement.name} is empty; it was copied without inventing content.` });
     collected.push({ evidence: requirement.name, status, source: sourceFile.relativePath, ...details });
+    copiedReports.set(requirement.name, { sourceFile, targetPath });
   }
 
+  const dependencies = await collectReferencedFiles({ inputRoot, outputRoot, files, copiedReports, failures, strictMaps });
   const contract = await inspectEvidenceDirectory(outputRoot, resolvedManifest);
   const allFailures = [...failures, ...contract.failures];
   const report = {
@@ -177,14 +285,17 @@ export async function collectGaEvidence({
     source: source ?? inputRoot,
     trace: {
       inputDirectory: inputRoot,
+      strictMaps,
       mappings: [...mappingByTarget.entries()].map(([target, mappedSource]) => ({ target, source: mappedSource })),
-      files: collected.map(({ evidence, source: fileSource, status, bytes, sha256 }) => ({ evidence, source: fileSource, status, bytes, sha256 }))
+      files: collected.map(({ evidence, source: fileSource, status, bytes, sha256 }) => ({ evidence, source: fileSource, status, bytes, sha256 })),
+      dependencies
     },
     manifest: {
       schemaVersion: resolvedManifest.schemaVersion,
       release: resolvedManifest.release
     },
     files: collected,
+    dependencies,
     contract: {
       required: contract.required,
       present: contract.present,
@@ -212,6 +323,7 @@ function usage() {
     "Copies only real required artifacts. Missing artifacts are reported and never created.",
     "Options:",
     "  --map TARGET=SOURCE       map a required evidence name to an input-relative file (repeatable)",
+    "  --strict-maps             require explicit maps and exact report-local dependency paths",
     "  --commit SHA              collection metadata only; never injected into copied artifacts",
     "  --source VALUE            collection metadata only",
     "  --generated-at ISO        collection timestamp (defaults to now)",

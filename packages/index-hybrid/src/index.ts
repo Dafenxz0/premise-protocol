@@ -87,7 +87,14 @@ export interface HybridIndexOptions {
 }
 
 export interface SearchOptions<T = unknown> {
+  /** Maximum number of results. Zero is valid and returns no results. */
   readonly limit?: number;
+  /**
+   * Optional adapter hint for bounded retrieval before ranking. The in-memory
+   * HybridIndex validates the hint but keeps exact top-k semantics; persistent
+   * adapters may use it to bound their candidate window.
+   */
+  readonly candidateLimit?: number;
   readonly filter?: MetadataFilter | MetadataPredicate<T>;
   readonly filters?: MetadataFilter | MetadataPredicate<T>;
   readonly lexicalWeight?: number;
@@ -161,7 +168,9 @@ interface ScoredDocument<T> {
   readonly parts: ScoreParts;
 }
 
-const DEFAULT_LIMIT = 10;
+export const DEFAULT_SEARCH_LIMIT = 10;
+export const MAX_SEARCH_LIMIT = 10_000;
+export const MAX_SEARCH_CANDIDATE_LIMIT = 10_000;
 const DEFAULT_LEXICAL_WEIGHT = 0.5;
 const DEFAULT_VECTOR_WEIGHT = 0.5;
 const BM25_K1 = 1.2;
@@ -254,9 +263,19 @@ function resolveWeights(
 }
 
 function validateLimit(value: number | undefined): number {
-  const limit = value ?? DEFAULT_LIMIT;
-  if (!Number.isInteger(limit) || limit < 0) throw new RangeError("limit must be a non-negative integer");
+  const limit = value ?? DEFAULT_SEARCH_LIMIT;
+  if (!Number.isSafeInteger(limit) || limit < 0 || limit > MAX_SEARCH_LIMIT) {
+    throw new RangeError(`limit must be a safe integer from 0 to ${MAX_SEARCH_LIMIT}`);
+  }
   return limit;
+}
+
+function validateCandidateLimit(value: number | undefined, resultLimit: number): void {
+  if (value === undefined) return;
+  const minimum = Math.max(1, resultLimit);
+  if (!Number.isSafeInteger(value) || value < minimum || value > MAX_SEARCH_CANDIDATE_LIMIT) {
+    throw new RangeError(`candidateLimit must be a safe integer from ${minimum} to ${MAX_SEARCH_CANDIDATE_LIMIT}`);
+  }
 }
 
 function providerName(provider: VectorProvider): string {
@@ -463,6 +482,7 @@ export class HybridIndex<T = unknown> {
   private readonly defaultVectorWeight: number;
   private readonly documents = new Map<string, StoredDocument<T>>();
   private readonly documentFrequency = new Map<string, number>();
+  private readonly invertedIndex = new Map<string, Set<string>>();
   private totalDocumentLength = 0;
   private vectorDimensions: number | undefined;
 
@@ -537,24 +557,32 @@ export class HybridIndex<T = unknown> {
   clear(): void {
     this.documents.clear();
     this.documentFrequency.clear();
+    this.invertedIndex.clear();
     this.totalDocumentLength = 0;
     this.vectorDimensions = undefined;
   }
 
   async search(query: string, options: SearchOptions<T> = {}): Promise<readonly HybridSearchResult<T>[]> {
     if (typeof query !== "string") throw new TypeError("Search query must be a string");
+    if (options === null || typeof options !== "object" || Array.isArray(options)) throw new TypeError("Search options must be an object");
     const limit = validateLimit(options.limit);
+    validateCandidateLimit(options.candidateLimit, limit);
     if (limit === 0 || query.trim().length === 0 || this.documents.size === 0) return [];
     const weights = resolveWeights(options.lexicalWeight, options.vectorWeight, this.defaultLexicalWeight, this.defaultVectorWeight);
     const minimumScore = options.minScore ?? 0;
     if (!Number.isFinite(minimumScore) || minimumScore < 0) throw new RangeError("minScore must be a finite non-negative number");
     if (options.filter !== undefined && options.filters !== undefined) throw new TypeError("Use either filter or filters, not both");
-    const filter = options.filter ?? options.filters;
-    const candidates = [...this.documents.values()].filter((stored) => filter === undefined || matchesFilter(filter, stored.document));
-    if (candidates.length === 0) return [];
-
     const queryTokens = tokenize(this.tokenizer, query);
     const distinctQueryTokens = unique(queryTokens);
+    const filter = options.filter ?? options.filters;
+    const candidateDocuments = weights.vectorWeight === 0
+      ? [...new Set(distinctQueryTokens.flatMap((token) => [...(this.invertedIndex.get(token) ?? [])]))]
+        .map((id) => this.documents.get(id))
+        .filter((stored): stored is StoredDocument<T> => stored !== undefined)
+      : [...this.documents.values()];
+    const candidates = candidateDocuments.filter((stored) => filter === undefined || matchesFilter(filter, stored.document));
+    if (candidates.length === 0) return [];
+
     const queryVector = weights.vectorWeight > 0 ? await embed(this.vectorProvider, query) : undefined;
     if (queryVector !== undefined && this.vectorDimensions !== undefined && queryVector.length !== this.vectorDimensions) {
       throw new RangeError(`Query vector dimension ${queryVector.length} does not match indexed dimension ${this.vectorDimensions}`);
@@ -636,7 +664,12 @@ export class HybridIndex<T = unknown> {
 
   private addStatistics(document: StoredDocument<T>): void {
     this.totalDocumentLength += document.tokens.length;
-    for (const token of new Set(document.tokens)) this.documentFrequency.set(token, (this.documentFrequency.get(token) ?? 0) + 1);
+    for (const token of new Set(document.tokens)) {
+      this.documentFrequency.set(token, (this.documentFrequency.get(token) ?? 0) + 1);
+      const postings = this.invertedIndex.get(token) ?? new Set<string>();
+      postings.add(document.document.id);
+      this.invertedIndex.set(token, postings);
+    }
   }
 
   private removeStatistics(document: StoredDocument<T>): void {
@@ -644,6 +677,11 @@ export class HybridIndex<T = unknown> {
     for (const token of new Set(document.tokens)) {
       const next = (this.documentFrequency.get(token) ?? 0) - 1;
       if (next <= 0) this.documentFrequency.delete(token); else this.documentFrequency.set(token, next);
+      const postings = this.invertedIndex.get(token);
+      if (postings !== undefined) {
+        postings.delete(document.document.id);
+        if (postings.size === 0) this.invertedIndex.delete(token);
+      }
     }
   }
 }

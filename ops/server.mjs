@@ -1,10 +1,13 @@
-import { randomUUID } from "node:crypto";
+import { createPublicKey, randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { URL } from "node:url";
 import { PremiseServer } from "@premise/premise-server/v2";
+import { MemoryV2SignatureReplayStore, parseAndVerifyMemoryEnvelopeV2Async } from "@premise/protocol-types";
 import { InMemoryRuntimeStore, PremiseRuntime } from "@premise/runtime-core";
+import { PostgresLexicalIndex, PostgresSignatureReplayStore } from "@premise/store-postgres";
 import { Metrics } from "./metrics.mjs";
-import { createBearerAuthorizer } from "./auth.mjs";
+import { assertRlsSafeDatabaseRole, authorizeOperationalRequest, createBearerAuthorizer } from "./auth.mjs";
 import { openPgClient } from "./pg-client.mjs";
 import { openDurableMirror } from "./runtime-store.mjs";
 import { shouldFlushDurableWrite } from "./route-durability.mjs";
@@ -15,25 +18,66 @@ const config = {
   tenantId: required("PREMISE_TENANT_ID", "tenant:local"),
   environment: process.env.PREMISE_ENV ?? "development",
   apiToken: process.env.PREMISE_API_TOKEN,
+  metricsToken: process.env.PREMISE_METRICS_TOKEN,
   storeMode: process.env.PREMISE_STORE_MODE ?? "postgres",
   tablePrefix: process.env.PREMISE_TABLE_PREFIX ?? "premise_v2",
-  maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024)
+  signatureKeysFile: process.env.PREMISE_SIGNATURE_KEYS_FILE,
+  requireSignedEnvelopes: process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1",
+  // The replay table requires expiresAt > acceptedAt; keep this positive and
+  // cap it so the two-times retention used below stays within its 24h bound.
+  signatureMaxClockSkewMs: integer("PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS", 5 * 60 * 1_000, 1, 12 * 60 * 60 * 1_000),
+  maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024),
+  runtimeWriteConcurrency: integer("PREMISE_RUNTIME_WRITE_CONCURRENCY", 4, 1, 64),
+  runtimeMaxPendingWrites: integer("PREMISE_RUNTIME_MAX_PENDING_WRITES", 10_000, 1, 1_000_000),
+  httpIdempotencyRetentionMs: integer("PREMISE_HTTP_IDEMPOTENCY_RETENTION_MS", 7 * 24 * 60 * 60 * 1_000, 60 * 60 * 1_000, 365 * 24 * 60 * 60 * 1_000),
+  httpIdempotencyCleanupIntervalMs: integer("PREMISE_HTTP_IDEMPOTENCY_CLEANUP_INTERVAL_MS", 60 * 60 * 1_000, 60 * 1_000, 24 * 60 * 60 * 1_000)
 };
 
 if (config.storeMode !== "postgres" && config.storeMode !== "memory") throw new Error("PREMISE_STORE_MODE must be postgres or memory");
 const authorize = createBearerAuthorizer({ environment: config.environment, token: config.apiToken, tenantId: config.tenantId });
+const authorizeMetrics = createBearerAuthorizer({ environment: config.environment, token: config.metricsToken, tokenName: "PREMISE_METRICS_TOKEN", tenantId: config.tenantId });
+const signatureKeys = await loadSignatureKeys(config.signatureKeysFile);
+if (config.requireSignedEnvelopes && signatureKeys === undefined) {
+  throw new Error("PREMISE_REQUIRE_SIGNED_ENVELOPES=1 requires PREMiSE_SIGNATURE_KEYS_FILE with external public keys");
+}
+if (!isDevelopmentEnvironment(config.environment) && !config.requireSignedEnvelopes) {
+  throw new Error("PREMISE_REQUIRE_SIGNED_ENVELOPES=1 is mandatory outside development");
+}
+if (!isDevelopmentEnvironment(config.environment) && signatureKeys !== undefined && config.storeMode !== "postgres") {
+  throw new Error("PREMISE_SIGNATURE_KEYS_FILE requires PostgreSQL-backed replay protection outside development; use PREMiSE_STORE_MODE=postgres with migration 007 applied");
+}
 
 const metrics = new Metrics();
 let database;
 let store;
+let idempotencyStore;
 let runtime;
+let retrievalIndex;
+let runtimeCounts;
 let app;
+let signatureVerification;
 
 if (config.storeMode === "postgres") {
   try {
     database = await openPgClient();
-    const opened = await openDurableMirror(database, config.tablePrefix, config.tenantId);
+    assertRlsSafeDatabaseRole(await database.query("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user"));
+    const opened = await openDurableMirror(database, config.tablePrefix, config.tenantId, {
+      concurrency: config.runtimeWriteConcurrency,
+      maxPendingWrites: config.runtimeMaxPendingWrites
+    });
     store = opened.mirror;
+    idempotencyStore = opened.persistent;
+    retrievalIndex = new PostgresLexicalIndex(opened.persistent, { awaitDurability: () => opened.mirror.flush() });
+    runtimeCounts = () => opened.persistent.counts();
+    if (signatureKeys !== undefined) {
+      const replayStore = new PostgresSignatureReplayStore(database, {
+        tablePrefix: config.tablePrefix,
+        tenantId: config.tenantId,
+        retentionMs: Math.max(config.signatureMaxClockSkewMs * 2, 10 * 60 * 1_000)
+      });
+      await replayStore.initialize();
+      signatureVerification = { keys: signatureKeys, replayStore, maxClockSkewMs: config.signatureMaxClockSkewMs };
+    }
   } catch (error) {
     console.error("PREMiSE v2 startup failed: PostgreSQL is unavailable");
     console.error(error?.code ?? error?.name ?? "database error");
@@ -43,6 +87,13 @@ if (config.storeMode === "postgres") {
   }
 } else {
   store = new InMemoryRuntimeStore();
+  if (signatureKeys !== undefined) {
+    signatureVerification = {
+      keys: signatureKeys,
+      replayStore: new MemoryV2SignatureReplayStore(),
+      maxClockSkewMs: config.signatureMaxClockSkewMs
+    };
+  }
 }
 
 runtime = new PremiseRuntime({
@@ -51,31 +102,63 @@ runtime = new PremiseRuntime({
   principal: { tenantId: config.tenantId, subjectId: "premise-service" }
 });
 
-// The runtime's event IDs are process-local. Continue after a durable restart.
-runtime.sequence = store.listEvents().length;
 app = new PremiseServer({
   runtime,
+  index: retrievalIndex,
+  runtimeCounts,
   principal: { tenantId: config.tenantId, subjectId: "premise-service" },
   allowTenantHeader: false,
   authorize,
+  idempotencyStore,
+  awaitDurability: () => store.flush(),
   maxBodyBytes: config.maxBodyBytes,
+  ...(signatureVerification === undefined ? {} : {
+    verifyEnvelope: (input) => parseAndVerifyMemoryEnvelopeV2Async(input, signatureVerification)
+  }),
   logger: (message) => console.error("PREMiSE v2 request error", message.split("\n", 1)[0])
 });
-
-for (const record of runtime.list()) {
-  const content = typeof record.content === "string" ? record.content : JSON.stringify(record.content) ?? String(record.content);
-  await app.index.upsert({ id: record.envelope.memoryId, text: content, content: record.content, metadata: { tenantId: record.envelope.tenantId } });
-}
 
 function required(name, fallback) {
   const value = process.env[name];
   return value === undefined || value.length === 0 ? fallback : value;
 }
 
+function isDevelopmentEnvironment(environment) {
+  return typeof environment === "string" && environment.trim().toLowerCase() === "development";
+}
+
 function integer(name, fallback, minimum, maximum) {
   const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) throw new Error(`${name} must be an integer from ${minimum} to ${maximum}`);
   return value;
+}
+
+async function loadSignatureKeys(file) {
+  if (file === undefined || file.length === 0) return undefined;
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(file, "utf8"));
+  } catch (error) {
+    throw new Error(`PREMISE_SIGNATURE_KEYS_FILE cannot be read: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain a JSON object keyed by keyId");
+  const keys = new Map();
+  for (const [keyId, value] of Object.entries(parsed)) {
+    if (!/^\S{1,256}$/u.test(keyId) || typeof value !== "string" || value.length === 0 || value.length > 16_384) throw new Error("PREMISE_SIGNATURE_KEYS_FILE contains an invalid key entry");
+    if (/PRIVATE KEY/u.test(value)) throw new Error(`PREMISE_SIGNATURE_KEYS_FILE must contain public keys only (private material found for ${keyId})`);
+    let publicKey;
+    try {
+      publicKey = createPublicKey(value);
+    } catch {
+      throw new Error(`PREMISE_SIGNATURE_KEYS_FILE contains an invalid public key for ${keyId}`);
+    }
+    if (publicKey.type !== "public" || publicKey.asymmetricKeyType !== "ed25519") {
+      throw new Error(`PREMISE_SIGNATURE_KEYS_FILE key ${keyId} must be a public Ed25519 key`);
+    }
+    keys.set(keyId, publicKey);
+  }
+  if (keys.size === 0) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain at least one public key");
+  return keys;
 }
 
 function safeRequestId(request) {
@@ -174,15 +257,32 @@ const httpServer = createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && pathname === "/readyz") {
+    if (!authorizeOperationalRequest(authorize, request, { tenantId: config.tenantId, subjectId: "premise-ops" }, { allowLoopback: true })) {
+      response.setHeader("www-authenticate", "Bearer");
+      json(response, 401, { ok: false, error: "unauthorized", requestId });
+      return;
+    }
     const result = await readiness();
     json(response, result.ready ? 200 : 503, { ok: result.ready, ...result });
     return;
   }
   if (request.method === "GET" && pathname === "/metrics") {
+    if (!authorizeOperationalRequest(authorizeMetrics, request, { tenantId: config.tenantId, subjectId: "premise-metrics" })) {
+      response.setHeader("www-authenticate", "Bearer");
+      json(response, 401, { ok: false, error: "unauthorized", requestId });
+      return;
+    }
     const ready = store.failure === undefined;
     response.statusCode = 200;
     response.setHeader("content-type", "text/plain; version=0.0.4; charset=utf-8");
-    response.end(metrics.render({ storeReady: ready, pendingWrites: store.pendingWrites ?? 0, records: store.list() }));
+    const freshness = store.freshnessCounts;
+    response.end(metrics.render({
+      storeReady: ready,
+      pendingWrites: store.pendingWrites ?? 0,
+      maxPendingWrites: store.maxPendingWrites ?? 0,
+      freshness,
+      records: freshness === undefined ? store.list() : undefined
+    }));
     return;
   }
 
@@ -202,10 +302,21 @@ await new Promise((resolve) => httpServer.listen(config.port, config.host, resol
 console.log(`PREMiSE v2 listening on ${config.host}:${config.port} (${config.storeMode})`);
 
 let shuttingDown = false;
+let idempotencyCleanupTimer;
+if (idempotencyStore !== undefined && typeof idempotencyStore.pruneHttpIdempotency === "function") {
+  const cleanup = () => void idempotencyStore.pruneHttpIdempotency({ maxAgeMs: config.httpIdempotencyRetentionMs }).catch((error) => {
+    console.error("PREMiSE v2 idempotency cleanup failed", error?.code ?? error?.name ?? "database error");
+  });
+  idempotencyCleanupTimer = setInterval(cleanup, config.httpIdempotencyCleanupIntervalMs);
+  idempotencyCleanupTimer.unref?.();
+  cleanup();
+}
+
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`PREMiSE v2 shutting down (${signal})`);
+  if (idempotencyCleanupTimer !== undefined) clearInterval(idempotencyCleanupTimer);
   await new Promise((resolve) => httpServer.close(() => resolve()));
   try { await store.flush?.(); } catch { /* a failed queue is already reflected in readiness */ }
   await database?.close?.();

@@ -1,5 +1,19 @@
 # GA Evaluation: benchmark externo y ciego
 
+## Clasificación de evidencia
+
+Hay dos planos que no deben mezclarse:
+
+- **Fuente externa/real:** snapshots públicos fijados a commits, descargados y
+  verificados por SHA-256 antes de evaluar.
+- **Ejecución local:** runner, latencias, métricas y coste proxy medidos en la
+  máquina que ejecuta la campaña. No son una atestación independiente ni un
+  SLA. Las fuentes son estáticas; no se afirma una mutación viva.
+
+La suite local no habilita una afirmación pública GA. La evidencia independiente
+requiere el holdout externo con atestación separada descrito en
+[`docs/ga-holdout.md`](ga-holdout.md).
+
 ## Propósito
 
 `benchmarks/ga-evaluation` es una campaña de evaluación externa del contrato de
@@ -48,9 +62,19 @@ hash incorrecto es un fallo de campaña, no un resultado `UNKNOWN` utilizable.
 
 ## Versionado y splits
 
-- `manifest/v1.json` es el manifiesto versionado de tareas. Contiene prompt,
-  fuente, snapshot para el evaluador y oracle; el snapshot y oracle nunca salen
-  por el protocolo de candidato.
+La separación de insumos es contractual: `manifest/v1.json` solo enlaza;
+`prompts/v1.json` contiene prompt/split/sourceId; `labels/v1.json` contiene
+snapshot/oracle; y `datasets/v1.json` contiene las fuentes fijadas. El runner
+mantiene labels en el proceso evaluador y entrega al candidato un `source.id`
+opaco. Esto es aislamiento lógico, no un sandbox de sistema operativo.
+
+`retrieval-no-protocol` es el **baseline sin protocolo**. Se reporta junto a
+`PREMiSE` para evitar comparar el protocolo solo contra una lectura directa.
+
+- `manifest/v1.json` es el manifiesto de campaña y solo enlaza los tres
+  documentos. `prompts/v1.json` contiene prompts públicos sin answer key;
+  `labels/v1.json` conserva snapshot y oracle para el evaluador. El snapshot y
+  oracle nunca salen por el protocolo de candidato.
 - `datasets/v1.json` fija URLs públicas, commits, paths, media types y SHA-256.
   Las URLs son descargas inmutables por commit en `raw.githubusercontent.com`.
 - `visible` sirve para desarrollo y smoke tests.
@@ -64,6 +88,12 @@ real durante la ejecución.
 
 ## Protocolo ciego para tareas reales
 
+La validación rechaza marcadores declarados de datos sintéticos (`fixture:`,
+`synthetic:`, `mock:`, `fake:`, `dummy:`), exige `syntheticData: false` por
+dataset y falla cerrado ante hashes o artefactos incompletos. Esto detecta
+marcadores declarados; no prueba que el contenido público no haya sido escrito
+artificialmente.
+
 Un candidato se ejecuta como proceso separado con su `cwd` apuntando a un
 directorio runtime sin manifiestos ni answer key. El runner escribe una línea
 por tarea:
@@ -75,7 +105,7 @@ por tarea:
     "protocol": "ga-evaluation/1",
     "taskId": "opaque-…",
     "prompt": "…",
-    "source": {"id": "github.requests.version", "uri": "github://…", "adapter": "github"},
+    "source": {"id": "opaque-source-…", "uri": "github://…", "adapter": "github"},
     "capabilities": ["read", "version"]
   }
 }
@@ -85,8 +115,8 @@ El candidato puede solicitar evidencia, sin que el runner le entregue el
 oracle:
 
 ```json
-{"type":"read","requestId":"1","sourceId":"github.requests.version"}
-{"type":"version","requestId":"2","sourceId":"github.requests.version"}
+{"type":"read","requestId":"1","sourceId":"opaque-source-…"}
+{"type":"version","requestId":"2","sourceId":"opaque-source-…"}
 ```
 
 El runner responde con contenido público verificado solo para `read`, o con
@@ -155,7 +185,7 @@ de sus `requests` y se identifica como `warmupRequests`.
 Una campaña exitosa escribe únicamente dentro de
 `benchmarks/ga-evaluation/outputs`:
 
-- `results.json`: formato `ga-evaluation-result/1`.
+- `results.json`: formato `ga-evaluation-result/2`.
 - `report.md`: tablas, verificación y límites de claims.
 - `traces.jsonl`: una línea por estrategia/tarea con decisiones, hashes de
   versión, latencia, peticiones y digests; no incluye el texto de respuestas ni
@@ -168,6 +198,11 @@ sin falsos positivos. Puede ejecutarse sin red para validar el harness; una
 campaña real siempre necesita pasar la verificación pública del runner.
 
 ## Claims permitidos
+
+El reporte también expone `correctPer100`, `errorRate`,
+`availabilityPer100`, `freshnessPer100Available` y `costPer1000TasksUsd` para
+que las métricas sean legibles sin reconstruir denominadores. El coste sigue
+siendo un proxy de operaciones de fuente/CPU local, nunca una factura.
 
 Con una ejecución concreta solo se pueden afirmar los números observados para:
 

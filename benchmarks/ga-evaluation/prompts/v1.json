@@ -1,0 +1,157 @@
+{
+  "format": "ga-evaluation-prompt-manifest/1",
+  "version": "1.0.0",
+  "suite": "ga-evaluation",
+  "blindProtocol": "ga-evaluation/1",
+  "datasetManifest": "../datasets/v1.json",
+  "labelManifest": "../labels/v1.json",
+  "seed": "ga-evaluation-v1-public-2026-08-10",
+  "splits": {
+    "visible": {
+      "purpose": "development and smoke reproduction",
+      "minimumTasks": 8
+    },
+    "hidden": {
+      "purpose": "unseen prompts over the same public-source contract",
+      "minimumTasks": 6
+    },
+    "holdout": {
+      "purpose": "final claim gate; do not tune against this split",
+      "minimumTasks": 6
+    }
+  },
+  "tasks": [
+    {
+      "id": "visible-001",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "prompt": "What version of Requests is declared by the source? Return only the semantic version."
+    },
+    {
+      "id": "visible-002",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "prompt": "What hexadecimal build identifier is declared by the source? Return it exactly."
+    },
+    {
+      "id": "visible-003",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "prompt": "What version of Requests is declared by the source now? Return only the semantic version."
+    },
+    {
+      "id": "visible-004",
+      "split": "visible",
+      "sourceId": "github.requests.version",
+      "prompt": "What hexadecimal build identifier is declared by the source now? Return it exactly."
+    },
+    {
+      "id": "visible-005",
+      "split": "visible",
+      "sourceId": "filesystem.requests.version",
+      "prompt": "Read the local public-download source and return its declared Requests version."
+    },
+    {
+      "id": "visible-006",
+      "split": "visible",
+      "sourceId": "filesystem.requests.version",
+      "prompt": "Read the updated local public-download source and return its declared Requests version."
+    },
+    {
+      "id": "visible-007",
+      "split": "visible",
+      "sourceId": "git.requests.version",
+      "prompt": "From the Git source, return the declared Requests version."
+    },
+    {
+      "id": "visible-008",
+      "split": "visible",
+      "sourceId": "git.requests.version",
+      "prompt": "From the updated Git source, return the declared Requests version."
+    },
+    {
+      "id": "visible-009",
+      "split": "visible",
+      "sourceId": "github.hello.world",
+      "prompt": "What exact text is in the Hello-World README? Return the trimmed text."
+    },
+    {
+      "id": "visible-010",
+      "split": "visible",
+      "sourceId": "filesystem.nodeignore",
+      "prompt": "Does the public Node ignore file exclude node_modules/? Return true or false."
+    },
+    {
+      "id": "hidden-001",
+      "split": "hidden",
+      "sourceId": "filesystem.requests.version",
+      "prompt": "Which Requests build value is present in this public-download source? Return the hexadecimal value."
+    },
+    {
+      "id": "hidden-002",
+      "split": "hidden",
+      "sourceId": "filesystem.requests.version",
+      "prompt": "Which Requests build value is present after the source update? Return the hexadecimal value."
+    },
+    {
+      "id": "hidden-003",
+      "split": "hidden",
+      "sourceId": "git.requests.version",
+      "prompt": "Is the source's declared package title exactly requests? Return true or false."
+    },
+    {
+      "id": "hidden-004",
+      "split": "hidden",
+      "sourceId": "git.requests.version",
+      "prompt": "Is the updated source's declared package title exactly requests? Return true or false."
+    },
+    {
+      "id": "hidden-005",
+      "split": "hidden",
+      "sourceId": "github.hello.world",
+      "prompt": "Does the Hello-World source contain the phrase Hello World? Return true or false."
+    },
+    {
+      "id": "hidden-006",
+      "split": "hidden",
+      "sourceId": "filesystem.nodeignore",
+      "prompt": "Does the Node ignore source contain the heading '# Logs'? Return true or false."
+    },
+    {
+      "id": "holdout-001",
+      "split": "holdout",
+      "sourceId": "filesystem.nodeignore",
+      "prompt": "Does the holdout source include a coverage directory rule? Return true or false."
+    },
+    {
+      "id": "holdout-002",
+      "split": "holdout",
+      "sourceId": "git.requests.pyproject",
+      "prompt": "What minimum Python version is declared in the project metadata? Return the constraint exactly."
+    },
+    {
+      "id": "holdout-003",
+      "split": "holdout",
+      "sourceId": "git.requests.pyproject",
+      "prompt": "Does the project metadata use a dynamic package version? Return true or false."
+    },
+    {
+      "id": "holdout-004",
+      "split": "holdout",
+      "sourceId": "git.requests.pyproject",
+      "prompt": "Does the updated project metadata include chardet in the typecheck dependency group? Return true or false."
+    },
+    {
+      "id": "holdout-005",
+      "split": "holdout",
+      "sourceId": "github.requests.readme",
+      "prompt": "What is the first Markdown heading in the Requests README? Return it exactly."
+    },
+    {
+      "id": "holdout-006",
+      "split": "holdout",
+      "sourceId": "github.requests.readme",
+      "prompt": "Does the Requests README describe the project as Python HTTP for Humans? Return true or false."
+    }
+  ]
+}

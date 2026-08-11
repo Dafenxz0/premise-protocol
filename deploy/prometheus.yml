@@ -8,6 +8,7 @@ rule_files:
 scrape_configs:
   - job_name: premise-v2
     metrics_path: /metrics
+    bearer_token_file: /run/secrets/premise_metrics_token
     static_configs:
       - targets: ["premise:3000"]
 

@@ -4,7 +4,7 @@
   "info": {
     "title": "PREMiSE v2 API",
     "version": "2.0.0",
-    "description": "Stable HTTP contract used by @premise/sdk. Existing v2 servers may omit pagination tokens and may return either string or structured errors."
+    "description": "Stable HTTP contract used by @premise/sdk. The v2 API uses specVersion premise/2, visible-ASCII request identifiers, a default 1 MiB request-body limit, and a maximum query page of 1,000 hits. Authentication, TLS termination, durable replay storage, and key management are deployment responsibilities."
   },
   "servers": [
     {
@@ -123,6 +123,33 @@
               }
             }
           },
+          "409": {
+            "description": "Idempotency-Key was reused with a different request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
+          "425": {
+            "description": "The same idempotent request is currently in progress",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/Error"
           }
@@ -203,6 +230,33 @@
               }
             }
           },
+          "409": {
+            "description": "Idempotency-Key was reused with a different request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
+          "425": {
+            "description": "The same idempotent request is currently in progress",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/Error"
           }
@@ -244,6 +298,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "./schemas/query-response.schema.json"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The server does not support pageToken pagination yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
                 }
               }
             }
@@ -293,6 +357,33 @@
               }
             }
           },
+          "409": {
+            "description": "Idempotency-Key was reused with a different request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
+          "425": {
+            "description": "The same idempotent request is currently in progress",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./schemas/error.schema.json"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/components/responses/Error"
           }
@@ -330,11 +421,13 @@
       "IdempotencyKeyHeader": {
         "name": "Idempotency-Key",
         "in": "header",
-        "required": true,
-        "description": "Stable for every retry of the same mutation.",
+        "required": false,
+        "description": "Stable for every retry of the same mutation. The SDK generates one for POST requests; raw HTTP clients should provide one when they need replay or conflict detection.",
         "schema": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[\\x21-\\x7e]+$"
         }
       },
       "RequestIdHeader": {
@@ -343,7 +436,9 @@
         "required": false,
         "schema": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[\\x21-\\x7e]+$"
         }
       },
       "MemoryId": {

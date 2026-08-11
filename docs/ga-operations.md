@@ -4,7 +4,9 @@ Esta guía describe un despliegue reproducible, local y con forma de producción
 
 ## Qué se entrega
 
-La imagen ejecuta la API v2 con un usuario sin privilegios (10001:10001). El proceso carga los recuerdos y eventos desde PostgreSQL al arrancar, mantiene el índice de consulta en memoria y confirma las escrituras en PostgreSQL antes de responder con éxito. Si la persistencia falla, las operaciones de escritura devuelven 503, readiness pasa a rojo y hay que reiniciar el proceso después de corregir la base de datos.
+La imagen ejecuta la API v2 con un usuario sin privilegios (10001:10001). PostgreSQL es la fuente de verdad: el arranque hidrata el mirror en páginas acotadas y las consultas usan el índice lexical persistido en PostgreSQL, sin reconstruir un índice completo en memoria. Las escrituras se confirman en PostgreSQL antes de responder con éxito. Si la persistencia falla, las operaciones de escritura devuelven 503, readiness pasa a rojo y hay que reiniciar el proceso después de corregir la base de datos.
+
+La búsqueda FTS aplica una ventana de candidatos antes del ranking para mantener acotada la latencia con consultas que coinciden con gran parte del corpus. El valor predeterminado es `max(100, limit * 10)` y se puede ajustar mediante `candidateLimit` en la integración del store. Es una aproximación de ranking, no un top-K global exacto: el operador debe medir recall, p95/p99 y coste con el corpus real antes de publicar un SLA de relevancia.
 
 ~~~mermaid
 flowchart LR
@@ -22,12 +24,59 @@ No hay credenciales reales en el repositorio. Los ficheros deploy/.env.example y
 
 El proceso se configura con un tenant por instancia. El backup y el restore operativos cubren ese tenant; para varios tenants se ejecuta una operación por tenant o se usa un rol de administración específico del entorno.
 
+## PostgreSQL checkpoint/WAL and pool
+
+The `postgres` service activates `deploy/postgres/postgresql.conf` through a
+read-only bind mount. This is a conservative PostgreSQL 16 baseline, not a
+replacement for measuring the target provider and host.
+
+- `checkpoint_timeout=15min` reduces timed checkpoint churn during sustained
+  writes; `checkpoint_completion_target=0.9` spreads checkpoint I/O over the
+  interval.
+- `max_wal_size=2GB` and `min_wal_size=256MB` absorb short write bursts and
+  recycle WAL. `max_wal_size` is a soft limit, so leave disk headroom and
+  monitor `pg_stat_bgwriter` and free space before increasing it.
+- `wal_compression=pglz` compresses full-page WAL images. It trades CPU for
+  less WAL/I/O without disabling `full_page_writes`.
+- `fsync=on`, `full_page_writes=on`, and `synchronous_commit=on` are explicit
+  because the API acknowledges durable writes; this baseline does not use
+  `synchronous_commit=off`.
+- `PREMISE_DB_POOL_SIZE=8` aligns with the existing durable-write concurrency
+  of `4`, leaving four pool slots for reads/control in the API process.
+  `max_connections=64` leaves room for migration, backup, monitoring, and
+  operator sessions. If the API is scaled out, calculate
+  `replicas * pool + maintenance` before changing `max_connections`.
+
+Memory knobs such as `shared_buffers`, `work_mem`, and `effective_cache_size`
+are intentionally not fixed here: they depend on host memory and query shape.
+The `max_connections` change is a startup setting, so recreate/restart the
+PostgreSQL service after changing this file. Preserve a backup and check free
+space in `PGDATA` before rollout.
+
+Reproducible contract and Compose validation:
+
+~~~powershell
+node --test deploy/postgres-config.test.mjs
+docker compose -f deploy/docker-compose.yml --profile ops config --quiet
+docker compose -f deploy/docker-compose.yml up -d --force-recreate postgres
+docker compose -f deploy/docker-compose.yml exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT name, setting, sourcefile FROM pg_settings WHERE name IN (''checkpoint_timeout'', ''checkpoint_completion_target'', ''max_wal_size'', ''min_wal_size'', ''wal_compression'', ''max_connections'', ''fsync'', ''full_page_writes'', ''synchronous_commit'') ORDER BY name;"'
+~~~
+
+The last command must show the expected effective values and their
+`sourcefile`. If `ALTER SYSTEM` has replaced one, resolve that override before
+attributing a performance result to this baseline. The PostgreSQL references
+for the trade-offs are [WAL configuration](https://www.postgresql.org/docs/16/runtime-config-wal.html),
+[WAL tuning](https://www.postgresql.org/docs/16/wal-configuration.html), and
+[external configuration files](https://www.postgresql.org/docs/16/runtime-config-file-locations.html).
+
 ## Arranque local
 
 Desde la raíz del repositorio:
 
 ~~~bash
 mkdir -p .local/backups
+printf '%s\n' 'local-only-metrics-token' > .local/premise_metrics_token
+chmod 600 .local/premise_metrics_token
 chmod 0777 .local/backups
 docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml up -d
 ~~~
@@ -36,6 +85,8 @@ En PowerShell:
 
 ~~~powershell
 New-Item -ItemType Directory -Force .local/backups | Out-Null
+$token = 'local-only-metrics-token'
+Set-Content -NoNewline -Encoding ascii .local/premise_metrics_token $token
 docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml up -d
 ~~~
 
@@ -70,14 +121,54 @@ docker compose -f deploy/docker-compose.yml exec -T \
   -e PREMISE_LOAD_REQUESTS=32 \
   -e PREMISE_LOAD_CONCURRENCY=4 \
   -e PREMISE_LOAD_MAX_P95_MS=500 \
-  premise node /app/ops/load-smoke.mjs
+premise node /app/ops/load-smoke.mjs
 ~~~
+
+### Campaña real contra PostgreSQL a escala
+
+El perfil `benchmarks/ga-load/runner.mjs --profile full` es útil para
+determinismo y recuperación del algoritmo, pero su store es sintético. No se
+debe presentar como evidencia de capacidad de PostgreSQL o de la API.
+
+La campaña separada `postgres-scale.mjs` escribe registros reales en las
+tablas PREMiSE, arranca la imagen production-shaped, mide lecturas y consultas
+HTTP concurrentes, conserva una traza JSONL y repite la medición después de
+reiniciar el servicio. Se ejecuta deliberadamente como una campaña opt-in de
+CI porque puede consumir muchos minutos, memoria, disco y WAL:
+
+~~~bash
+docker compose -f deploy/docker-compose.yml run --rm --no-deps premise \
+  node /app/benchmarks/ga-load/postgres-scale.mjs --mode seed
+docker compose -f deploy/docker-compose.yml exec -T premise \
+  node /app/benchmarks/ga-load/postgres-scale.mjs \
+  --mode benchmark --output /tmp/postgres-scale.json \
+  --trace /tmp/postgres-scale-traces.jsonl
+~~~
+
+Configura `PREMISE_SCALE_MEMORIES`, `PREMISE_SCALE_REQUESTS`,
+`PREMISE_SCALE_CONCURRENCY` y `PREMISE_SCALE_TENANT_ID`. La campaña no prueba
+por sí sola una capacidad universal: el informe debe conservar el commit, la
+versión de PostgreSQL, la imagen, el hardware, los umbrales y las trazas.
+Para que sea evidencia GA también debe repetirse tras un reinicio y revisarse
+con `postgres-scale.json`, `postgres-scale-restart.json` y los diagnósticos de
+PostgreSQL.
+
+El informe no mezcla las colas de las operaciones: exige al menos 100 muestras
+de `retrieve`, `query` y `register`. El p95 agregado y el de lectura/query es
+500 ms; `register` tiene un p95 explícito de 1.000 ms porque espera la barrera
+de durabilidad y la publicación del evento. Todas mantienen p99 de 2.000 ms y
+error máximo de 0,1 %. Los umbrales quedan escritos en el JSON para que una
+ejecución no pueda cambiar la interpretación después de medir.
 
 El espejo durable procesa escrituras con concurrencia acotada para no bloquear
 todo el servicio ni saturar PostgreSQL. El valor por defecto es `4`; se puede
 ajustar por despliegue con `PREMISE_RUNTIME_WRITE_CONCURRENCY` (entero entre 1
-y 64). Las rutas de lectura no esperan esa cola; las mutaciones sí esperan su
-barrera de durabilidad antes de responder.
+y 64). También existe un límite de admisión de `10.000` trabajos pendientes,
+configurable con `PREMISE_RUNTIME_MAX_PENDING_WRITES`; al alcanzarlo la API
+responde `503 PERSISTENCE_BACKPRESSURE` con `Retry-After: 1` en vez de aceptar
+trabajo ilimitado y arriesgar la memoria del proceso. Las rutas de lectura no
+esperan esa cola; las mutaciones sí esperan su barrera de durabilidad antes de
+responder.
 
 Métricas Prometheus:
 
@@ -106,21 +197,20 @@ Las migraciones son forward-only. Antes de publicar una imagen nueva, primero de
 
 ## Backup y restore verificado
 
-El backup es un snapshot JSON de los registros y eventos v2, con SHA-256 y permisos de fichero restrictivos. El restore de verificación restaura en tablas temporales, compara registros/eventos y las elimina; no cambia el store activo.
+El backup operativo usa NDJSON con paginación, SHA-256 de las entradas, footer de conteos, `fsync` y rename atómico para no construir un snapshot monolítico en memoria. El restore de verificación consume el stream dentro de una transacción, valida tenant, digest y conteos, y restaura en tablas temporales; no cambia el store activo. También se acepta el formato JSON v1 legado.
 
 ~~~bash
 docker compose -f deploy/docker-compose.yml --profile ops run --rm backup
-docker compose -f deploy/docker-compose.yml --profile ops run --rm backup \
-  node /app/ops/restore-verify.mjs
+docker compose -f deploy/docker-compose.yml --profile ops run --rm restore-verify
 ~~~
 
-El fichero queda en .local/backups/premise-v2-latest.json. Antes de una operación destructiva, conservar una copia externa y parar la API:
+El fichero queda en `.local/backups/premise-v2-latest.ndjson`. Antes de una operación destructiva, conservar una copia externa y parar la API:
 
 ~~~bash
 docker compose -f deploy/docker-compose.yml stop premise
 docker compose -f deploy/docker-compose.yml --profile ops run --rm \
   -e RESTORE_CONFIRM=I_UNDERSTAND_DATA_REPLACEMENT \
-  backup node /app/ops/restore.mjs
+  restore
 docker compose -f deploy/docker-compose.yml up -d premise
 docker compose -f deploy/docker-compose.yml exec -T -e PREMISE_HEALTH_PATH=/readyz premise node /app/ops/healthcheck.mjs
 ~~~

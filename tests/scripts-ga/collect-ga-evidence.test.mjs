@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, stat, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,6 +41,26 @@ test("collector copies real canonical artifacts and never fabricates missing evi
   assert.ok(report.contract.incompatibilities.some((item) => item.artifact === "backup-restore.json"));
 });
 
+test("collector preserves report-declared raw dependencies for the strict gate", async (t) => {
+  const { input, output } = await directories(t);
+  const trace = '{"schema":"premise/pg-scale-trace/1","ok":true}\n';
+  await writeFile(join(input, "postgres-scale.json"), JSON.stringify({
+    schema: "premise/ga-evidence/1",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    generatedAt: "2026-08-10T12:00:00.000Z",
+    source: { kind: "test" },
+    trace: { kind: "raw-jsonl", path: "postgres-scale-traces.jsonl", sha256: `sha256:${createHash("sha256").update(trace).digest("hex")}` }
+  }), "utf8");
+  await writeFile(join(input, "postgres-scale-traces.jsonl"), trace, "utf8");
+
+  const result = await collectGaEvidence({ inputDir: input, outputDir: output });
+
+  assert.equal(await readFile(join(output, "postgres-scale-traces.jsonl"), "utf8"), trace);
+  assert.equal(result.trace.dependencies[0].path, "postgres-scale-traces.jsonl");
+  assert.equal(result.trace.dependencies[0].status, "copied");
+  assert.ok(!result.failures.some((item) => item.code === "missing-dependency" && item.target === "postgres-scale.json"));
+});
+
 test("collector rejects ambiguous automatic sources and requires an explicit mapping", async (t) => {
   const { input, output } = await directories(t);
   await mkdir(join(input, "one"), { recursive: true });
@@ -65,4 +86,24 @@ test("collector rejects mappings outside input and records the failure", async (
   assert.equal(result.exitCode, 1);
   assert.ok(result.failures.some((item) => item.code === "unsafe-source" && item.target === "external-holdout.json"));
   await assert.rejects(stat(join(output, "external-holdout.json")));
+});
+
+test("strict collection requires explicit canonical mappings and never falls back by basename", async (t) => {
+  const { input, output } = await directories(t);
+  await writeFile(join(input, "threat-model.md"), "# Existing threat model\n", "utf8");
+  const result = await collectGaEvidence({ inputDir: input, outputDir: output, strictMaps: true });
+  assert.equal(result.exitCode, 1);
+  assert.ok(result.failures.some((item) => item.code === "mapping-required" && item.target === "threat-model.md"));
+  assert.equal(result.trace.strictMaps, true);
+});
+
+test("collector refuses to mix a new collection with stale output files", async (t) => {
+  const { input, output } = await directories(t);
+  await mkdir(output, { recursive: true });
+  await writeFile(join(output, "stale.json"), "old\n", "utf8");
+
+  await assert.rejects(
+    () => collectGaEvidence({ inputDir: input, outputDir: output }),
+    /Output directory must be empty/u
+  );
 });

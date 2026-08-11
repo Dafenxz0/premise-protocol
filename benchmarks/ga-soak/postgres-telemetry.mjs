@@ -1,0 +1,400 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const POSTGRES_TELEMETRY_FORMAT = "premise-ga-soak/postgres-telemetry/1";
+const DEFAULT_QUERY_TIMEOUT_MS = 5_000;
+
+const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+
+function numeric(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function text(value) {
+  return value === null || value === undefined || value === "" ? null : String(value);
+}
+
+function rounded(value) {
+  return value === null || value === undefined ? null : Number(Number(value).toFixed(3));
+}
+
+function firstRow(result, label) {
+  const rows = Array.isArray(result) ? result : result?.rows;
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error(`PostgreSQL telemetry query returned no ${label} row`);
+  return rows[0];
+}
+
+async function loadPool() {
+  try {
+    const module = await import("pg");
+    const Pool = module.Pool ?? module.default?.Pool;
+    if (typeof Pool === "function") return Pool;
+  } catch {
+    // The repository keeps pg in the deployment dependency set, not the root workspace.
+  }
+
+  try {
+    const deploymentRequire = createRequire(path.join(REPOSITORY_ROOT, "deploy", "package.json"));
+    const module = deploymentRequire("pg");
+    const Pool = module.Pool ?? module.default?.Pool;
+    if (typeof Pool === "function") return Pool;
+  } catch {
+    // Report the actionable error below instead of leaking a module-resolution stack.
+  }
+
+  throw new Error("PostgreSQL telemetry requires the existing pg driver; run npm ci in deploy/ or execute the check in the PREMiSE deployment image");
+}
+
+export function databaseUrl(environment = process.env) {
+  return environment.PREMISE_SOAK_DATABASE_URL ?? environment.DATABASE_URL ?? environment.POSTGRES_URL;
+}
+
+export async function openPostgresTelemetry({ connectionString = databaseUrl(), timeoutMs = DEFAULT_QUERY_TIMEOUT_MS } = {}) {
+  if (typeof connectionString !== "string" || connectionString.length === 0 || connectionString.startsWith("__")) {
+    throw new Error("Set PREMISE_SOAK_DATABASE_URL, DATABASE_URL, or POSTGRES_URL for PostgreSQL telemetry");
+  }
+
+  const Pool = await loadPool();
+  const queryTimeout = Number.isSafeInteger(Number(timeoutMs)) && Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_QUERY_TIMEOUT_MS;
+  const pool = new Pool({
+    connectionString,
+    max: 1,
+    application_name: "premise-ga-soak",
+    connectionTimeoutMillis: queryTimeout,
+    query_timeout: queryTimeout,
+    statement_timeout: queryTimeout
+  });
+  try {
+    await pool.query({ text: "SELECT 1", query_timeout: queryTimeout, statement_timeout: queryTimeout });
+  } catch (error) {
+    await pool.end();
+    throw error;
+  }
+
+  return {
+    snapshot: () => readPostgresTelemetry((sql) => pool.query({ text: sql, query_timeout: queryTimeout, statement_timeout: queryTimeout })),
+    close: () => pool.end()
+  };
+}
+
+export async function readPostgresTelemetry(query, capturedAt = new Date()) {
+  const metadata = firstRow(await query(`
+    SELECT
+      current_database() AS database,
+      current_setting('server_version_num')::int AS server_version_num,
+      current_setting('max_connections')::int AS max_connections,
+      current_setting('checkpoint_timeout') AS checkpoint_timeout,
+      current_setting('checkpoint_completion_target')::double precision AS checkpoint_completion_target,
+      current_setting('checkpoint_flush_after') AS checkpoint_flush_after,
+      current_setting('max_wal_size') AS max_wal_size,
+      current_setting('min_wal_size') AS min_wal_size,
+      current_setting('wal_buffers') AS wal_buffers,
+      current_setting('wal_compression') AS wal_compression,
+      current_setting('fsync') AS fsync,
+      current_setting('full_page_writes') AS full_page_writes,
+      current_setting('synchronous_commit') AS synchronous_commit,
+      (to_regclass('pg_catalog.pg_stat_checkpointer') IS NOT NULL) AS has_checkpointer,
+      (to_regclass('pg_catalog.pg_stat_wal') IS NOT NULL) AS has_wal
+  `), "metadata");
+  if (metadata.has_wal !== true) throw new Error("PostgreSQL pg_stat_wal is unavailable; use PostgreSQL 14 or newer for WAL telemetry");
+
+  const checkpointView = metadata.has_checkpointer === true ? "pg_stat_checkpointer" : "pg_stat_bgwriter";
+  const checkpointSql = checkpointView === "pg_stat_checkpointer"
+    ? `
+      SELECT
+        num_timed AS checkpoints_timed,
+        num_requested AS checkpoints_req,
+        num_done AS checkpoints_done,
+        write_time AS checkpoint_write_time,
+        sync_time AS checkpoint_sync_time,
+        buffers_written AS buffers_checkpoint,
+        stats_reset
+      FROM pg_catalog.pg_stat_checkpointer
+    `
+    : `
+      SELECT
+        checkpoints_timed,
+        checkpoints_req,
+        NULL::bigint AS checkpoints_done,
+        checkpoint_write_time,
+        checkpoint_sync_time,
+        buffers_checkpoint,
+        stats_reset
+      FROM pg_catalog.pg_stat_bgwriter
+    `;
+
+  const [checkpointResult, walResult, databaseResult, connectionResult] = await Promise.all([
+    query(checkpointSql),
+    query(`
+      SELECT
+        wal_records,
+        wal_fpi,
+        wal_bytes,
+        wal_buffers_full,
+        wal_write,
+        wal_sync,
+        wal_write_time,
+        wal_sync_time,
+        stats_reset
+      FROM pg_catalog.pg_stat_wal
+    `),
+    query(`
+      SELECT
+        xact_commit,
+        xact_rollback,
+        blks_read,
+        blks_hit,
+        tup_returned,
+        tup_fetched,
+        tup_inserted,
+        tup_updated,
+        tup_deleted,
+        temp_files,
+        temp_bytes,
+        deadlocks,
+        stats_reset
+      FROM pg_catalog.pg_stat_database
+      WHERE datname = current_database()
+    `),
+    query(`
+      SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE state = 'active')::int AS active,
+        count(*) FILTER (WHERE state = 'idle')::int AS idle,
+        count(*) FILTER (WHERE state = 'idle in transaction')::int AS idle_in_transaction,
+        count(*) FILTER (WHERE state = 'active' AND wait_event_type IS NOT NULL)::int AS active_waiting,
+        count(*) FILTER (WHERE state = 'active' AND wait_event_type = 'Lock')::int AS lock_waiting,
+        count(*) FILTER (WHERE state = 'active' AND wait_event_type = 'IO')::int AS io_waiting,
+        COALESCE(max(EXTRACT(EPOCH FROM (clock_timestamp() - query_start)) * 1000) FILTER (WHERE state = 'active' AND query_start IS NOT NULL), 0)::double precision AS oldest_active_query_ms
+      FROM pg_catalog.pg_stat_activity
+    `)
+  ]);
+
+  const checkpoint = firstRow(checkpointResult, "checkpoint");
+  const wal = firstRow(walResult, "WAL");
+  const database = firstRow(databaseResult, "database");
+  const connections = firstRow(connectionResult, "connection");
+  const timestamp = new Date(capturedAt);
+  if (Number.isNaN(timestamp.getTime())) throw new Error("PostgreSQL telemetry capture time is invalid");
+
+  return {
+    format: POSTGRES_TELEMETRY_FORMAT,
+    capturedAt: timestamp.toISOString(),
+    database: String(metadata.database ?? "unknown"),
+    serverVersionNum: numeric(metadata.server_version_num),
+    configuration: {
+      maxConnections: numeric(metadata.max_connections),
+      checkpointTimeout: text(metadata.checkpoint_timeout),
+      checkpointCompletionTarget: numeric(metadata.checkpoint_completion_target),
+      checkpointFlushAfter: text(metadata.checkpoint_flush_after),
+      maxWalSize: text(metadata.max_wal_size),
+      minWalSize: text(metadata.min_wal_size),
+      walBuffers: text(metadata.wal_buffers),
+      walCompression: text(metadata.wal_compression),
+      fsync: text(metadata.fsync),
+      fullPageWrites: text(metadata.full_page_writes),
+      synchronousCommit: text(metadata.synchronous_commit)
+    },
+    checkpoint: {
+      view: checkpointView,
+      timed: numeric(checkpoint.checkpoints_timed),
+      requested: numeric(checkpoint.checkpoints_req),
+      completed: numeric(checkpoint.checkpoints_done),
+      writeTimeMs: numeric(checkpoint.checkpoint_write_time),
+      syncTimeMs: numeric(checkpoint.checkpoint_sync_time),
+      buffers: numeric(checkpoint.buffers_checkpoint),
+      statsResetAt: checkpoint.stats_reset ?? null
+    },
+    wal: {
+      records: numeric(wal.wal_records),
+      fpi: numeric(wal.wal_fpi),
+      bytes: numeric(wal.wal_bytes),
+      buffersFull: numeric(wal.wal_buffers_full),
+      writes: numeric(wal.wal_write),
+      syncs: numeric(wal.wal_sync),
+      writeTimeMs: numeric(wal.wal_write_time),
+      syncTimeMs: numeric(wal.wal_sync_time),
+      statsResetAt: wal.stats_reset ?? null
+    },
+    databaseStats: {
+      commits: numeric(database.xact_commit),
+      rollbacks: numeric(database.xact_rollback),
+      blocksRead: numeric(database.blks_read),
+      blocksHit: numeric(database.blks_hit),
+      tuplesReturned: numeric(database.tup_returned),
+      tuplesFetched: numeric(database.tup_fetched),
+      tuplesInserted: numeric(database.tup_inserted),
+      tuplesUpdated: numeric(database.tup_updated),
+      tuplesDeleted: numeric(database.tup_deleted),
+      tempFiles: numeric(database.temp_files),
+      tempBytes: numeric(database.temp_bytes),
+      deadlocks: numeric(database.deadlocks),
+      statsResetAt: database.stats_reset ?? null
+    },
+    connections: {
+      max: numeric(metadata.max_connections),
+      total: numeric(connections.total),
+      active: numeric(connections.active),
+      idle: numeric(connections.idle),
+      idleInTransaction: numeric(connections.idle_in_transaction),
+      waiting: numeric(connections.active_waiting ?? connections.waiting),
+      activeWaiting: numeric(connections.active_waiting ?? connections.waiting),
+      lockWaiting: numeric(connections.lock_waiting),
+      ioWaiting: numeric(connections.io_waiting),
+      oldestActiveQueryMs: numeric(connections.oldest_active_query_ms)
+    }
+  };
+}
+
+function delta(start, end, resetDetected) {
+  if (resetDetected || start === null || end === null || start === undefined || end === undefined) return null;
+  const value = end - start;
+  return Number.isFinite(value) && value >= 0 ? rounded(value) : null;
+}
+
+function sum(left, right) {
+  return left === null || right === null ? null : rounded(left + right);
+}
+
+function resetChanged(start, end) {
+  return String(start ?? "") !== String(end ?? "") && (start !== null && start !== undefined || end !== null && end !== undefined);
+}
+
+function counterRegressionDetected(samples) {
+  const fields = [
+    ["checkpoint", ["timed", "requested", "completed", "writeTimeMs", "syncTimeMs", "buffers"]],
+    ["wal", ["records", "fpi", "bytes", "buffersFull", "writes", "syncs", "writeTimeMs", "syncTimeMs"]],
+    ["databaseStats", ["commits", "rollbacks", "blocksRead", "blocksHit", "tuplesReturned", "tuplesFetched", "tuplesInserted", "tuplesUpdated", "tuplesDeleted", "tempFiles", "tempBytes", "deadlocks"]]
+  ];
+  for (let index = 1; index < samples.length; index += 1) {
+    for (const [section, names] of fields) {
+      for (const name of names) {
+        const previous = numeric(samples[index - 1]?.[section]?.[name]);
+        const current = numeric(samples[index]?.[section]?.[name]);
+        if (previous !== null && current !== null && current < previous) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function deltaFields(start, end, fields, resetDetected) {
+  return Object.fromEntries(fields.map((field) => [field, delta(start[field], end[field], resetDetected)]));
+}
+
+function configurationChanged(start, end) {
+  if (!start || !end) return false;
+  return JSON.stringify(start) !== JSON.stringify(end);
+}
+
+function configurationDriftDetected(samples) {
+  if (!Array.isArray(samples) || samples.length < 2) return false;
+  const first = JSON.stringify(samples[0]?.configuration ?? null);
+  return samples.slice(1).some((sample) => JSON.stringify(sample?.configuration ?? null) !== first);
+}
+
+export function diffPostgresTelemetry(start, end, elapsedMs, { counterRegression = false, configurationChanged: configurationDrift = false } = {}) {
+  if (!start || !end) return { available: false, reason: "two PostgreSQL telemetry samples are required" };
+  const elapsed = numeric(elapsedMs);
+  const windowMs = elapsed !== null && elapsed > 0 ? elapsed : 0;
+  const checkpointReset = resetChanged(start.checkpoint.statsResetAt, end.checkpoint.statsResetAt);
+  const walReset = resetChanged(start.wal.statsResetAt, end.wal.statsResetAt);
+  const databaseReset = resetChanged(start.databaseStats.statsResetAt, end.databaseStats.statsResetAt);
+  const checkpoint = deltaFields(start.checkpoint, end.checkpoint, ["timed", "requested", "completed", "writeTimeMs", "syncTimeMs", "buffers"], checkpointReset);
+  const wal = deltaFields(start.wal, end.wal, ["records", "fpi", "bytes", "buffersFull", "writes", "syncs", "writeTimeMs", "syncTimeMs"], walReset);
+  const database = deltaFields(start.databaseStats, end.databaseStats, ["commits", "rollbacks", "blocksRead", "blocksHit", "tuplesReturned", "tuplesFetched", "tuplesInserted", "tuplesUpdated", "tuplesDeleted", "tempFiles", "tempBytes", "deadlocks"], databaseReset);
+  const checkpointTotal = checkpoint.completed ?? sum(checkpoint.timed, checkpoint.requested);
+  const checkpointTime = sum(checkpoint.writeTimeMs, checkpoint.syncTimeMs);
+
+  return {
+    available: true,
+    elapsedMs: rounded(windowMs),
+    statsResetDetected: checkpointReset || walReset || databaseReset || counterRegression,
+    counterRegressionDetected: counterRegression,
+    checkpoint: {
+      timed: checkpoint.timed,
+      requested: checkpoint.requested,
+      completed: checkpoint.completed,
+      total: checkpointTotal,
+      writeTimeMs: checkpoint.writeTimeMs,
+      syncTimeMs: checkpoint.syncTimeMs,
+      totalTimeMs: checkpointTime,
+      buffers: checkpoint.buffers,
+      timeShareOfWindow: checkpointTime === null || windowMs === 0 ? null : rounded(checkpointTime / windowMs),
+      requestedShare: checkpointTotal === null || checkpointTotal === 0 || checkpoint.requested === null ? null : rounded(checkpoint.requested / checkpointTotal)
+    },
+    wal: {
+      records: wal.records,
+      fpi: wal.fpi,
+      bytes: wal.bytes,
+      buffersFull: wal.buffersFull,
+      writes: wal.writes,
+      syncs: wal.syncs,
+      writeTimeMs: wal.writeTimeMs,
+      syncTimeMs: wal.syncTimeMs
+    },
+    database: {
+      commits: database.commits,
+      rollbacks: database.rollbacks,
+      blocksRead: database.blocksRead,
+      blocksHit: database.blocksHit,
+      tuplesReturned: database.tuplesReturned,
+      tuplesFetched: database.tuplesFetched,
+      tuplesInserted: database.tuplesInserted,
+      tuplesUpdated: database.tuplesUpdated,
+      tuplesDeleted: database.tuplesDeleted,
+      tempFiles: database.tempFiles,
+      tempBytes: database.tempBytes,
+      deadlocks: database.deadlocks
+    },
+    configuration: {
+      start: start.configuration ?? null,
+      end: end.configuration ?? null,
+      changed: configurationDrift || configurationChanged(start.configuration, end.configuration)
+    },
+    connections: {
+      start: start.connections,
+      end: end.connections,
+      max: end.connections.max
+    }
+  };
+}
+
+function peakConnections(samples) {
+  const fields = ["max", "total", "active", "idle", "idleInTransaction", "waiting", "activeWaiting", "lockWaiting", "ioWaiting", "oldestActiveQueryMs"];
+  return Object.fromEntries(fields.map((field) => {
+    const values = samples.map((sample) => numeric(sample.connections?.[field])).filter((value) => value !== null);
+    return [field, values.length === 0 ? null : Math.max(...values)];
+  }));
+}
+
+export function summarizePostgresTelemetry(samples, elapsedMs) {
+  if (!Array.isArray(samples) || samples.length < 2) {
+    return { available: false, reason: "two PostgreSQL telemetry samples are required", sampleCount: Array.isArray(samples) ? samples.length : 0 };
+  }
+  const firstCapturedAt = Date.parse(samples[0]?.capturedAt ?? "");
+  const lastCapturedAt = Date.parse(samples[samples.length - 1]?.capturedAt ?? "");
+  const timestampElapsedMs = Number.isFinite(firstCapturedAt) && Number.isFinite(lastCapturedAt) && lastCapturedAt > firstCapturedAt
+    ? lastCapturedAt - firstCapturedAt
+    : null;
+  const measuredElapsedMs = timestampElapsedMs ?? elapsedMs;
+  const deltaResult = diffPostgresTelemetry(samples[0], samples[samples.length - 1], measuredElapsedMs, {
+    counterRegression: counterRegressionDetected(samples),
+    configurationChanged: configurationDriftDetected(samples)
+  });
+  const peak = peakConnections(samples);
+  const connectionMax = peak.max ?? deltaResult.connections.max;
+  const connectionUtilization = connectionMax === null || connectionMax === 0 || peak.total === null ? null : rounded(peak.total / connectionMax);
+  return {
+    ...deltaResult,
+    sampleCount: samples.length,
+    connections: {
+      ...deltaResult.connections,
+      peak,
+      peakUtilization: connectionUtilization
+    }
+  };
+}

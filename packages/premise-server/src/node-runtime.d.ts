@@ -1,4 +1,10 @@
 declare module "node:crypto" {
+  interface Hash {
+    update(input: string, encoding?: "utf8"): Hash;
+    digest(encoding: "hex"): string;
+  }
+
+  export function createHash(algorithm: "sha256"): Hash;
   export function randomUUID(): string;
 }
 
@@ -42,5 +48,5 @@ declare module "node:url" {
 }
 
 declare class TextDecoder {
-  decode(input?: Uint8Array): string;
+  decode(input?: Uint8Array, options?: { readonly stream?: boolean }): string;
 }

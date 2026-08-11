@@ -5,4 +5,5 @@ declare module "node:crypto" {
   }
 
   export function createHash(algorithm: string): Hash;
+  export function randomUUID(): string;
 }

@@ -11,5 +11,6 @@ ALTER TABLE premise_v2_replay_checkpoints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE premise_v2_replay_checkpoints FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS premise_v2_replay_checkpoints_tenant_policy ON premise_v2_replay_checkpoints;
 CREATE POLICY premise_v2_replay_checkpoints_tenant_policy ON premise_v2_replay_checkpoints
+  AS PERMISSIVE
   USING (tenant_id = NULLIF(current_setting('premise.tenant_id', true), ''))
   WITH CHECK (tenant_id = NULLIF(current_setting('premise.tenant_id', true), ''));

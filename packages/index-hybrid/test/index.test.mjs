@@ -17,6 +17,12 @@ assert.deepEqual(quality[0]?.explanation.lexical.queryTokens, ["renewable", "cli
 assert.deepEqual(quality[0]?.explanation.lexical.matchedTokens, ["renewable", "climate", "energy"]);
 assert.match(quality[0]?.explanation.reasons.join(" ") ?? "", /BM25 matched tokens/);
 assert.equal(quality[0]?.explanation.vector.used, false);
+const hinted = await lexical.search("renewable climate energy", { limit: 2, candidateLimit: 10 });
+assert.deepEqual(hinted, quality, "candidateLimit is an adapter hint and must not change HybridIndex exact top-k results");
+await assert.rejects(() => lexical.search("climate", { limit: 2, candidateLimit: 1 }), /candidateLimit/);
+await assert.rejects(() => lexical.search("climate", { candidateLimit: 10_001 }), /candidateLimit/);
+await assert.rejects(() => lexical.search("climate", { limit: 10_001 }), /limit/);
+await assert.rejects(() => lexical.search("climate", null), /options must be an object/);
 
 const filtered = await lexical.search("climate", { filter: { topic: "science", year: { $gte: 2023 }, tags: { $contains: "energy" } } });
 assert.deepEqual(filtered.map((result) => result.id), ["doc:alpha"]);

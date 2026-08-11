@@ -34,7 +34,7 @@ export async function run(argv = process.argv.slice(2)) {
   const candidateCommand = optionValue(argv, "--candidate", undefined);
   const taskTimeoutMs = positiveInteger(optionValue(argv, "--task-timeout-ms", "120000"), "--task-timeout-ms");
 
-  const { datasets, tasks: taskManifest } = await loadManifests();
+  const { datasets, labels, tasks: taskManifest } = await loadManifests();
   const tasks = expandTasks(taskManifest, split, repetitions);
   const runId = `ga-${new Date().toISOString().replace(/[^0-9]/gu, "").slice(0, 14)}-${randomUUID().slice(0, 8)}`;
   const runtimeRoot = join(BENCHMARK_ROOT, "runtime", runId);
@@ -56,6 +56,7 @@ export async function run(argv = process.argv.slice(2)) {
     tasks,
     datasets,
     taskManifest,
+    labelManifest: labels,
     preflight,
     strategies,
     candidateCommand
