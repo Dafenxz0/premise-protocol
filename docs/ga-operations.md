@@ -41,8 +41,10 @@ replacement for measuring the target provider and host.
 - `fsync=on`, `full_page_writes=on`, and `synchronous_commit=on` are explicit
   because the API acknowledges durable writes; this baseline does not use
   `synchronous_commit=off`.
-- `PREMISE_DB_POOL_SIZE=8` aligns with the existing durable-write concurrency
-  of `4`, leaving four pool slots for reads/control in the API process.
+- `PREMISE_DB_POOL_SIZE=16` aligns with the default durable-write concurrency
+  of `8`, leaving eight pool slots for reads, health checks and control work in
+  the API process. This headroom matters after a restart, when durable writes
+  and PostgreSQL cache warming can overlap.
   `max_connections=64` leaves room for migration, backup, monitoring, and
   operator sessions. If the API is scaled out, calculate
   `replicas * pool + maintenance` before changing `max_connections`.
