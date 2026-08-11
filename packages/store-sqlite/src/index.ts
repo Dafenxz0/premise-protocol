@@ -28,6 +28,17 @@ export class SqliteRuntimeStore<T = unknown> implements RuntimeStore<T> {
     return this.database !== undefined;
   }
 
+  /**
+   * SQLite's connection-local data_version changes when another connection
+   * commits. It lets the runtime refresh dependency indexes without scanning
+   * every record on every notification; local writes still update indexes at
+   * the operation that performed them.
+   */
+  get revision(): number {
+    const row = this.requireDatabase().prepare("PRAGMA data_version").get();
+    return Number(row?.data_version ?? 0);
+  }
+
   open(): void {
     this.close();
     const database = new DatabaseSync(this.filename);
@@ -69,6 +80,18 @@ export class SqliteRuntimeStore<T = unknown> implements RuntimeStore<T> {
     const row = this.requireDatabase().prepare("SELECT envelope_json, content_json FROM premise_v2_records WHERE memory_id = ?").get(memoryId);
     if (row === undefined) return undefined;
     return { envelope: parseMemoryEnvelopeV2(JSON.parse(text(row, "envelope_json"))), content: JSON.parse(text(row, "content_json")) as T };
+  }
+
+  getMany(memoryIds: readonly string[]): readonly RuntimeRecord<T>[] {
+    const ids = [...new Set(memoryIds)];
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => "?").join(", ");
+    const records = this.requireDatabase().prepare(`SELECT envelope_json, content_json FROM premise_v2_records WHERE memory_id IN (${placeholders}) ORDER BY memory_id ASC`).all(...ids).map((row) => ({
+      envelope: parseMemoryEnvelopeV2(JSON.parse(text(row, "envelope_json"))),
+      content: JSON.parse(text(row, "content_json")) as T
+    }));
+    const byId = new Map(records.map((record) => [record.envelope.memoryId, record]));
+    return ids.map((memoryId) => byId.get(memoryId)).filter((record): record is RuntimeRecord<T> => record !== undefined);
   }
 
   list(): readonly RuntimeRecord<T>[] {
@@ -115,13 +138,24 @@ export class SqliteRuntimeStore<T = unknown> implements RuntimeStore<T> {
     const parsed = parseV2Event(event);
     const serialized = JSON.stringify(parsed);
     const database = this.requireDatabase();
+    const inserted = database.prepare(`
+      INSERT INTO premise_v2_events(idempotency_key, event_id, tenant_id, event_json)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(idempotency_key) DO NOTHING
+    `).run(parsed.idempotencyKey, parsed.eventId, parsed.tenantId, serialized);
+    if (Number(inserted.changes ?? 0) === 1) return;
     const existing = database.prepare("SELECT event_id, event_json FROM premise_v2_events WHERE idempotency_key = ?").get(parsed.idempotencyKey);
     if (existing !== undefined) {
       const existingEvent = parseV2Event(JSON.parse(text(existing, "event_json")));
       if (text(existing, "event_id") !== parsed.eventId || JSON.stringify(existingEvent) !== serialized) throw new Error(`Conflicting idempotency key: ${parsed.idempotencyKey}`);
       return;
     }
-    database.prepare("INSERT INTO premise_v2_events(idempotency_key, event_id, tenant_id, event_json) VALUES (?, ?, ?, ?)").run(parsed.idempotencyKey, parsed.eventId, parsed.tenantId, serialized);
+    throw new Error(`Unable to persist event: ${parsed.idempotencyKey}`);
+  }
+
+  getEvent(idempotencyKey: string): V2Event | undefined {
+    const row = this.requireDatabase().prepare("SELECT event_json FROM premise_v2_events WHERE idempotency_key = ?").get(idempotencyKey);
+    return row === undefined ? undefined : parseV2Event(JSON.parse(text(row, "event_json")));
   }
 
   hasEvent(idempotencyKey: string): boolean {

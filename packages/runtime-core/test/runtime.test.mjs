@@ -29,10 +29,22 @@ class CountingStore extends InMemoryRuntimeStore {
   putCalls = 0;
   eventCalls = 0;
   getCalls = 0;
+  getManyCalls = 0;
+  casCalls = 0;
 
   get(memoryId) {
     this.getCalls += 1;
     return super.get(memoryId);
+  }
+
+  getMany(memoryIds) {
+    this.getManyCalls += 1;
+    return super.getMany(memoryIds);
+  }
+
+  putAndAppendIfUnchanged(expected, record, event) {
+    this.casCalls += 1;
+    return super.putAndAppendIfUnchanged(expected, record, event);
   }
 
   put(record) {
@@ -55,12 +67,40 @@ const batchStore = new CountingStore();
 const batch = new PremiseRuntime({ store: batchStore, tenantId: "tenant:acme", now: () => at });
 batch.register({ envelope: envelope("memory:batch"), content: {} });
 batchStore.getCalls = 0;
+batchStore.getManyCalls = 0;
 assert.deepEqual(batch.checkMany(["memory:batch", "memory:missing", "memory:batch"]).map((item) => item.memoryId), ["memory:batch", "memory:missing", "memory:batch"]);
-assert.equal(batchStore.getCalls, 2, "checkMany must read each memory ID once");
+assert.equal(batchStore.getManyCalls, 1, "checkMany must use one batch read");
+assert.equal(batchStore.getCalls, 0, "checkMany must not fall back when getMany is available");
 assert.deepEqual(batch.check(["memory:batch", "memory:missing"]), batch.checkMany(["memory:batch", "memory:missing"]));
 batchStore.getCalls = 0;
+batchStore.getManyCalls = 0;
 assert.equal(batch.retrieve(["memory:batch", "memory:batch"]).length, 1);
-assert.equal(batchStore.getCalls, 1, "retrieve must reuse one local store read per unique memory");
+assert.equal(batchStore.getManyCalls, 1, "retrieve must use one batch read");
+assert.equal(batchStore.getCalls, 0, "retrieve must not fall back when getMany is available");
+
+const fallbackStore = new CountingStore();
+fallbackStore.getMany = undefined;
+const fallbackRuntime = new PremiseRuntime({ store: fallbackStore, tenantId: "tenant:acme", now: () => at });
+fallbackRuntime.register({ envelope: envelope("memory:fallback-read"), content: {} });
+fallbackRuntime.register({ envelope: envelope("memory:fallback-read-2"), content: {} });
+fallbackStore.getCalls = 0;
+assert.deepEqual(fallbackRuntime.checkMany(["memory:fallback-read", "memory:missing", "memory:fallback-read"]).map((item) => item.memoryId), ["memory:fallback-read", "memory:missing", "memory:fallback-read"]);
+assert.equal(fallbackStore.getCalls, 2, "checkMany fallback must read each unique memory once");
+fallbackStore.getCalls = 0;
+assert.deepEqual(fallbackRuntime.retrieve(["memory:fallback-read-2", "memory:fallback-read", "memory:fallback-read-2"]).map((item) => item.envelope.memoryId), ["memory:fallback-read-2", "memory:fallback-read"]);
+assert.equal(fallbackStore.getCalls, 2, "retrieve fallback must read each unique memory once");
+fallbackStore.getCalls = 0;
+fallbackStore.casCalls = 0;
+const fallbackReports = await fallbackRuntime.revalidateMany(["memory:fallback-read-2", "memory:fallback-read", "memory:fallback-read-2"], async (evidence) => ({
+  memoryId: "ignored-by-batch",
+  result: "UNCHANGED",
+  status: "FRESH",
+  checkedAt: at,
+  sourceUri: evidence.sourceUri
+}));
+assert.deepEqual(fallbackReports.map((item) => item.memoryId), ["memory:fallback-read-2", "memory:fallback-read", "memory:fallback-read-2"]);
+assert.equal(fallbackStore.getCalls, 2, "revalidateMany fallback must read each unique memory once");
+assert.equal(fallbackStore.casCalls, 2, "revalidateMany fallback must keep one CAS commit per unique memory");
 
 const affected = runtime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b2" });
 assert.deepEqual(affected, ["memory:source", "memory:derived"]);
@@ -160,6 +200,7 @@ dedup.register({ envelope: { ...envelope("memory:batch-dedup-a"), evidence: [ded
 dedup.register({ envelope: { ...envelope("memory:batch-dedup-b"), evidence: [dedupEvidence] }, content: { value: "b" } });
 dedup.register({ envelope: envelope("memory:batch-dedup-c"), content: { value: "c" } });
 dedupStore.getCalls = 0;
+dedupStore.getManyCalls = 0;
 dedupStore.putCalls = 0;
 let dedupValidatorCalls = 0;
 const dedupIds = ["memory:batch-dedup-b", "memory:batch-dedup-a", "memory:batch-dedup-b", "memory:batch-dedup-c", "memory:batch-dedup-a"];
@@ -167,7 +208,8 @@ const dedupReports = await dedup.revalidateMany(dedupIds, async (evidence) => {
   dedupValidatorCalls += 1;
   return { memoryId: "ignored-by-batch", evidenceId: evidence.evidenceId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri };
 });
-assert.equal(dedupStore.getCalls, 3, "revalidateMany must read each unique memory exactly once before validation");
+assert.equal(dedupStore.getManyCalls, 1, "revalidateMany must use one batch read");
+assert.equal(dedupStore.getCalls, 0, "revalidateMany must not fall back when getMany is available");
 assert.equal(dedupValidatorCalls, 2, "revalidateMany must validate shared evidence once and distinct evidence once");
 assert.equal(dedupStore.putCalls, 3, "duplicate memory IDs must not apply validation more than once");
 assert.deepEqual(dedupReports.map((item) => item.memoryId), dedupIds, "batch reports must restore the caller's duplicate-ID order");
@@ -266,6 +308,15 @@ sharedStore.put({ envelope: envelope("memory:tenant-b-source", [], "FRESH", "ten
 sharedStore.put({ envelope: envelope("memory:tenant-b-derived", ["memory:tenant-b-source"], "FRESH", "tenant:b"), content: { tenant: "b" } });
 const tenantARuntime = new PremiseRuntime({ store: sharedStore, tenantId: "tenant:a", now: () => at });
 assert.deepEqual(tenantARuntime.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "d1" }), ["memory:tenant-a-source"]);
+assert.deepEqual(tenantARuntime.checkMany(["memory:tenant-b-source", "memory:tenant-a-source", "memory:tenant-b-source"]).map((item) => [item.memoryId, item.decision]), [
+  ["memory:tenant-b-source", "REJECT"],
+  ["memory:tenant-a-source", "REVALIDATE"],
+  ["memory:tenant-b-source", "REJECT"]
+], "checkMany must preserve order while enforcing tenant isolation");
+assert.deepEqual(tenantARuntime.retrieve(["memory:tenant-b-source", "memory:tenant-a-source", "memory:tenant-a-source"]).map((item) => item.envelope.memoryId), ["memory:tenant-a-source"], "retrieve must filter other tenants without changing caller semantics");
+await assert.rejects(() => tenantARuntime.revalidateMany(["memory:tenant-b-source"], async () => {
+  throw new Error("validator must not see an inaccessible tenant");
+}), /not found or inaccessible/);
 assert.equal(sharedStore.get("memory:tenant-b-source").envelope.validity.status, "FRESH", "source changes must not cross tenant boundaries");
 assert.equal(sharedStore.get("memory:tenant-b-derived").envelope.validity.status, "FRESH", "dependency propagation must not cross tenant boundaries");
 assert.throws(() => tenantARuntime.derive({ envelope: envelope("memory:cross-tenant", ["memory:tenant-b-source"], "FRESH", "tenant:a"), content: {} }), /Missing required dependency/);

@@ -88,6 +88,15 @@ class InMemoryPostgresClient {
         .filter((row) => row.tenant_id > afterTenant || (row.tenant_id === afterTenant && JSON.parse(row.envelope_json).memoryId > afterMemory));
       return { rows: rows.slice(0, limit) };
     }
+    if (statement.includes("memory_id = ANY")) {
+      const tenant = values.length === 2 ? String(values[0]) : undefined;
+      const requested = new Set(Array.isArray(values.at(-1)) ? values.at(-1) : []);
+      const rows = [...this.records.entries()]
+        .filter(([memoryId, row]) => requested.has(memoryId) && (tenant === undefined || JSON.parse(row.envelope_json).tenantId === tenant))
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([, row]) => row);
+      return { rows };
+    }
     if (statement.startsWith("SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM \"premise_v2_records\" WHERE")) {
       const row = this.records.get(values.at(-1));
       return { rows: row === undefined ? [] : [row] };
@@ -191,6 +200,11 @@ await assert.rejects(() => store.appendEvent({ ...event, eventId: "event:postgre
 assert.equal((await store.listEvents()).length, 1);
 
 await store.put({ envelope: secondEnvelope, content: { answer: 43 } });
+const batchQueryStart = client.queries.length;
+assert.deepEqual((await store.getMany([secondEnvelope.memoryId, envelope.memoryId, secondEnvelope.memoryId])).map(({ envelope: loadedEnvelope }) => loadedEnvelope.memoryId), [envelope.memoryId, secondEnvelope.memoryId]);
+const batchQueries = client.queries.slice(batchQueryStart).filter(({ statement }) => statement.includes("memory_id = ANY"));
+assert.equal(batchQueries.length, 1, "PostgreSQL getMany must use one SQL query");
+assert.deepEqual(batchQueries[0].values, [[secondEnvelope.memoryId, envelope.memoryId]]);
 const loadedRecords = [];
 const loadedEvents = [];
 const queryStart = client.queries.length;
@@ -257,4 +271,11 @@ assert.equal(snapshotInsert.values[2], at);
 await store.restore(snapshot);
 assert.deepEqual(await store.get(envelope.memoryId), { envelope, content: { answer: 42 } });
 assert.equal((await store.listEvents()).length, 1);
+const otherTenantEnvelope = { ...envelope, tenantId: "tenant:other", memoryId: "memory:postgres-other" };
+await store.put({ envelope: otherTenantEnvelope, content: { answer: "other" } });
+const isolationQueryStart = client.queries.length;
+assert.deepEqual(await scopedStore.getMany([envelope.memoryId, otherTenantEnvelope.memoryId, envelope.memoryId]), [{ envelope, content: { answer: 42 } }]);
+const isolationQueries = client.queries.slice(isolationQueryStart).filter(({ statement }) => statement.includes("memory_id = ANY"));
+assert.equal(isolationQueries.length, 1, "tenant-scoped PostgreSQL getMany must use one SQL query");
+assert.deepEqual(isolationQueries[0].values, ["tenant:acme", [envelope.memoryId, otherTenantEnvelope.memoryId]]);
 console.log("store-postgres runtime tests passed");

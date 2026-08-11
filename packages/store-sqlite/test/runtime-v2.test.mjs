@@ -13,6 +13,21 @@ try {
 const { PremiseRuntime } = await import("@premise/runtime-core");
 const { SqliteRuntimeStore } = await import("../dist/index.js");
 
+class CountingSqliteRuntimeStore extends SqliteRuntimeStore {
+  getCalls = 0;
+  getManyCalls = 0;
+
+  get(memoryId) {
+    this.getCalls += 1;
+    return super.get(memoryId);
+  }
+
+  getMany(memoryIds) {
+    this.getManyCalls += 1;
+    return super.getMany(memoryIds);
+  }
+}
+
 const at = "2026-08-10T10:00:00Z";
 const envelope = {
   specVersion: "premise/2",
@@ -36,9 +51,17 @@ try {
   assert.equal(first.history().length, 1);
   firstStore.close();
 
-  const secondStore = new SqliteRuntimeStore(filename);
+  const secondStore = new CountingSqliteRuntimeStore(filename);
   const second = new PremiseRuntime({ store: secondStore, tenantId: "tenant:sqlite", now: () => at });
   assert.deepEqual(second.get(envelope.memoryId).content, { answer: 42 });
+  secondStore.getCalls = 0;
+  secondStore.getManyCalls = 0;
+  assert.deepEqual(secondStore.getMany([envelope.memoryId, envelope.memoryId, "memory:missing"]).map(({ envelope: loaded }) => loaded.memoryId), [envelope.memoryId]);
+  secondStore.getCalls = 0;
+  secondStore.getManyCalls = 0;
+  assert.deepEqual(second.checkMany([envelope.memoryId, "memory:missing", envelope.memoryId]).map((item) => item.memoryId), [envelope.memoryId, "memory:missing", envelope.memoryId]);
+  assert.equal(secondStore.getManyCalls, 1, "SQLite runtime reads must use one SQL batch");
+  assert.equal(secondStore.getCalls, 0, "SQLite runtime must not issue per-ID reads when getMany exists");
   assert.equal(second.history(envelope.memoryId).length, 1);
   const snapshot = second.snapshot();
   second.restore(snapshot);

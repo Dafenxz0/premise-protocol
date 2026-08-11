@@ -30,6 +30,8 @@ export interface RuntimeStore<T> {
   /** Monotonic record-state revision when the store can expose one. */
   readonly revision?: number;
   get(memoryId: string): RuntimeRecord<T> | undefined;
+  /** Optional batch read; missing IDs may be omitted and caller order is restored by the runtime. */
+  getMany?(memoryIds: readonly string[]): readonly RuntimeRecord<T>[];
   list(): readonly RuntimeRecord<T>[];
   put(record: RuntimeRecord<T>): void;
   /** Persist a record and its causally related event atomically when supported. */
@@ -149,6 +151,16 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+function readMany<T>(store: RuntimeStore<T>, memoryIds: readonly string[]): ReadonlyMap<string, RuntimeRecord<T>> {
+  const ids = unique(memoryIds);
+  if (ids.length === 0) return new Map();
+  const records = typeof store.getMany === "function"
+    ? store.getMany(ids)
+    : ids.map((memoryId) => store.get(memoryId)).filter((record): record is RuntimeRecord<T> => record !== undefined);
+  const requested = new Set(ids);
+  return new Map(records.filter((record) => requested.has(record.envelope.memoryId)).map((record) => [record.envelope.memoryId, record]));
+}
+
 function usability(status: V2MemoryStatus): RuntimeCheckItem["decision"] {
   if (status === "FRESH") return "USABLE";
   if (status === "INVALID") return "REJECT";
@@ -193,6 +205,13 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   get(memoryId: string): RuntimeRecord<T> | undefined {
     const record = this.records.get(memoryId);
     return record === undefined ? undefined : cloneJson(record);
+  }
+
+  getMany(memoryIds: readonly string[]): readonly RuntimeRecord<T>[] {
+    return unique(memoryIds)
+      .map((memoryId) => this.records.get(memoryId))
+      .filter((record): record is RuntimeRecord<T> => record !== undefined)
+      .map((record) => cloneJson(record));
   }
 
   list(): readonly RuntimeRecord<T>[] {
@@ -367,22 +386,27 @@ export class PremiseRuntime<T = unknown> {
   }
 
   checkMany(memoryIds: readonly string[], principal = this.principal): readonly RuntimeCheckItem[] {
+    const records = readMany(this.store, memoryIds);
     const checked = new Map<string, RuntimeCheckItem>();
     for (const memoryId of memoryIds) {
       if (checked.has(memoryId)) continue;
-      const record = this.get(memoryId, principal);
+      const record = records.get(memoryId);
+      const accessible = record !== undefined && record.envelope.tenantId === principal.tenantId;
       checked.set(memoryId, record === undefined
         ? { memoryId, status: "INVALID", decision: "REJECT", reason: "missing or inaccessible memory" }
-        : { memoryId, status: record.envelope.validity.status, decision: usability(record.envelope.validity.status) });
+        : accessible
+          ? { memoryId, status: record.envelope.validity.status, decision: usability(record.envelope.validity.status) }
+          : { memoryId, status: "INVALID", decision: "REJECT", reason: "missing or inaccessible memory" });
     }
     return memoryIds.map((memoryId) => checked.get(memoryId)!);
   }
 
   retrieve(memoryIds: readonly string[], principal = this.principal): readonly RuntimeRetrieval<T>[] {
+    const records = readMany(this.store, memoryIds);
     const result: RuntimeRetrieval<T>[] = [];
     for (const memoryId of unique(memoryIds)) {
-      const record = this.get(memoryId, principal);
-      if (record === undefined) continue;
+      const record = records.get(memoryId);
+      if (record === undefined || record.envelope.tenantId !== principal.tenantId) continue;
       const status = record.envelope.validity.status;
       const decision = usability(status);
       if (decision === "REJECT") continue;
@@ -409,10 +433,13 @@ export class PremiseRuntime<T = unknown> {
   async revalidateMany(memoryIds: readonly string[], validator: RuntimeValidator<T>, eventId?: string): Promise<readonly RuntimeValidationReport[]> {
     const ids: string[] = [];
     const records = new Map<string, RuntimeRecord<T>>();
+    const loaded = readMany(this.store, memoryIds);
     for (const memoryId of memoryIds) {
       if (records.has(memoryId)) continue;
       ids.push(memoryId);
-      records.set(memoryId, this.require(memoryId));
+      const record = loaded.get(memoryId);
+      if (record === undefined || record.envelope.tenantId !== this.principal.tenantId) throw new Error(`Memory not found or inaccessible: ${memoryId}`);
+      records.set(memoryId, record);
     }
     const storeRevision = readStoreRevision(this.store);
     const grouped = new Map<string, Promise<RuntimeValidationReport>>();

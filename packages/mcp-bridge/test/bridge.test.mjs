@@ -44,4 +44,18 @@ const timeoutBridge = new McpBridge(timeoutProtocol, { async read() { throw new 
 timeoutBridge.subscribe("mcp://demo/timeout", [timeoutEnvelope.memoryId]);
 const timeoutReport = await timeoutBridge.reread([timeoutEnvelope.memoryId]);
 assert.equal(timeoutReport.items[0].result, "UNKNOWN");
+
+const sharedProtocol = new ReferenceProtocol();
+const sharedSourceUri = "mcp://demo/shared";
+const sharedSource = { ...source, sourceUri: sharedSourceUri };
+const sharedEnvelopeA = { ...envelope, memoryId: "memory:mcp-shared-a", provenance: [{ ...sharedSource, version: { scheme: "mcp.epoch", token: "1" } }] };
+const sharedEnvelopeB = { ...envelope, memoryId: "memory:mcp-shared-b", provenance: [{ ...sharedSource, version: { scheme: "mcp.epoch", token: "0" } }] };
+sharedProtocol.register(sharedEnvelopeA);
+sharedProtocol.register(sharedEnvelopeB);
+let sharedReads = 0;
+const sharedBridge = new McpBridge(sharedProtocol, { async read(uri) { sharedReads += 1; return { sourceUri: uri, version: { scheme: "mcp.epoch", token: "2" } }; } });
+sharedBridge.subscribe(sharedSourceUri, [sharedEnvelopeA.memoryId, sharedEnvelopeB.memoryId]);
+const sharedReport = await sharedBridge.reread([sharedEnvelopeA.memoryId, sharedEnvelopeB.memoryId]);
+assert.equal(sharedReads, 1);
+assert.deepEqual(sharedReport.items.map((item) => [item.memoryId, item.result]), [[sharedEnvelopeA.memoryId, "CHANGED"], [sharedEnvelopeB.memoryId, "CHANGED"]]);
 console.log("mcp-bridge tests passed");
