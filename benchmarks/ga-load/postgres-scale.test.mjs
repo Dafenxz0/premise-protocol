@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateEligibility, parseArgs, summarizeResults } from "./postgres-scale.mjs";
+import { evaluateEligibility, parseArgs, registerIdempotencyKey, summarizeResults } from "./postgres-scale.mjs";
 
 function result(operation, durationMs, { ok = true, sequence = 0 } = {}) {
   return { operation, durationMs, ok, sequence };
@@ -102,6 +102,12 @@ test("durable register uses an explicit two-times p95 budget", () => {
   assert.equal(eligibility.checks.byOperation.register.p95.maximumMs, 200);
   assert.equal(eligibility.checks.byOperation.register.p95.passed, true);
   assert.equal(eligibility.byOperation.register.eligibleForGa, true);
+});
+
+test("recovery register idempotency keys are stable per pass and isolated across passes", () => {
+  assert.equal(registerIdempotencyKey("run-a", 1000001), "pg-scale:register:run-a:1000001");
+  assert.equal(registerIdempotencyKey("run-a", 1000001), registerIdempotencyKey("run-a", 1000001));
+  assert.notEqual(registerIdempotencyKey("run-a", 1000001), registerIdempotencyKey("run-b", 1000001));
 });
 
 test("eligibility fails closed when an operation has no raw samples", () => {

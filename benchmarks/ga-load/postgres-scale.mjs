@@ -293,6 +293,13 @@ function protocolRecordFor(tenantId, index) {
   return { envelope: stored.envelope_json, content: stored.content_json };
 }
 
+function registerIdempotencyKey(runId, index) {
+  // Recovery is a new benchmark pass. Keep retries within one pass stable,
+  // while preventing the next pass from colliding with the previous request
+  // digest after the envelope receives a fresh signature.
+  return `pg-scale:register:${runId}:${index}`;
+}
+
 async function seed(config) {
   const tables = tableNames(config.tablePrefix);
   const pool = await openPool(config.databaseUrl);
@@ -380,7 +387,7 @@ async function request(config, operation, index, sequence, signer) {
       const record = protocolRecordFor(config.tenantId, index);
       return { record: { ...record, envelope: signer === undefined ? record.envelope : signer.signEnvelope(record.envelope, { signatureId: `sig:pg-scale:${config.runId}:${sequence}`, evidenceId: record.envelope.evidence[0]?.evidenceId }) } };
     })() : undefined;
-  const idempotencyKey = operation === "register" ? `pg-scale:register:${index}` : undefined;
+  const idempotencyKey = operation === "register" ? registerIdempotencyKey(config.runId, index) : undefined;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
   const started = performance.now();
@@ -562,4 +569,4 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === path.reso
   });
 }
 
-export { benchmark, evaluateEligibility, parseArgs, seed, summarizeResults };
+export { benchmark, evaluateEligibility, parseArgs, registerIdempotencyKey, seed, summarizeResults };
