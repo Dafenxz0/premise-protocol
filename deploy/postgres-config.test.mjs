@@ -82,6 +82,7 @@ test("production example pins the same pool budget", () => {
 
 test("production image carries the in-network soak diagnostic", () => {
   assert.match(dockerfile, /COPY --from=build --chown=10001:10001 \/workspace\/benchmarks\/ga-soak \.\/benchmarks\/ga-soak/u);
+  assert.match(dockerfile, /COPY --from=build --chown=10001:10001 \/workspace\/benchmarks\/ga-load\/signed-envelope-client\.mjs \.\/benchmarks\/ga-load\/signed-envelope-client\.mjs/u);
   assert.match(dockerfile, /ARG PREMISE_NODE_BUILD_IMAGE=node:24\.19\.0-bookworm-slim/u);
   assert.match(dockerfile, /FROM \$\{PREMISE_NODE_RUNTIME_IMAGE\} AS runtime/u);
 });

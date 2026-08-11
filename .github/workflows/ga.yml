@@ -139,6 +139,8 @@ jobs:
           node benchmarks/ga-evaluation/holdout/candidate.test.mjs
           node benchmarks/ga-soak/self-check.mjs
           node --check benchmarks/ga-load/postgres-scale.mjs
+          node --check benchmarks/ga-load/signed-envelope-client.mjs
+          node --test benchmarks/ga-load/signed-envelope-client.test.mjs
           node benchmarks/ga-load/postgres-scale.test.mjs
           node benchmarks/ga-cost/self-check.mjs
           pnpm --filter @premise/index-hybrid test
@@ -274,7 +276,12 @@ jobs:
           set -euo pipefail
           mkdir -p .ga-artifacts .local
           chmod 0777 .ga-artifacts
-          printf '{}\n' > .local/premise_signature_public_keys.json
+          node scripts/generate-ga-signing-key.mjs \
+            --public .local/premise_signature_public_keys.json \
+            --private .local/premise_signature_private_key.pem
+          chmod 0644 .local/premise_signature_private_key.pem
+          echo "PREMISE_REQUIRE_SIGNED_ENVELOPES=1" >> "$GITHUB_ENV"
+          echo "PREMISE_SIGNATURE_KEYS_FILE=/run/secrets/premise_signature_public_keys.json" >> "$GITHUB_ENV"
           metrics_token="$(openssl rand -hex 32)"
           echo "::add-mask::$metrics_token"
           printf '%s\n' "$metrics_token" > .local/premise_metrics_token
@@ -349,7 +356,11 @@ jobs:
           PREMISE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          docker compose -f "${COMPOSE_FILE}" exec -T \
+          docker compose -f "${COMPOSE_FILE}" run --rm --no-deps \
+            -v "$PWD/.local/premise_signature_private_key.pem:/run/secrets/premise_signature_private_key.pem:ro" \
+            -v "$PWD/.ga-artifacts:/evidence:rw" \
+            -e PREMISE_SIGNATURE_PRIVATE_KEY_FILE=/run/secrets/premise_signature_private_key.pem \
+            -e PREMISE_SCALE_BASE_URL=http://premise:3000 \
             -e PREMISE_SCALE_TENANT_ID="$PREMISE_TENANT_ID" \
             -e PREMISE_SCALE_MEMORIES="$PREMISE_SCALE_MEMORIES" \
             -e PREMISE_SCALE_REQUESTS="$PREMISE_SCALE_REQUESTS" \
@@ -359,9 +370,7 @@ jobs:
             -e PREMISE_SCALE_MAX_P99_MS="$PREMISE_SCALE_MAX_P99_MS" \
             -e PREMISE_COMMIT="$PREMISE_COMMIT" \
             premise node /app/benchmarks/ga-load/postgres-scale.mjs \
-            --mode benchmark --output /tmp/postgres-scale.json --trace /tmp/postgres-scale-traces.jsonl | tee .ga-artifacts/postgres-scale-run.log
-          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/postgres-scale.json && cat /tmp/postgres-scale.json' > .ga-artifacts/postgres-scale.json
-          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/postgres-scale-traces.jsonl && cat /tmp/postgres-scale-traces.jsonl' > .ga-artifacts/postgres-scale-traces.jsonl
+            --mode benchmark --output /evidence/postgres-scale.json --trace /evidence/postgres-scale-traces.jsonl | tee .ga-artifacts/postgres-scale-run.log
       - name: Restart API and repeat recovery benchmark
         env:
           PREMISE_IMAGE: ${{ env.IMAGE }}
@@ -373,7 +382,11 @@ jobs:
             if docker compose -f "${COMPOSE_FILE}" exec -T premise node /app/ops/healthcheck.mjs; then break; fi
             sleep 2
           done
-          docker compose -f "${COMPOSE_FILE}" exec -T \
+          docker compose -f "${COMPOSE_FILE}" run --rm --no-deps \
+            -v "$PWD/.local/premise_signature_private_key.pem:/run/secrets/premise_signature_private_key.pem:ro" \
+            -v "$PWD/.ga-artifacts:/evidence:rw" \
+            -e PREMISE_SIGNATURE_PRIVATE_KEY_FILE=/run/secrets/premise_signature_private_key.pem \
+            -e PREMISE_SCALE_BASE_URL=http://premise:3000 \
             -e PREMISE_SCALE_TENANT_ID="$PREMISE_TENANT_ID" \
             -e PREMISE_SCALE_MEMORIES="$PREMISE_SCALE_MEMORIES" \
             -e PREMISE_SCALE_REQUESTS="$PREMISE_SCALE_REQUESTS" \
@@ -383,9 +396,7 @@ jobs:
             -e PREMISE_SCALE_MAX_P99_MS="$PREMISE_SCALE_MAX_P99_MS" \
             -e PREMISE_COMMIT="$PREMISE_COMMIT" \
             premise node /app/benchmarks/ga-load/postgres-scale.mjs \
-            --mode benchmark --output /tmp/recovery-report.json --trace /tmp/recovery-report-traces.jsonl | tee .ga-artifacts/recovery-report-run.log
-          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/recovery-report.json && cat /tmp/recovery-report.json' > .ga-artifacts/recovery-report.json
-          docker compose -f "${COMPOSE_FILE}" exec -T premise sh -ec 'test -s /tmp/recovery-report-traces.jsonl && cat /tmp/recovery-report-traces.jsonl' > .ga-artifacts/recovery-report-traces.jsonl
+            --mode benchmark --output /evidence/recovery-report.json --trace /evidence/recovery-report-traces.jsonl | tee .ga-artifacts/recovery-report-run.log
       - name: Verify PostgreSQL scale raw evidence
         if: always()
         run: |
@@ -667,7 +678,13 @@ jobs:
           set -euo pipefail
           mkdir -p .local/backups .ga-artifacts
           chmod 0777 .local/backups
-          printf '{}\n' > .local/premise_signature_public_keys.json
+          chmod 0777 .ga-artifacts
+          node scripts/generate-ga-signing-key.mjs \
+            --public .local/premise_signature_public_keys.json \
+            --private .local/premise_signature_private_key.pem
+          chmod 0644 .local/premise_signature_private_key.pem
+          echo "PREMISE_REQUIRE_SIGNED_ENVELOPES=1" >> "$GITHUB_ENV"
+          echo "PREMISE_SIGNATURE_KEYS_FILE=/run/secrets/premise_signature_public_keys.json" >> "$GITHUB_ENV"
           metrics_token="$(openssl rand -hex 32)"
           echo "::add-mask::$metrics_token"
           printf '%s\n' "$metrics_token" > .local/premise_metrics_token
@@ -685,6 +702,8 @@ jobs:
           export PREMISE_ENV=production
           export PREMISE_API_TOKEN="$(openssl rand -hex 32)"
           export PREMISE_METRICS_TOKEN="$(cat .local/premise_metrics_token)"
+          echo "PREMISE_API_TOKEN=$PREMISE_API_TOKEN" >> "$GITHUB_ENV"
+          echo "PREMISE_ENV=production" >> "$GITHUB_ENV"
           test -n "$PREMISE_METRICS_TOKEN"
           docker compose -f "${COMPOSE_FILE}" up -d --no-build premise prometheus otel-collector
       - name: Wait for readiness
@@ -707,37 +726,36 @@ jobs:
             node /app/ops/postgres-settings.mjs | tee .ga-artifacts/postgres-settings.json
       - name: Run one-hour soak and enforce GA sample and database diagnostics
         env:
-          BASE_URL: http://127.0.0.1:3000
+          BASE_URL: http://premise:3000
           PREMISE_TENANT_ID: tenant:ga
           PREMISE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          docker compose -f "${COMPOSE_FILE}" exec -T \
-            -e BASE_URL=http://127.0.0.1:3000 \
+          docker compose -f "${COMPOSE_FILE}" run --rm --no-deps \
+            -v "$PWD/.local/premise_signature_private_key.pem:/run/secrets/premise_signature_private_key.pem:ro" \
+            -v "$PWD/.ga-artifacts:/evidence:rw" \
+            -e PREMISE_SIGNATURE_PRIVATE_KEY_FILE=/run/secrets/premise_signature_private_key.pem \
+            -e BASE_URL=http://premise:3000 \
             -e PREMISE_TENANT_ID=tenant:ga \
             -e PREMISE_COMMIT="${PREMISE_COMMIT}" \
             premise node /app/benchmarks/ga-soak/diagnostic.mjs \
-            --base-url "$BASE_URL" \
+            --base-url http://premise:3000 \
             --duration-ms "$SOAK_DURATION_MS" \
             --concurrency "${PREMISE_SOAK_CONCURRENCY:-16}" \
-            --output /tmp/soak-availability.json \
-            --trace-output /tmp/soak-availability-trace.jsonl \
+            --output /evidence/soak-availability.json \
+            --trace-output /evidence/soak-availability-trace.jsonl \
             --enforce-ga | tee .ga-artifacts/soak-run.log
-      - name: Copy in-network soak diagnostic evidence
+      - name: Verify in-network soak diagnostic evidence
         if: always()
         run: |
-          docker compose -f "${COMPOSE_FILE}" exec -T premise \
-            sh -ec 'test -s /tmp/soak-availability.json && cat /tmp/soak-availability.json' \
-            > .ga-artifacts/soak-availability.json
+          test -s .ga-artifacts/soak-availability.json
       - name: Capture soak stack logs
         if: always()
         run: docker compose -f "${COMPOSE_FILE}" logs --no-color > .ga-artifacts/soak-compose.log
       - name: Copy raw soak trace
         if: always()
         run: |
-          docker compose -f "${COMPOSE_FILE}" exec -T premise \
-            sh -ec 'test -s /tmp/soak-availability-trace.jsonl && cat /tmp/soak-availability-trace.jsonl' \
-            > .ga-artifacts/soak-availability-trace.jsonl
+          test -s .ga-artifacts/soak-availability-trace.jsonl
       - name: Verify soak raw evidence
         if: always()
         run: |

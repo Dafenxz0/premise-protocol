@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import { arch, availableParallelism, cpus, platform, totalmem } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadSignedEnvelopeClient } from "./signed-envelope-client.mjs";
 
 const FORMAT = "premise/pg-scale-benchmark/1";
 const TRACE_FORMAT = "premise/pg-scale-trace/1";
@@ -369,13 +370,16 @@ function headers(config, idempotencyKey) {
   return value;
 }
 
-async function request(config, operation, index, sequence) {
+async function request(config, operation, index, sequence, signer) {
   const target = operation === "retrieve"
     ? `/v2/memories/${encodeURIComponent(memoryIdFor(index))}`
     : operation === "query" ? "/v2/query" : "/v2/memories";
   const body = operation === "query"
     ? { query: "PREMiSE PostgreSQL scale memory", options: { limit: 8 }, maxTokens: 128 }
-    : operation === "register" ? { record: protocolRecordFor(config.tenantId, index) } : undefined;
+    : operation === "register" ? (() => {
+      const record = protocolRecordFor(config.tenantId, index);
+      return { record: { ...record, envelope: signer === undefined ? record.envelope : signer.signEnvelope(record.envelope, { signatureId: `sig:pg-scale:${config.runId}:${sequence}`, evidenceId: record.envelope.evidence[0]?.evidenceId }) } };
+    })() : undefined;
   const idempotencyKey = operation === "register" ? `pg-scale:register:${index}` : undefined;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
@@ -418,6 +422,10 @@ async function request(config, operation, index, sequence) {
 async function benchmark(config) {
   const tables = tableNames(config.tablePrefix);
   const pool = await openPool(config.databaseUrl);
+  const runId = randomUUID();
+  config.runId = runId;
+  const environment = String(process.env.PREMISE_ENV ?? "development").trim().toLowerCase();
+  const signer = await loadSignedEnvelopeClient({ required: environment === "production" || environment === "staging" || process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1" });
   const startedAt = new Date().toISOString();
   const started = performance.now();
   const results = [];
@@ -443,7 +451,7 @@ async function benchmark(config) {
     } finally {
       connection.release();
     }
-    const health = await request(config, "retrieve", 0);
+    const health = await request(config, "retrieve", 0, 0, signer);
     if (!health.ok) fail(`live API preflight failed: ${health.error ?? health.status}`);
     const next = { value: 0 };
     const worker = async () => {
@@ -453,7 +461,7 @@ async function benchmark(config) {
         if (sequence >= config.requests) return;
         const operation = sequence % 10 === 0 ? "query" : sequence % 10 === 1 ? "register" : "retrieve";
         const index = operation === "register" ? config.memories + sequence : (sequence * 7919) % Math.max(1, stored);
-        const result = await request(config, operation, index, sequence);
+        const result = await request(config, operation, index, sequence, signer);
         results.push(result);
       }
     };
@@ -489,6 +497,7 @@ async function benchmark(config) {
         totalMemoryBytes: totalmem()
       },
       runtime: { node: process.version, heapUsedBytes: process.memoryUsage().heapUsed, rssBytes: process.memoryUsage().rss },
+      signing: { required: signer !== undefined || environment === "production" || environment === "staging" || process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1", configured: signer !== undefined, keyId: signer?.keyId ?? null },
       startedAt,
       durationMs: round(performance.now() - started),
       configuration: {
