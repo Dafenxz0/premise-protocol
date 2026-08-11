@@ -41,6 +41,10 @@ test("LLM blind report removes arm identity and refuses partial campaigns", () =
   const blocked = blindReport(args, [result("basic"), result("premise", { status: "ERROR" })], "sha256:tasks");
   assert.equal(blocked.status, "NOT_COMPARABLE");
   assert.deepEqual(blocked.results, []);
+
+  const incomplete = blindReport(args, [result("basic", { tasks: 1 })], "sha256:tasks");
+  assert.equal(incomplete.status, "NOT_COMPARABLE");
+  assert.deepEqual(incomplete.results, []);
 });
 
 test("agent input omits the arm identity while retaining only assigned semantics", () => {

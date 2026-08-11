@@ -550,16 +550,34 @@ function makeTask(index, options, kindOrder, riskOrder, volatilityOrder, worldOr
     baseTime: 1_700_000_000_000 + hashNumber(`${seed}:time:${index}`) % 1_000_000_000,
     large
   });
-  const effectiveMutation = scheduled ? planned.final : initial;
+  const blocked = scheduled && (
+    BLOCKED_KINDS.has(kind)
+    || kind === "lying-validator"
+    || kind === "dependency-fan-in"
+    || planned.final?.status === "blocked"
+    || planned.metadata.complete === false
+    || planned.metadata.transport === "timeout"
+    || planned.metadata.lock === "conflict"
+  );
+  // The generic local world can faithfully exercise snapshot/version/CAS and
+  // mutation-window safety, but it cannot expose an incomplete transport or
+  // connector-specific conflict as a real provider error. Represent those
+  // terminal outcomes as an explicit blocked snapshot so every policy is
+  // judged on the same safe decision (reject), instead of accidentally
+  // treating a partial payload as an applicable value.
+  const effectiveMutation = scheduled
+    ? blocked
+      ? content({ seed, index, world, revision: "v2-terminal-blocked", large, blocked: true })
+      : (planned.final ?? initial)
+    : initial;
   const mutationWindow = scheduled ? (duringWrite ? "during-write" : "before-action") : "none";
   const finalSource = scheduled ? planned.finalSource : worldInfo.source;
-  const blocked = scheduled && (BLOCKED_KINDS.has(kind) || planned.final.status === "blocked" || planned.metadata.complete === false);
   const terminal = blocked || planned.metadata.transport === "timeout" || planned.metadata.lock === "conflict"
     ? "reject"
     : "guarded-apply";
   const task = {
     format: `${FORMAT}/task`,
-      taskId: `hard-${sha(`${seed}:task:${index}`).slice(7, 23)}`,
+    taskId: `hard-${sha(`${seed}:task:${index}`).slice(7, 23)}`,
     index,
     seed: scenarioSeed,
     prompt: "Inspect the current evidence, revalidate every dependency that can affect the action, and use a guarded write. Apply only a complete current value; otherwise reject safely.",
@@ -644,9 +662,10 @@ function scenarioList(value) {
 export function hardDatasetManifest(value, options = {}) {
   const tasks = scenarioList(value).map(publicHardTask);
   const taskSetHash = sha(tasks);
+  const inferredSeed = Array.isArray(value) ? undefined : value?.seed;
   const manifest = {
     format: `${FORMAT}/public`,
-    seed: options.seed ?? value?.seed ?? null,
+    seed: options.seed ?? inferredSeed ?? null,
     taskCount: tasks.length,
     taskSetHash,
     datasetHash: taskSetHash,

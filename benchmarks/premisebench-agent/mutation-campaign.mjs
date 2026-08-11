@@ -324,6 +324,11 @@ async function runArm(arm, task, strategies = mutationStrategies) {
   return {
     taskId: task.taskId,
     family: task.family,
+    hardKind: task.hardCase?.kind ?? null,
+    hardDomain: task.domain ?? null,
+    hardRisk: task.risk ?? null,
+    hardEventCount: Array.isArray(task.events) ? task.events.length : 0,
+    hardDependencyCount: Array.isArray(task.dependencies) ? task.dependencies.length : 0,
     mutation: evaluation.changed,
     unsafeAction: evaluation.unsafe,
     completed: evaluation.correct,

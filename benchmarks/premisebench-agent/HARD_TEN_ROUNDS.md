@@ -1,6 +1,6 @@
 # Hard ten-round campaign
 
-`hard-ten-rounds.mjs` is the internal stress campaign for PREMiSE. It combines the controls accumulated during the project: mutable evidence, CAS/TOCTOU, event races, dependencies, large payloads, risk tiers, volatility, safety, connector I/O, visible-payload accounting and a separated real-provider harness.
+`hard-ten-rounds.mjs` is the internal stress campaign for PREMiSE. It combines the controls accumulated during the project: mutable evidence, CAS/TOCTOU, terminal conflict outcomes, large payloads, risk tiers, volatility, safety, connector I/O, visible-payload accounting and a separated real-provider harness. The generator also carries event, dependency and domain scenarios for stratification; the current generic local executor does not emulate live connector event delivery or full dependency-graph traversal.
 
 ## Frozen schedule
 
@@ -17,9 +17,9 @@ Volatility rises from 25% to 100%. The same task is presented to every determini
 - `smart`: local probe, conditional read and CAS retry.
 - `always`: read before every action and CAS retry.
 - `premise`: PREMiSE local freshness check, conditional read and CAS.
-- `perfect`: deterministic diagnostic ceiling, not a product competitor.
+- `perfect`: deterministic revalidation control, not a product competitor or formal performance ceiling.
 
-The report prints both numerators and denominators. `Safe completion` is tasks; `Unsafe actions` is action attempts. Requests, reads, writes, local checks, visible payload tokens, synthetic proxy cost and recovery are kept separate. Provider tokens and provider billing remain `UNKNOWN` unless the provider supplies trustworthy telemetry.
+The report prints both numerators and denominators for safety. `Safe completion` is tasks; `Unsafe actions` is action attempts. Requests, reads, writes, local checks, visible payload tokens, synthetic proxy cost and recovery are kept separate in the JSON artifacts. Provider tokens and provider billing remain `UNKNOWN` unless the provider supplies trustworthy telemetry.
 
 ## Run locally
 
@@ -35,9 +35,9 @@ Full deterministic campaign plus a guarded Gemini sample:
 pnpm benchmark:hard:ten
 ```
 
-The live sample is deliberately opt-in and stops after a provider rate limit. An incomplete provider campaign is recorded as `RATE_LIMITED`, `NOT_RUN`, or `COMPLETE_WITH_GAPS`; it never produces a ranking or zero-filled cost.
+The live sample is deliberately limited and stops after a provider rate limit. A sample smaller than the deterministic round is recorded as `SAMPLE_ONLY`; an incomplete provider campaign is recorded as `RATE_LIMITED`, `NOT_RUN`, or `COMPLETE_WITH_GAPS`. It never produces a ranking or zero-filled cost. A complete Gemini sample is not evidence for a full-round LLM claim.
 
-Generated reports live under `.tmp/scientific-mvp/` and are ignored by Git. The deterministic campaign is a local simulation of filesystem-, Git-, PostgreSQL- and calendar-like worlds, not evidence from live connectors. The live LLM harness is evidence of adapter wiring and behavior only when its complete cohort, holdout and billing telemetry are available.
+Generated reports live under `.tmp/scientific-mvp/` and are ignored by Git. The deterministic campaign is a local snapshot/version control with filesystem-, Git-, PostgreSQL- and calendar-like payloads, not evidence from live connectors. Event delivery, transaction semantics and dependency-graph traversal remain metadata-only until their dedicated adapters are run. The live LLM harness is evidence of adapter wiring and behavior only when its complete cohort, holdout and billing telemetry are available.
 
 ## Tuning rule
 

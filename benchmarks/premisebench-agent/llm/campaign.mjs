@@ -147,8 +147,7 @@ function publicTask(task) {
     taskId: task.taskId,
     prompt: task.prompt,
     source: task.source,
-    memory: safeSnapshot({ version: sha(task.initial), content: task.initial }),
-    tools: ["read", "act", "actIfVersion", "reject"]
+    memory: safeSnapshot({ version: sha(task.initial), content: task.initial })
   };
 }
 
@@ -526,6 +525,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0 }) {
 }
 
 function campaignStatus(items) {
+  if (items.length === 0) return "NOT_RUN";
   if (items.some((item) => item.calls?.some((call) => call.error?.status === 429))) return "RATE_LIMITED";
   if (items.some((item) => item.status === "ERROR")) return "ERROR";
   if (items.some((item) => item.status === "NOT_RUN")) return "NOT_RUN";
@@ -614,27 +614,40 @@ function hasExecutedLlmTask(trace) {
   return trace.calls.some((call) => call.status === "OK");
 }
 
+function taskArmOrder(args, taskId) {
+  return [...args.arms].sort((left, right) => {
+    const leftRank = sha(`${args.seed}:${taskId}:${left}`);
+    const rightRank = sha(`${args.seed}:${taskId}:${right}`);
+    return leftRank.localeCompare(rightRank) || left.localeCompare(right);
+  });
+}
+
 function publicTrace(trace) {
   return {
     taskId: trace.taskId,
     localChecks: trace.localChecks,
-    localCheckStates: trace.localCheckStates,
     externalReads: trace.externalReads,
     externalWrites: trace.externalWrites,
     protocolErrors: trace.protocolErrors,
-    llm: trace.llm,
-    calls: trace.calls,
-    actions: trace.actions
+    providerCalls: trace.calls.length,
+    completedCalls: trace.calls.filter((call) => call.status === "OK").length,
+    actionCount: trace.actions.length
   };
 }
 
 function blindReport(args, results, taskHash, blindIds = makeBlindIds(results.map((result) => result.arm)), plannedTasks = args.tasks) {
-  const comparable = results.length > 0 && results.every((result) => result.status === "OK");
+  const expectedArms = [...args.arms];
+  const actualArms = results.map((result) => result.arm);
+  const comparable = expectedArms.length > 0
+    && results.length === expectedArms.length
+    && new Set(actualArms).size === expectedArms.length
+    && expectedArms.every((arm) => actualArms.includes(arm))
+    && results.every((result) => result.status === "OK" && result.tasks === plannedTasks);
   if (!comparable) {
     return {
       format: "premisebench-agent/llm-blind/v1",
       status: "NOT_COMPARABLE",
-      reason: "at least one arm has provider ERROR or NOT_RUN; no partial ranking is emitted",
+      reason: "candidate coverage is incomplete or at least one arm has provider ERROR/NOT_RUN; no partial ranking is emitted",
       taskCount: plannedTasks,
       taskSetHash: taskHash,
       results: []
@@ -810,7 +823,7 @@ async function main(argv = process.argv.slice(2)) {
   const traces = [];
   let stopReason = null;
   outer: for (const task of tasks) {
-    for (const arm of args.arms) {
+    for (const arm of taskArmOrder(args, task.taskId)) {
       const trace = await runAgent({ candidate, task, arm, round: args.round, delayMs: args.delayMs });
       traces.push(trace);
       if (hasExecutedLlmTask(trace)) executedTaskIds.add(task.taskId);
