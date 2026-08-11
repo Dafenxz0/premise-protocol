@@ -20,7 +20,17 @@ const roundPlan = Object.freeze([
   { number: 7, tasks: 275, volatility: 90, riskLevels: HARD_RISK_LEVELS },
   { number: 8, tasks: 275, volatility: 100, riskLevels: ["medium", "high", "critical"] },
   { number: 9, tasks: 300, volatility: 100, riskLevels: HARD_RISK_LEVELS },
-  { number: 10, tasks: 300, volatility: 100, riskLevels: ["high", "critical"] }
+  { number: 10, tasks: 300, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 11, tasks: 325, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 12, tasks: 325, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 13, tasks: 350, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 14, tasks: 350, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 15, tasks: 375, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 16, tasks: 375, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 17, tasks: 400, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 18, tasks: 400, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 19, tasks: 425, volatility: 100, riskLevels: ["high", "critical"] },
+  { number: 20, tasks: 425, volatility: 100, riskLevels: ["high", "critical"] }
 ]);
 
 function value(argv, name, fallback) {
@@ -52,9 +62,49 @@ export function parseArgs(argv = process.argv.slice(2)) {
   const seed = integer(value(argv, "seed", "20260811"), "seed", Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
   const provider = String(value(argv, "provider", "gemini")).trim().toLowerCase();
   const model = String(value(argv, "model", "gemini-3.5-flash-lite")).trim();
+  const maxTokens = integer(value(argv, "max-tokens", "256"), "max-tokens", 1, 32_768);
   const delayMs = integer(value(argv, "delay-ms", "1000"), "delay-ms", 0, 60_000);
+  const endpointValue = String(value(argv, "endpoint", "")).trim();
+  const credentialEnvValue = String(value(argv, "credential-env", "")).trim();
   const output = resolve(root, String(value(argv, "output", ".tmp/scientific-mvp/hard-ten-rounds")).trim());
-  return Object.freeze({ start, end, llmTasks, seed, provider, model, delayMs, output, skipLlm: flag(argv, "skip-llm"), requireLive: flag(argv, "require-live") });
+  return Object.freeze({
+    start,
+    end,
+    llmTasks,
+    seed,
+    provider,
+    model,
+    maxTokens,
+    delayMs,
+    endpoint: endpointValue || null,
+    credentialEnv: credentialEnvValue || null,
+    output,
+    skipLlm: flag(argv, "skip-llm"),
+    requireLive: flag(argv, "require-live")
+  });
+}
+
+function childEnvironment(args) {
+  const names = ["PATH", "Path", "SystemRoot", "TEMP", "TMP"];
+  const env = Object.fromEntries(names.filter((name) => typeof process.env[name] === "string").map((name) => [name, process.env[name]]));
+  const credentialArg = args.find((argument) => argument.startsWith("--credential-env="));
+  if (credentialArg) {
+    const name = credentialArg.slice("--credential-env=".length);
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && typeof process.env[name] === "string" && process.env[name] !== "") env[name] = process.env[name];
+  } else {
+    const providerArg = args.find((argument) => argument.startsWith("--provider="));
+    const provider = providerArg?.slice("--provider=".length).toLowerCase();
+    const defaultCredential = {
+      openrouter: "OPENROUTER_API_KEY",
+      gemini: "GEMINI_API_KEY",
+      anthropic: "ANTHROPIC_API_KEY",
+      "openai-compatible": "OPENAI_API_KEY"
+    }[provider];
+    if (defaultCredential && typeof process.env[defaultCredential] === "string" && process.env[defaultCredential] !== "") {
+      env[defaultCredential] = process.env[defaultCredential];
+    }
+  }
+  return env;
 }
 
 async function runNode(args, timeoutMs = 1_200_000) {
@@ -63,19 +113,18 @@ async function runNode(args, timeoutMs = 1_200_000) {
       cwd: root,
       windowsHide: true,
       timeout: timeoutMs,
-      maxBuffer: 20 * 1024 * 1024
+      maxBuffer: 20 * 1024 * 1024,
+      env: childEnvironment(args)
     });
     let parsed = null;
     try { parsed = JSON.parse(result.stdout.trim()); } catch { /* preserve raw output without pretending it is a result */ }
-    return { status: "OK", result: parsed, stdout: result.stdout.trim(), stderr: result.stderr.trim() };
+    return { status: "OK", result: parsed };
   } catch (error) {
     let parsed = null;
     try { parsed = JSON.parse(String(error.stdout ?? "").trim()); } catch { /* no structured result */ }
     return {
       status: "ERROR",
       result: parsed,
-      stdout: String(error.stdout ?? "").trim(),
-      stderr: String(error.stderr ?? error.message ?? "").trim(),
       code: Number.isInteger(error.code) ? error.code : null,
       timedOut: error.killed === true
     };
@@ -199,6 +248,7 @@ function aggregateCampaign(campaign) {
 function campaignReport(campaign, args) {
   const aggregate = aggregateCampaign(campaign);
   const byArm = Object.fromEntries(aggregate.map((row) => [row.arm, row]));
+  const liveAttempted = campaign.rounds.some((round) => round.llm.status !== "SKIPPED");
   const roundRows = campaign.rounds.map((round) => {
     const get = (arm) => round.deterministicSummary?.results.find((row) => row.arm === arm) ?? null;
     const premise = get("premise");
@@ -230,17 +280,28 @@ function campaignReport(campaign, args) {
       supported: [
         "Within this deterministic local control, all completed PREMiSE rounds report the recorded safety and I/O counts.",
         "The task generator includes filesystem-, Git-, PostgreSQL- and calendar-like payloads with hidden event/dependency metadata; the generic control executes snapshot/version/CAS and terminal mutation windows.",
-        "The LLM adapter was invoked, but incomplete or rate-limited rounds are not ranked."
+        ...(liveAttempted
+          ? ["The LLM adapter was invoked, but incomplete, payment-blocked, or rate-limited rounds are not ranked."]
+          : ["The real-provider phase was explicitly skipped; no LLM ranking is claimed."])
       ],
       notSupported: [
         "Provider billing or monetary savings: provider cost is UNKNOWN and visible payload cost is synthetic.",
         "Production connector performance or connector-specific event/dependency semantics: the hard worlds are local simulations, not live GitHub, PostgreSQL or calendar services.",
-        "A universal LLM claim: the Gemini campaign did not complete the planned cohort, and the default run is a sample rather than a full-round LLM cohort."
+        "A sealed independent holdout or inferential superiority claim: this campaign is descriptive and its round-by-round improvement review is rule-based.",
+        "A claim that Luna Max changed the protocol: no external agent proposal is treated as a protocol mutation without a separately versioned challenger and later holdout.",
+        "A universal LLM claim: a provider campaign that is partial, rate-limited, or sample-only is not a full-round LLM cohort and is not ranked."
       ],
       improvementPolicy: "No protocol mutation is accepted solely to reduce requests when the frozen safety control has no regression; every change must win a later holdout."
     },
     generatedAt: new Date().toISOString(),
-    execution: { provider: args.provider, model: args.model, llmTasksPerRoundRequested: args.llmTasks }
+    execution: {
+      provider: args.provider,
+      model: args.model,
+      maxTokens: args.maxTokens,
+      endpoint: args.endpoint,
+      credentialEnv: args.credentialEnv,
+      llmTasksPerRoundRequested: args.llmTasks
+    }
   };
 }
 
@@ -258,7 +319,7 @@ function reportMarkdown(report) {
     return `| r${String(index + 1).padStart(2, "0")} | ${row.status} | ${row.plannedTasks} | ${row.executedTasks} | ${row.fullCohort ? "yes" : "no"} | ${total("providerAttempts")} | ${total("inputTokens")} | ${total("outputTokens")} | UNKNOWN | ${row.provider} / ${row.model} |`;
   });
   return [
-    "# PREMiSE hard ten-round benchmark",
+    "# PREMiSE hard twenty-round benchmark",
     "",
     `Status: **${report.status}** · deterministic tasks executed: **${report.plannedTasks}** · rounds: **${report.executedRounds}/${report.plannedRounds}**`,
     "",
@@ -270,7 +331,7 @@ function reportMarkdown(report) {
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...rows,
     "",
-    "The denominators are explicit: completion is out of tasks; unsafe is out of action attempts. Provider tokens and provider cost are UNKNOWN. CSFA proxy uses synthetic visible payload accounting and is not a provider price.",
+    "The denominators are explicit: deterministic safe completion and unsafe counts are out of tasks (one evaluated terminal action per task); the LLM report separately records observed intermediate action attempts and labels its unsafe rate task-level. Provider tokens and provider cost are UNKNOWN. CSFA proxy uses synthetic visible payload accounting and is not a provider price.",
     "",
     "## Progression by round",
     "",
@@ -346,6 +407,7 @@ export async function runCampaign(args) {
         llmCampaignScript,
         `--provider=${args.provider}`,
         `--model=${args.model}`,
+        `--max-tokens=${args.maxTokens}`,
         "--scenario=hard",
         `--tasks=${Math.min(args.llmTasks, plan.tasks)}`,
         `--seed=${plan.seed}`,
@@ -356,6 +418,8 @@ export async function runCampaign(args) {
         `--delay-ms=${args.delayMs}`,
         `--volatility=${plan.volatility}`,
         `--risk-levels=${plan.riskLevels.join(",")}`,
+        ...(args.endpoint ? [`--endpoint=${args.endpoint}`] : []),
+        ...(args.credentialEnv ? [`--credential-env=${args.credentialEnv}`] : []),
         `--output=${resolve(args.output, "llm")}`
       ], 1_800_000);
       llm.plannedTasks = Math.min(args.llmTasks, plan.tasks);
@@ -367,7 +431,7 @@ export async function runCampaign(args) {
       llm.provider = args.provider;
       llm.model = args.model;
       llm.round = llmRound;
-      if (llm.status === "ERROR" || ["RATE_LIMITED", "ERROR", "NOT_RUN"].includes(llm.result?.status)) llmBlocked = true;
+      if (llm.status === "ERROR" || ["PAYMENT_REQUIRED", "RATE_LIMITED", "ERROR", "NOT_RUN"].includes(llm.result?.status)) llmBlocked = true;
     }
     await writeFile(resolve(directory, "llm-run.json"), `${JSON.stringify(llm, null, 2)}\n`, "utf8");
     campaign.rounds.push({
@@ -436,9 +500,12 @@ export async function runCampaign(args) {
   const llmGap = !args.skipLlm && args.llmTasks > 0 && campaign.rounds.some((round) => round.llm.status !== "OK" || round.llm.fullCohort !== true || round.llm.executedTasks !== round.llm.plannedTasks);
   const deterministicGap = campaign.rounds.some((round) => round.deterministicStatus !== "OK");
   const partialPlan = args.start !== 1 || args.end !== roundPlan.length;
+  const deterministicOnly = args.skipLlm || args.llmTasks === 0;
   campaign.status = deterministicGap || llmGap
     ? (partialPlan ? "PARTIAL_WITH_GAPS" : "COMPLETE_WITH_GAPS")
-    : partialPlan ? "PARTIAL_PLAN" : "COMPLETE";
+    : deterministicOnly
+      ? (partialPlan ? "PARTIAL_DETERMINISTIC_ONLY" : "COMPLETE_DETERMINISTIC_ONLY")
+      : partialPlan ? "PARTIAL_PLAN" : "COMPLETE";
   campaign.completedAt = new Date().toISOString();
   await writeFile(resolve(args.output, "plan.json"), `${JSON.stringify({ ...campaign, planStatus: campaign.status }, null, 2)}\n`, "utf8");
   const report = campaignReport(campaign, args);

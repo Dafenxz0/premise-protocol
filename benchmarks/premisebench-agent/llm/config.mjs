@@ -3,6 +3,7 @@ import { DEFAULT_ENDPOINTS, normalizeProvider } from "./adapters.mjs";
 
 const DEFAULT_CREDENTIAL_ENV = Object.freeze({
   "openai-compatible": "OPENAI_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   gemini: "GEMINI_API_KEY",
 });
@@ -10,6 +11,7 @@ const DEFAULT_CREDENTIAL_ENV = Object.freeze({
 const SENSITIVE_KEY = /(?:api[_-]?key|access[_-]?key|authorization|bearer|secret|password|credential|private[_-]?key|refresh[_-]?token|token[_-]?value|env(?:ironment)?(?:[_-]?value)?)/i;
 const INLINE_CREDENTIAL_KEY = /^(?:api[_-]?key|access[_-]?token|token|secret|password|authorization|credential)$/i;
 const REDACTED = "[REDACTED]";
+const OPENROUTER_HEADER_ALLOWLIST = new Set(["http-referer", "x-title"]);
 
 export const DEFAULT_CONFIG = Object.freeze({
   temperature: 0,
@@ -87,13 +89,26 @@ export function parseConfig(input) {
 
   const provider = normalizeProvider(raw.provider);
   if (!provider) throw new TypeError("unsupported LLM provider");
+  const requestedProvider = raw.provider.trim().toLowerCase();
+  const defaultsProvider = requestedProvider === "openrouter" ? "openrouter" : provider;
   const model = requiredString(raw.model, "model");
-  const credentialEnv = requiredString(raw.credentialEnv ?? DEFAULT_CREDENTIAL_ENV[provider], "credentialEnv");
+  const credentialEnv = requiredString(raw.credentialEnv ?? DEFAULT_CREDENTIAL_ENV[defaultsProvider], "credentialEnv");
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(credentialEnv)) throw new TypeError("credentialEnv must be an environment variable name");
+  if (provider === "openrouter" && credentialEnv !== "OPENROUTER_API_KEY") throw new TypeError("OpenRouter requires credentialEnv=OPENROUTER_API_KEY");
 
-  const endpoint = httpUrl(raw.endpoint ?? raw.baseUrl ?? DEFAULT_ENDPOINTS[provider]);
+  const endpoint = httpUrl(raw.endpoint ?? raw.baseUrl ?? DEFAULT_ENDPOINTS[defaultsProvider]);
+  if (provider === "openrouter") {
+    const parsed = new URL(endpoint);
+    if (parsed.protocol !== "https:" || parsed.hostname !== "openrouter.ai" || parsed.port !== "" || parsed.pathname !== "/api/v1/chat/completions" || parsed.search !== "" || parsed.hash !== "") {
+      throw new TypeError("OpenRouter endpoint must be https://openrouter.ai/api/v1/chat/completions");
+    }
+  }
   const prompt = optionalString(raw.prompt, "prompt");
   const systemPrompt = optionalString(raw.systemPrompt, "systemPrompt");
+  const headers = parseHeaders(raw.headers);
+  if (provider === "openrouter" && Object.keys(headers).some((name) => !OPENROUTER_HEADER_ALLOWLIST.has(name.toLowerCase()))) {
+    throw new TypeError("OpenRouter headers are limited to HTTP-Referer and X-Title");
+  }
   const config = {
     provider,
     model,
@@ -106,7 +121,7 @@ export function parseConfig(input) {
     timeoutMs: boundedNumber(raw.timeoutMs ?? DEFAULT_CONFIG.timeoutMs, "timeoutMs", { integer: true, min: 1 }),
     maxRetries: boundedNumber(raw.maxRetries ?? DEFAULT_CONFIG.maxRetries, "maxRetries", { integer: true, min: 0, max: 10 }),
     responseFormat: raw.responseFormat ?? raw.response_format ?? DEFAULT_CONFIG.responseFormat,
-    headers: parseHeaders(raw.headers),
+    headers,
   };
   if (config.responseFormat !== null && config.responseFormat !== "json-object") throw new TypeError("responseFormat must be json-object or null");
   return Object.freeze(config);
