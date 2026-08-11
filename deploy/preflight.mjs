@@ -120,7 +120,7 @@ export function validateDeploymentEnvironment(input = process.env) {
   checkImage(input.PREMISE_NODE_BUILD_IMAGE, "PREMISE_NODE_BUILD_IMAGE", productionLike, errors, warnings);
   checkImage(input.PREMISE_NODE_RUNTIME_IMAGE, "PREMISE_NODE_RUNTIME_IMAGE", productionLike, errors, warnings);
 
-  const poolSize = parseInteger(input.PREMISE_DB_POOL_SIZE ?? "8", "PREMISE_DB_POOL_SIZE", 1, 48, errors);
+  const poolSize = parseInteger(input.PREMISE_DB_POOL_SIZE ?? "16", "PREMISE_DB_POOL_SIZE", 1, 48, errors);
   const maxBodyBytes = parseInteger(input.PREMISE_MAX_BODY_BYTES ?? "1048576", "PREMISE_MAX_BODY_BYTES", 1_024, 67_108_864, errors);
   check("pool-budget", poolSize !== undefined, "1..48 connections");
   check("request-body-budget", maxBodyBytes !== undefined, "1 KiB..64 MiB");

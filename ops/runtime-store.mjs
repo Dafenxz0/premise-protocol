@@ -1,4 +1,7 @@
-export const DEFAULT_DURABLE_WRITE_CONCURRENCY = 4;
+// Keep enough durable writers available for a production-shaped PostgreSQL
+// deployment. The database pool retains headroom for reads, health checks and
+// operational work; operators can still lower this for smaller hosts.
+export const DEFAULT_DURABLE_WRITE_CONCURRENCY = 8;
 const MAX_DURABLE_WRITE_CONCURRENCY = 64;
 export const DEFAULT_MAX_PENDING_WRITES = 10_000;
 const MAX_PENDING_WRITES = 1_000_000;

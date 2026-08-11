@@ -27,7 +27,7 @@ const config = {
   // cap it so the two-times retention used below stays within its 24h bound.
   signatureMaxClockSkewMs: integer("PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS", 5 * 60 * 1_000, 1, 12 * 60 * 60 * 1_000),
   maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024),
-  runtimeWriteConcurrency: integer("PREMISE_RUNTIME_WRITE_CONCURRENCY", 4, 1, 64),
+  runtimeWriteConcurrency: integer("PREMISE_RUNTIME_WRITE_CONCURRENCY", 8, 1, 64),
   runtimeMaxPendingWrites: integer("PREMISE_RUNTIME_MAX_PENDING_WRITES", 10_000, 1, 1_000_000),
   httpIdempotencyRetentionMs: integer("PREMISE_HTTP_IDEMPOTENCY_RETENTION_MS", 7 * 24 * 60 * 60 * 1_000, 60 * 60 * 1_000, 365 * 24 * 60 * 60 * 1_000),
   httpIdempotencyCleanupIntervalMs: integer("PREMISE_HTTP_IDEMPOTENCY_CLEANUP_INTERVAL_MS", 60 * 60 * 1_000, 60 * 1_000, 24 * 60 * 60 * 1_000)

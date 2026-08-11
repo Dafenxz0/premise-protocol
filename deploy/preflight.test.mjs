@@ -28,7 +28,7 @@ test("production preflight accepts complete immutable inputs", async () => {
     PREMISE_OTEL_IMAGE: digest("otel/opentelemetry-collector-contrib"),
     PREMISE_NODE_BUILD_IMAGE: digest("node"),
     PREMISE_NODE_RUNTIME_IMAGE: digest("node"),
-    PREMISE_DB_POOL_SIZE: "8",
+    PREMISE_DB_POOL_SIZE: "16",
     PREMISE_MAX_BODY_BYTES: "1048576",
     PREMISE_REQUIRE_SIGNED_ENVELOPES: "1",
     PREMISE_SIGNATURE_KEYS_FILE: "/run/secrets/premise_signature_public_keys.json"

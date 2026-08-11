@@ -1,4 +1,4 @@
-const DEFAULT_POOL_SIZE = 10;
+const DEFAULT_POOL_SIZE = 16;
 
 async function loadPool() {
   // Resolve the package through Node's package exports/main metadata. The pg

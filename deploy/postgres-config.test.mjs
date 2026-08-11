@@ -40,7 +40,7 @@ test("Compose activates the checked-in config and leaves pool headroom", () => {
   assert.match(compose, /- \.\/postgres\/postgresql\.conf:\/etc\/postgresql\/postgresql\.conf:ro/u);
   assert.equal((compose.match(/^\s+PREMISE_DB_POOL_SIZE:/gmu) ?? []).length, 5);
   const pool = compose.match(/PREMISE_DB_POOL_SIZE:\s*\$\{PREMISE_DB_POOL_SIZE:-(\d+)\}/u)?.[1];
-  assert.equal(pool, "8");
+  assert.equal(pool, "16");
   assert.ok(Number(setting(config, "max_connections")) >= Number(pool) + 16);
 });
 
@@ -73,7 +73,7 @@ test("Prometheus 3.5 receives its bearer through a Docker secret file", () => {
 });
 
 test("production example pins the same pool budget", () => {
-  assert.match(productionEnv, /^PREMISE_DB_POOL_SIZE=8$/mu);
+  assert.match(productionEnv, /^PREMISE_DB_POOL_SIZE=16$/mu);
   assert.match(productionEnv, /^PREMISE_DB_USER=__INJECT_DB_APP_USER__$/mu);
   assert.match(productionEnv, /^PREMISE_METRICS_TOKEN=__INJECT_METRICS_TOKEN__$/mu);
   assert.match(productionEnv, /DATABASE_URL must resolve to the NOSUPERUSER\/NOBYPASSRLS application role/u);
