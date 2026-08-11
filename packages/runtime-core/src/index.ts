@@ -34,6 +34,11 @@ export interface RuntimeStore<T> {
   put(record: RuntimeRecord<T>): void;
   /** Persist a record and its causally related event atomically when supported. */
   putAndAppend?(record: RuntimeRecord<T>, event: V2Event): void;
+  /**
+   * Atomically persist a validation result only if the expected record is
+   * still current. Returning false must leave both record and event untouched.
+   */
+  putAndAppendIfUnchanged?(expected: RuntimeRecord<T>, record: RuntimeRecord<T>, event: V2Event): boolean;
   getEvent?(idempotencyKey: string): V2Event | undefined;
   appendEvent(event: V2Event): void;
   hasEvent(idempotencyKey: string): boolean;
@@ -47,6 +52,23 @@ export interface RuntimePrincipal {
   readonly tenantId: string;
   readonly subjectId?: string;
   readonly roles?: readonly string[];
+}
+
+/**
+ * A source change delivered by a connector or a push invalidation stream.
+ * `eventId` is optional for callers that let the runtime derive a stable
+ * idempotency key from the source and version.
+ */
+export interface RuntimeSourceChange {
+  readonly sourceUri: string;
+  readonly version: VersionReference;
+  readonly eventId?: string;
+  /**
+   * Optional connector-attested observation. The runtime carries it through
+   * invalidation events so a consumer can validate without rereading the
+   * source; it never replaces memory content automatically.
+   */
+  readonly observation?: Readonly<Record<string, unknown>>;
 }
 
 export interface RuntimeOptions<T> {
@@ -92,7 +114,20 @@ export type RuntimeValidator<T> = (evidence: EvidenceReference, record: RuntimeR
 export interface RuntimeActionRequest<T = unknown> {
   readonly expectedVersion: string;
   readonly action?: unknown;
+  /**
+   * Connector-owned conditional commit. The callback MUST perform its own
+   * atomic CAS; PREMiSE passes the version that was checked locally.
+   */
+  readonly commit?: (record: RuntimeRecord<T>, expectedVersion: string) => Promise<RuntimeActionCommitResult<T>> | RuntimeActionCommitResult<T>;
+  /** Legacy callback. It is retained for compatibility but has no external CAS guarantee. */
   readonly apply?: (record: RuntimeRecord<T>) => Promise<unknown> | unknown;
+}
+
+export interface RuntimeActionCommitResult<T = unknown> {
+  readonly accepted: boolean;
+  readonly reason?: "VERSION_MISMATCH" | "REJECT" | "REVALIDATE";
+  readonly observedVersion?: string;
+  readonly result?: T;
 }
 
 export interface RuntimeActionResult<T = unknown> {
@@ -100,6 +135,7 @@ export interface RuntimeActionResult<T = unknown> {
   readonly memoryId: string;
   readonly expectedVersion: string;
   readonly reason?: "VERSION_MISMATCH" | "REJECT" | "REVALIDATE";
+  readonly observedVersion?: string;
   readonly result?: T;
 }
 
@@ -137,6 +173,14 @@ function digestFor(value: unknown): `sha256:${string}` {
   return `sha256:v2:${createHash("sha256").update(canonicalJson(value), "utf8").digest("hex")}`;
 }
 
+function sourceChangePayload(change: RuntimeSourceChange): Readonly<Record<string, unknown>> {
+  return {
+    sourceUri: change.sourceUri,
+    version: change.version,
+    ...(change.observation === undefined ? {} : { observation: cloneJson(change.observation) })
+  };
+}
+
 export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   private readonly records = new Map<string, RuntimeRecord<T>>();
   private readonly events = new Map<string, V2Event>();
@@ -164,6 +208,14 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   putAndAppend(record: RuntimeRecord<T>, event: V2Event): void {
     this.put(record);
     this.appendEvent(event);
+  }
+
+  putAndAppendIfUnchanged(expected: RuntimeRecord<T>, record: RuntimeRecord<T>, event: V2Event): boolean {
+    const current = this.records.get(expected.envelope.memoryId);
+    if (current === undefined || canonicalJson(current) !== canonicalJson(expected)) return false;
+    this.put(record);
+    this.appendEvent(event);
+    return true;
   }
 
   getEvent(idempotencyKey: string): V2Event | undefined {
@@ -327,24 +379,30 @@ export class PremiseRuntime<T = unknown> {
   }
 
   retrieve(memoryIds: readonly string[], principal = this.principal): readonly RuntimeRetrieval<T>[] {
-    const state = new Map(this.check(memoryIds, principal).map((item) => [item.memoryId, item]));
     const result: RuntimeRetrieval<T>[] = [];
     for (const memoryId of unique(memoryIds)) {
       const record = this.get(memoryId, principal);
-      const item = state.get(memoryId);
-      if (record === undefined || item === undefined || item.decision === "REJECT") continue;
-      result.push({ ...record, status: item.status, decision: item.decision });
+      if (record === undefined) continue;
+      const status = record.envelope.validity.status;
+      const decision = usability(status);
+      if (decision === "REJECT") continue;
+      result.push({ ...record, status, decision });
     }
     return result;
   }
 
   async revalidate(memoryId: string, validator: RuntimeValidator<T>, eventId?: string): Promise<RuntimeValidationReport> {
     const record = this.require(memoryId);
-    if (record.envelope.evidence.length === 0) return this.applyValidation(record, { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: this.now(), reason: "memory has no evidence" }, eventId);
+    const storeRevision = readStoreRevision(this.store);
+    if (record.envelope.evidence.length === 0) {
+      this.assertRecordUnchanged(record, storeRevision);
+      return this.applyValidation(record, { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: this.now(), reason: "memory has no evidence" }, eventId);
+    }
     const reports: RuntimeValidationReport[] = [];
     for (const evidence of record.envelope.evidence) reports.push(await validator(evidence, record));
     const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
     const selected = priority.map((result) => reports.find((report) => report.result === result)).find((report): report is RuntimeValidationReport => report !== undefined) ?? reports[0]!;
+    this.assertRecordUnchanged(record, storeRevision);
     return this.applyValidation(record, selected, eventId);
   }
 
@@ -356,6 +414,7 @@ export class PremiseRuntime<T = unknown> {
       ids.push(memoryId);
       records.set(memoryId, this.require(memoryId));
     }
+    const storeRevision = readStoreRevision(this.store);
     const grouped = new Map<string, Promise<RuntimeValidationReport>>();
     const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
 
@@ -386,6 +445,12 @@ export class PremiseRuntime<T = unknown> {
     });
     const selected = new Map((await Promise.all(pending)).map(({ memoryId, report }) => [memoryId, report]));
 
+    // Validate every snapshot before applying any result. A connector or
+    // another runtime may have changed a record while validation awaited I/O;
+    // applying only the first reports would otherwise leave a partial, stale
+    // batch behind.
+    for (const memoryId of ids) this.assertRecordUnchanged(records.get(memoryId)!, storeRevision);
+
     const applied = new Map(ids.map((memoryId) => {
       const report = selected.get(memoryId)!;
       return [memoryId, this.applyValidation(records.get(memoryId)!, report, eventId === undefined ? undefined : `${eventId}:${memoryId}`)] as const;
@@ -408,21 +473,76 @@ export class PremiseRuntime<T = unknown> {
     const check = this.check([memoryId])[0]!;
     if (check.decision === "REJECT") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REJECT" };
     if (check.decision === "REVALIDATE") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REVALIDATE" };
+    if (request.commit !== undefined) {
+      const committed = await request.commit(record, request.expectedVersion);
+      return {
+        accepted: committed.accepted,
+        memoryId,
+        expectedVersion: request.expectedVersion,
+        ...(committed.reason === undefined ? {} : { reason: committed.reason }),
+        ...(committed.observedVersion === undefined ? {} : { observedVersion: committed.observedVersion }),
+        ...(committed.result === undefined ? {} : { result: committed.result })
+      };
+    }
     const result = request.apply === undefined ? undefined : await request.apply(record);
     return { accepted: true, memoryId, expectedVersion: request.expectedVersion, ...(result === undefined ? {} : { result: result as T }) };
   }
 
   signalSourceChanged(sourceUri: string, version: VersionReference, eventId?: string): readonly string[] {
-    if (sourceUri.length === 0) throw new TypeError("sourceUri must be non-empty");
+    return this.signalSourcesChanged([eventId === undefined ? { sourceUri, version } : { sourceUri, version, eventId }]);
+  }
+
+  /**
+   * Apply a burst of source invalidations as one local graph traversal.
+   * Connectors may deliver several changes in one webhook/poll response; the
+   * runtime emits one SourceChanged event per source but coalesces the
+   * dependent closure and the MemoryStaled projection into one event per
+   * memory. This reduces duplicate local work without weakening invalidation.
+   */
+  signalSourcesChanged(changes: readonly RuntimeSourceChange[]): readonly string[] {
+    if (changes.length === 0) return [];
+    for (const change of changes) {
+      if (change.sourceUri.length === 0) throw new TypeError("sourceUri must be non-empty");
+    }
+    const uniqueChanges = [...new Map(changes.map((change) => [canonicalJson(change), change])).values()];
+    if (uniqueChanges.length === 1) return this.signalSingleSourceChanged(uniqueChanges[0]!);
     this.refreshIndexesIfStoreChanged();
-    const sourceEvent = this.emit("SourceChanged", undefined, { sourceUri, version }, eventId ?? `source:${sourceUri}:${version.scheme}:${version.token}`);
-    const direct = this.orderedIds(this.sourceMemoryIds.get(sourceUri) ?? []);
+    const sourceEvents = uniqueChanges.map((change) => this.emit(
+      "SourceChanged",
+      undefined,
+      sourceChangePayload(change),
+      change.eventId ?? `source:${change.sourceUri}:${change.version.scheme}:${change.version.token}`
+    ));
+    const direct = this.orderedIds([...new Set(uniqueChanges.flatMap((change) => [...(this.sourceMemoryIds.get(change.sourceUri) ?? [])]))]);
+    const affected = this.dependentClosure(direct);
+    const sourcePayload = uniqueChanges.map(sourceChangePayload);
+    const staleEventKey = `${sourceEvents.map((event) => event.eventId).join(":")}:stale`;
+    for (const memoryId of affected) {
+      const record = this.store.get(memoryId);
+      if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
+      const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
+      const staleEvent = this.emit("MemoryStaled", memoryId, { changes: sourcePayload }, `${staleEventKey}:${memoryId}`, false);
+      this.persistRecordAndEvent(stored, staleEvent);
+    }
+    this.syncStoreRevision();
+    return affected;
+  }
+
+  private signalSingleSourceChanged(change: RuntimeSourceChange): readonly string[] {
+    this.refreshIndexesIfStoreChanged();
+    const sourceEvent = this.emit(
+      "SourceChanged",
+      undefined,
+      sourceChangePayload(change),
+      change.eventId ?? `source:${change.sourceUri}:${change.version.scheme}:${change.version.token}`
+    );
+    const direct = this.orderedIds(this.sourceMemoryIds.get(change.sourceUri) ?? []);
     const affected = this.dependentClosure(direct);
     for (const memoryId of affected) {
       const record = this.store.get(memoryId);
       if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
       const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
-      const staleEvent = this.emit("MemoryStaled", memoryId, { sourceUri, version }, `${sourceEvent.eventId}:stale:${memoryId}`, false);
+      const staleEvent = this.emit("MemoryStaled", memoryId, sourceChangePayload(change), `${sourceEvent.eventId}:stale:${memoryId}`, false);
       this.persistRecordAndEvent(stored, staleEvent);
     }
     this.syncStoreRevision();
@@ -465,9 +585,22 @@ export class PremiseRuntime<T = unknown> {
     const status: V2MemoryStatus = report.result === "UNCHANGED" ? "FRESH" : report.result === "CHANGED" || report.result === "MISSING" ? "INVALID" : "UNKNOWN";
     const stored = { envelope: this.withValidation(record.envelope, report, status), content: record.content };
     const event = this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`, false);
-    this.persistRecordAndEvent(stored, event);
+    this.persistRecordIfCurrent(record, stored, event);
     this.syncStoreRevision();
     return { ...report, status };
+  }
+
+  private assertRecordUnchanged(record: RuntimeRecord<T>, expectedRevision?: number): void {
+    if (expectedRevision !== undefined) {
+      if (readStoreRevision(this.store) !== expectedRevision) {
+        throw new Error(`Concurrent mutation detected during revalidation: ${record.envelope.memoryId}`);
+      }
+      return;
+    }
+    const current = this.store.get(record.envelope.memoryId);
+    if (current === undefined || canonicalJson(current) !== canonicalJson(record)) {
+      throw new Error(`Concurrent mutation detected during revalidation: ${record.envelope.memoryId}`);
+    }
   }
 
   private withStatus(envelope: MemoryEnvelopeV2, status: V2MemoryStatus): MemoryEnvelopeV2 {
@@ -568,6 +701,17 @@ export class PremiseRuntime<T = unknown> {
       this.store.put(record);
       this.store.appendEvent(event);
     }
+  }
+
+  private persistRecordIfCurrent(expected: RuntimeRecord<T>, record: RuntimeRecord<T>, event: V2Event): void {
+    if (typeof this.store.putAndAppendIfUnchanged === "function") {
+      if (!this.store.putAndAppendIfUnchanged(expected, record, event)) {
+        throw new Error(`Concurrent mutation detected during revalidation: ${expected.envelope.memoryId}`);
+      }
+      return;
+    }
+    this.assertRecordUnchanged(expected);
+    this.persistRecordAndEvent(record, event);
   }
 
   private eventFor(idempotencyKey: string): V2Event | undefined {

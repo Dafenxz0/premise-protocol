@@ -84,6 +84,33 @@ export class SqliteRuntimeStore<T = unknown> implements RuntimeStore<T> {
     `).run(envelope.memoryId, envelope.tenantId, JSON.stringify(cloneJson(envelope)), JSON.stringify(cloneJson(record.content)));
   }
 
+  putAndAppendIfUnchanged(expected: RuntimeRecord<T>, record: RuntimeRecord<T>, event: V2Event): boolean {
+    const database = this.requireDatabase();
+    const expectedEnvelope = JSON.stringify(cloneJson(expected.envelope));
+    const expectedContent = JSON.stringify(cloneJson(expected.content));
+    const nextEnvelope = parseMemoryEnvelopeV2(record.envelope);
+    const nextEnvelopeJson = JSON.stringify(cloneJson(nextEnvelope));
+    const nextContentJson = JSON.stringify(cloneJson(record.content));
+    database.exec("BEGIN IMMEDIATE");
+    try {
+      const result = database.prepare(`
+        UPDATE premise_v2_records
+        SET tenant_id = ?, envelope_json = ?, content_json = ?
+        WHERE memory_id = ? AND envelope_json = ? AND content_json = ?
+      `).run(nextEnvelope.tenantId, nextEnvelopeJson, nextContentJson, expected.envelope.memoryId, expectedEnvelope, expectedContent);
+      if (Number(result.changes ?? 0) !== 1) {
+        database.exec("ROLLBACK");
+        return false;
+      }
+      this.appendEvent(event);
+      database.exec("COMMIT");
+      return true;
+    } catch (error) {
+      try { database.exec("ROLLBACK"); } catch { /* preserve the original error */ }
+      throw error;
+    }
+  }
+
   appendEvent(event: V2Event): void {
     const parsed = parseV2Event(event);
     const serialized = JSON.stringify(parsed);

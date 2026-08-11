@@ -1,5 +1,7 @@
 # @premise/runtime-core
 
+Las notificaciones agrupadas pueden llevar una `observation` atestada por el conector; el runtime la propaga en el evento sin sustituir automáticamente el contenido de la memoria. Para evitar lecturas de reintento, un store puede implementar `putAndAppendIfUnchanged`, y las acciones externas deben preferir `revalidateAndAct` con `commit`, cuyo callback realiza el CAS atómico del conector. El callback `apply` se conserva por compatibilidad, pero no aporta esa garantía externa.
+
 Runtime v2 de referencia para aplicar el contrato `premise/2`.
 
 Incluye un store en memoria, registro y derivación con aislamiento por tenant, propagación de `SourceChanged` por dependencias, revalidación mediante validators inyectables, eventos idempotentes y snapshots restaurables. El runtime conserva el contenido que le entrega la aplicación: PREMiSE no reemplaza el sistema de memoria ni pretende ser una autoridad universal sobre la verdad.
