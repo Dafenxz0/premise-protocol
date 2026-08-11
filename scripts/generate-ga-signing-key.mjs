@@ -21,7 +21,9 @@ if (publicPath === privatePath) throw new Error("public and private key paths mu
 const { publicKey, privateKey } = generateKeyPairSync("ed25519");
 await mkdir(path.dirname(publicPath), { recursive: true });
 await mkdir(path.dirname(privatePath), { recursive: true });
-await writeFile(publicPath, `${JSON.stringify({ "key:ga-client": publicKey.export({ type: "spki", format: "pem" }) }, null, 2)}\n`, { mode: 0o600 });
+// Public verification material must be readable by the non-root service user
+// when Compose mounts it as a file secret. The private key remains 0600.
+await writeFile(publicPath, `${JSON.stringify({ "key:ga-client": publicKey.export({ type: "spki", format: "pem" }) }, null, 2)}\n`, { mode: 0o644 });
 await writeFile(privatePath, privateKey.export({ type: "pkcs8", format: "pem" }), { mode: 0o600 });
 console.log(JSON.stringify({ publicPath, privatePath, keyId: "key:ga-client", algorithm: "ed25519" }));
 
