@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
@@ -7,9 +7,9 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { createLlmCandidate } from "./index.mjs";
 import { createWorld, makeTasks } from "../mutation-campaign.mjs";
+import { HARD_RISK_LEVELS, makeHardTasks } from "../scientific/hard-scenarios.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const outputRoot = resolve(root, ".tmp/scientific-mvp/llm");
 const execFileAsync = promisify(execFile);
 const protocol = "premisebench-agent/1";
 const defaultProvider = "openai-compatible";
@@ -32,25 +32,33 @@ const armPolicies = Object.freeze({
   basic: Object.freeze({
     name: "Basic memory",
     localCheck: false,
+    tools: Object.freeze(["act", "reject"]),
     instruction: "Use the initial memory directly. Do not refresh before acting unless the observed protocol requires it."
   }),
   conventional: Object.freeze({
     name: "Conventional revalidation",
     localCheck: false,
+    tools: Object.freeze(["read", "act", "reject"]),
     instruction: "Read the source before acting, then use the returned snapshot for an ordinary action."
   }),
   premise: Object.freeze({
     name: "PREMiSE",
     localCheck: true,
+    tools: Object.freeze(["read", "actIfVersion", "reject"]),
     instruction: "Use the supplied localCheck. Read only when the cached evidence is stale, and guard writes with actIfVersion. Retry from a fresh read after a rejected guarded write."
   }),
   smart: Object.freeze({
     name: "Smart Revalidate",
     localCheck: true,
+    tools: Object.freeze(["read", "actIfVersion", "reject"]),
     instruction: "Use the supplied localCheck as a local freshness probe. Re-read stale evidence, use actIfVersion, and retry a rejected guarded write from a fresh read."
   })
 });
 const defaultArms = Object.freeze(Object.keys(armPolicies));
+
+function allowedResponseTypes(arm) {
+  return new Set([...(armPolicies[arm]?.tools ?? ["read", "act", "actIfVersion", "reject"]), "done"]);
+}
 
 function cliValue(argv, name, fallback = null) {
   const prefix = `--${name}=`;
@@ -88,12 +96,23 @@ function parseArgs(argv = process.argv.slice(2)) {
   if (model === "") throw new TypeError("--model is required");
   const tasks = integerArg(cliValue(argv, "tasks", "20"), "tasks", { min: 1, max: 10_000 });
   const seed = integerArg(cliValue(argv, "seed", String(defaultSeed)), "seed");
+  const scenario = String(cliValue(argv, "scenario", "standard")).trim().toLowerCase();
+  if (!new Set(["standard", "hard"]).has(scenario)) throw new TypeError("--scenario must be standard or hard");
+  const volatility = integerArg(cliValue(argv, "volatility", "50"), "volatility", { min: 0, max: 100 });
+  const riskLevels = parseRiskLevels(cliValue(argv, "risk-levels", HARD_RISK_LEVELS.join(",")));
   const round = String(cliValue(argv, "round", defaultRound)).trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(round)) throw new TypeError("--round must be a safe directory name");
   const arms = parseArms(cliValue(argv, "arms", defaultArms.join(",")));
   const maxRetries = integerArg(cliValue(argv, "max-retries", "0"), "max-retries", { min: 0, max: 5 });
   const delayMs = integerArg(cliValue(argv, "delay-ms", "0"), "delay-ms", { min: 0, max: 60_000 });
-  return Object.freeze({ provider, model, tasks, seed, round, arms, maxRetries, delayMs, dryRun: cliFlag(argv, "dry-run") });
+  const configuredOutputRoot = String(cliValue(argv, "output", ".tmp/scientific-mvp/llm")).trim();
+  return Object.freeze({ provider, model, tasks, seed, scenario, volatility, riskLevels, round, outputRoot: resolve(root, configuredOutputRoot), arms, maxRetries, delayMs, requireLive: cliFlag(argv, "require-live"), dryRun: cliFlag(argv, "dry-run") });
+}
+
+function parseRiskLevels(value) {
+  const levels = [...new Set(String(value).split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean))];
+  if (levels.length === 0 || levels.some((level) => !HARD_RISK_LEVELS.includes(level))) throw new TypeError(`--risk-levels must use ${HARD_RISK_LEVELS.join(", ")}`);
+  return levels;
 }
 
 function stable(value) {
@@ -124,7 +143,13 @@ function percentile(values, fraction) {
 }
 
 function publicTask(task) {
-  return { taskId: task.taskId, prompt: task.prompt, source: task.source };
+  return {
+    taskId: task.taskId,
+    prompt: task.prompt,
+    source: task.source,
+    memory: safeSnapshot({ version: sha(task.initial), content: task.initial }),
+    tools: ["read", "act", "actIfVersion", "reject"]
+  };
 }
 
 function taskSetHash(tasks) {
@@ -149,16 +174,19 @@ function createCandidate(args) {
 
 function systemPrompt(arm) {
   const policy = armPolicies[arm];
+  const forms = {
+    read: '{"type":"read"}',
+    act: '{"type":"act","action":{"kind":"apply","value":"..."}}',
+    actIfVersion: '{"type":"actIfVersion","expectedVersion":"sha256:...","action":{"kind":"apply","value":"..."}}',
+    reject: '{"type":"reject","action":{"kind":"reject"}}',
+    done: '{"type":"done"}'
+  };
   return [
     "You are a bounded action agent for a mutable source.",
     "Return exactly one JSON object per turn, with no Markdown, comments, or surrounding text.",
     `This run uses its assigned memory policy: ${policy.instruction}`,
     "Allowed response forms are:",
-    '{"type":"read"}',
-    '{"type":"act","action":{"kind":"apply","value":"..."}}',
-    '{"type":"actIfVersion","expectedVersion":"sha256:...","action":{"kind":"apply","value":"..."}}',
-    '{"type":"reject","action":{"kind":"reject"}}',
-    '{"type":"done"}',
+    ...[...allowedResponseTypes(arm)].map((type) => forms[type]),
     "Use only data present in the current messages. The start message already contains the observed memory. If its content.status is active, apply its exact content.value; if it is blocked, reject. A read returns content and an opaque version. A guarded action is accepted only for the version it names.",
     "Do not explain, ask a question, or emit prose. Emit an action as soon as the current messages contain enough information. If localCheck is present, obey it before choosing whether to read.",
     "After an action result, either continue with another permitted JSON object or return done."
@@ -187,7 +215,7 @@ function visibleEnvelope({ task, memory, arm, world, local }) {
     prompt: task.prompt,
     source: task.source,
     memory: safeSnapshot(memory),
-    tools: ["read", "act", "actIfVersion", "reject"]
+    tools: [...armPolicies[arm].tools]
   };
   if (armPolicies[arm].localCheck) value.localCheck = checkLocalEvidence(world, memory);
   if (local) local.count += armPolicies[arm].localCheck ? 1 : 0;
@@ -224,7 +252,7 @@ function normalizeAction(action, { reject = false } = {}) {
   return { kind: "apply", value: action.value };
 }
 
-function parseAgentMessage(output) {
+function parseAgentMessage(output, arm = null) {
   if (typeof output !== "string" || output.trim() === "") throw new TypeError("empty response");
   let value;
   try {
@@ -235,6 +263,7 @@ function parseAgentMessage(output) {
   if (!recordObject(value)) throw new TypeError("response must be a JSON object");
   if (value.protocol !== undefined && value.protocol !== protocol) throw new TypeError("protocol mismatch");
   if (typeof value.type !== "string" || !["read", "act", "actIfVersion", "reject", "done"].includes(value.type)) throw new TypeError("unsupported response type");
+  if (arm !== null && !allowedResponseTypes(arm).has(value.type)) throw new TypeError(`response type ${value.type} is not allowed for this arm`);
 
   if (value.type === "read") {
     assertAllowedKeys(value, new Set(["protocol", "type", "reason"]));
@@ -417,7 +446,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0 }) {
 
     let message;
     try {
-      message = parseAgentMessage(result.output);
+      message = parseAgentMessage(result.output, arm);
     } catch {
       protocolErrors += 1;
       messages.push({ role: "assistant", content: "[invalid JSON response omitted]" });
@@ -497,6 +526,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0 }) {
 }
 
 function campaignStatus(items) {
+  if (items.some((item) => item.calls?.some((call) => call.error?.status === 429))) return "RATE_LIMITED";
   if (items.some((item) => item.status === "ERROR")) return "ERROR";
   if (items.some((item) => item.status === "NOT_RUN")) return "NOT_RUN";
   return "OK";
@@ -568,18 +598,44 @@ function armResults(arms, traces) {
   return arms.map((arm) => aggregateArm(arm, traces.filter((trace) => trace.arm === arm)));
 }
 
-function blindCandidateId(args, arm) {
-  return sha(`${args.round}:${args.seed}:${arm}`).slice(7, 19);
+function makeBlindIds(arms) {
+  const ids = new Map();
+  const used = new Set();
+  for (const arm of arms) {
+    let id;
+    do id = `candidate-${randomBytes(18).toString("hex")}`; while (used.has(id));
+    used.add(id);
+    ids.set(arm, id);
+  }
+  return ids;
 }
 
-function blindReport(args, results, taskHash) {
+function hasExecutedLlmTask(trace) {
+  return trace.calls.some((call) => call.status === "OK");
+}
+
+function publicTrace(trace) {
+  return {
+    taskId: trace.taskId,
+    localChecks: trace.localChecks,
+    localCheckStates: trace.localCheckStates,
+    externalReads: trace.externalReads,
+    externalWrites: trace.externalWrites,
+    protocolErrors: trace.protocolErrors,
+    llm: trace.llm,
+    calls: trace.calls,
+    actions: trace.actions
+  };
+}
+
+function blindReport(args, results, taskHash, blindIds = makeBlindIds(results.map((result) => result.arm)), plannedTasks = args.tasks) {
   const comparable = results.length > 0 && results.every((result) => result.status === "OK");
   if (!comparable) {
     return {
       format: "premisebench-agent/llm-blind/v1",
       status: "NOT_COMPARABLE",
       reason: "at least one arm has provider ERROR or NOT_RUN; no partial ranking is emitted",
-      taskCount: args.tasks,
+      taskCount: plannedTasks,
       taskSetHash: taskHash,
       results: []
     };
@@ -587,7 +643,7 @@ function blindReport(args, results, taskHash) {
   return {
     format: "premisebench-agent/llm-blind/v1",
     status: "READY_FOR_EXAMINER",
-    taskCount: args.tasks,
+    taskCount: plannedTasks,
     taskSetHash: taskHash,
     results: results.map((result) => {
       const attempts = result.actionAttempts;
@@ -610,7 +666,7 @@ function blindReport(args, results, taskHash) {
         metrics.costPerSafeSuccessfulTaskUsd = result.completed > 0 ? result.providerCost / result.completed : null;
         metrics.csfaUsd = result.completed > 0 ? result.providerCost / result.completed : null;
       }
-      return { id: blindCandidateId(args, result.arm), metrics };
+      return { id: blindIds.get(result.arm), metrics };
     })
   };
 }
@@ -668,10 +724,14 @@ function publicManifest(args, candidate, tasks, status, hash) {
     credentialEnv: candidate.config.credentialEnv,
     round: args.round,
     seed: args.seed,
+    scenario: args.scenario,
+    volatility: args.scenario === "hard" ? args.volatility : null,
+    riskLevels: args.scenario === "hard" ? args.riskLevels : null,
     taskCount: tasks.length,
     arms: args.arms,
+    armTools: Object.fromEntries(args.arms.map((arm) => [arm, armPolicies[arm].tools])),
     taskSetHash: hash,
-    mutationWorld: "private:createWorld(task)",
+    mutationWorld: args.scenario === "hard" ? "private:createWorld(hard-task)" : "private:createWorld(task)",
     mutationSchedule: "private",
     labels: "withheld-from-agent",
     agentProtocol: protocol,
@@ -679,7 +739,7 @@ function publicManifest(args, candidate, tasks, status, hash) {
     systemPromptHashes: Object.fromEntries(args.arms.map((arm) => [arm, sha(systemPrompt(arm))])),
     taskPromptHashes: Object.fromEntries(tasks.map((task) => [task.taskId, sha(task.prompt)])),
     responseTypes: ["read", "act", "actIfVersion", "reject", "done"],
-    agentInputExcludes: ["mutation", "expected", "oracle", "labels", "family", "outcome", "groundTruth"],
+    agentInputExcludes: ["mutation", "expected", "oracle", "labels", "family", "outcome", "groundTruth", "hardCase", "risk", "volatility", "domain"],
     localCheckArms: args.arms.filter((arm) => armPolicies[arm].localCheck),
     maxTurns,
     maxRetries: args.maxRetries,
@@ -690,24 +750,25 @@ function publicManifest(args, candidate, tasks, status, hash) {
       retries: "included in providerAttempts and reported separately",
       latency: "candidate-reported per completion, summed without filling NOT_RUN as zero"
     },
-    artifacts: ["manifest.json", "summary.json", "traces.jsonl", "report.md", "blind-report.json", "examined-report.json", "mapping.private.json"],
+    artifacts: ["manifest.json", "summary.json", "traces.jsonl", "traces.evaluator.jsonl (evaluator-only)", "report.md", "blind-report.json", "examined-report.json", "mapping.private.json (evaluator-only)"],
     blindExaminerStatus: status === "OK" ? "READY_FOR_EXAMINER" : "NOT_COMPARABLE",
     generatedAt: new Date().toISOString(),
     tasks: tasks.map(publicTask)
   };
 }
 
-async function writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined }) {
+async function writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined, blindIds }) {
   const hash = taskSetHash(tasks);
   const manifest = publicManifest(args, candidate, tasks, summary.status, hash);
-  const directory = resolve(outputRoot, args.round);
+  const directory = resolve(args.outputRoot, args.round);
   await mkdir(directory, { recursive: true });
   await writeFile(resolve(directory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   await writeFile(resolve(directory, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
-  await writeFile(resolve(directory, "traces.jsonl"), `${traces.map((trace) => JSON.stringify(trace)).join("\n")}\n`, "utf8");
+  await writeFile(resolve(directory, "traces.jsonl"), `${traces.map((trace) => JSON.stringify(publicTrace(trace))).join("\n")}\n`, "utf8");
+  await writeFile(resolve(directory, "traces.evaluator.jsonl"), `${traces.map((trace) => JSON.stringify(trace)).join("\n")}\n`, "utf8");
   await writeFile(resolve(directory, "blind-report.json"), `${JSON.stringify(blind, null, 2)}\n`, "utf8");
   await writeFile(resolve(directory, "examined-report.json"), `${JSON.stringify(examined, null, 2)}\n`, "utf8");
-  await writeFile(resolve(directory, "mapping.private.json"), `${JSON.stringify(Object.fromEntries(args.arms.map((arm) => [blindCandidateId(args, arm), arm])), null, 2)}\n`, "utf8");
+  await writeFile(resolve(directory, "mapping.private.json"), `${JSON.stringify(Object.fromEntries([...blindIds.entries()].map(([arm, id]) => [id, arm])), null, 2)}\n`, "utf8");
   await writeFile(resolve(directory, "report.md"), `${reportMarkdown({ args, manifest, summary })}\n`, "utf8");
   return { manifest, directory };
 }
@@ -725,9 +786,15 @@ async function main(argv = process.argv.slice(2)) {
       model: candidate.config.model,
       credentialEnv: candidate.config.credentialEnv,
       tasks: args.tasks,
+      plannedTasks: args.tasks,
+      executedLLMTasks: 0,
       seed: args.seed,
+      scenario: args.scenario,
+      volatility: args.volatility,
+      riskLevels: args.riskLevels,
       round: args.round,
       arms: args.arms,
+      outputRoot: args.outputRoot,
       maxRetries: args.maxRetries,
       delayMs: args.delayMs
     };
@@ -735,15 +802,30 @@ async function main(argv = process.argv.slice(2)) {
     return result;
   }
 
-  const tasks = makeTasks(args.tasks, args.seed);
+  const tasks = args.scenario === "hard"
+    ? makeHardTasks(args.tasks, args.seed, { volatility: args.volatility, riskLevels: args.riskLevels })
+    : makeTasks(args.tasks, args.seed);
+  const plannedTasks = tasks.length;
+  const executedTaskIds = new Set();
   const traces = [];
-  for (const task of tasks) {
-    for (const arm of args.arms) traces.push(await runAgent({ candidate, task, arm, round: args.round, delayMs: args.delayMs }));
+  let stopReason = null;
+  outer: for (const task of tasks) {
+    for (const arm of args.arms) {
+      const trace = await runAgent({ candidate, task, arm, round: args.round, delayMs: args.delayMs });
+      traces.push(trace);
+      if (hasExecutedLlmTask(trace)) executedTaskIds.add(task.taskId);
+      if (trace.calls.some((call) => call.error?.status === 429)) {
+        stopReason = "RATE_LIMITED";
+        break outer;
+      }
+    }
   }
+  const executedLLMTasks = executedTaskIds.size;
   const results = armResults(args.arms, traces);
   const taskHash = taskSetHash(tasks);
-  const blind = blindReport(args, results, taskHash);
-  const artifactDirectory = resolve(outputRoot, args.round);
+  const blindIds = makeBlindIds(args.arms);
+  const blind = blindReport(args, results, taskHash, blindIds, plannedTasks);
+  const artifactDirectory = resolve(args.outputRoot, args.round);
   await mkdir(artifactDirectory, { recursive: true });
   const blindPath = resolve(artifactDirectory, "blind-report.json");
   const examinedPath = resolve(artifactDirectory, "examined-report.json");
@@ -759,14 +841,20 @@ async function main(argv = process.argv.slice(2)) {
   }
   const summary = {
     format: "premisebench-agent/llm-campaign-summary/v1",
-    status: campaignStatus(results),
+    status: stopReason ?? campaignStatus(results),
     provider: candidate.config.provider,
     model: candidate.config.model,
     credentialEnv: candidate.config.credentialEnv,
     round: args.round,
     seed: args.seed,
     taskCount: tasks.length,
+    plannedTasks,
+    executedLLMTasks,
     taskSetHash: taskHash,
+    scenario: args.scenario,
+    stopReason,
+    volatility: args.scenario === "hard" ? args.volatility : null,
+    riskLevels: args.scenario === "hard" ? args.riskLevels : null,
     blindExaminerStatus: blind.status,
     blindWinner: examined.winner ?? null,
     results: results.map((metrics) => ({ arm: metrics.arm, name: metrics.name, status: metrics.status, metrics })),
@@ -777,9 +865,10 @@ async function main(argv = process.argv.slice(2)) {
       "Raw model responses and credential values are not written; traces keep hashes, protocol actions, and safe telemetry only."
     ]
   };
-  const { manifest, directory } = await writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined });
-  const result = { status: summary.status, round: args.round, tasks: tasks.length, arms: args.arms, directory, manifest: manifest.artifacts, results };
+  const { manifest, directory } = await writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined, blindIds });
+  const result = { status: summary.status, round: args.round, tasks: plannedTasks, plannedTasks, executedLLMTasks, arms: args.arms, directory, manifest: manifest.artifacts, results };
   console.log(JSON.stringify(result, null, 2));
+  if (args.requireLive && summary.status !== "OK") process.exitCode = 1;
   return result;
 }
 

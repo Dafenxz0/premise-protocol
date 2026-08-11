@@ -10,13 +10,11 @@ function actionFor(snapshot, includeVersion = true) {
   return includeVersion ? { ...action, basedOnVersion: snapshot.version } : action;
 }
 
-// The connector does not need a prose reason for a read.  The operation
-// itself and the version carried by the snapshot already identify why the
-// read is happening, so use stable compact reason codes in the external
-// envelope.  Keep the codes explicit rather than omitting the field so the
-// trace remains auditable and comparable across arms.
-const READ_REVALIDATE = 0;
-const READ_RETRY_AFTER_CAS = 1;
+// The connector does not need a prose reason for a read. Keep the same
+// compact reason vocabulary for every arm so the token proxy does not reward
+// an implementation merely for using shorter metadata.
+const READ_REVALIDATE = "revalidate";
+const READ_RETRY_AFTER_CAS = "retry";
 
 export const mutationStrategies = Object.freeze({
   basic: {
@@ -30,7 +28,7 @@ export const mutationStrategies = Object.freeze({
     name: "Memoria mejorada convencional",
     description: "Vuelve a leer la fuente antes de actuar, pero no protege el write contra TOCTOU.",
     async run(ctx) {
-      const current = await ctx.sourceRead("refresh-before-action");
+      const current = await ctx.sourceRead(READ_REVALIDATE);
       return ctx.act(actionFor(current));
     }
   },
