@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateEligibility, parseArgs, registerIdempotencyKey, summarizeResults } from "./postgres-scale.mjs";
+import { evaluateEligibility, memoryIdFor, parseArgs, registerIdempotencyKey, registerMemoryId, summarizeResults } from "./postgres-scale.mjs";
 
 function result(operation, durationMs, { ok = true, sequence = 0 } = {}) {
   return { operation, durationMs, ok, sequence };
@@ -108,6 +108,12 @@ test("recovery register idempotency keys are stable per pass and isolated across
   assert.equal(registerIdempotencyKey("run-a", 1000001), "pg-scale:register:run-a:1000001");
   assert.equal(registerIdempotencyKey("run-a", 1000001), registerIdempotencyKey("run-a", 1000001));
   assert.notEqual(registerIdempotencyKey("run-a", 1000001), registerIdempotencyKey("run-b", 1000001));
+});
+
+test("recovery register memory identities are isolated across passes", () => {
+  assert.equal(memoryIdFor(1000001), "memory:pg-scale:lflt");
+  assert.equal(registerMemoryId("run-a", 1), "memory:pg-scale:register:run-a:1");
+  assert.notEqual(registerMemoryId("run-a", 1), registerMemoryId("run-b", 1));
 });
 
 test("eligibility fails closed when an operation has no raw samples", () => {

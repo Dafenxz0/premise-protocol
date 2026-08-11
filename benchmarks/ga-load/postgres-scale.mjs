@@ -260,9 +260,13 @@ function memoryIdFor(index) {
   return `memory:pg-scale:${index.toString(36)}`;
 }
 
-function recordFor(tenantId, index, observedAt) {
-  const memoryId = memoryIdFor(index);
-  const sourceUri = `pg-scale://records/${index.toString(36)}`;
+function registerMemoryId(runId, sequence) {
+  return `memory:pg-scale:register:${runId}:${sequence}`;
+}
+
+function recordFor(tenantId, index, observedAt, memoryId = memoryIdFor(index)) {
+  const sourceToken = typeof index === "number" ? index.toString(36) : String(index).toLowerCase();
+  const sourceUri = `pg-scale://records/${sourceToken}`;
   const content = `PREMiSE PostgreSQL scale memory ${index}`;
   return {
     memory_id: memoryId,
@@ -288,8 +292,8 @@ function recordFor(tenantId, index, observedAt) {
   };
 }
 
-function protocolRecordFor(tenantId, index) {
-  const stored = recordFor(tenantId, index, "2026-08-10T00:00:00.000Z");
+function protocolRecordFor(tenantId, index, memoryId = memoryIdFor(index)) {
+  const stored = recordFor(tenantId, index, "2026-08-10T00:00:00.000Z", memoryId);
   return { envelope: stored.envelope_json, content: stored.content_json };
 }
 
@@ -384,7 +388,8 @@ async function request(config, operation, index, sequence, signer) {
   const body = operation === "query"
     ? { query: "PREMiSE PostgreSQL scale memory", options: { limit: 8 }, maxTokens: 128 }
     : operation === "register" ? (() => {
-      const record = protocolRecordFor(config.tenantId, index);
+      const memoryId = registerMemoryId(config.runId, sequence);
+      const record = protocolRecordFor(config.tenantId, index, memoryId);
       return { record: { ...record, envelope: signer === undefined ? record.envelope : signer.signEnvelope(record.envelope, { signatureId: `sig:pg-scale:${config.runId}:${sequence}`, evidenceId: record.envelope.evidence[0]?.evidenceId }) } };
     })() : undefined;
   const idempotencyKey = operation === "register" ? registerIdempotencyKey(config.runId, index) : undefined;
@@ -408,7 +413,7 @@ async function request(config, operation, index, sequence, signer) {
     if (!response.ok) error = `HTTP_${response.status}`;
     else if (operation === "retrieve" && responseBody?.envelope?.memoryId !== memoryIdFor(index)) error = "RETRIEVE_CONTRACT";
     else if (operation === "query" && (!Array.isArray(responseBody?.hits) || responseBody?.context === null || typeof responseBody?.context !== "object")) error = "QUERY_CONTRACT";
-    else if (operation === "register" && (responseBody?.memoryId !== memoryIdFor(index) || responseBody?.status !== "stored")) error = "REGISTER_CONTRACT";
+    else if (operation === "register" && (responseBody?.memoryId !== registerMemoryId(config.runId, sequence) || responseBody?.status !== "stored")) error = "REGISTER_CONTRACT";
   } catch (caught) {
     error = caught?.name === "AbortError" ? "TIMEOUT" : caught instanceof SyntaxError ? "INVALID_JSON" : caught instanceof Error ? caught.message : String(caught);
   } finally {
@@ -569,4 +574,4 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === path.reso
   });
 }
 
-export { benchmark, evaluateEligibility, parseArgs, registerIdempotencyKey, seed, summarizeResults };
+export { benchmark, evaluateEligibility, memoryIdFor, parseArgs, registerIdempotencyKey, registerMemoryId, seed, summarizeResults };
