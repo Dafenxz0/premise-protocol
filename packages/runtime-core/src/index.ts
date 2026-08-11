@@ -316,7 +316,8 @@ export class PremiseRuntime<T = unknown> {
 
   checkMany(memoryIds: readonly string[], principal = this.principal): readonly RuntimeCheckItem[] {
     const checked = new Map<string, RuntimeCheckItem>();
-    for (const memoryId of unique(memoryIds)) {
+    for (const memoryId of memoryIds) {
+      if (checked.has(memoryId)) continue;
       const record = this.get(memoryId, principal);
       checked.set(memoryId, record === undefined
         ? { memoryId, status: "INVALID", decision: "REJECT", reason: "missing or inaccessible memory" }
@@ -348,28 +349,39 @@ export class PremiseRuntime<T = unknown> {
   }
 
   async revalidateMany(memoryIds: readonly string[], validator: RuntimeValidator<T>, eventId?: string): Promise<readonly RuntimeValidationReport[]> {
-    const ids = unique(memoryIds);
-    const records = new Map(ids.map((memoryId) => [memoryId, this.require(memoryId)]));
+    const ids: string[] = [];
+    const records = new Map<string, RuntimeRecord<T>>();
+    for (const memoryId of memoryIds) {
+      if (records.has(memoryId)) continue;
+      ids.push(memoryId);
+      records.set(memoryId, this.require(memoryId));
+    }
     const grouped = new Map<string, Promise<RuntimeValidationReport>>();
     const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
 
     const pending = ids.map((memoryId) => {
       const record = records.get(memoryId)!;
-      const validations = record.envelope.evidence.map((evidence) => {
-        const key = `${evidence.evidenceId}:${canonicalJson(evidence)}`;
+      const evidence = record.envelope.evidence;
+      if (evidence.length === 0) {
+        return Promise.resolve({
+          memoryId,
+          report: { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: this.now(), reason: "memory has no evidence" } as RuntimeValidationReport
+        });
+      }
+      const validations = evidence.map((item) => {
+        const key = `${item.evidenceId}:${canonicalJson(item)}`;
         // Sharing is conservative: differing evidence payloads with the same key fall back to separate validation.
         let validation = grouped.get(key);
         if (validation === undefined) {
-          validation = Promise.resolve().then(() => validator(evidence, record));
+          validation = Promise.resolve().then(() => validator(item, record));
           grouped.set(key, validation);
         }
         return validation.then((report) => ({ ...report, memoryId }));
       });
-      return Promise.all(validations).then((reports): { memoryId: string; report: RuntimeValidationReport } => ({
+      const reportsPromise = validations.length === 1 ? validations[0]!.then((report) => [report]) : Promise.all(validations);
+      return reportsPromise.then((reports): { memoryId: string; report: RuntimeValidationReport } => ({
         memoryId,
-        report: record.envelope.evidence.length === 0
-          ? { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: this.now(), reason: "memory has no evidence" }
-          : priority.map((result) => reports.find((report) => report.result === result)).find((report): report is RuntimeValidationReport => report !== undefined) ?? reports[0]!
+        report: priority.map((result) => reports.find((report) => report.result === result)).find((report): report is RuntimeValidationReport => report !== undefined) ?? reports[0]!
       }));
     });
     const selected = new Map((await Promise.all(pending)).map(({ memoryId, report }) => [memoryId, report]));
@@ -475,13 +487,21 @@ export class PremiseRuntime<T = unknown> {
   private dependentClosure(seeds: readonly string[]): readonly string[] {
     const result: string[] = [];
     const seen = new Set<string>();
-    const queue = [...seeds];
-    while (queue.length > 0) {
-      const memoryId = queue.shift()!;
-      if (seen.has(memoryId)) continue;
-      seen.add(memoryId);
+    const queue: string[] = [];
+    for (const seed of seeds) {
+      if (seen.has(seed)) continue;
+      seen.add(seed);
+      queue.push(seed);
+    }
+    let cursor = 0;
+    while (cursor < queue.length) {
+      const memoryId = queue[cursor++]!;
       result.push(memoryId);
-      queue.push(...this.orderedIds(this.dependentsByDependency.get(memoryId) ?? []));
+      for (const dependentId of this.orderedIds(this.dependentsByDependency.get(memoryId) ?? [])) {
+        if (seen.has(dependentId)) continue;
+        seen.add(dependentId);
+        queue.push(dependentId);
+      }
     }
     return result;
   }
