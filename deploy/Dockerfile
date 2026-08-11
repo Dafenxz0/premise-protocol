@@ -58,6 +58,7 @@ COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-soak ./benchmarks
 # Keep the real PostgreSQL scale harness beside the runtime. It is invoked
 # only by the explicit GA scale campaign; the normal service never runs it.
 COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-load/postgres-scale.mjs ./benchmarks/ga-load/postgres-scale.mjs
+COPY --from=build --chown=10001:10001 /workspace/benchmarks/ga-load/signed-envelope-client.mjs ./benchmarks/ga-load/signed-envelope-client.mjs
 # Operations code is imported from /app/ops, so production-only connector
 # dependencies must be resolvable from the image-level /app/node_modules.
 COPY --from=build --chown=10001:10001 /opt/deploy-deps/node_modules ./node_modules

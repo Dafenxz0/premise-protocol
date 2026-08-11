@@ -5,6 +5,7 @@ import { performance } from "node:perf_hooks";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadSignedEnvelopeClient } from "../ga-load/signed-envelope-client.mjs";
 
 export const FORMAT = "premise-ga-soak/1";
 export const TRACE_FORMAT = "premise-ga-soak/trace/1";
@@ -573,7 +574,8 @@ async function runOperation(config, state, operation, sequence) {
   }
   if (operation === "register") {
     const item = recordFor(config, state.runId, sequence, "live");
-    const result = await call("/v2/memories", "POST", { record: item.record }, `ga-soak:${state.runId}:live:${sequence}`);
+    const envelope = state.signer === undefined ? item.record.envelope : state.signer.signEnvelope(item.record.envelope, { signatureId: `sig:ga-soak:${state.runId}:live:${sequence}`, evidenceId: item.record.envelope.evidence[0]?.evidenceId });
+    const result = await call("/v2/memories", "POST", { record: { ...item.record, envelope } }, `ga-soak:${state.runId}:live:${sequence}`);
     validateRegister(result.body, item.memoryId);
     return;
   }
@@ -677,7 +679,7 @@ function updateReadiness(state, error) {
   readiness.state = "not-ready";
 }
 
-async function setupTarget(config, runId) {
+async function setupTarget(config, runId, signer) {
   const started = performance.now();
   const traceContext = (operation, probe = null) => ({ trace: config.traceWriter, operation, probe, phase: "setup", sequence: null });
   const liveness = await requestJson(config, config.livenessPath, "GET", undefined, undefined, traceContext("health", "liveness"));
@@ -692,7 +694,8 @@ async function setupTarget(config, runId) {
   const seedRecords = [];
   for (let index = 0; index < config.seedCount; index += 1) {
     const item = recordFor(config, runId, index);
-    const response = await requestJson(config, "/v2/memories", "POST", { record: item.record }, `ga-soak:${runId}:seed:${index}`, traceContext("register"));
+    const envelope = signer === undefined ? item.record.envelope : signer.signEnvelope(item.record.envelope, { signatureId: `sig:ga-soak:${runId}:seed:${index}`, evidenceId: item.record.envelope.evidence[0]?.evidenceId });
+    const response = await requestJson(config, "/v2/memories", "POST", { record: { ...item.record, envelope } }, `ga-soak:${runId}:seed:${index}`, traceContext("register"));
     validateRegister(response.body, item.memoryId);
     seedRecords.push(item);
   }
@@ -892,6 +895,8 @@ function emptySetup(config, error) {
 export async function runSoak(input = {}) {
   const config = normalizeConfig(input);
   const runId = input.runId ?? randomUUID();
+  const environment = String(process.env.PREMISE_ENV ?? "development").trim().toLowerCase();
+  const signer = await loadSignedEnvelopeClient({ required: environment === "production" || environment === "staging" || process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1" });
   const abortSignal = input.abortSignal ?? input.signal;
   config.abortSignal = abortSignal;
   const trace = new TraceWriter({ output: config.traceOutput, limit: config.rawTraceLimit, runId });
@@ -905,13 +910,13 @@ export async function runSoak(input = {}) {
   const started = performance.now();
   let setup;
   try {
-    setup = await setupTarget(config, runId);
+    setup = await setupTarget(config, runId, signer);
   } catch (error) {
     setup = emptySetup(config, error);
   }
 
   const metrics = makeMetrics(config);
-  const state = { runId, seedRecords: setup.seedRecords, nextSequence: 0, readiness: emptyReadiness(), trace };
+  const state = { runId, signer, seedRecords: setup.seedRecords, nextSequence: 0, readiness: emptyReadiness(), trace };
   const measuredWindow = input.measuredWindow;
   let measuredStarted = false;
   let measuredStart = performance.now();
@@ -980,7 +985,8 @@ export async function runSoak(input = {}) {
       latencySampleSize: config.latencySampleSize,
       rawTraceLimit: config.rawTraceLimit,
       traceOutput: traceSummary.path,
-      operations: config.operations
+      operations: config.operations,
+      signing: { required: signer !== undefined || environment === "production" || environment === "staging" || process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1", configured: signer !== undefined, keyId: signer?.keyId ?? null }
     },
     setup: { ...setup, seedRecords: setup.seedRecords.map(({ memoryId, sourceUri }) => ({ memoryId, sourceUri })) },
     window,
