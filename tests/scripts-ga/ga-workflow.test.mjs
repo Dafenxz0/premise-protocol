@@ -14,6 +14,10 @@ test("GA certification is fail-closed for manual runs and required evidence cann
   assert.doesNotMatch(workflow, /results-full\.json/u);
   assert.match(workflow, /\.ga-artifacts\/recovery-report\.json/u);
   assert.doesNotMatch(workflow, /\.ga-artifacts\/postgres-scale-restart\.json/u);
+  assert.match(workflow, /scripts\/generate-ga-signing-key\.mjs/u);
+  assert.match(workflow, /PREMISE_REQUIRE_SIGNED_ENVELOPES=1/u);
+  assert.match(workflow, /PREMISE_SIGNATURE_PRIVATE_KEY_FILE=\/run\/secrets\/premise_signature_private_key\.pem/u);
+  assert.match(workflow, /-v "\$PWD\/\.local\/premise_signature_private_key\.pem:\/run\/secrets\/premise_signature_private_key\.pem:ro"/u);
 
   const postgresScale = workflow.slice(workflow.indexOf("  postgres-scale:"), workflow.indexOf("  external-github:"));
   const roleProvision = postgresScale.indexOf('run: docker compose -f "${COMPOSE_FILE}" run --rm --no-deps db-roles');
@@ -44,6 +48,7 @@ test("GA certification is fail-closed for manual runs and required evidence cann
   assert.match(productionSoak, /printf '%s\\n' "\$metrics_token" > \.local\/premise_metrics_token/u);
   assert.match(soakStart, /export PREMISE_METRICS_TOKEN="\$\(cat \.local\/premise_metrics_token\)"/u);
   assert.match(soakStart, /up -d --no-build premise prometheus otel-collector/u);
+  assert.match(productionSoak, /run --rm --no-deps[\s\S]*?--base-url http:\/\/premise:3000/u);
 
   const postgresRawVerification = workflow.slice(
     workflow.indexOf("      - name: Verify PostgreSQL scale raw evidence"),
