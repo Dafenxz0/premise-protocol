@@ -116,7 +116,11 @@ function createWorld(task) {
     actIfVersion(expectedVersion, action) {
       if (task.mutationWindow === "during-write") mutate();
       const currentVersion = sha(current);
-      if (currentVersion !== expectedVersion) return { accepted: false, reason: "VERSION_MISMATCH", currentVersion };
+      if (currentVersion !== expectedVersion) {
+        // A conditional write may return the conflicting snapshot. Callers can
+        // reuse it, but its payload is counted as part of this operation.
+        return { accepted: false, reason: "VERSION_MISMATCH", currentVersion, current: snapshot(current) };
+      }
       lastAction = { ...completeBasedOnVersion(expectedVersion, action), accepted: true };
       return { accepted: true };
     },
@@ -238,15 +242,26 @@ function createContext(task, world, memory, agentInput) {
   let externalWrites = 0;
   let localChecks = 0;
   let invalidationEvents = 0;
+  let lastInvalidationVersion = null;
   // The initial memory is already counted in agentInput. Keep only a reference
   // here so the same evidence payload is not charged twice.
   telemetry.recordProtocol("memory-lookup", { taskId: task.taskId, source: task.source }, { source: task.source, version: memory.version });
-  if (world.mutationEvent !== null) invalidationEvents += 1;
+
+  function observeInvalidation() {
+    const event = world.mutationEvent;
+    if (event !== null && event.version !== lastInvalidationVersion) {
+      lastInvalidationVersion = event.version;
+      invalidationEvents += 1;
+    }
+  }
+
+  observeInvalidation();
 
   const context = {
     task: { taskId: task.taskId, source: task.source },
     memory,
     checkEvidence() {
+      observeInvalidation();
       localChecks += 1;
       const event = world.mutationEvent;
       const state = event === null || event.version === memory.version ? "FRESH" : "STALE";
@@ -254,6 +269,7 @@ function createContext(task, world, memory, agentInput) {
       return { state };
     },
     sourceChanged() {
+      observeInvalidation();
       localChecks += 1;
       const changed = world.mutationEvent !== null && world.mutationEvent.version !== memory.version;
       telemetry.recordProtocol("source-change-probe", { observedVersion: memory.version }, { changed });
@@ -262,12 +278,14 @@ function createContext(task, world, memory, agentInput) {
     async sourceRead(reason) {
       externalReads += 1;
       const result = world.read();
+      observeInvalidation();
       telemetry.recordExternal("source-read", { source: task.source, reason }, result);
       return result;
     },
     act(action) {
       externalWrites += 1;
       const response = world.act(action);
+      observeInvalidation();
       telemetry.recordExternal("write", action, response);
       return response;
     },
@@ -275,12 +293,14 @@ function createContext(task, world, memory, agentInput) {
       externalWrites += 1;
       const compactAction = compactCasAction(expectedVersion, action);
       const response = world.actIfVersion(expectedVersion, compactAction);
+      observeInvalidation();
       telemetry.recordExternal("compare-and-set", { expectedVersion, action: compactAction }, response);
       return response;
     },
     reject(action) {
       externalWrites += 1;
       const response = world.act(action);
+      observeInvalidation();
       telemetry.recordExternal("reject", action, response);
       return response;
     }
