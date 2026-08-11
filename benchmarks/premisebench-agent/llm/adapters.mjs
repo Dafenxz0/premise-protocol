@@ -1,13 +1,17 @@
 export const DEFAULT_ENDPOINTS = Object.freeze({
   "openai-compatible": "https://api.openai.com/v1/chat/completions",
+  openrouter: "https://openrouter.ai/api/v1/chat/completions",
   anthropic: "https://api.anthropic.com/v1/messages",
   gemini: "https://generativelanguage.googleapis.com/v1beta",
 });
+
+const OPENAI_COMPATIBLE_PROVIDERS = new Set(["openai-compatible", "openrouter"]);
 
 export function normalizeProvider(value) {
   if (typeof value !== "string") return null;
   const provider = value.trim().toLowerCase();
   if (["openai", "openai-compatible", "openai_compatible", "chat-completions"].includes(provider)) return "openai-compatible";
+  if (provider === "openrouter") return "openrouter";
   if (provider === "anthropic") return "anthropic";
   if (["gemini", "google", "google-gemini"].includes(provider)) return "gemini";
   return null;
@@ -101,7 +105,7 @@ function headers(extra, auth) {
 }
 
 export function buildProviderRequest({ config, credential, messages, tools = [] }) {
-  if (config.provider === "openai-compatible") {
+  if (OPENAI_COMPATIBLE_PROVIDERS.has(config.provider)) {
     const body = {
       model: config.model,
       messages,
@@ -215,7 +219,7 @@ function commonMetrics({ inputTokens = null, outputTokens = null, cachedTokens =
 }
 
 export function normalizeProviderResponse(provider, body) {
-  if (provider === "openai-compatible") {
+  if (OPENAI_COMPATIBLE_PROVIDERS.has(provider)) {
     const choice = object(body?.choices?.[0]);
     const message = object(choice.message);
     const usage = object(body?.usage);

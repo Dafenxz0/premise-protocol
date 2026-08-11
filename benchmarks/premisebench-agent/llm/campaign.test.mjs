@@ -75,6 +75,23 @@ test("hard scenario is selectable without changing the blinded contract", () => 
   assert.equal(hard.tasks, 2);
 });
 
+test("OpenRouter/Nemotron settings are accepted without inline credentials", () => {
+  const openrouter = parseArgs([
+    "--provider=openrouter",
+    "--model=nvidia/nemotron-3-ultra-550b-a55b",
+    "--endpoint=https://openrouter.ai/api/v1/chat/completions",
+    "--credential-env=OPENROUTER_API_KEY",
+    "--max-tokens=1024",
+    "--tasks=2",
+    "--round=openrouter-test",
+    "--arms=premise"
+  ]);
+  assert.equal(openrouter.provider, "openrouter");
+  assert.equal(openrouter.endpoint, "https://openrouter.ai/api/v1/chat/completions");
+  assert.equal(openrouter.credentialEnv, "OPENROUTER_API_KEY");
+  assert.equal(openrouter.maxTokens, 1024);
+});
+
 test("arms cannot silently borrow another arm's write capability", () => {
   const guarded = JSON.stringify({ type: "actIfVersion", expectedVersion: "sha256:v1", action: { kind: "apply", value: "safe" } });
   assert.throws(() => parseAgentMessage(guarded, "basic"), /not allowed/iu);

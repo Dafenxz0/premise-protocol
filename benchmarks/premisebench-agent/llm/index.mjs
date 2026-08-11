@@ -164,6 +164,7 @@ export function createLlmCandidate(rawConfig, { env = process.env, fetchImpl = g
         const signal = timeoutSignal(config.timeoutMs);
         const response = await fetchImpl(providerRequest.url, {
           ...providerRequest.init,
+          redirect: "error",
           ...(signal ? { signal } : {}),
         });
         if (response.ok) {

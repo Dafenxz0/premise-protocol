@@ -29,6 +29,12 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
   workflow_dispatch:
+    inputs:
+      run_hard_20_llm:
+        description: "Run the billable 20-round real-LLM sample (explicit opt-in)"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -42,6 +48,11 @@ jobs:
     name: Node 24, PREMiSE/1, smoke, and self-check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      OPENAI_API_KEY: ""
+      ANTHROPIC_API_KEY: ""
+      GEMINI_API_KEY: ""
+      OPENROUTER_API_KEY: ""
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,4 +108,72 @@ jobs:
             .tmp/scientific-mvp/scientific-mvp-dev/report.md
           include-hidden-files: true
           if-no-files-found: error
+          retention-days: 14
+
+  hard-20-live:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_hard_20_llm == true }}
+    needs: gates
+    name: Manual twenty-round LLM campaign
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Require the explicit live-run credential
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: test -n "$OPENROUTER_API_KEY"
+      - name: Run the twenty-round campaign
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: >-
+          node benchmarks/premisebench-agent/scientific/hard-ten-rounds.mjs
+          --llm-tasks=2
+          --provider=openrouter
+          --model=nvidia/nemotron-3-ultra-550b-a55b
+          --credential-env=OPENROUTER_API_KEY
+          --require-live
+      - name: Scan publishable artifacts for credential material
+        id: scan-artifacts
+        if: always()
+        run: |
+          if grep -RIE 'sk-or-v1|Bearer[[:space:]]+[A-Za-z0-9._-]{20,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' .tmp/scientific-mvp/hard-ten-rounds; then
+            echo 'credential-like material found in benchmark artifacts'
+            exit 1
+          fi
+      - name: Upload twenty-round campaign artifacts
+        if: ${{ steps.scan-artifacts.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: premisebench-agent-hard-20-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            .tmp/scientific-mvp/hard-ten-rounds/plan.json
+            .tmp/scientific-mvp/hard-ten-rounds/campaign-summary.json
+            .tmp/scientific-mvp/hard-ten-rounds/report.json
+            .tmp/scientific-mvp/hard-ten-rounds/report.md
+            .tmp/scientific-mvp/hard-ten-rounds/tables.md
+            .tmp/scientific-mvp/hard-ten-rounds/r*/plan.json
+            .tmp/scientific-mvp/hard-ten-rounds/r*/improvement.json
+            .tmp/scientific-mvp/hard-ten-rounds/r*/improvement.md
+            .tmp/scientific-mvp/hard-ten-rounds/r*/llm-run.json
+            .tmp/scientific-mvp/hard-ten-rounds/llm/*/manifest.json
+            .tmp/scientific-mvp/hard-ten-rounds/llm/*/summary.json
+            .tmp/scientific-mvp/hard-ten-rounds/llm/*/traces.jsonl
+            .tmp/scientific-mvp/hard-ten-rounds/llm/*/blind-report.json
+            .tmp/scientific-mvp/hard-ten-rounds/llm/*/examined-report.json
+            .tmp/scientific-mvp/hard-ten-rounds/llm/*/report.md
+          include-hidden-files: true
+          if-no-files-found: warn
           retention-days: 14

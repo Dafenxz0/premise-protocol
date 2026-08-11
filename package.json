@@ -45,7 +45,7 @@
     "benchmark:scientific:matrix:check": "node benchmarks/premisebench-agent/scientific/matrix.mjs --tasks=20 --seed=20260811 --round=matrix-dev && node scripts/premisebench-agent/scientific-matrix-self-check.mjs --round=matrix-dev",
     "benchmark:llm:check": "node --test benchmarks/premisebench-agent/llm/llm.test.mjs benchmarks/premisebench-agent/llm/campaign.test.mjs",
     "benchmark:llm:pilot": "node benchmarks/premisebench-agent/llm/campaign.mjs --provider=gemini --model=gemini-3.5-flash-lite --tasks=20 --seed=20260811 --round=gemini-pilot --max-retries=0 --delay-ms=2000",
-    "benchmark:hard:check": "node --test benchmarks/premisebench-agent/scientific/hard-scenarios.test.mjs benchmarks/premisebench-agent/scientific/hard-ten-rounds.test.mjs benchmarks/premisebench-agent/llm/campaign.test.mjs && node benchmarks/premisebench-agent/scientific/hard-ten-rounds.mjs --start=1 --end=1 --skip-llm --llm-tasks=0 --output=.tmp/scientific-mvp/hard-check",
+    "benchmark:hard:check": "node --test benchmarks/premisebench-agent/mutation-campaign.test.mjs benchmarks/premisebench-agent/scientific/hard-scenarios.test.mjs benchmarks/premisebench-agent/scientific/hard-ten-rounds.test.mjs benchmarks/premisebench-agent/llm/campaign.test.mjs && node benchmarks/premisebench-agent/scientific/hard-ten-rounds.mjs --start=1 --end=1 --skip-llm --llm-tasks=0 --output=.tmp/scientific-mvp/hard-check",
     "benchmark:hard:ten": "node benchmarks/premisebench-agent/scientific/hard-ten-rounds.mjs --llm-tasks=2 --provider=gemini --model=gemini-3.5-flash-lite",
     "benchmark:premisebench:live-smoke": "node benchmarks/premisebench-agent/live-smoke.mjs",
     "ga:gate": "node scripts/ga-gate.mjs",

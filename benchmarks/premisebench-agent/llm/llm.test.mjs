@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildProviderRequest, normalizeProviderResponse } from "./adapters.mjs";
+import { DEFAULT_ENDPOINTS, buildProviderRequest, normalizeProvider, normalizeProviderResponse } from "./adapters.mjs";
 import { createLlmCandidate, hashPrompt, parseConfig, redact } from "./index.mjs";
 
 test("parseConfig accepts declarative JSON and fixes run settings", () => {
@@ -32,6 +32,70 @@ test("parseConfig accepts declarative JSON and fixes run settings", () => {
     responseFormat: "json-object",
   });
   assert.throws(() => parseConfig({ provider: "anthropic", model: "claude", apiKey: "inline-secret" }), /inline credentials/);
+});
+
+test("OpenRouter aliases the OpenAI-compatible adapter with safe defaults", async () => {
+  const config = parseConfig({ provider: "openrouter", model: "openrouter/test-model" });
+  assert.equal(normalizeProvider("openrouter"), "openrouter");
+  assert.equal(config.provider, "openrouter");
+  assert.equal(config.endpoint, DEFAULT_ENDPOINTS.openrouter);
+  assert.equal(config.credentialEnv, "OPENROUTER_API_KEY");
+
+  const secret = "test-openrouter-credential";
+  const request = buildProviderRequest({
+    config: { ...config, provider: "openrouter" },
+    credential: secret,
+    messages: [{ role: "user", content: "hello" }],
+  });
+  assert.equal(request.url, DEFAULT_ENDPOINTS.openrouter);
+  assert.equal(request.init.headers.authorization, `Bearer ${secret}`);
+  assert.equal(JSON.parse(request.init.body).model, "openrouter/test-model");
+  assert.equal(JSON.stringify(config).includes(secret), false);
+
+  const candidate = createLlmCandidate({ provider: "openrouter", model: "openrouter/test-model", prompt: "hello", maxRetries: 0 }, {
+    env: { OPENROUTER_API_KEY: secret },
+    fetchImpl: async (url, init) => {
+      assert.equal(url, DEFAULT_ENDPOINTS.openrouter);
+      assert.equal(init.headers.authorization, `Bearer ${secret}`);
+      assert.equal(init.redirect, "error");
+      return { ok: true, json: async () => ({ choices: [{ message: { content: "done" } }] }) };
+    },
+  });
+  const result = await candidate.complete({ taskId: "openrouter-test" });
+  assert.equal(result.status, "OK");
+  assert.equal(JSON.stringify(candidate.config).includes(secret), false);
+  assert.equal(JSON.stringify(result).includes(secret), false);
+
+  const normalized = normalizeProviderResponse("openrouter", {
+    choices: [{ finish_reason: "stop", message: { content: "done" } }],
+    usage: { prompt_tokens: 4, completion_tokens: 2 },
+  });
+  assert.equal(normalized.text, "done");
+  assert.deepEqual(normalized.metrics, {
+    inputTokens: 4,
+    outputTokens: 2,
+    cachedTokens: null,
+    toolCalls: 0,
+    providerCost: null,
+  });
+});
+
+test("OpenRouter credentials cannot be redirected or sent to arbitrary endpoints", () => {
+  assert.throws(() => parseConfig({
+    provider: "openrouter",
+    model: "openrouter/test-model",
+    endpoint: "https://example.invalid/api/v1/chat/completions"
+  }), /OpenRouter endpoint/);
+  assert.throws(() => parseConfig({
+    provider: "openrouter",
+    model: "openrouter/test-model",
+    credentialEnv: "GITHUB_TOKEN"
+  }), /OPENROUTER_API_KEY/);
+  assert.throws(() => parseConfig({
+    provider: "openrouter",
+    model: "openrouter/test-model",
+    headers: { Cookie: "session=value" }
+  }), /headers are limited/);
 });
 
 test("redact removes secret values and sensitive fields without hiding metrics", () => {

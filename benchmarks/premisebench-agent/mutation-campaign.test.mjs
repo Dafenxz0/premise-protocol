@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mutationArmOrder, mutationStrategies } from "./mutation-strategies.mjs";
+import { mutationArmOrder, mutationStrategies, scientificStrategies } from "./mutation-strategies.mjs";
+import { makeTasks, runArm } from "./mutation-campaign.mjs";
 
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const campaign = resolve(root, "benchmarks/premisebench-agent/mutation-campaign.mjs");
@@ -245,4 +246,16 @@ test("mutation campaign strategy descriptions state their safety trade-off", () 
   assert.match(mutationStrategies.basic.description, /observaci/i);
   assert.match(mutationStrategies.conventional.description, /TOCTOU/i);
   assert.match(mutationStrategies.premise.description, /CAS/i);
+});
+
+test("strong revalidation controls reject blocked evidence without a redundant write", async () => {
+  const task = makeTasks(100, 20260811).find(({ mutation }) => mutation.status === "blocked");
+  assert.ok(task, "fixture must include a blocked mutation");
+  for (const arm of ["smart", "always", "premise"]) {
+    const trace = await runArm(arm, task, scientificStrategies);
+    assert.equal(trace.externalReads, 1, `${arm} should refresh the blocked source once`);
+    assert.equal(trace.externalWrites, 0, `${arm} should reject locally after refresh`);
+    assert.equal(trace.completed, true, `${arm} should complete the blocked task safely`);
+    assert.equal(trace.unsafeAction, false, `${arm} should not emit an unsafe action`);
+  }
 });

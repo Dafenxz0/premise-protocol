@@ -16,7 +16,7 @@ const defaultProvider = "openai-compatible";
 const defaultSeed = 20260811;
 const defaultRound = "llm-pilot";
 const maxTurns = 8;
-const allowedProviders = new Set(["gemini", "anthropic", "openai-compatible"]);
+const allowedProviders = new Set(["gemini", "anthropic", "openai-compatible", "openrouter"]);
 const toolSchema = Object.freeze([
   { type: "read", fields: ["reason"] },
   { type: "act", fields: ["action.kind", "action.value"] },
@@ -91,7 +91,7 @@ function parseArms(value) {
 
 function parseArgs(argv = process.argv.slice(2)) {
   const provider = String(cliValue(argv, "provider", defaultProvider)).trim().toLowerCase();
-  if (!allowedProviders.has(provider)) throw new TypeError("--provider must be gemini, anthropic, or openai-compatible");
+  if (!allowedProviders.has(provider)) throw new TypeError("--provider must be gemini, anthropic, openai-compatible, or openrouter");
   const model = String(cliValue(argv, "model", "")).trim();
   if (model === "") throw new TypeError("--model is required");
   const tasks = integerArg(cliValue(argv, "tasks", "20"), "tasks", { min: 1, max: 10_000 });
@@ -104,9 +104,30 @@ function parseArgs(argv = process.argv.slice(2)) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(round)) throw new TypeError("--round must be a safe directory name");
   const arms = parseArms(cliValue(argv, "arms", defaultArms.join(",")));
   const maxRetries = integerArg(cliValue(argv, "max-retries", "0"), "max-retries", { min: 0, max: 5 });
+  const maxTokens = integerArg(cliValue(argv, "max-tokens", "256"), "max-tokens", { min: 1, max: 32_768 });
   const delayMs = integerArg(cliValue(argv, "delay-ms", "0"), "delay-ms", { min: 0, max: 60_000 });
+  const endpointValue = String(cliValue(argv, "endpoint", "")).trim();
+  const credentialEnvValue = String(cliValue(argv, "credential-env", "")).trim();
   const configuredOutputRoot = String(cliValue(argv, "output", ".tmp/scientific-mvp/llm")).trim();
-  return Object.freeze({ provider, model, tasks, seed, scenario, volatility, riskLevels, round, outputRoot: resolve(root, configuredOutputRoot), arms, maxRetries, delayMs, requireLive: cliFlag(argv, "require-live"), dryRun: cliFlag(argv, "dry-run") });
+  return Object.freeze({
+    provider,
+    model,
+    tasks,
+    seed,
+    scenario,
+    volatility,
+    riskLevels,
+    round,
+    outputRoot: resolve(root, configuredOutputRoot),
+    arms,
+    maxRetries,
+    maxTokens,
+    delayMs,
+    endpoint: endpointValue || null,
+    credentialEnv: credentialEnvValue || null,
+    requireLive: cliFlag(argv, "require-live"),
+    dryRun: cliFlag(argv, "dry-run")
+  });
 }
 
 function parseRiskLevels(value) {
@@ -160,10 +181,12 @@ function candidateConfig(args) {
     provider: args.provider,
     model: args.model,
     temperature: 0,
-    maxTokens: 256,
+    maxTokens: args.maxTokens,
     timeoutMs: 30_000,
     maxRetries: args.maxRetries,
-    responseFormat: "json-object"
+    responseFormat: "json-object",
+    ...(args.endpoint ? { endpoint: args.endpoint } : {}),
+    ...(args.credentialEnv ? { credentialEnv: args.credentialEnv } : {})
   };
 }
 
@@ -526,6 +549,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0 }) {
 
 function campaignStatus(items) {
   if (items.length === 0) return "NOT_RUN";
+  if (items.some((item) => item.calls?.some((call) => call.error?.status === 402))) return "PAYMENT_REQUIRED";
   if (items.some((item) => item.calls?.some((call) => call.error?.status === 429))) return "RATE_LIMITED";
   if (items.some((item) => item.status === "ERROR")) return "ERROR";
   if (items.some((item) => item.status === "NOT_RUN")) return "NOT_RUN";
@@ -545,6 +569,9 @@ function aggregateArm(arm, traces) {
   const completed = comparable ? traces.filter((trace) => trace.evaluation.completed).length : null;
   const unsafeActions = comparable ? traces.filter((trace) => trace.evaluation.unsafeAction).length : null;
   const actionAttempts = comparable ? traces.filter((trace) => trace.evaluation.actionAttempted).length : null;
+  const actionAttemptsObserved = comparable
+    ? sumKnown(traces.map((trace) => trace.actions.filter(({ action }) => ["act", "actIfVersion", "reject"].includes(action.type)).length))
+    : null;
   const safeAttempts = actionAttempts === null ? null : actionAttempts - unsafeActions;
   const providerCost = metric("providerCost");
   const usageStatuses = new Set(traces.map((trace) => trace.llm.usageStatus));
@@ -557,11 +584,13 @@ function aggregateArm(arm, traces) {
     completedRate: comparable ? (completed * 100) / traces.length : null,
     unsafeActions,
     unsafeRate: rate(traces, "unsafeAction", comparable),
+    unsafeRateBasis: "final-world-action-per-task",
     falseBlocks: comparable ? traces.filter((trace) => trace.evaluation.falseBlock).length : null,
     falseBlockRate: rate(traces, "falseBlock", comparable),
     recoveredRate: rate(traces, "recovered", comparable),
     toctouEscapeRate: rate(traces, "toctouEscape", comparable),
     actionAttempts,
+    actionAttemptsObserved,
     safeAttempts,
     safeSuccessfulTasks: completed,
     completionRequests: metric("completionRequests"),
@@ -666,9 +695,11 @@ function blindReport(args, results, taskHash, blindIds = makeBlindIds(results.ma
         safeCompletionRate: result.completedRate / 100,
         unsafeActionRate: result.unsafeRate / 100,
         attempts,
+        actionAttemptsObserved: result.actionAttemptsObserved,
         safeAttempts,
         safeSuccessfulTasks: result.completed,
         unsafeActions: result.unsafeActions,
+        unsafeRateBasis: result.unsafeRateBasis,
         falseBlocks: result.falseBlocks,
         connectorRequests: result.completionRequests,
         externalReads: result.externalReads
@@ -703,11 +734,11 @@ function reportMarkdown({ args, manifest, summary }) {
     "",
     "## Provider and agent telemetry",
     "",
-    "| Arm | Status | Completed / 100 | Unsafe / 100 | LLM calls | Input tokens | Output tokens | Retries | Latency ms | providerCost | Provider CSFA | Total CSFA |",
+    "| Arm | Status | Completed / 100 | Unsafe tasks / 100 | LLM calls | Input tokens | Output tokens | Retries | Latency ms | providerCost | Provider CSFA | Total CSFA |",
     "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...rows,
     "",
-    "`LLM calls` counts provider attempts; `completionRequests` and retry counts remain in `summary.json`. `UNKNOWN`/`null` means the provider did not supply a reliable measurement or the arm was not comparable. It is never a zero-filled estimate. `providerCost` and Provider CSFA are reported only when returned by the provider response; Total CSFA remains UNKNOWN until connector and compute costs are instrumented.",
+    "`Unsafe tasks / 100` is deliberately task-level: the local world retains one final action for evaluation. `actionAttemptsObserved` counts every action emitted by the agent and `unsafeRateBasis` is recorded in `summary.json`; this report does not pretend that intermediate overwritten actions have a reliable per-action safety label. `LLM calls` counts provider attempts; `completionRequests` and retry counts remain in `summary.json`. `UNKNOWN`/`null` means the provider did not supply a reliable measurement or the arm was not comparable. It is never a zero-filled estimate. `providerCost` and Provider CSFA are reported only when returned by the provider response; Total CSFA remains UNKNOWN until connector and compute costs are instrumented.",
     "",
     "## Boundary and reproducibility",
     "",
@@ -766,7 +797,15 @@ function publicManifest(args, candidate, tasks, status, hash) {
     artifacts: ["manifest.json", "summary.json", "traces.jsonl", "traces.evaluator.jsonl (evaluator-only)", "report.md", "blind-report.json", "examined-report.json", "mapping.private.json (evaluator-only)"],
     blindExaminerStatus: status === "OK" ? "READY_FOR_EXAMINER" : "NOT_COMPARABLE",
     generatedAt: new Date().toISOString(),
-    tasks: tasks.map(publicTask)
+    // Keep the agent-visible task material in memory only. Artifacts expose
+    // hashes so a future run can be matched without publishing prompts or
+    // source payloads that may contain private data.
+    tasks: tasks.map((task) => ({
+      taskId: task.taskId,
+      promptHash: sha(task.prompt),
+      sourceHash: sha(task.source),
+      memoryVersion: sha(task.initial)
+    }))
   };
 }
 
@@ -827,8 +866,10 @@ async function main(argv = process.argv.slice(2)) {
       const trace = await runAgent({ candidate, task, arm, round: args.round, delayMs: args.delayMs });
       traces.push(trace);
       if (hasExecutedLlmTask(trace)) executedTaskIds.add(task.taskId);
-      if (trace.calls.some((call) => call.error?.status === 429)) {
-        stopReason = "RATE_LIMITED";
+      const paymentRequired = trace.calls.some((call) => call.error?.status === 402);
+      const rateLimited = trace.calls.some((call) => call.error?.status === 429);
+      if (paymentRequired || rateLimited) {
+        stopReason = paymentRequired ? "PAYMENT_REQUIRED" : "RATE_LIMITED";
         break outer;
       }
     }

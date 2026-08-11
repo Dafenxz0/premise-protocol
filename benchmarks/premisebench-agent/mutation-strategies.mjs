@@ -57,8 +57,12 @@ export const mutationArmOrder = Object.freeze(["basic", "conventional", "premise
 async function guardedWithRetry(ctx, snapshot, attempts = 3) {
   let current = snapshot;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    // A blocked source is already a terminal safe outcome. Do not spend a
+    // connector write just to confirm a rejection; this keeps the strong
+    // Smart/Always controls from being artificially inflated against PREMiSE.
+    if (current.content.status === "blocked") return { accepted: true, kind: "reject" };
     const response = await ctx.actIfVersion(current.version, actionFor(current, false));
-    if (response.accepted || current.content.status === "blocked") return response;
+    if (response.accepted) return response;
     current = await ctx.sourceRead(READ_RETRY_AFTER_CAS);
     if (current.content.status === "blocked") return { accepted: true, kind: "reject" };
   }
