@@ -76,6 +76,14 @@ const server = createServer((request, response) => {
       "x-ratelimit-resource": "core"
     });
   }
+  if (pathName === "/repos/acme/slow-coalesced/commits/main") {
+    setTimeout(() => sendJson(commit), 100);
+    return;
+  }
+  if (pathName === "/repos/acme/auth-context/commits/main") {
+    setTimeout(() => sendJson(commit), 100);
+    return;
+  }
   if (pathName === "/repos/acme/slow/commits/main") {
     setTimeout(() => sendJson(commit), 100);
     return;
@@ -146,6 +154,37 @@ try {
   const rate = await adapter.getRateLimit();
   assert.equal(rate.resources.core.remaining, 4988);
   assert.equal(adapter.lastRateLimit?.remaining, 5000 - 12);
+
+  const coalescingAdapter = new GitHubValidator({ baseUrl, token: "static-secret", retryDelayMs: 0, maxRetryDelayMs: 0, timeoutMs: 500 });
+  const coalescedPath = "/repos/acme/slow-coalesced/commits/main";
+  const coalescedBefore = requests.filter(({ path: pathName }) => pathName === coalescedPath).length;
+  const coalescedFirstPromise = coalescingAdapter.get(coalescedPath);
+  const coalescedSecondPromise = coalescingAdapter.get(coalescedPath);
+  const [coalescedFirst, coalescedSecond] = await Promise.all([coalescedFirstPromise, coalescedSecondPromise]);
+  assert.equal(requests.filter(({ path: pathName }) => pathName === coalescedPath).length - coalescedBefore, 1);
+  assert.deepEqual(coalescedFirst, coalescedSecond);
+  assert.notEqual(coalescedFirst, coalescedSecond);
+  coalescedFirst.author.login = "mutated-by-first-caller";
+  assert.equal(coalescedSecond.author.login, "octocat");
+
+  const authTokens = ["token-a", "token-b"];
+  const authAdapter = new GitHubValidator({
+    baseUrl,
+    tokenProvider: () => authTokens.shift(),
+    retryDelayMs: 0,
+    maxRetryDelayMs: 0,
+    timeoutMs: 500
+  });
+  const authPath = "/repos/acme/auth-context/commits/main";
+  const authFirstPromise = authAdapter.get(authPath);
+  const authSecondPromise = authAdapter.get(authPath);
+  await Promise.all([authFirstPromise, authSecondPromise]);
+  const authRequests = requests.filter(({ path: pathName }) => pathName === authPath);
+  assert.equal(authRequests.length, 2);
+  assert.deepEqual(
+    authRequests.map(({ headers }) => headers.authorization).sort(),
+    ["Bearer token-a", "Bearer token-b"]
+  );
 
   const retryAdapter = new GitHubValidator({ baseUrl, token: "retry-secret", retryDelayMs: 0, maxRetryDelayMs: 0, timeoutMs: 500 });
   const retried = await retryAdapter.versionFor("github://acme/retry/commit/main");

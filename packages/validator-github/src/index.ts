@@ -298,6 +298,10 @@ function digest(value: unknown): string {
   return `sha256:${createHash("sha256").update(stableJson(value)).digest("hex")}`;
 }
 
+function cloneResponse<T>(response: GitHubResponse<T>): GitHubResponse<T> {
+  return structuredClone(response);
+}
+
 function encodePathPart(value: string): string {
   return encodeURIComponent(value);
 }
@@ -454,6 +458,7 @@ export class GitHubValidator {
   private readonly userAgent: string;
   private readonly headers: Readonly<Record<string, string>>;
   private readonly cache: GitHubResponseCache;
+  private readonly inFlight = new Map<string, Promise<GitHubResponse<unknown>>>();
   private readonly webhookSecret: string | undefined;
   private readonly now: () => number;
   private rateLimitState?: GitHubRateLimit;
@@ -508,6 +513,22 @@ export class GitHubValidator {
     if (!path.startsWith("/") || path.startsWith("//")) throw new GitHubConfigurationError("GitHub API paths must be relative paths");
     const url = new URL(path.slice(1), `${this.baseUrl}/`).toString();
     const cached = options.cache === false ? undefined : this.cache.get(url);
+    if (options.signal === undefined && this.tokenProvider === undefined) {
+      const key = `${options.cache === false ? "no-cache" : `cache:${cached?.etag ?? ""}`}|${url}`;
+      const existing = this.inFlight.get(key);
+      if (existing !== undefined) return existing.then((response) => cloneResponse(response as GitHubResponse<T>));
+      const pending = this.requestDirect<T>(url, options, cached);
+      this.inFlight.set(key, pending as Promise<GitHubResponse<unknown>>);
+      const clear = () => {
+        if (this.inFlight.get(key) === pending) this.inFlight.delete(key);
+      };
+      void pending.then(clear, clear);
+      return pending.then(cloneResponse);
+    }
+    return this.requestDirect<T>(url, options, cached);
+  }
+
+  private async requestDirect<T>(url: string, options: GitHubRequestOptions, cached: GitHubCacheEntry | undefined): Promise<GitHubResponse<T>> {
     const retryCount = this.maxRetries + 1;
     for (let attempt = 0; attempt < retryCount; attempt += 1) {
       const timed = timeoutSignal(options.signal, this.timeoutMs);

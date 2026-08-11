@@ -53,12 +53,15 @@ export class McpBridge {
 
   async reread(memoryIds: readonly string[]): Promise<Awaited<ReturnType<ReferenceProtocol["validate"]>>> {
     const supplied: Record<string, ValidationResult> = {};
+    const reads = new Map<string, Promise<McpResourceRead>>();
     for (const memoryId of memoryIds) {
       const state = this.protocol.states.stateOf(memoryId);
       const source = state?.envelope.provenance?.find((entry) => (this.subscriptions.get(entry.sourceUri)?.get(memoryId) ?? 0) > 0);
       if (!state || !source) { supplied[memoryId] = { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString() }; continue; }
       try {
-        const current = await this.reader.read(source.sourceUri);
+        const pending = reads.get(source.sourceUri) ?? Promise.resolve().then(() => this.reader.read(source.sourceUri));
+        reads.set(source.sourceUri, pending);
+        const current = await pending;
         if (current.sourceUri !== source.sourceUri || current.version.scheme.length === 0 || current.version.token.length === 0) {
           supplied[memoryId] = { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString(), sourceUri: source.sourceUri };
           continue;

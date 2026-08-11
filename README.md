@@ -98,6 +98,22 @@ La serie completa —100-A, 100-B, 200-A, 200-B y 200-C— está descrita en la
 artefactos generados se mantienen fuera de Git para no mezclar resultados con
 código fuente.
 
+## Scientific MVP y LLM reales
+
+El siguiente gate está definido en [Scientific MVP](./docs/scientific-mvp.md) y
+en el [preregistro](./benchmarks/premisebench-agent/PREREGISTRATION.md). Añade
+`Safe Completion`, `Cost per Safe Attempt`, `CSFA`, trabajo desperdiciado,
+MDE/power analysis, `Smart Revalidate`, `Always Revalidate`, un agente
+determinista perfecto y un `Ideal Oracle` que solo puede usar el examinador.
+
+El harness de [LLM reales](./benchmarks/premisebench-agent/llm/README.md)
+soporta Gemini, Anthropic y endpoints OpenAI-compatible mediante HTTP nativo.
+Registra tokens, reintentos y latencia; si no hay billing verificable devuelve
+`UNKNOWN`, y si no hay credencial devuelve `NOT_RUN`. El piloto no es todavía
+un holdout ni una promesa de ahorro para proveedores. Las respuestas `429`, los
+errores del proveedor y los fallos del contrato se conservan como `ERROR`, nunca
+como ceros.
+
 ## Qué aporta el protocolo
 
 | Problema | Qué hace PREMiSE |
@@ -174,6 +190,18 @@ convencional. Lo que todavía no demuestra: coste de un proveedor concreto,
 calidad universal de agentes, disponibilidad en producción o comportamiento en
 cualquier conector. Esas afirmaciones requieren campañas live con telemetría y
 holdout independiente.
+
+## Sensitivity matrix
+
+Run the deterministic development matrix across volatility and risk tiers:
+
+```text
+pnpm benchmark:scientific:matrix
+```
+
+It produces anonymous candidate tables and a separate blind examiner under
+`.tmp/scientific-mvp/matrix/`. This is reproducible local evidence, not an
+external holdout, provider billing audit, or universal product claim.
 
 ## Licencia
 

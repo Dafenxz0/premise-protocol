@@ -19,6 +19,8 @@ export type { PostgresAdapter, PostgresClient, PostgresQuery, PostgresQueryResul
 
 export interface AsyncRuntimeStore<T> {
   get(memoryId: string): Promise<RuntimeRecord<T> | undefined>;
+  /** Optional batch read; tenant scoping remains enforced by the query when configured. */
+  getMany?(memoryIds: readonly string[]): Promise<readonly RuntimeRecord<T>[]>;
   list(): Promise<readonly RuntimeRecord<T>[]>;
   put(record: RuntimeRecord<T>): Promise<void>;
   putAndAppend?(record: RuntimeRecord<T>, event: V2Event): Promise<void>;
@@ -635,6 +637,19 @@ export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {
       const result = await client.query(query, this.tenantId === undefined ? [memoryId] : [this.tenantId, memoryId]);
       const row = result.rows[0];
       return row === undefined ? undefined : cloneJson(runtimeRecord<T>(row));
+    });
+  }
+
+  async getMany(memoryIds: readonly string[]): Promise<readonly RuntimeRecord<T>[]> {
+    const ids = [...new Set(memoryIds)];
+    for (const memoryId of ids) assertKey(memoryId, "memoryId");
+    if (ids.length === 0) return [];
+    return this.scoped(async (client) => {
+      const query = this.tenantId === undefined
+        ? `SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE memory_id = ANY($1::text[]) ORDER BY memory_id`
+        : `SELECT envelope_json::text AS envelope_json, content_json::text AS content_json FROM ${this.runtime.records} WHERE tenant_id = $1 AND memory_id = ANY($2::text[]) ORDER BY memory_id`;
+      const result = await client.query(query, this.tenantId === undefined ? [ids] : [this.tenantId, ids]);
+      return result.rows.map((row) => cloneJson(runtimeRecord<T>(row)));
     });
   }
 

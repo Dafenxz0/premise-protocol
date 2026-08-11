@@ -44,6 +44,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 10.13.1
@@ -64,6 +66,13 @@ jobs:
         run: python -m unittest discover -s reference/python -p "test_*.py"
       - name: PremiseBench-Agent benchmark smoke
         run: node benchmarks/premisebench-agent/runner.mjs --tasks=100 --seed=20260811
+      - name: Scientific MVP deterministic gate
+        run: |
+          node --test benchmarks/premisebench-agent/scientific/adversarial.test.mjs benchmarks/premisebench-agent/scientific/campaigns.test.mjs benchmarks/premisebench-agent/scientific/examiner.test.mjs benchmarks/premisebench-agent/scientific/frontier.test.mjs benchmarks/premisebench-agent/scientific/metrics.test.mjs benchmarks/premisebench-agent/scientific/matrix.test.mjs
+          node benchmarks/premisebench-agent/scientific/runner.mjs --tasks=200 --seed=20260811 --round=scientific-mvp-dev
+          node scripts/premisebench-agent/scientific-self-check.mjs
+      - name: Real LLM adapter and blind-harness tests
+        run: node --test benchmarks/premisebench-agent/llm/llm.test.mjs benchmarks/premisebench-agent/llm/campaign.test.mjs
       - name: PremiseBench-Agent self-check
         run: |
           node benchmarks/premisebench-agent/self-check.mjs
@@ -76,6 +85,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: premisebench-agent-smoke-${{ github.sha }}
-          path: benchmarks/premisebench-agent/artifacts
-          if-no-files-found: warn
+          path: |
+            .tmp/scientific-mvp/scientific-mvp-dev/plan.json
+            .tmp/scientific-mvp/scientific-mvp-dev/manifest.json
+            .tmp/scientific-mvp/scientific-mvp-dev/dataset-manifest.json
+            .tmp/scientific-mvp/scientific-mvp-dev/blind-report.json
+            .tmp/scientific-mvp/scientific-mvp-dev/examined-report.json
+            .tmp/scientific-mvp/scientific-mvp-dev/power.json
+            .tmp/scientific-mvp/scientific-mvp-dev/ideal-oracle.json
+            .tmp/scientific-mvp/scientific-mvp-dev/tables.md
+            .tmp/scientific-mvp/scientific-mvp-dev/report.md
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 14

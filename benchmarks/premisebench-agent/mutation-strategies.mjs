@@ -55,3 +55,51 @@ export const mutationStrategies = Object.freeze({
 });
 
 export const mutationArmOrder = Object.freeze(["basic", "conventional", "premise"]);
+
+async function guardedWithRetry(ctx, snapshot, attempts = 3) {
+  let current = snapshot;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const response = await ctx.actIfVersion(current.version, actionFor(current, false));
+    if (response.accepted || current.content.status === "blocked") return response;
+    current = await ctx.sourceRead(READ_RETRY_AFTER_CAS);
+    if (current.content.status === "blocked") return { accepted: true, kind: "reject" };
+  }
+  return { accepted: false, reason: "retry-limit" };
+}
+
+// Scientific MVP arms deliberately share the same connector capabilities.
+// Smart Revalidate has versions, events, CAS and retries, but no PREMiSE
+// dependency graph or normative state machine. The `perfect` arm is a
+// deterministic no-LLM control, not a commercial competitor.
+export const scientificStrategies = Object.freeze({
+  basic: mutationStrategies.basic,
+  conventional: mutationStrategies.conventional,
+  smart: {
+    name: "Smart Revalidate",
+    description: "Versiones, eventos, cache y CAS sin grafo normativo PREMiSE.",
+    async run(ctx) {
+      const changed = ctx.sourceChanged();
+      const current = changed ? await ctx.sourceRead(READ_REVALIDATE) : ctx.memory;
+      return guardedWithRetry(ctx, current, 2);
+    }
+  },
+  always: {
+    name: "Always Revalidate",
+    description: "Lee y valida antes de cada accion, con CAS y reintentos.",
+    async run(ctx) {
+      const current = await ctx.sourceRead(READ_REVALIDATE);
+      return guardedWithRetry(ctx, current, 3);
+    }
+  },
+  premise: mutationStrategies.premise,
+  perfect: {
+    name: "Deterministic perfect agent",
+    description: "Control sin LLM que ejecuta la secuencia correcta con CAS.",
+    async run(ctx) {
+      let current = await ctx.sourceRead(READ_REVALIDATE);
+      return guardedWithRetry(ctx, current, 4);
+    }
+  }
+});
+
+export const scientificArmOrder = Object.freeze(["basic", "conventional", "smart", "always", "premise", "perfect"]);
