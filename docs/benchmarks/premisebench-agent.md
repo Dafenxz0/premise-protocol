@@ -50,6 +50,30 @@ revisar o publicar debe conservar `summary.json`, `manifest.json`,
 `dataset-manifest.json`, `traces.jsonl`, `report.md` y `tables.md` junto con
 el commit que documenta el resultado.
 
+## Campaña mutable de coste: la lectura sencilla
+
+La campaña nueva [`MUTATION_CAMPAIGN.md`](../../benchmarks/premisebench-agent/MUTATION_CAMPAIGN.md)
+usa tres brazos y mutaciones antes de actuar y durante el write. En su ronda
+final `200-c` ejecutó 200 tareas con 100 mutaciones y mantuvo la identidad de
+los brazos fuera de la entrada del agente:
+
+| Estrategia | Correctas | Inseguras/100 | Peticiones/100 | Lecturas/100 | Tokens visibles proxy/tarea | Coste visible proxy/100 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Memoria básica | 50/100 | 50 | 100 | 0 | 118,0 | 0,001995 USD |
+| Memoria mejorada convencional | 90/100 | 10 | 200 | 100 | 169,8 | 0,004581 USD |
+| **PREMiSE** | **100/100** | **0** | **140** | **50** | **146,4** | **0,0034425 USD** |
+
+En este control, PREMiSE fue 100% seguro y terminó todas las tareas; frente a
+la memoria convencional usó 30% menos peticiones, 50% menos lecturas, 13,8%
+menos tokens visibles proxy y 24,9% menos coste visible proxy. La memoria
+básica no es una alternativa segura: ahorra comprobaciones porque acepta
+información obsoleta en la mitad de las tareas.
+
+Los tokens y el coste de esta tabla no proceden de un proveedor. Son una escala
+determinista de payloads (`synthetic-token-proxy-v1`) para poder comparar el
+arnés. `providerTokens` y `providerCostUsd` permanecen `UNKNOWN`; la campaña es
+local, con examinador ciego dentro del mismo proceso, no un holdout externo.
+
 ## Métricas
 
 Las definiciones públicas están congeladas en

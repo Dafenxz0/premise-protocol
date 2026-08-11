@@ -1,146 +1,126 @@
 # PREMiSE Protocol
 
 <p align="center">
-  <img src="assets/premise-logo.jpg" alt="Logo PREMiSE Memory Validity Protocol" width="760">
+  <img src="assets/premise-logo.jpg" alt="Logo de PREMiSE Memory Validity Protocol" width="760">
 </p>
 
 <p align="center">
-  <strong>La capa de validez para la memoria de los agentes.</strong><br>
-  Cuando cambia el mundo, PREMiSE ayuda a saber qué recuerdos siguen siendo utilizables.
+  <strong>La memoria de un agente no debería quedarse congelada en el pasado.</strong><br>
+  PREMiSE comprueba si un recuerdo sigue siendo seguro antes de que el agente lo use.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml"><img src="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://github.com/Dafenxz0/premise-protocol/releases/tag/v2.0.0-rc.1"><img src="https://img.shields.io/badge/release-v2.0.0--rc.1-0B132B?style=flat-square" alt="Release v2.0.0-rc.1"></a>
+  <a href="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml"><img src="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI verde"></a>
   <img src="https://img.shields.io/badge/Node.js-24-14B8A6?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 24">
   <img src="https://img.shields.io/badge/pnpm-10-F59E0B?style=flat-square&logo=pnpm&logoColor=white" alt="pnpm 10">
-  <img src="https://img.shields.io/badge/spec-premise%2F2-2563EB?style=flat-square" alt="PREMiSE spec 2">
+  <img src="https://img.shields.io/badge/estado-candidate-2563EB?style=flat-square" alt="Estado candidate">
 </p>
 
-> PREMiSE no sustituye a tu sistema de memoria. Guarda la procedencia, la versión, las dependencias y la vigencia de un recuerdo para que un agente no trate información antigua como si fuera actual.
+## Estado actual
 
-> **Estado de la versión GA:** la RC v2 está publicada y la ruta hacia `v2.0.0 GA` está en ejecución. No se declarará GA hasta cerrar evidencia real de seguridad, Postgres, carga, recuperación, benchmarks externos, operaciones y API estable. Consulta los [criterios públicos de aceptación](./docs/v2-ga-acceptance.md).
+PREMiSE ya es un protocolo implementado, portable y probado para trabajar con
+recuerdos cuya fuente puede cambiar. El núcleo incluye:
 
-## V2.0 GA, explicado sin jerga
+- contrato portable `premise/1` con vectores de conformidad en TypeScript y Python;
+- runtime con evidencias, versiones, dependencias, invalidación y revalidación;
+- protección compare-and-set (CAS) antes de aplicar una acción;
+- adapters y ejemplos para filesystem, Git, GitHub, PostgreSQL y MCP;
+- campañas mutables ciegas de 100 y 200 tareas, con tablas de seguridad y coste proxy;
+- Node.js 24, tests, CI, documentación y assets visuales.
 
-PREMiSE no intenta reemplazar la memoria, la base de datos ni el buscador de una aplicación. Añade una capa que responde a una pregunta muy concreta: **¿sigue siendo seguro utilizar este recuerdo con la evidencia y la versión que lo respaldan?**
-
-La candidata `v2.0.0-rc.1` ya reúne el camino completo para llevar esa idea a un servicio real:
-
-| Necesidad | Qué incorpora la candidata |
-| --- | --- |
-| Guardar y actualizar recuerdos | Runtime v2, dependencias, historial, snapshots y replay idempotente. |
-| Conectar fuentes reales | GitHub REST en modo lectura, filesystem, Git, PostgreSQL y webhooks firmados. |
-| Evitar datos antiguos | Estados `FRESH`, `STALE`, `INVALID` y `UNKNOWN`, con revalidación y propagación de cambios. |
-| Proteger datos | Ed25519, HMAC-SHA-256, AES-256-GCM, ACL por tenant, auditoría encadenada y autorización API. |
-| Operar con confianza | Imagen reproducible sin root, migraciones, readiness, métricas, alertas, backup, restore y rollback. |
-| Integrarse sin sorpresas | SDK TypeScript `@premise/sdk@2.0.0`, OpenAPI, schemas, retries, timeouts e idempotencia. |
-
-### Números que se pueden entender rápidamente
-
-Son resultados medidos en este commit, no promesas universales ni un SLA:
-
-| Prueba | Resultado observado |
-| --- | ---: |
-| Evaluación ciega versionada, holdout local externo al candidato | PREMiSE: 100% exactitud y 100% frescura; baseline sin protocolo: 77,3% y 68,2% |
-| GitHub real en solo lectura, 100 tareas | 100/100 correctas; cache condicional: 9 peticiones/100 |
-| Carga sintética de 1.000.000 de memorias | 577.523 memorias/s; p99 de lote 27,8 ms; 0 errores |
-| Recuperación y aislamiento | 50.000 eventos de fiabilidad y todos los escenarios pasan |
-| Corpus contextual de 50.000 memorias | 100% precisión, seguridad y hit-rate en cadena, fan-out y datos compartidos |
-
-La evidencia reproducible y sus límites están en [`docs/v2-ga-acceptance.md`](./docs/v2-ga-acceptance.md), [`docs/ga-evaluation.md`](./docs/ga-evaluation.md) y [`docs/ga-reliability.md`](./docs/ga-reliability.md). La etiqueta GA seguirá bloqueada hasta completar Postgres real, soak/chaos, holdout independiente y revisión operativa.
+La etiqueta actual es **candidate**: la evidencia de tokens de proveedor, coste
+facturado y generalización todavía está pendiente de una campaña conectada a un
+runtime de modelo real. Los resultados de abajo son reproducibles y útiles para
+comparar estrategias, pero no son una promesa universal.
 
 ## PREMiSE en una frase
 
-Un agente puede recordar que “la pull request #42 se puede fusionar”. Después puede llegar un commit nuevo, fallar una comprobación o desaparecer la fuente original. PREMiSE registra ese cambio, lo propaga a los recuerdos derivados y devuelve una decisión clara:
+PREMiSE añade una comprobación de vigencia entre la memoria de un agente y la
+acción que quiere ejecutar: si la evidencia sigue igual, continúa; si cambió,
+revalida; si el write llega tarde, el CAS lo bloquea.
 
-| Estado | Significado para una aplicación |
-| --- | --- |
-| `FRESH` | La evidencia coincide con la versión observada y el recuerdo se puede usar. |
-| `STALE` | Algo puede haber cambiado; hay que comprobarlo otra vez. |
-| `INVALID` | La evidencia demuestra que ya no sirve como soporte actual. |
-| `UNKNOWN` | No hay información suficiente para decidir con seguridad. |
+No sustituye el contenido de tu memoria ni pretende ser una base de datos. Cambia
+algo más importante: evita que el agente trate un recuerdo antiguo como un hecho
+actual.
 
-Invalidar una memoria no la borra: el contenido y la historia siguen perteneciendo al sistema que la almacena.
-
-## Qué aporta la v2
-
-PREMiSE v2 convierte el contrato en un vertical slice utilizable, sin confundirlo con una plataforma cloud completa:
-
-| Capa | Qué resuelve | Implementación |
-| --- | --- | --- |
-| **Contrato** | Evidencias múltiples, confianza declarada, conflictos, temporalidad, tenancy, migración v1 y eventos idempotentes. | [`spec/v2`](./spec/v2/) y [`@premise/protocol-types`](./packages/protocol-types/). |
-| **Runtime** | Registro, dependencias, propagación de cambios, revalidación, snapshots y replay. | [`@premise/runtime-core`](./packages/runtime-core/). |
-| **Persistencia** | Memorias y eventos durables en SQLite, más un adapter PostgreSQL sin acoplar el proyecto a un driver concreto. | [`store-sqlite`](./packages/store-sqlite/) y [`store-postgres`](./packages/store-postgres/). |
-| **Integración** | GitHub REST real opt-in con ETag, reintentos, rate limits, checks, reviews y webhooks firmados. | [`validator-github`](./packages/validator-github/). |
-| **Contexto** | Retrieval híbrido opcional y selección con presupuesto, gates de frescura, jerarquía y deduplicación. | [`index-hybrid`](./packages/index-hybrid/) y [`context-engine`](./packages/context-engine/). |
-| **API** | HTTP/JSON v1 compatible y entrypoint HTTP v2 para registrar, consultar, revalidar y señalar cambios. | [`premise-server`](./packages/premise-server/). |
-| **Evaluación** | Baselines comparables, tablas sencillas, trazas por tarea y campañas live separadas de fixtures. | [`benchmarks/real-world-v2`](./benchmarks/real-world-v2/). |
-
-### Cómo funciona visualmente
-
-![Vista general del ciclo de PREMiSE](assets/premise-overview.jpg)
-
-![Arquitectura visual de la capa de validez de PREMiSE](assets/premise-validity-architecture.png)
-
-El flujo es deliberadamente sencillo:
+## Cómo funciona
 
 ```text
-registrar recuerdo + evidencia
-          ↓
-avisar de un cambio o detectar que debe revalidarse
-          ↓
-propagar el estado por sus dependencias
-          ↓
-revalidar con un adapter de la fuente
-          ↓
-consultar check() antes de actuar
+recuerdo + versión de su fuente
+              ↓
+       check local de vigencia
+        ↓                 ↓
+     FRESH             STALE / UNKNOWN
+        ↓                 ↓
+   preparar acción     revalidar fuente
+        ↓                 ↓
+       write protegido por versión (CAS)
+              ↓
+       aplicar o rechazar con seguridad
 ```
 
-## Números fáciles de leer
+![Flujo de PREMiSE](assets/premise-overview.jpg)
 
-La fixture temporal v2 ejecutada en este repositorio contiene 100 tareas y tres estrategias. Tiene cambios conocidos para que una cache TTL pueda equivocarse y PREMiSE tenga que invalidar por evento:
+Los estados que entiende una aplicación son sencillos:
 
-| Estrategia | Correctas / 100 | Peticiones / 100 | p95 local |
-| --- | ---: | ---: | ---: |
-| Lectura directa | 100 | 100 | 0,001 ms |
-| Cache TTL de 20 tareas | 96 | 25 | 0,002 ms |
-| Cache con eventos PREMiSE | 100 | 8 | 0,003 ms |
+| Estado | Qué significa |
+| --- | --- |
+| `FRESH` | La evidencia coincide con la versión observada; se puede usar. |
+| `STALE` | Algo cambió o puede haber cambiado; hay que comprobarlo. |
+| `INVALID` | La evidencia ya no respalda el recuerdo. |
+| `UNKNOWN` | No hay información suficiente para actuar con seguridad. |
 
-También se ejecutó el perfil de contexto gigante con un presupuesto de 128.000 tokens:
+## Resultados fáciles de leer
 
-| Memorias candidatas | Objetivo conservado | p95 local | Heap observado |
-| ---: | :---: | ---: | ---: |
-| 10.000 | Sí | 23,986 ms | 35,1 MB |
-| 100.000 | Sí | 239,234 ms | 380,9 MB |
-| 1.000.000 | Sí | 3.792,535 ms | 1.724,8 MB |
+Campaña ciega de **200 tareas** con **100 mutaciones**: 100 estables, 40
+reparables, 40 incompatibles y 20 cambios durante el write (TOCTOU). Las
+estrategias recibieron el mismo conjunto de tareas; la identidad de cada brazo
+se reveló después del examen.
 
-Son mediciones de esta máquina y del workload versionado; no son promesas de producción ni de calidad de un modelo.
+| Estrategia | Correctas | Inseguras / 100 | Peticiones / 100 | Lecturas / 100 | Tokens proxy visibles / tarea | Coste proxy / 100 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Memoria básica | 50/100 | 50 | 100 | 0 | 118,0 | 0,001995 USD |
+| Memoria mejorada convencional | 90/100 | 10 | 200 | 100 | 169,8 | 0,004581 USD |
+| **PREMiSE** | **100/100** | **0** | **140** | **50** | **146,4** | **0,0034425 USD** |
 
-## Benchmark real contra GitHub
+Lectura rápida frente a la memoria convencional: PREMiSE usa **30% menos
+peticiones**, **50% menos lecturas**, **13,8% menos tokens proxy visibles** y
+**24,9% menos coste proxy**, sin acciones inseguras en esta campaña.
 
-La campaña live consulta un repositorio real en modo solo lectura. Compara lectura directa, una cache TTL y una cache con comprobaciones condicionales ETag. No inventa un resultado live cuando faltan credenciales o permisos.
+La memoria básica parece barata porque no comprueba cambios: por eso falla en la
+mitad de las tareas. Un sistema no gana por llamar menos si actúa con datos
+obsoletos. Los tokens y costes de la tabla son proxies deterministas de payloads;
+los tokens reales del proveedor y el coste facturado están en
+`UNKNOWN/NOT_MEASURED`.
 
-```powershell
-$env:PREMISE_GITHUB_REPO = "owner/repository"
-$env:GITHUB_TOKEN = "ghp_..." # recomendado; nunca lo guardes en el repositorio
-pnpm benchmark:v2:live
-```
+La serie completa —100-A, 100-B, 200-A, 200-B y 200-C— está descrita en la
+[campaña mutable](./benchmarks/premisebench-agent/MUTATION_CAMPAIGN.md) y sus
+artefactos generados se mantienen fuera de Git para no mezclar resultados con
+código fuente.
 
-La campaña conserva [resultados](./benchmarks/real-world-v2/results.json), [tablas](./benchmarks/real-world-v2/report.md) y [trazas por tarea](./benchmarks/real-world-v2/traces.jsonl). La fixture que sí se ejecuta en CI se lanza con:
+## Qué aporta el protocolo
 
-```powershell
-pnpm benchmark:v2:offline
-pnpm benchmark:v2:giant
-```
+| Problema | Qué hace PREMiSE |
+| --- | --- |
+| Una memoria se queda vieja | Conserva la versión y la procedencia de la evidencia. |
+| Una fuente cambia mientras trabajas | Propaga la invalidación y revalida solo lo necesario. |
+| Dos agentes actúan sobre versiones distintas | Usa dependencias y tokens de versión para detectar conflictos. |
+| La fuente cambia durante el write | CAS rechaza la acción basada en una versión antigua. |
+| El contexto se hace grande | Agrupa, deduplica y evita revalidaciones repetidas. |
 
-Las reglas para convertir una cifra en una promesa están en [`docs/v2-benchmarking.md`](./docs/v2-benchmarking.md).
+![Arquitectura visual de PREMiSE](assets/premise-validity-architecture.png)
 
-## Qué no es PREMiSE
+## Lo que PREMiSE no es
 
-PREMiSE no pretende ser una base de datos vectorial, un sistema de embeddings, un motor de retrieval, una memoria principal, un dashboard, un servicio cloud ni una autoridad universal sobre la verdad. La v2 incluye componentes opcionales para integrarse con esas piezas, pero no cambia la identidad del protocolo.
+PREMiSE no es una base de datos vectorial, un sistema de embeddings, un motor de
+retrieval, una memoria principal, un dashboard, un servicio cloud ni una
+autoridad universal sobre la verdad. La aplicación que lo integra sigue siendo
+responsable de guardar el contenido, consultar sus fuentes y decidir qué hacer
+cuando PREMiSE devuelve `REJECT`.
 
-El provider vectorial se inyecta. El fallback local del índice es determinista y léxico, no un embedding semántico. El adapter GitHub es real y opt-in, pero sus credenciales, permisos, límites de API y disponibilidad pertenecen a quien lo despliega. Las firmas de v2 son declaraciones que debe verificar una capa de confianza externa.
+El adapter GitHub real está disponible para observación controlada en modo
+lectura. Las mutaciones de benchmarks se ejecutan en mundos desechables; no se
+modifican repositorios personales sin un destino temporal autorizado.
 
 ## Empezar
 
@@ -154,56 +134,47 @@ pnpm build
 pnpm test
 ```
 
-Gates principales:
+Conformance y benchmark mutable:
 
 ```bash
-pnpm conformance:v2
-pnpm benchmark:v2:offline
-pnpm benchmark:v2:giant
-pnpm examples:verify
+pnpm conformance:premise1
+node benchmarks/premisebench-agent/mutation-campaign.mjs --tasks=200 --seed=20260812 --round=local
+node scripts/premisebench-agent/mutation-campaign-self-check.mjs --tasks=200 --round=local
 ```
 
-El servidor v1 mantiene el entrypoint original. La superficie v2 se importa explícitamente desde `@premise/premise-server/v2` para evitar romper integraciones existentes.
+El runner publica por brazo seguridad, completitud, peticiones, lecturas,
+writes, tokens proxy visibles, payload interno no facturable y coste proxy. Si
+se conecta un proveedor que no expone tokens o billing, el resultado seguirá
+siendo `UNKNOWN`, nunca cero.
 
 ## Dónde está cada cosa
 
 | Ruta | Para qué sirve |
 | --- | --- |
-| [`spec/`](./spec/) | Contratos, JSON Schemas y vectores compartidos. |
-| [`docs/`](./docs/) | Arquitectura, benchmark y checklist de producción. |
-| [`packages/protocol-types`](./packages/protocol-types/) | Tipos y validación v0.1/v2. |
-| [`packages/runtime-core`](./packages/runtime-core/) | Runtime v2 y store en memoria de referencia. |
-| [`packages/store-sqlite`](./packages/store-sqlite/) | Store SQLite durable y compatibilidad con el sidecar existente. |
-| [`packages/store-postgres`](./packages/store-postgres/) | Adapter PostgreSQL driver-neutral y migraciones. |
-| [`packages/validator-github`](./packages/validator-github/) | REST, ETag, rate limits, checks, reviews y webhooks GitHub. |
-| [`packages/index-hybrid`](./packages/index-hybrid/) | BM25 + provider vectorial inyectable con explicaciones de retrieval. |
-| [`packages/context-engine`](./packages/context-engine/) | Selección de contexto con presupuesto y trazabilidad. |
-| [`packages/premise-server`](./packages/premise-server/) | API HTTP v1 y v2. |
-| [`benchmarks/`](./benchmarks/) | Benchmarks aplicados, comparativos, corpus y contexto gigante. |
-| [`assets/`](./assets/) | Logo, overview y arquitectura visual del producto. |
+| [`spec/premise-1/`](./spec/premise-1/) | Contrato pequeño, decisiones y reglas de eficiencia. |
+| [`packages/runtime-core/`](./packages/runtime-core/) | Evidencias, dependencias, invalidación y revalidación. |
+| [`packages/protocol-types/`](./packages/protocol-types/) | Tipos y validación del protocolo. |
+| [`packages/validator-github/`](./packages/validator-github/) | Lecturas GitHub, ETags, checks, reviews y webhooks. |
+| [`packages/store-postgres/`](./packages/store-postgres/) | Adapter PostgreSQL y persistencia durable. |
+| [`packages/context-engine/`](./packages/context-engine/) | Selección de contexto con presupuesto y trazabilidad. |
+| [`benchmarks/premisebench-agent/`](./benchmarks/premisebench-agent/) | Baselines, mutaciones, examinador ciego y tablas. |
+| [`docs/`](./docs/) | Integración, operación, límites y metodología. |
+| [`assets/`](./assets/) | Logo, overview y arquitectura visual. |
 
-## Estado y límites de salida
+## Evidencia y límites
 
-`v2.0.0-rc.1` es un release candidate técnico. El contrato, runtime, adapters, persistencia local, API y benchmarks están versionados y probados; aún hacen falta campañas de despliegue para declarar GA: PostgreSQL real, carga de 1M en infraestructura objetivo, chaos/soak, revisión de seguridad independiente, dos entornos cloud, holdout ciego e intervalos de confianza.
+La [especificación de eficiencia](./spec/premise-1/efficiency.md) define cómo
+separar peticiones externas, checks locales, payload interno, tokens visibles y
+billing real. La [documentación del benchmark](./docs/benchmarks/premisebench-agent.md)
+explica el diseño, los controles y la lectura de los resultados.
 
-El detalle está en [`docs/v2-production-checklist.md`](./docs/v2-production-checklist.md). Este repositorio no incluye una licencia pública por diseño.
+Lo que sí demuestra la campaña actual: en este mundo mutable y con estas tareas,
+PREMiSE mantiene la seguridad completa y reduce operaciones frente a la memoria
+convencional. Lo que todavía no demuestra: coste de un proveedor concreto,
+calidad universal de agentes, disponibilidad en producción o comportamiento en
+cualquier conector. Esas afirmaciones requieren campañas live con telemetría y
+holdout independiente.
 
-## Nueva evidencia: PREMiSE/1 y PremiseBench-Agent
+## Licencia
 
-La línea `premise/1` congela una primitive pequeña y portable: evidencia,
-versión, dependencias, invalidación, revalidación y un `check` que devuelve
-`USE`, `REVALIDATE` o `REJECT`. No añade retrieval, embeddings, base vectorial,
-dashboard ni servicio cloud.
-
-La prueba cross-language y el benchmark causal se ejecutan por separado:
-
-```bash
-pnpm conformance:premise1
-pnpm benchmark:premisebench:smoke
-pnpm benchmark:premisebench:self-check
-```
-
-El smoke usa un filesystem temporal y un control determinista. Sus tablas no
-son resultados de un modelo ni una declaración GA. Las campañas GitHub y
-PostgreSQL son opt-in, requieren un destino controlado y publican `NOT_RUN`
-cuando falta acceso. Consulta [`docs/benchmarks/premisebench-agent.md`](./docs/benchmarks/premisebench-agent.md) y la [especificación mínima](./spec/premise-1/).
+Este repositorio no incluye una licencia pública por diseño.
