@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { blindReport, parseArgs, systemPrompt, visibleEnvelope } from "./campaign.mjs";
+import { blindReport, parseAgentMessage, parseArgs, systemPrompt, visibleEnvelope } from "./campaign.mjs";
 
 const args = parseArgs([
   "--provider=gemini",
@@ -56,4 +56,24 @@ test("agent input omits the arm identity while retaining only assigned semantics
   });
   assert.equal(Object.hasOwn(envelope, "policy"), false);
   assert.equal(envelope.localCheck.state, "FRESH");
+});
+
+test("hard scenario is selectable without changing the blinded contract", () => {
+  const hard = parseArgs([
+    "--provider=gemini",
+    "--model=gemini-test",
+    "--tasks=2",
+    "--scenario=hard",
+    "--round=hard-test",
+    "--arms=basic,premise"
+  ]);
+  assert.equal(hard.scenario, "hard");
+  assert.equal(hard.tasks, 2);
+});
+
+test("arms cannot silently borrow another arm's write capability", () => {
+  const guarded = JSON.stringify({ type: "actIfVersion", expectedVersion: "sha256:v1", action: { kind: "apply", value: "safe" } });
+  assert.throws(() => parseAgentMessage(guarded, "basic"), /not allowed/iu);
+  assert.throws(() => parseAgentMessage(JSON.stringify({ type: "act", action: { kind: "apply", value: "safe" } }), "premise"), /not allowed/iu);
+  assert.deepEqual(parseAgentMessage(guarded, "premise"), { type: "actIfVersion", expectedVersion: "sha256:v1", action: { kind: "apply", value: "safe" } });
 });
