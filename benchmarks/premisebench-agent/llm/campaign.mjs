@@ -106,6 +106,8 @@ function parseArgs(argv = process.argv.slice(2)) {
   const maxRetries = integerArg(cliValue(argv, "max-retries", "0"), "max-retries", { min: 0, max: 5 });
   const maxTokens = integerArg(cliValue(argv, "max-tokens", "256"), "max-tokens", { min: 1, max: 32_768 });
   const delayMs = integerArg(cliValue(argv, "delay-ms", "0"), "delay-ms", { min: 0, max: 60_000 });
+  const responseFormat = String(cliValue(argv, "response-format", "json-object")).trim().toLowerCase();
+  if (!["json-object", "none"].includes(responseFormat)) throw new TypeError("--response-format must be json-object or none");
   const endpointValue = String(cliValue(argv, "endpoint", "")).trim();
   const credentialEnvValue = String(cliValue(argv, "credential-env", "")).trim();
   const configuredOutputRoot = String(cliValue(argv, "output", ".tmp/scientific-mvp/llm")).trim();
@@ -123,6 +125,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     maxRetries,
     maxTokens,
     delayMs,
+    responseFormat,
     endpoint: endpointValue || null,
     credentialEnv: credentialEnvValue || null,
     requireLive: cliFlag(argv, "require-live"),
@@ -184,7 +187,7 @@ function candidateConfig(args) {
     maxTokens: args.maxTokens,
     timeoutMs: 30_000,
     maxRetries: args.maxRetries,
-    responseFormat: "json-object",
+    responseFormat: args.responseFormat === "none" ? null : "json-object",
     ...(args.endpoint ? { endpoint: args.endpoint } : {}),
     ...(args.credentialEnv ? { credentialEnv: args.credentialEnv } : {})
   };

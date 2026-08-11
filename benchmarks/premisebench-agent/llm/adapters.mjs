@@ -114,6 +114,11 @@ export function buildProviderRequest({ config, credential, messages, tools = [] 
       stream: false,
     };
     if (config.responseFormat === "json-object") body.response_format = { type: "json_object" };
+    // OpenRouter reasoning-capable free models may spend the whole completion
+    // budget on hidden reasoning unless the benchmark explicitly asks for the
+    // bounded action payload only. This keeps provider-side reasoning from
+    // changing the protocol's observable contract or request budget.
+    if (config.provider === "openrouter") body.reasoning = { enabled: false };
     if (tools.length > 0) body.tools = tools;
     return {
       url: config.endpoint,

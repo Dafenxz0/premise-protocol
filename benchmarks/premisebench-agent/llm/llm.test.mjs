@@ -50,6 +50,7 @@ test("OpenRouter aliases the OpenAI-compatible adapter with safe defaults", asyn
   assert.equal(request.url, DEFAULT_ENDPOINTS.openrouter);
   assert.equal(request.init.headers.authorization, `Bearer ${secret}`);
   assert.equal(JSON.parse(request.init.body).model, "openrouter/test-model");
+  assert.deepEqual(JSON.parse(request.init.body).reasoning, { enabled: false });
   assert.equal(JSON.stringify(config).includes(secret), false);
 
   const candidate = createLlmCandidate({ provider: "openrouter", model: "openrouter/test-model", prompt: "hello", maxRetries: 0 }, {

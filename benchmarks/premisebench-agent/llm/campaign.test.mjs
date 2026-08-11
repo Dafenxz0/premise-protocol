@@ -47,6 +47,16 @@ test("LLM blind report removes arm identity and refuses partial campaigns", () =
   assert.deepEqual(incomplete.results, []);
 });
 
+for (const status of ["RATE_LIMITED", "PAYMENT_REQUIRED", "NOT_RUN"]) {
+  test(`LLM blind report never ranks a ${status} campaign`, () => {
+    const blocked = blindReport(args, [result("basic"), result("premise", { status })], "sha256:tasks");
+    assert.equal(blocked.status, "NOT_COMPARABLE");
+    assert.deepEqual(blocked.results, []);
+    assert.equal(Object.hasOwn(blocked, "winner"), false);
+    assert.equal(Object.hasOwn(blocked, "ranking"), false);
+  });
+}
+
 test("agent input omits the arm identity while retaining only assigned semantics", () => {
   const prompt = systemPrompt("premise");
   assert.doesNotMatch(prompt, /PREMiSE|Smart Revalidate|Basic memory|Conventional revalidation/iu);
@@ -90,6 +100,18 @@ test("OpenRouter/Nemotron settings are accepted without inline credentials", () 
   assert.equal(openrouter.endpoint, "https://openrouter.ai/api/v1/chat/completions");
   assert.equal(openrouter.credentialEnv, "OPENROUTER_API_KEY");
   assert.equal(openrouter.maxTokens, 1024);
+});
+
+test("free OpenRouter models can opt out of structured-output enforcement", () => {
+  const openrouter = parseArgs([
+    "--provider=openrouter",
+    "--model=inclusionai/ling-3.0-tiny:free",
+    "--response-format=none",
+    "--tasks=1",
+    "--round=openrouter-free-test",
+    "--arms=premise"
+  ]);
+  assert.equal(openrouter.responseFormat, "none");
 });
 
 test("arms cannot silently borrow another arm's write capability", () => {

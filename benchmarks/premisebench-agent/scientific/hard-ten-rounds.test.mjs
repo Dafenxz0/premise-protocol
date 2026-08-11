@@ -25,5 +25,7 @@ test("orchestrator distinguishes live sampling from the deterministic cohort", (
   assert.equal(args.requireLive, false);
   assert.equal(args.provider, "gemini");
   assert.equal(args.model, "gemini-3.5-flash-lite");
+  assert.equal(args.responseFormat, "json-object");
+  assert.equal(parseArgs(["--response-format=none"]).responseFormat, "none");
   assert.throws(() => parseArgs(["--llm-tasks=301"]), /llm-tasks/iu);
 });
