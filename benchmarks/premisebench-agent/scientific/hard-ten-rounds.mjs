@@ -229,13 +229,13 @@ function campaignReport(campaign, args) {
     claims: {
       supported: [
         "Within this deterministic local control, all completed PREMiSE rounds report the recorded safety and I/O counts.",
-        "The task set includes local filesystem-, Git-, PostgreSQL- and calendar-like scenarios with hidden mutation metadata.",
+        "The task generator includes filesystem-, Git-, PostgreSQL- and calendar-like payloads with hidden event/dependency metadata; the generic control executes snapshot/version/CAS and terminal mutation windows.",
         "The LLM adapter was invoked, but incomplete or rate-limited rounds are not ranked."
       ],
       notSupported: [
         "Provider billing or monetary savings: provider cost is UNKNOWN and visible payload cost is synthetic.",
-        "Production connector performance: the hard worlds are local simulations, not live GitHub or PostgreSQL services.",
-        "A universal LLM claim: the Gemini campaign did not complete the planned cohort."
+        "Production connector performance or connector-specific event/dependency semantics: the hard worlds are local simulations, not live GitHub, PostgreSQL or calendar services.",
+        "A universal LLM claim: the Gemini campaign did not complete the planned cohort, and the default run is a sample rather than a full-round LLM cohort."
       ],
       improvementPolicy: "No protocol mutation is accepted solely to reduce requests when the frozen safety control has no regression; every change must win a later holdout."
     },
@@ -255,7 +255,7 @@ function reportMarkdown(report) {
       const value = values.reduce((sum, item) => sum + item, 0);
       return values.length === arms.length ? String(value) : `${value}*`;
     };
-    return `| r${String(index + 1).padStart(2, "0")} | ${row.status} | ${row.plannedTasks} | ${row.executedTasks} | ${total("providerAttempts")} | ${total("inputTokens")} | ${total("outputTokens")} | UNKNOWN | ${row.provider} / ${row.model} |`;
+    return `| r${String(index + 1).padStart(2, "0")} | ${row.status} | ${row.plannedTasks} | ${row.executedTasks} | ${row.fullCohort ? "yes" : "no"} | ${total("providerAttempts")} | ${total("inputTokens")} | ${total("outputTokens")} | UNKNOWN | ${row.provider} / ${row.model} |`;
   });
   return [
     "# PREMiSE hard ten-round benchmark",
@@ -280,13 +280,13 @@ function reportMarkdown(report) {
     "",
     "## Real LLM execution",
     "",
-    "| Round | Status | Planned tasks | Executed tasks | Provider attempts | Input tokens | Output tokens | Provider cost | Provider / model |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    "| Round | Status | Planned tasks | Executed tasks | Full cohort | Provider attempts | Input tokens | Output tokens | Provider cost | Provider / model |",
+    "| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |",
     ...llmRows,
     "",
     "`*` marks a partial observed total from arms that reached the provider before the campaign stopped; it is not a complete cohort total.",
     "",
-    "A rate-limited or incomplete LLM round is not ranked and does not contribute a safety percentage.",
+    "A rate-limited, incomplete, or sample-only LLM round is not ranked and does not contribute a safety percentage. The deterministic cohort and the optional LLM sample have separate denominators.",
     "",
     "## What this supports",
     "",
@@ -358,10 +358,12 @@ export async function runCampaign(args) {
         `--risk-levels=${plan.riskLevels.join(",")}`,
         `--output=${resolve(args.output, "llm")}`
       ], 1_800_000);
-      llm.plannedTasks = plan.tasks;
+      llm.plannedTasks = Math.min(args.llmTasks, plan.tasks);
       llm.executedTasks = Number.isSafeInteger(llm.result?.executedLLMTasks)
         ? llm.result.executedLLMTasks
         : 0;
+      llm.fullCohort = llm.plannedTasks === plan.tasks;
+      llm.sampleOnly = !llm.fullCohort;
       llm.provider = args.provider;
       llm.model = args.model;
       llm.round = llmRound;
@@ -402,9 +404,13 @@ export async function runCampaign(args) {
       } : null,
       improvement: decision,
       llm: {
-        status: llm.result?.status ?? llm.status,
-        plannedTasks: plan.tasks,
+        status: (llm.result?.status ?? llm.status) === "OK" && llm.executedTasks === (llm.plannedTasks ?? 0) && llm.fullCohort === false
+          ? "SAMPLE_ONLY"
+          : llm.result?.status ?? llm.status,
+        plannedTasks: llm.plannedTasks ?? 0,
         executedTasks: llm.executedTasks ?? 0,
+        fullCohort: llm.fullCohort === true,
+        sampleOnly: llm.sampleOnly === true,
         provider: args.provider,
         model: args.model,
         arms: (llm.result?.results ?? []).map((result) => {
@@ -427,13 +433,14 @@ export async function runCampaign(args) {
     campaign.status = "RUNNING";
     await writeFile(resolve(args.output, "campaign-summary.json"), `${JSON.stringify(campaign, null, 2)}\n`, "utf8");
   }
-  const llmGap = !args.skipLlm && args.llmTasks > 0 && campaign.rounds.some((round) => round.llm.status !== "OK");
+  const llmGap = !args.skipLlm && args.llmTasks > 0 && campaign.rounds.some((round) => round.llm.status !== "OK" || round.llm.fullCohort !== true || round.llm.executedTasks !== round.llm.plannedTasks);
   const deterministicGap = campaign.rounds.some((round) => round.deterministicStatus !== "OK");
   const partialPlan = args.start !== 1 || args.end !== roundPlan.length;
   campaign.status = deterministicGap || llmGap
     ? (partialPlan ? "PARTIAL_WITH_GAPS" : "COMPLETE_WITH_GAPS")
     : partialPlan ? "PARTIAL_PLAN" : "COMPLETE";
   campaign.completedAt = new Date().toISOString();
+  await writeFile(resolve(args.output, "plan.json"), `${JSON.stringify({ ...campaign, planStatus: campaign.status }, null, 2)}\n`, "utf8");
   const report = campaignReport(campaign, args);
   campaign.report = { format: report.format, path: "report.md", status: report.status, plannedTasks: report.plannedTasks };
   await writeFile(resolve(args.output, "campaign-summary.json"), `${JSON.stringify(campaign, null, 2)}\n`, "utf8");
