@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { InMemoryRuntimeStore, PremiseRuntime } from "../dist/index.js";
-import { canonicalizeMemoryEnvelopeV2, MemoryV2SignatureReplayStore } from "@premise/protocol-types";
+import { canonicalizeMemoryEnvelopeV2Signature, MemoryV2SignatureReplayStore } from "@premise/protocol-types";
 
 const at = "2026-08-10T10:00:00Z";
 const envelope = (memoryId, dependsOn = [], status = "FRESH", tenantId = "tenant:acme", sourceUri = "github://acme/repo/commit/main") => ({
@@ -20,11 +20,9 @@ const envelope = (memoryId, dependsOn = [], status = "FRESH", tenantId = "tenant
 const { privateKey, publicKey } = generateKeyPairSync("ed25519");
 const signedEnvelope = (memoryId) => {
   const unsigned = envelope(memoryId);
-  const signature = sign(null, Buffer.from(canonicalizeMemoryEnvelopeV2(unsigned), "utf8"), privateKey).toString("base64");
-  return {
-    ...unsigned,
-    signatures: [{ signatureId: `sig:${memoryId}`, signerId: "test-signer", keyId: "key:test", algorithm: "ed25519", value: signature, signedAt: at }]
-  };
+  const metadata = { signatureId: `sig:${memoryId}`, signerId: "test-signer", keyId: "key:test", algorithm: "ed25519", signedAt: at };
+  const signature = sign(null, Buffer.from(canonicalizeMemoryEnvelopeV2Signature(unsigned, metadata), "utf8"), privateKey).toString("base64");
+  return { ...unsigned, signatures: [{ ...metadata, value: signature }] };
 };
 
 class CountingStore extends InMemoryRuntimeStore {

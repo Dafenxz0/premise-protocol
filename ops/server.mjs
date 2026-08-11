@@ -3,9 +3,9 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { URL } from "node:url";
 import { PremiseServer } from "@premise/premise-server/v2";
-import { MemoryV2SignatureReplayStore } from "@premise/protocol-types";
+import { MemoryV2SignatureReplayStore, parseAndVerifyMemoryEnvelopeV2Async } from "@premise/protocol-types";
 import { InMemoryRuntimeStore, PremiseRuntime } from "@premise/runtime-core";
-import { PostgresLexicalIndex } from "@premise/store-postgres";
+import { PostgresLexicalIndex, PostgresSignatureReplayStore } from "@premise/store-postgres";
 import { Metrics } from "./metrics.mjs";
 import { assertRlsSafeDatabaseRole, authorizeOperationalRequest, createBearerAuthorizer } from "./auth.mjs";
 import { openPgClient } from "./pg-client.mjs";
@@ -23,6 +23,9 @@ const config = {
   tablePrefix: process.env.PREMISE_TABLE_PREFIX ?? "premise_v2",
   signatureKeysFile: process.env.PREMISE_SIGNATURE_KEYS_FILE,
   requireSignedEnvelopes: process.env.PREMISE_REQUIRE_SIGNED_ENVELOPES === "1",
+  // The replay table requires expiresAt > acceptedAt; keep this positive and
+  // cap it so the two-times retention used below stays within its 24h bound.
+  signatureMaxClockSkewMs: integer("PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS", 5 * 60 * 1_000, 1, 12 * 60 * 60 * 1_000),
   maxBodyBytes: integer("PREMISE_MAX_BODY_BYTES", 1_048_576, 1, 64 * 1_024 * 1_024),
   runtimeWriteConcurrency: integer("PREMISE_RUNTIME_WRITE_CONCURRENCY", 4, 1, 64),
   runtimeMaxPendingWrites: integer("PREMISE_RUNTIME_MAX_PENDING_WRITES", 10_000, 1, 1_000_000),
@@ -33,12 +36,15 @@ const config = {
 if (config.storeMode !== "postgres" && config.storeMode !== "memory") throw new Error("PREMISE_STORE_MODE must be postgres or memory");
 const authorize = createBearerAuthorizer({ environment: config.environment, token: config.apiToken, tenantId: config.tenantId });
 const authorizeMetrics = createBearerAuthorizer({ environment: config.environment, token: config.metricsToken, tokenName: "PREMISE_METRICS_TOKEN", tenantId: config.tenantId });
-const signatureVerification = await loadSignatureVerification(config.signatureKeysFile);
-if (config.requireSignedEnvelopes && signatureVerification === undefined) {
+const signatureKeys = await loadSignatureKeys(config.signatureKeysFile);
+if (config.requireSignedEnvelopes && signatureKeys === undefined) {
   throw new Error("PREMISE_REQUIRE_SIGNED_ENVELOPES=1 requires PREMiSE_SIGNATURE_KEYS_FILE with external public keys");
 }
-if (!isDevelopmentEnvironment(config.environment) && signatureVerification !== undefined) {
-  throw new Error("PREMISE_SIGNATURE_KEYS_FILE cannot be used by this HTTP entrypoint outside development: its replay protection is process-local; inject a shared durable atomic replay store before enabling signatures in a protected environment");
+if (!isDevelopmentEnvironment(config.environment) && !config.requireSignedEnvelopes) {
+  throw new Error("PREMISE_REQUIRE_SIGNED_ENVELOPES=1 is mandatory outside development");
+}
+if (!isDevelopmentEnvironment(config.environment) && signatureKeys !== undefined && config.storeMode !== "postgres") {
+  throw new Error("PREMISE_SIGNATURE_KEYS_FILE requires PostgreSQL-backed replay protection outside development; use PREMiSE_STORE_MODE=postgres with migration 007 applied");
 }
 
 const metrics = new Metrics();
@@ -49,6 +55,7 @@ let runtime;
 let retrievalIndex;
 let runtimeCounts;
 let app;
+let signatureVerification;
 
 if (config.storeMode === "postgres") {
   try {
@@ -62,6 +69,15 @@ if (config.storeMode === "postgres") {
     idempotencyStore = opened.persistent;
     retrievalIndex = new PostgresLexicalIndex(opened.persistent, { awaitDurability: () => opened.mirror.flush() });
     runtimeCounts = () => opened.persistent.counts();
+    if (signatureKeys !== undefined) {
+      const replayStore = new PostgresSignatureReplayStore(database, {
+        tablePrefix: config.tablePrefix,
+        tenantId: config.tenantId,
+        retentionMs: Math.max(config.signatureMaxClockSkewMs * 2, 10 * 60 * 1_000)
+      });
+      await replayStore.initialize();
+      signatureVerification = { keys: signatureKeys, replayStore, maxClockSkewMs: config.signatureMaxClockSkewMs };
+    }
   } catch (error) {
     console.error("PREMiSE v2 startup failed: PostgreSQL is unavailable");
     console.error(error?.code ?? error?.name ?? "database error");
@@ -71,14 +87,19 @@ if (config.storeMode === "postgres") {
   }
 } else {
   store = new InMemoryRuntimeStore();
+  if (signatureKeys !== undefined) {
+    signatureVerification = {
+      keys: signatureKeys,
+      replayStore: new MemoryV2SignatureReplayStore(),
+      maxClockSkewMs: config.signatureMaxClockSkewMs
+    };
+  }
 }
 
 runtime = new PremiseRuntime({
   store,
   tenantId: config.tenantId,
-  principal: { tenantId: config.tenantId, subjectId: "premise-service" },
-  ...(signatureVerification === undefined ? {} : { signatureVerification }),
-  requireSignedEnvelopes: config.requireSignedEnvelopes
+  principal: { tenantId: config.tenantId, subjectId: "premise-service" }
 });
 
 app = new PremiseServer({
@@ -91,6 +112,9 @@ app = new PremiseServer({
   idempotencyStore,
   awaitDurability: () => store.flush(),
   maxBodyBytes: config.maxBodyBytes,
+  ...(signatureVerification === undefined ? {} : {
+    verifyEnvelope: (input) => parseAndVerifyMemoryEnvelopeV2Async(input, signatureVerification)
+  }),
   logger: (message) => console.error("PREMiSE v2 request error", message.split("\n", 1)[0])
 });
 
@@ -109,7 +133,7 @@ function integer(name, fallback, minimum, maximum) {
   return value;
 }
 
-async function loadSignatureVerification(file) {
+async function loadSignatureKeys(file) {
   if (file === undefined || file.length === 0) return undefined;
   let parsed;
   try {
@@ -134,7 +158,7 @@ async function loadSignatureVerification(file) {
     keys.set(keyId, publicKey);
   }
   if (keys.size === 0) throw new Error("PREMISE_SIGNATURE_KEYS_FILE must contain at least one public key");
-  return { keys, replayStore: new MemoryV2SignatureReplayStore() };
+  return keys;
 }
 
 function safeRequestId(request) {

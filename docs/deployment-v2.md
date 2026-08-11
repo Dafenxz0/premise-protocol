@@ -215,7 +215,7 @@ recuperación sin reemplazar el tenant operativo:
 docker compose --env-file .env.production -f deploy/docker-compose.yml \
   --profile ops run --rm \
   -e BACKUP_FILE=/backup/premise-v2-latest.ndjson \
-  backup node /app/ops/restore-verify.mjs
+  restore-verify
 ```
 
 Para un restore destructivo se exige una confirmación explícita y se recomienda
@@ -227,7 +227,7 @@ docker compose --env-file .env.production -f deploy/docker-compose.yml \
   -e RESTORE_CONFIRM=I_UNDERSTAND_DATA_REPLACEMENT \
   -e RESTORE_EXPECTED_SHA256=<sha256-verificado> \
   -e BACKUP_FILE=/backup/premise-v2-latest.ndjson \
-  backup node /app/ops/restore.mjs
+  restore
 ```
 
 El script verifica formato, tenant, orden, conteos y digest antes de abrir la

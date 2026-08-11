@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { URL } from "node:url";
 import { ContextEngine, type ContextCandidate } from "@premise/context-engine";
 import { DEFAULT_SEARCH_LIMIT, MAX_SEARCH_CANDIDATE_LIMIT, MAX_SEARCH_LIMIT, HybridIndex, type HybridDocument, type MetadataFilter, type SearchOptions } from "@premise/index-hybrid";
-import { SPEC_VERSION_V2, V2EnvelopeValidationError } from "@premise/protocol-types";
+import { SPEC_VERSION_V2, V2EnvelopeValidationError, V2SignatureVerificationError, type MemoryEnvelopeV2 } from "@premise/protocol-types";
 import { PremiseRuntime, type RuntimePrincipal, type RuntimeRecord, type RuntimeValidator } from "@premise/runtime-core";
 
 export const HTTP_IDEMPOTENCY_PROTOCOL = "premise-http-idempotency/1" as const;
@@ -41,6 +41,8 @@ export type PremiseQueryErrorCode =
   | "INVALID_QUERY_PAGE_SIZE"
   | "PAGINATION_UNSUPPORTED"
   | "UNAUTHORIZED"
+  | "SIGNATURE_INVALID"
+  | "SIGNATURE_REPLAY_UNAVAILABLE"
   | "PERSISTENCE_BACKPRESSURE"
   | "INTERNAL_ERROR";
 
@@ -76,6 +78,13 @@ export interface PremiseServerOptions<T> {
   readonly maxQueryHits?: number;
   readonly onMetric?: (metric: PremiseServerMetric) => void;
   readonly logger?: (message: string) => void;
+  /**
+   * Optional asynchronous trust boundary for protected deployments. It runs
+   * inside the idempotent mutation action, so retries do not consume a valid
+   * signature twice. The callback must fail closed on verification or replay
+   * store errors and return the canonical trusted envelope.
+   */
+  readonly verifyEnvelope?: (input: unknown) => MemoryEnvelopeV2 | Promise<MemoryEnvelopeV2>;
 }
 
 export interface HttpIdempotencyRequest {
@@ -169,6 +178,13 @@ class HttpError extends Error {
     super(message);
     this.name = "HttpError";
   }
+}
+
+function signatureHttpError(error: V2SignatureVerificationError): HttpError {
+  const replayStoreUnavailable = error.issues.some((issue) => issue.code === "REPLAY_STORE_UNAVAILABLE");
+  return replayStoreUnavailable
+    ? new HttpError(503, "SIGNATURE_REPLAY_UNAVAILABLE", "Signature verification is temporarily unavailable", { "retry-after": "1" })
+    : new HttpError(422, "SIGNATURE_INVALID", "The memory envelope signature is invalid or has already been accepted");
 }
 
 function utf8Bytes(value: string): number {
@@ -339,6 +355,7 @@ export class PremiseServer<T = unknown> {
   private readonly maxQueryHits: number;
   private readonly onMetric: ((metric: PremiseServerMetric) => void) | undefined;
   private readonly logger: (message: string) => void;
+  private readonly verifyEnvelope: PremiseServerOptions<T>["verifyEnvelope"];
 
   constructor(options: PremiseServerOptions<T>) {
     this.runtime = options.runtime;
@@ -359,6 +376,7 @@ export class PremiseServer<T = unknown> {
     }
     this.onMetric = options.onMetric;
     this.logger = options.logger ?? (() => undefined);
+    this.verifyEnvelope = options.verifyEnvelope;
     this.server = createServer((request, response) => { void this.handle(request, response); });
   }
 
@@ -414,9 +432,12 @@ export class PremiseServer<T = unknown> {
           principal,
           payload: { record, derived: input.derived === true },
           action: async () => {
-            if (input.derived === true) this.runtime.derive(record, idempotencyKey); else this.runtime.register(record, idempotencyKey);
-            await this.index.upsert(this.indexDocument(record));
-            return { status: 201, body: { memoryId: record.envelope.memoryId, status: "stored" } };
+            const trustedRecord = this.verifyEnvelope === undefined
+              ? record
+              : { ...record, envelope: await this.verifyEnvelope(record.envelope) };
+            if (input.derived === true) this.runtime.derive(trustedRecord, idempotencyKey); else this.runtime.register(trustedRecord, idempotencyKey);
+            await this.index.upsert(this.indexDocument(trustedRecord));
+            return { status: 201, body: { memoryId: trustedRecord.envelope.memoryId, status: "stored" } };
           }
         });
         jsonResponse(response, result.status, result.body, result.headers);
@@ -502,9 +523,11 @@ export class PremiseServer<T = unknown> {
       this.logger(error instanceof Error ? error.stack ?? error.message : String(error));
       const httpError = error instanceof HttpError
         ? error
-        : error instanceof SyntaxError
-          ? new HttpError(400, "INVALID_JSON", "Request body is not valid JSON")
-          : error instanceof V2EnvelopeValidationError
+          : error instanceof SyntaxError
+            ? new HttpError(400, "INVALID_JSON", "Request body is not valid JSON")
+            : error instanceof V2SignatureVerificationError
+              ? signatureHttpError(error)
+            : error instanceof V2EnvelopeValidationError
             ? new HttpError(422, "VALIDATION_ERROR", error.message, {}, error.issues)
             : error instanceof Error && (error as Error & { readonly code?: unknown }).code === "PERSISTENCE_BACKPRESSURE"
               ? new HttpError(503, "PERSISTENCE_BACKPRESSURE", "Durable persistence is temporarily saturated", { "retry-after": "1" })

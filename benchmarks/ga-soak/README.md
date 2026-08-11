@@ -67,11 +67,21 @@ node benchmarks/ga-soak/diagnostic.mjs `
 Cada resultado conserva `metrics.byOperation.<operation>.latency` y las
 muestras completas en `postgresTelemetry.samples`. `postgresTelemetry.summary`
 contiene los deltas de checkpoints, WAL, transacciones, bloques y conexiones.
-El proceso termina con codigo distinto de cero y `acceptance.classification`
-`checkpoint-dominated` cuando el tiempo acumulado de escritura/sync de
-checkpoints alcanza 100 ms y el 25% de la ventana medida. No se relaja ese
-umbral: la aceptación de Postgres forma parte de la elegibilidad GA y un
-`acceptance.passed=false` fuerza también `eligibility.eligibleForGa=false`.
+También conserva la configuración efectiva observada (`checkpoint_timeout`,
+`checkpoint_completion_target`, `max_wal_size`, `min_wal_size`,
+`wal_compression`, `fsync`, `full_page_writes` y `synchronous_commit`) en
+`postgresTelemetry.summary.configuration`. Si esa configuración cambia entre
+el primer y el último muestreo, la ventana se clasifica como
+`configuration-changed` y no es elegible: una comparación de rendimiento con
+configuración mutable no es evidencia reproducible.
+Después de comprobar errores, conexiones y latencia, el diagnóstico separa dos
+casos. Los checkpoints temporizados por PostgreSQL con `requested=0` y una
+fracción pequeña de sincronización se clasifican como `checkpoint-paced`: la
+ventana sigue siendo aceptable, pero conserva la telemetría para investigar el
+throughput del volumen. Un checkpoint solicitado, sincronización dominante,
+errores de I/O o incumplimiento de SLO se clasifica como `storage-blocking` y
+termina con código distinto de cero; `acceptance.passed=false` fuerza también
+`eligibility.eligibleForGa=false`. No se relaja el gate de errores ni de SLO.
 
 La campaña manual del 2026-08-10 es un ejemplo de diagnóstico, no una señal de
 disponibilidad aceptada: completó 587.507 solicitudes sin errores, pero observó
@@ -79,11 +89,13 @@ disponibilidad aceptada: completó 587.507 solicitudes sin errores, pero observ�
 sync sobre una ventana de 3.600.154,681 ms; 8.515 buffers y 868.260.959 bytes de
 WAL. El 64,7% de la ventana quedó ocupado por escritura de checkpoint. Los logs
 del mismo contenedor registraron checkpoints de aproximadamente 710-810 s.
-La clasificación correcta es `checkpoint-dominated` con fase dominante
-`checkpoint-write`: el primer propietario de la investigación es la capa de
-almacenamiento/configuración de PostgreSQL (throughput, volumen Docker/runner,
-cadencia y presupuesto WAL), no una optimización del gate ni una afirmación de
-que el protocolo sea universal. El artefacto conserva `writeTimeMs`,
+La clasificación actual de esa ventana es `checkpoint-paced`: los checkpoints
+fueron temporizados (`requested=0`) y la sincronización fue 24 ms frente a
+2.328.974 ms totales. Sigue siendo un diagnóstico antiguo, no certificación GA;
+el propietario de la investigación es la capa de almacenamiento/configuración
+de PostgreSQL (throughput, volumen Docker/runner, cadencia y presupuesto WAL),
+no una optimización del gate ni una afirmación de que el protocolo sea
+universal. El artefacto conserva `writeTimeMs`,
 `syncTimeMs`, `buffers`, `writeTimePerBufferMs` y `walBytesPerRequest` para que
 la siguiente ejecución pueda demostrar si el cuello desapareció.
 

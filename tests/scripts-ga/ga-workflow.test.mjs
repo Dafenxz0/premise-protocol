@@ -62,10 +62,26 @@ test("GA certification is fail-closed for manual runs and required evidence cann
   const certification = workflow.slice(workflow.indexOf("  ga-certification:"));
   assert.match(certification, /actions\/download-artifact@v4/u);
   assert.match(certification, /scripts\/collect-ga-evidence\.mjs/u);
+  assert.match(certification, /--strict-maps/u);
+  for (const mapping of [
+    "external-holdout.json=premise-ga-holdout-${GITHUB_SHA}/external-holdout.json",
+    "dataset-manifest.json=premise-ga-holdout-${GITHUB_SHA}/dataset-manifest.json",
+    "load-full.json=premise-ga-load-full-${GITHUB_SHA}/load-full.json",
+    "postgres-scale.json=premise-ga-postgres-scale-${GITHUB_SHA}/postgres-scale.json",
+    "recovery-report.json=premise-ga-postgres-scale-${GITHUB_SHA}/recovery-report.json",
+    "soak-availability.json=premise-ga-soak-${GITHUB_SHA}/soak-availability.json",
+    "cost-report.json=premise-ga-cost-${GITHUB_SHA}/cost-report.json",
+    "rollback-report.json=premise-ga-rollback-${GITHUB_SHA}/rollback-report.json",
+    "backup-restore.json=premise-ga-evidence-${GITHUB_SHA}/.ga-artifacts/restore-verify.json"
+  ]) assert.match(certification, new RegExp(`--map "${mapping.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")}"`, "u"));
   assert.match(certification, /scripts\/ga-gate\.mjs --strict/u);
+  assert.match(certification, /PREMISE_GA_EVIDENCE_DIR=\.ga-artifacts\/canonical node scripts\/ga-gate\.mjs --strict/u);
+  assert.doesNotMatch(certification, /PREMiSE_GA_EVIDENCE_DIR/u, "the evidence directory environment variable must match on Linux");
   assert.match(certification, /campaign-status\.exit/u);
   assert.match(certification, /collector\.exit/u);
   assert.match(certification, /ga-gate\.exit/u);
+  assert.match(certification, /name: Upload final GA certification bundle[\s\S]*?actions\/upload-artifact@v4/u);
+  assert.match(certification, /premise-ga-certification-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_id \}\}/u);
   for (const campaign of ["SECURITY", "DETERMINISTIC_LOAD", "MILLION_LOAD", "POSTGRES_SCALE", "EXTERNAL_GITHUB", "EXTERNAL_HOLDOUT", "INTEGRATION", "PRODUCTION_SOAK", "COST_EVIDENCE", "ROLLBACK"]) {
     assert.match(certification, new RegExp("^          " + campaign + ":", "mu"));
   }

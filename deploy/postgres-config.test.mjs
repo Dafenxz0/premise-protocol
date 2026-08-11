@@ -38,7 +38,7 @@ test("PostgreSQL baseline keeps durable writes and smooths checkpoint/WAL pressu
 test("Compose activates the checked-in config and leaves pool headroom", () => {
   assert.match(compose, /command:\s*\["postgres",\s*"-c",\s*"config_file=\/etc\/postgresql\/postgresql\.conf"\]/u);
   assert.match(compose, /- \.\/postgres\/postgresql\.conf:\/etc\/postgresql\/postgresql\.conf:ro/u);
-  assert.equal((compose.match(/^\s+PREMISE_DB_POOL_SIZE:/gmu) ?? []).length, 3);
+  assert.equal((compose.match(/^\s+PREMISE_DB_POOL_SIZE:/gmu) ?? []).length, 5);
   const pool = compose.match(/PREMISE_DB_POOL_SIZE:\s*\$\{PREMISE_DB_POOL_SIZE:-(\d+)\}/u)?.[1];
   assert.equal(pool, "8");
   assert.ok(Number(setting(config, "max_connections")) >= Number(pool) + 16);
@@ -48,12 +48,20 @@ test("Compose provisions and uses a non-bypass RLS application role", () => {
   assert.match(compose, /^\s+db-roles:\s*$/mu);
   assert.match(compose, /CREATE ROLE %I LOGIN NOSUPERUSER NOBYPASSRLS/u);
   assert.match(compose, /ALTER ROLE %I WITH LOGIN NOSUPERUSER NOBYPASSRLS/u);
+  assert.match(compose, /GRANT CONNECT ON DATABASE %I TO %I/u);
+  assert.match(compose, /GRANT USAGE ON SCHEMA public TO %I/u);
+  assert.doesNotMatch(compose, /GRANT CONNECT, CREATE ON DATABASE/u);
+  assert.doesNotMatch(compose, /GRANT USAGE, CREATE ON SCHEMA/u);
+  assert.match(compose, /^\s+restore-verify:\s*$/mu);
+  assert.match(compose, /restore-verify:[\s\S]*?DATABASE_URL: \$\{MIGRATIONS_DATABASE_URL:-postgresql:\/\/\$\{POSTGRES_USER/u);
+  assert.match(compose, /^\s+restore:\s*$/mu);
   assert.match(compose, /migrate:[\s\S]*?db-roles:\s*\n\s+condition: service_completed_successfully/u);
   assert.match(compose, /DATABASE_URL: \$\{MIGRATIONS_DATABASE_URL:-postgresql:\/\/\$\{POSTGRES_USER:-premise\}/u);
   assert.match(compose, /PREMISE_DB_USER: \$\{PREMISE_DB_USER:-premise_app\}/u);
   const databaseUrls = [...compose.matchAll(/^\s+DATABASE_URL:\s+(.+)$/gmu)].map((match) => match[1]);
-  assert.equal(databaseUrls.length, 3);
-  assert.ok(databaseUrls.slice(1).every((value) => value.includes("PREMISE_DB_USER") && !value.includes("POSTGRES_USER:-")));
+  assert.equal(databaseUrls.length, 5);
+  assert.ok(databaseUrls.slice(1, 3).every((value) => value.includes("PREMISE_DB_USER") && !value.includes("POSTGRES_USER:-")));
+  assert.ok(databaseUrls.slice(3).every((value) => value.includes("MIGRATIONS_DATABASE_URL") && !value.includes("PREMISE_DB_USER")));
 });
 
 test("Prometheus 3.5 receives its bearer through a Docker secret file", () => {
@@ -93,4 +101,10 @@ test("Compose uses immutable-image override points and graceful service shutdown
   assert.match(compose, /PREMISE_NODE_RUNTIME_IMAGE: \$\{PREMISE_NODE_RUNTIME_IMAGE:-node:24\.19\.0-bookworm-slim\}/u);
   assert.match(compose, /premise:\s[\s\S]*?init: true[\s\S]*?stop_grace_period: 30s/u);
   assert.match(compose, /backup:\s[\s\S]*?read_only: true[\s\S]*?\.\.\/\.local\/backups:\/backup:rw/u);
+});
+
+test("Compose mounts the production public-key secret without exposing it as an environment value", () => {
+  assert.match(compose, /premise_signature_public_keys:\s*\n\s+file: \$\{PREMISE_SIGNATURE_KEYS_SOURCE:-\.\.\/\.local\/premise_signature_public_keys\.json\}/u);
+  assert.match(compose, /premise:\s*[\s\S]*?secrets:\s*\n\s+- source: premise_signature_public_keys\s*\n\s+target: premise_signature_public_keys\.json/u);
+  assert.match(compose, /PREMISE_SIGNATURE_KEYS_FILE: \$\{PREMISE_SIGNATURE_KEYS_FILE:-\}/u);
 });

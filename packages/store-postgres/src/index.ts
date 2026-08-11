@@ -1,5 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { parseMemoryEnvelopeV2, parseV2Event, SPEC_VERSION_V2, type V2Event } from "@premise/protocol-types";
+import type { V2SignatureReplayClaim, V2SignatureReplayStoreAsync } from "@premise/protocol-types";
 import type { RuntimeRecord, RuntimeSnapshot } from "@premise/runtime-core";
 import {
   assertTenantId,
@@ -38,6 +39,13 @@ export interface PostgresRuntimeStoreOptions {
   readonly tablePrefix?: string;
   readonly tenantId?: string;
   readonly autoMigrate?: boolean;
+}
+
+export interface PostgresSignatureReplayStoreOptions {
+  readonly tablePrefix?: string;
+  readonly tenantId: string;
+  /** Retention used by callers that omit an explicit claim expiry. */
+  readonly retentionMs?: number;
 }
 
 export interface HttpIdempotencyRequest {
@@ -158,6 +166,7 @@ interface RuntimeTables {
   readonly snapshots: string;
   readonly checkpoints: string;
   readonly idempotency: string;
+  readonly signatureReplays: string;
 }
 
 function tables(prefix: string): RuntimeTables {
@@ -169,7 +178,8 @@ function tables(prefix: string): RuntimeTables {
     events: identifier(`${prefix}_events`),
     snapshots: identifier(`${prefix}_snapshots`),
     checkpoints: identifier(`${prefix}_replay_checkpoints`),
-    idempotency: identifier(`${prefix}_http_idempotency`)
+    idempotency: identifier(`${prefix}_http_idempotency`),
+    signatureReplays: identifier(`${prefix}_signature_replays`)
   };
 }
 
@@ -278,6 +288,26 @@ ${policySql(runtime.idempotency)}
 CREATE INDEX IF NOT EXISTS ${identifier(`${runtime.prefix}_records_content_fts_idx`)}
   ON ${runtime.records} USING GIN (to_tsvector('simple', content_json::text));
       `
+    },
+    {
+      version: 7,
+      name: "signature-replay",
+      sql: `
+CREATE TABLE IF NOT EXISTS ${runtime.signatureReplays} (
+  tenant_id TEXT NOT NULL CHECK (length(trim(tenant_id)) > 0),
+  replay_digest TEXT NOT NULL CHECK (replay_digest ~ '^[0-9a-f]{64}$'),
+  signature_id TEXT NOT NULL CHECK (length(trim(signature_id)) > 0),
+  key_id TEXT NOT NULL CHECK (length(trim(key_id)) > 0),
+  signed_at TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL CHECK (expires_at > accepted_at),
+  PRIMARY KEY (tenant_id, replay_digest)
+);
+
+CREATE INDEX IF NOT EXISTS ${identifier(`${runtime.prefix}_signature_replays_expiry_idx`)}
+  ON ${runtime.signatureReplays}(tenant_id, expires_at);
+${policySql(runtime.signatureReplays)}
+      `
     }
   ];
 }
@@ -291,7 +321,7 @@ function migrationBundle(prefix: string): string {
   ].join("\n");
 }
 
-export const POSTGRES_RUNTIME_SCHEMA_VERSION = 6 as const;
+export const POSTGRES_RUNTIME_SCHEMA_VERSION = 7 as const;
 export const POSTGRES_RUNTIME_MIGRATIONS = migrationSql(tables("premise_v2"));
 export const POSTGRES_RUNTIME_SCHEMA_SQL = migrationBundle("premise_v2");
 export const POSTGRES_RUNTIME_SPEC_VERSION = SPEC_VERSION_V2;
@@ -458,6 +488,107 @@ function validateSnapshot<T>(input: unknown): RuntimeSnapshot<T> {
 
 function rowEventId(row: Readonly<Record<string, unknown>>): string {
   return rowText(row, "event_id");
+}
+
+/**
+ * Durable, tenant-scoped replay protection for signed v2 envelopes.
+ *
+ * The signature itself is never persisted. A SHA-256 digest is claimed with
+ * an atomic INSERT/ON CONFLICT operation inside a transaction, so concurrent
+ * API replicas cannot accept the same signature twice.
+ */
+export class PostgresSignatureReplayStore implements V2SignatureReplayStoreAsync {
+  readonly client: PostgresAdapter;
+  readonly tablePrefix: string;
+  readonly tenantId: string;
+  private readonly table: string;
+  private readonly retentionMs: number;
+
+  constructor(client: PostgresAdapter, options: PostgresSignatureReplayStoreOptions) {
+    if (client === null || typeof client !== "object" || typeof client.query !== "function") throw new TypeError("PostgresClient must provide query(sql, values)");
+    if (options === null || typeof options !== "object") throw new TypeError("Postgres signature replay options are required");
+    assertTenantId(options.tenantId);
+    const tablePrefix = options.tablePrefix ?? "premise_v2";
+    const configuredRetention = options.retentionMs ?? 10 * 60 * 1_000;
+    if (!Number.isSafeInteger(configuredRetention) || configuredRetention < 1_000 || configuredRetention > 24 * 60 * 60 * 1_000) throw new TypeError("signature replay retentionMs must be between 1000 and 86400000");
+    this.client = client;
+    this.tablePrefix = tablePrefix;
+    this.tenantId = options.tenantId;
+    this.table = tables(tablePrefix).signatureReplays;
+    this.retentionMs = configuredRetention;
+  }
+
+  /** Fail closed when deployment migrations did not create the replay table. */
+  async initialize(): Promise<void> {
+    const result = await this.client.query(`
+      SELECT
+        to_regclass($1)::text AS relation,
+        c.relrowsecurity AS row_security,
+        c.relforcerowsecurity AS force_row_security,
+        EXISTS (
+          SELECT 1
+          FROM pg_policies p
+          WHERE p.schemaname = n.nspname
+            AND p.tablename = $2
+            AND p.policyname = $3
+            AND p.qual LIKE '%premise.tenant_id%'
+            AND p.with_check LIKE '%premise.tenant_id%'
+        ) AS tenant_policy
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.oid = to_regclass($1)
+    `, [`${this.tablePrefix}_signature_replays`, `${this.tablePrefix}_signature_replays`, `${this.tablePrefix}_signature_replays_tenant_policy`]);
+    const row = result.rows[0];
+    if (row?.relation !== `${this.tablePrefix}_signature_replays`) throw new Error(`PostgreSQL signature replay table is missing: ${this.tablePrefix}_signature_replays`);
+    if (row.row_security !== true || row.force_row_security !== true || row.tenant_policy !== true) throw new Error(`PostgreSQL signature replay table is not protected by the expected tenant RLS policy: ${this.tablePrefix}_signature_replays`);
+  }
+
+  async claim(claim: V2SignatureReplayClaim): Promise<boolean> {
+    return this.claimMany([claim]);
+  }
+
+  async claimMany(claims: readonly V2SignatureReplayClaim[]): Promise<boolean> {
+    if (!Array.isArray(claims)) throw new TypeError("signature replay claims must be an array");
+    if (claims.length === 0) return true;
+    const normalized = claims.map((claim) => this.normalizeClaim(claim));
+    if (new Set(normalized.map(({ replayDigest }) => replayDigest)).size !== normalized.length) return false;
+    return withPostgresTransaction(this.client, async (client) => {
+      await setTenantContext(client, this.tenantId);
+      await client.query(`DELETE FROM ${this.table} WHERE tenant_id = $1 AND expires_at <= CURRENT_TIMESTAMP`, [this.tenantId]);
+      for (const claim of normalized) {
+        const result = await client.query(`
+          INSERT INTO ${this.table} (tenant_id, replay_digest, signature_id, key_id, signed_at, accepted_at, expires_at)
+          VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7::timestamptz)
+          ON CONFLICT (tenant_id, replay_digest) DO NOTHING
+        `, [this.tenantId, claim.replayDigest, claim.signatureId, claim.keyId, claim.signedAt, claim.acceptedAt, claim.expiresAt]);
+        if ((result.rowCount ?? result.rows.length) !== 1) throw new ReplayClaimConflict();
+      }
+      return true;
+    }).catch((error) => {
+      if (error instanceof ReplayClaimConflict) return false;
+      throw error;
+    });
+  }
+
+  private normalizeClaim(claim: V2SignatureReplayClaim): V2SignatureReplayClaim & { readonly replayDigest: string } {
+    if (claim === null || typeof claim !== "object") throw new TypeError("signature replay claim is required");
+    if (claim.tenantId !== this.tenantId) throw new Error("signature replay claim tenant does not match the store");
+    for (const [label, value] of Object.entries({ key: claim.key, signatureId: claim.signatureId, keyId: claim.keyId, signedAt: claim.signedAt, acceptedAt: claim.acceptedAt, expiresAt: claim.expiresAt })) {
+      assertKey(value, `signature replay ${label}`);
+    }
+    const signedAt = Date.parse(claim.signedAt);
+    const acceptedAt = Date.parse(claim.acceptedAt);
+    const expiresAt = Date.parse(claim.expiresAt);
+    if (![signedAt, acceptedAt, expiresAt].every(Number.isFinite) || expiresAt <= acceptedAt || expiresAt - acceptedAt > this.retentionMs) throw new TypeError("signature replay claim timestamps are invalid or exceed retention");
+    return { ...claim, replayDigest: createHash("sha256").update(claim.key, "utf8").digest("hex") };
+  }
+}
+
+class ReplayClaimConflict extends Error {
+  constructor() {
+    super("signature replay claim already exists");
+    this.name = "ReplayClaimConflict";
+  }
 }
 
 export class PostgresRuntimeStore<T = unknown> implements AsyncRuntimeStore<T> {

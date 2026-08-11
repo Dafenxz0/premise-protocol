@@ -110,6 +110,29 @@ fixture es determinista y local: sirve para medir la ruta híbrida, no para
 prometer calidad semántica de un modelo externo. Son medidas locales del
 índice y no sustituyen repetir el soak de una hora contra la imagen candidata.
 
+### Diagnóstico PostgreSQL de la ventana
+
+`benchmarks/ga-soak/diagnostic.mjs` puede muestrear la misma base de datos que
+usa el servicio. Además de los contadores de checkpoints, WAL, transacciones y
+conexiones, el artefacto conserva la configuración efectiva de durabilidad y
+WAL en `postgresTelemetry.summary.configuration`: `checkpoint_timeout`,
+`checkpoint_completion_target`, `checkpoint_flush_after`, `max_wal_size`,
+`min_wal_size`, `wal_buffers`, `wal_compression`, `fsync`,
+`full_page_writes` y `synchronous_commit`.
+
+Si los valores efectivos del primer y último muestreo no coinciden, la ventana
+se clasifica como `configuration-changed` y no es elegible. Esto evita comparar
+dos configuraciones distintas como si fueran una sola ejecución y permite al
+responsable de la base de datos revisar si `ALTER SYSTEM`, un operador o el
+proveedor cambió el entorno durante la campaña.
+
+Los checkpoints temporizados por PostgreSQL (`requested=0`) con una fracción
+pequeña de sincronización se clasifican como `checkpoint-paced`: son una señal
+operativa que debe conservarse, pero no prueban por sí solos un bloqueo de
+almacenamiento. La clasificación `storage-blocking` queda reservada para
+checkpoints solicitados, sincronización dominante, errores de I/O o SLO
+incumplidos.
+
 ## Check ejecutable
 
 ```powershell

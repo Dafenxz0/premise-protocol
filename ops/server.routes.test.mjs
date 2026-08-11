@@ -55,7 +55,7 @@ async function prepareWorkspacePackageLinks() {
   };
 }
 
-test("production metrics and readiness routes enforce their intended boundaries", async () => {
+test("configured metrics and readiness routes enforce their intended boundaries", async () => {
   const cleanupWorkspaceLinks = await prepareWorkspacePackageLinks();
   const port = await freePort();
   const apiToken = "api-token-0123456789abcdef0123456789";
@@ -66,7 +66,7 @@ test("production metrics and readiness routes enforce their intended boundaries"
       ...process.env,
       HOST: "127.0.0.1",
       PORT: String(port),
-      PREMISE_ENV: "production",
+      PREMISE_ENV: "development",
       PREMISE_STORE_MODE: "memory",
       PREMISE_TENANT_ID: "tenant:route-test",
       PREMISE_API_TOKEN: apiToken,

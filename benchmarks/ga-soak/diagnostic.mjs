@@ -13,6 +13,8 @@ export const DIAGNOSTIC_FORMAT = "premise-ga-soak/diagnostic/1";
 export const ACCEPTANCE_THRESHOLDS = Object.freeze({
   minimumCheckpointTimeMs: 100,
   checkpointTimeShareOfWindow: 0.25,
+  checkpointPacingMaximumTimeShare: 0.75,
+  checkpointSyncShareOfCheckpoint: 0.05,
   connectionUtilization: 0.9
 });
 
@@ -76,50 +78,33 @@ export function classifyAcceptance(soak, telemetry, thresholds = ACCEPTANCE_THRE
     ]);
   }
 
-  const checkpoint = summary.checkpoint;
-  const checkpointDominates = checkpoint
-    && Number.isFinite(checkpoint.totalTimeMs)
-    && Number.isFinite(checkpoint.timeShareOfWindow)
-    && checkpoint.totalTimeMs >= thresholds.minimumCheckpointTimeMs
-    && checkpoint.timeShareOfWindow >= thresholds.checkpointTimeShareOfWindow;
-  if (checkpointDominates) {
-    const writeTimeMs = checkpoint.writeTimeMs;
-    const syncTimeMs = checkpoint.syncTimeMs;
-    const buffers = checkpoint.buffers;
-    const requests = soak.metrics?.requests;
-    const walBytesPerRequest = Number.isFinite(summary.wal?.bytes) && Number.isFinite(requests) && requests > 0
-      ? Number((summary.wal.bytes / requests).toFixed(3))
-      : null;
-    const writeTimePerBufferMs = Number.isFinite(writeTimeMs) && Number.isFinite(buffers) && buffers > 0
-      ? Number((writeTimeMs / buffers).toFixed(3))
-      : null;
-    const dominantPhase = Number.isFinite(writeTimeMs) && Number.isFinite(syncTimeMs) && writeTimeMs >= syncTimeMs
-      ? "checkpoint-write"
-      : "checkpoint-sync";
-    return acceptanceFailure(
-      "checkpoint-dominated",
-      `PostgreSQL ${dominantPhase} time consumed ${percentage(checkpoint.timeShareOfWindow)}% of the measured window (${checkpoint.totalTimeMs} ms).`,
-      [
-        "Inspect checkpoint requested/timed counts, WAL bytes, and storage latency in postgresTelemetry.summary.",
-        "Have the database owner review checkpoint cadence, WAL budget, checkpoint completion pacing, and storage throughput before changing PREMiSE code.",
-        "Repeat the soak after the database-side investigation and compare each operation's p95/p99 latency."
-      ],
-      {
-        checkpointTimeMs: checkpoint.totalTimeMs,
-        checkpointTimeShareOfWindow: checkpoint.timeShareOfWindow,
-        thresholdTimeMs: thresholds.minimumCheckpointTimeMs,
-        thresholdShare: thresholds.checkpointTimeShareOfWindow,
-        requested: checkpoint.requested,
-        timed: checkpoint.timed,
-        writeTimeMs,
-        syncTimeMs,
-        dominantPhase,
-        buffers,
-        writeTimePerBufferMs,
-        walBytes: summary.wal?.bytes ?? null,
-        walBytesPerRequest
-      }
-    );
+  if (summary.configuration?.changed === true) {
+    return acceptanceFailure("configuration-changed", "Effective PostgreSQL durability or checkpoint settings changed during the measured window.", [
+      "Repeat the soak with PostgreSQL configuration frozen for the complete evidence window.",
+      "Preserve configuration.start and configuration.end so the database owner can identify the setting that changed."
+    ], { configuration: summary.configuration });
+  }
+
+  const telemetryCompleteness = [
+    ["soak.metrics.requests", soak.metrics?.requests],
+    ["soak.metrics.failed", soak.metrics?.failed],
+    ["soak.metrics.latency.p95Ms", soak.metrics?.latency?.p95Ms],
+    ["soak.metrics.latency.p99Ms", soak.metrics?.latency?.p99Ms],
+    ["postgresTelemetry.summary.elapsedMs", summary.elapsedMs],
+    ["postgresTelemetry.summary.checkpoint.totalTimeMs", summary.checkpoint?.totalTimeMs],
+    ["postgresTelemetry.summary.checkpoint.timeShareOfWindow", summary.checkpoint?.timeShareOfWindow],
+    ["postgresTelemetry.summary.checkpoint.requested", summary.checkpoint?.requested],
+    ["postgresTelemetry.summary.checkpoint.timed", summary.checkpoint?.timed],
+    ["postgresTelemetry.summary.checkpoint.writeTimeMs", summary.checkpoint?.writeTimeMs],
+    ["postgresTelemetry.summary.checkpoint.syncTimeMs", summary.checkpoint?.syncTimeMs],
+    ["postgresTelemetry.summary.wal.bytes", summary.wal?.bytes],
+    ["postgresTelemetry.summary.connections.peakUtilization", summary.connections?.peakUtilization]
+  ].filter(([, value]) => !Number.isFinite(value));
+  if (telemetryCompleteness.length > 0) {
+    return acceptanceFailure("telemetry-incomplete", "The soak artifact is missing a required HTTP SLO or PostgreSQL telemetry value; incomplete evidence cannot be accepted.", [
+      "Capture complete metrics and telemetry for the entire window, including checkpoint, WAL, latency, request, and connection fields.",
+      "Do not fill missing values with zero or null; rerun the diagnostic against the real deployment."
+    ], { missing: telemetryCompleteness.map(([field]) => field) });
   }
 
   const connectionUtilization = summary.connections?.peakUtilization;
@@ -155,6 +140,76 @@ export function classifyAcceptance(soak, telemetry, thresholds = ACCEPTANCE_THRE
     ], { observedP95Ms: p95Ms ?? null, maximumP95Ms: GA_THRESHOLDS.maximumP95Ms, observedP99Ms: p99Ms, maximumP99Ms: GA_THRESHOLDS.maximumP99Ms });
   }
 
+  const checkpoint = summary.checkpoint;
+  const checkpointDominates = checkpoint
+    && Number.isFinite(checkpoint.totalTimeMs)
+    && Number.isFinite(checkpoint.timeShareOfWindow)
+    && checkpoint.totalTimeMs >= thresholds.minimumCheckpointTimeMs
+    && checkpoint.timeShareOfWindow >= thresholds.checkpointTimeShareOfWindow;
+  if (checkpointDominates) {
+    const writeTimeMs = checkpoint.writeTimeMs;
+    const syncTimeMs = checkpoint.syncTimeMs;
+    const buffers = checkpoint.buffers;
+    const requests = soak.metrics?.requests;
+    const walBytesPerRequest = Number.isFinite(summary.wal?.bytes) && Number.isFinite(requests) && requests > 0
+      ? Number((summary.wal.bytes / requests).toFixed(3))
+      : null;
+    const writeTimePerBufferMs = Number.isFinite(writeTimeMs) && Number.isFinite(buffers) && buffers > 0
+      ? Number((writeTimeMs / buffers).toFixed(3))
+      : null;
+    const dominantPhase = Number.isFinite(writeTimeMs) && Number.isFinite(syncTimeMs) && writeTimeMs >= syncTimeMs
+      ? "checkpoint-write"
+      : "checkpoint-sync";
+    const syncShareOfCheckpoint = Number.isFinite(syncTimeMs) && checkpoint.totalTimeMs > 0
+      ? syncTimeMs / checkpoint.totalTimeMs
+      : null;
+    const checkpointPaced = checkpoint.requested === 0
+      && Number.isFinite(syncShareOfCheckpoint)
+      && syncShareOfCheckpoint <= thresholds.checkpointSyncShareOfCheckpoint
+      && checkpoint.timeShareOfWindow <= thresholds.checkpointPacingMaximumTimeShare;
+    const evidence = {
+      checkpointTimeMs: checkpoint.totalTimeMs,
+      checkpointTimeShareOfWindow: checkpoint.timeShareOfWindow,
+      thresholdTimeMs: thresholds.minimumCheckpointTimeMs,
+      thresholdShare: thresholds.checkpointTimeShareOfWindow,
+      pacingMaximumShare: thresholds.checkpointPacingMaximumTimeShare,
+      requested: checkpoint.requested,
+      timed: checkpoint.timed,
+      writeTimeMs,
+      syncTimeMs,
+      syncShareOfCheckpoint,
+      syncShareThreshold: thresholds.checkpointSyncShareOfCheckpoint,
+      dominantPhase,
+      buffers,
+      writeTimePerBufferMs,
+      walBytes: summary.wal?.bytes ?? null,
+      walBytesPerRequest,
+      configuration: summary.configuration ?? null
+    };
+    if (checkpointPaced) {
+      return {
+        passed: true,
+        classification: "checkpoint-paced",
+        reason: `PostgreSQL timed checkpoints were deliberately paced (${percentage(checkpoint.timeShareOfWindow)}% of the window) without requested checkpoints or material sync time; HTTP SLOs still passed.`,
+        actions: [
+          "Keep checkpoint timing and effective PostgreSQL configuration with the evidence package.",
+          "Investigate only if future windows also show requested checkpoints, sync pressure, or an SLO regression."
+        ],
+        evidence
+      };
+    }
+    return acceptanceFailure(
+      "storage-blocking",
+      `PostgreSQL checkpoint ${dominantPhase} time consumed ${percentage(checkpoint.timeShareOfWindow)}% of the measured window without sufficient evidence of normal pacing.`,
+      [
+        "Inspect checkpoint requested/timed counts, WAL bytes, and independent storage latency in postgresTelemetry.summary.",
+        "Have the database owner review checkpoint cadence, WAL budget, checkpoint completion pacing, and storage throughput before changing PREMiSE code.",
+        "Repeat the soak after the database-side investigation and compare each operation's p95/p99 latency."
+      ],
+      evidence
+    );
+  }
+
   return {
     passed: true,
     classification: "accepted",
@@ -163,7 +218,8 @@ export function classifyAcceptance(soak, telemetry, thresholds = ACCEPTANCE_THRE
     evidence: {
       checkpointTimeMs: checkpoint?.totalTimeMs ?? null,
       checkpointTimeShareOfWindow: checkpoint?.timeShareOfWindow ?? null,
-      peakConnectionUtilization: connectionUtilization ?? null
+      peakConnectionUtilization: connectionUtilization ?? null,
+      configuration: summary.configuration ?? null
     }
   };
 }
@@ -290,7 +346,7 @@ export function help() {
   return `Usage: node benchmarks/ga-soak/diagnostic.mjs [soak options]
 
 Runs the HTTP soak with read-only PostgreSQL checkpoint, WAL, database, and connection telemetry.
-The check exits non-zero for incomplete telemetry, checkpoint-dominated latency, connection saturation, HTTP errors, or p95/p99 above the GA limits.
+The check exits non-zero for incomplete telemetry, real storage blocking, connection saturation, HTTP errors, or p95/p99 above the GA limits.
 Options:
   --telemetry-interval-ms N     PostgreSQL sample interval (default: 1000)
   --telemetry-timeout-ms N      timeout for each PostgreSQL sample (default: 5000)

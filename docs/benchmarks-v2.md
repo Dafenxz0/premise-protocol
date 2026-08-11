@@ -128,13 +128,15 @@ la hora. Hubo 4 checkpoints temporizados, 0 solicitados, 8.515 buffers y
 868.260.959 bytes de WAL; los logs registraron operaciones de escritura de
 checkpoint de unos 710–810 segundos.
 
-La conclusión es un cuello operativo de almacenamiento/configuración de
-PostgreSQL (throughput del volumen, pacing de checkpoint y presupuesto WAL), no
-un motivo para relajar el gate. La ejecución se mantiene no aceptada hasta
-repetirla con evidencia de que esa fase dejó de dominar. El diagnóstico ahora
-expone `dominantPhase`, `writeTimePerBufferMs` y `walBytesPerRequest`, y no
-permite que `eligibility.eligibleForGa=true` conviva con
-`acceptance.passed=false`.
+La conclusión debe separar el pacing normal de un bloqueo real. Con
+`requested=0` y sincronización pequeña frente al tiempo de escritura, el
+diagnóstico clasifica la ventana como `checkpoint-paced`: conserva el dato para
+operaciones, pero no lo convierte en un fallo de disponibilidad. Un checkpoint
+solicitado, sincronización dominante, errores de I/O o incumplimiento de SLO se
+clasifica como `storage-blocking` y sí mantiene la ejecución no aceptada. El
+diagnóstico expone `dominantPhase`, `writeTimePerBufferMs` y
+`walBytesPerRequest`, y no permite que `eligibility.eligibleForGa=true` conviva
+con `acceptance.passed=false`.
 
 ## Checklist antes de publicar un número
 

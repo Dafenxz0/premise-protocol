@@ -22,6 +22,7 @@ export function parseArgs(argv) {
   let source;
   let generatedAt;
   let help = false;
+  let strictMaps = false;
   const mappings = [];
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -30,6 +31,10 @@ export function parseArgs(argv) {
     const inlineValue = separator === -1 ? undefined : argument.slice(separator + 1);
     if (flag === "--help" || flag === "-h") {
       help = true;
+      continue;
+    }
+    if (flag === "--strict-maps") {
+      strictMaps = true;
       continue;
     }
     const valueFor = (name) => {
@@ -47,7 +52,7 @@ export function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${argument}`);
   }
   if (!help && (!input || !output)) throw new Error("--input and --output are required");
-  return { input, output, commit, source, generatedAt, mappings, help };
+  return { input, output, commit, source, generatedAt, mappings, strictMaps, help };
 }
 
 async function walkFiles(directory, prefix = "") {
@@ -83,7 +88,7 @@ function referencedFiles(document) {
     .map(([field, path]) => ({ field, path }));
 }
 
-async function resolveReferencedSource({ inputRoot, reportSource, field, reference, files, failures, target }) {
+async function resolveReferencedSource({ inputRoot, reportSource, field, reference, files, failures, target, strictMaps }) {
   if (!safeRelativeReference(reference)) {
     failures.push({ target, code: "unsafe-dependency", message: `${field} must reference a relative file inside the input directory: ${reference}` });
     return null;
@@ -100,6 +105,10 @@ async function resolveReferencedSource({ inputRoot, reportSource, field, referen
     failures.push({ target, code: "ambiguous-dependency", message: `${field} resolves to more than one input file: ${reference}` });
     return null;
   }
+  if (strictMaps) {
+    failures.push({ target, code: "missing-dependency", message: `${field} must resolve next to its report in strict collection mode: ${reference}` });
+    return null;
+  }
   const candidates = files.filter((file) => basename(file.relativePath) === basename(reference));
   if (candidates.length !== 1) {
     failures.push({
@@ -113,7 +122,7 @@ async function resolveReferencedSource({ inputRoot, reportSource, field, referen
   return candidates[0];
 }
 
-async function collectReferencedFiles({ inputRoot, outputRoot, files, copiedReports, failures }) {
+async function collectReferencedFiles({ inputRoot, outputRoot, files, copiedReports, failures, strictMaps }) {
   const dependencies = [];
   const copied = new Map();
   for (const [target, report] of copiedReports) {
@@ -124,7 +133,7 @@ async function collectReferencedFiles({ inputRoot, outputRoot, files, copiedRepo
       continue;
     }
     for (const { field, path: reference } of referencedFiles(document)) {
-      const sourceFile = await resolveReferencedSource({ inputRoot, reportSource: report.sourceFile, field, reference, files, failures, target });
+      const sourceFile = await resolveReferencedSource({ inputRoot, reportSource: report.sourceFile, field, reference, files, failures, target, strictMaps });
       if (!sourceFile) continue;
       const targetPath = resolve(outputRoot, reference);
       if (!isPathInside(outputRoot, targetPath)) {
@@ -158,7 +167,7 @@ async function prepareOutputDirectory(outputRoot) {
   }
 }
 
-async function resolveSource({ inputRoot, target, explicitSource, files, failures }) {
+async function resolveSource({ inputRoot, target, explicitSource, files, failures, strictMaps }) {
   if (explicitSource !== undefined) {
     const sourcePath = isAbsolute(explicitSource) ? resolve(explicitSource) : resolve(inputRoot, explicitSource);
     if (!isPathInside(inputRoot, sourcePath)) {
@@ -176,6 +185,11 @@ async function resolveSource({ inputRoot, target, explicitSource, files, failure
       failures.push({ target, code: "source-missing", message: `Mapped source does not exist: ${explicitSource}` });
       return null;
     }
+  }
+
+  if (strictMaps) {
+    failures.push({ target, code: "mapping-required", message: `Strict collection requires an explicit --map for ${target}.` });
+    return null;
   }
 
   const directPath = resolve(inputRoot, target);
@@ -203,6 +217,7 @@ export async function collectGaEvidence({
   commit = process.env.GITHUB_SHA ?? null,
   source = null,
   generatedAt = new Date().toISOString(),
+  strictMaps = false,
   manifest
 }) {
   const inputRoot = resolve(inputDir);
@@ -238,7 +253,8 @@ export async function collectGaEvidence({
       target: requirement.name,
       explicitSource: mappingByTarget.get(requirement.name),
       files,
-      failures
+      failures,
+      strictMaps
     });
     if (!sourceFile) {
       collected.push({ evidence: requirement.name, status: "missing", source: null, bytes: 0, sha256: null });
@@ -259,7 +275,7 @@ export async function collectGaEvidence({
     copiedReports.set(requirement.name, { sourceFile, targetPath });
   }
 
-  const dependencies = await collectReferencedFiles({ inputRoot, outputRoot, files, copiedReports, failures });
+  const dependencies = await collectReferencedFiles({ inputRoot, outputRoot, files, copiedReports, failures, strictMaps });
   const contract = await inspectEvidenceDirectory(outputRoot, resolvedManifest);
   const allFailures = [...failures, ...contract.failures];
   const report = {
@@ -269,6 +285,7 @@ export async function collectGaEvidence({
     source: source ?? inputRoot,
     trace: {
       inputDirectory: inputRoot,
+      strictMaps,
       mappings: [...mappingByTarget.entries()].map(([target, mappedSource]) => ({ target, source: mappedSource })),
       files: collected.map(({ evidence, source: fileSource, status, bytes, sha256 }) => ({ evidence, source: fileSource, status, bytes, sha256 })),
       dependencies
@@ -306,6 +323,7 @@ function usage() {
     "Copies only real required artifacts. Missing artifacts are reported and never created.",
     "Options:",
     "  --map TARGET=SOURCE       map a required evidence name to an input-relative file (repeatable)",
+    "  --strict-maps             require explicit maps and exact report-local dependency paths",
     "  --commit SHA              collection metadata only; never injected into copied artifacts",
     "  --source VALUE            collection metadata only",
     "  --generated-at ISO        collection timestamp (defaults to now)",

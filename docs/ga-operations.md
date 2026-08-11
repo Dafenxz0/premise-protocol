@@ -201,8 +201,7 @@ El backup operativo usa NDJSON con paginación, SHA-256 de las entradas, footer 
 
 ~~~bash
 docker compose -f deploy/docker-compose.yml --profile ops run --rm backup
-docker compose -f deploy/docker-compose.yml --profile ops run --rm backup \
-  node /app/ops/restore-verify.mjs
+docker compose -f deploy/docker-compose.yml --profile ops run --rm restore-verify
 ~~~
 
 El fichero queda en `.local/backups/premise-v2-latest.ndjson`. Antes de una operación destructiva, conservar una copia externa y parar la API:
@@ -211,7 +210,7 @@ El fichero queda en `.local/backups/premise-v2-latest.ndjson`. Antes de una oper
 docker compose -f deploy/docker-compose.yml stop premise
 docker compose -f deploy/docker-compose.yml --profile ops run --rm \
   -e RESTORE_CONFIRM=I_UNDERSTAND_DATA_REPLACEMENT \
-  backup node /app/ops/restore.mjs
+  restore
 docker compose -f deploy/docker-compose.yml up -d premise
 docker compose -f deploy/docker-compose.yml exec -T -e PREMISE_HEALTH_PATH=/readyz premise node /app/ops/healthcheck.mjs
 ~~~

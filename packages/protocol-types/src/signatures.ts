@@ -22,6 +22,26 @@ export type V2SignatureKeySource =
 /** Minimal atomic operation required to reject a previously accepted signature. */
 export interface V2SignatureReplayStore {
   claim(key: string): boolean;
+  /** Optional all-or-nothing claim for multi-signature envelopes. */
+  claimMany?(keys: readonly string[]): boolean;
+}
+
+/** A replay claim passed to a durable, asynchronous store. */
+export interface V2SignatureReplayClaim {
+  readonly key: string;
+  readonly tenantId: string;
+  readonly signatureId: string;
+  readonly keyId: string;
+  readonly signedAt: string;
+  readonly acceptedAt: string;
+  readonly expiresAt: string;
+}
+
+/** Atomic replay protection shared by all replicas of a protected service. */
+export interface V2SignatureReplayStoreAsync {
+  claim(claim: V2SignatureReplayClaim): Promise<boolean>;
+  /** Atomically claim the complete signature set or persist none of it. */
+  claimMany(claims: readonly V2SignatureReplayClaim[]): Promise<boolean>;
 }
 
 /**
@@ -44,6 +64,15 @@ export class MemoryV2SignatureReplayStore implements V2SignatureReplayStore {
     if (this.#keys.size > this.#maxEntries) this.#keys.delete(this.#keys.values().next().value as string);
     return true;
   }
+
+  claimMany(keys: readonly string[]): boolean {
+    if (!Array.isArray(keys) || keys.length === 0 || keys.some((key) => typeof key !== "string" || key.length === 0)) return false;
+    const unique = new Set(keys);
+    if (unique.size !== keys.length || keys.some((key) => this.#keys.has(key))) return false;
+    for (const key of keys) this.#keys.add(key);
+    while (this.#keys.size > this.#maxEntries) this.#keys.delete(this.#keys.values().next().value as string);
+    return true;
+  }
 }
 
 export type V2SignatureVerificationCode =
@@ -54,7 +83,9 @@ export type V2SignatureVerificationCode =
   | "UNKNOWN_KEY_ID"
   | "INVALID_SIGNATURE_ENCODING"
   | "INVALID_SIGNATURE"
-  | "REPLAY";
+  | "REPLAY"
+  | "REPLAY_STORE_UNAVAILABLE"
+  | "SIGNATURE_TIME_INVALID";
 
 export interface V2SignatureVerificationIssue {
   readonly path: string;
@@ -77,6 +108,14 @@ type V2SignatureKeyOptions =
 export type V2SignatureVerificationOptions = V2SignatureKeyOptions & {
   /** Defaults to a bounded process-local store. */
   readonly replayStore?: V2SignatureReplayStore;
+};
+
+export type V2SignatureVerificationAsyncOptions = V2SignatureKeyOptions & {
+  readonly replayStore: V2SignatureReplayStoreAsync;
+  /** Maximum absolute age/skew allowed for signedAt. Defaults to five minutes. */
+  readonly maxClockSkewMs?: number;
+  /** Clock injection for deterministic tests and controlled deployments. */
+  readonly now?: () => string | number | Date;
 };
 
 export interface V2SignatureVerificationResult {
@@ -134,6 +173,36 @@ function canonicalizeUnsignedEnvelope(envelope: MemoryEnvelopeV2): string {
   return canonicalFragment(unsignedEnvelope(envelope), new Set<object>());
 }
 
+const SIGNATURE_DOMAIN = "premise/memory-envelope-signature/v2" as const;
+
+export type V2SignatureMetadata = Omit<DeclaredSignature, "value"> | Readonly<{
+  signatureId: string;
+  signerId: string;
+  keyId: string;
+  algorithm: "ed25519";
+  signedAt: string;
+  evidenceId?: string;
+}>;
+
+function signatureMetadata(signature: V2SignatureMetadata): Record<string, unknown> {
+  return {
+    signatureId: signature.signatureId,
+    signerId: signature.signerId,
+    keyId: signature.keyId,
+    algorithm: signature.algorithm,
+    signedAt: signature.signedAt,
+    ...(signature.evidenceId === undefined ? {} : { evidenceId: signature.evidenceId })
+  };
+}
+
+function canonicalizeSignature(envelope: MemoryEnvelopeV2, signature: V2SignatureMetadata): string {
+  return canonicalFragment({
+    domain: SIGNATURE_DOMAIN,
+    envelope: unsignedEnvelope(envelope),
+    signature: signatureMetadata(signature)
+  }, new Set<object>());
+}
+
 /**
  * Return the stable UTF-8 JSON payload signed by PREMiSE v2 signatures.
  *
@@ -142,6 +211,16 @@ function canonicalizeUnsignedEnvelope(envelope: MemoryEnvelopeV2): string {
  */
 export function canonicalizeMemoryEnvelopeV2(input: unknown): string {
   return canonicalizeUnsignedEnvelope(parseMemoryEnvelopeV2(input));
+}
+
+/**
+ * Return the stable UTF-8 payload for one detached signature. The signature
+ * value is intentionally excluded, but every other declaration field is
+ * bound to the envelope with domain separation. Use this function when
+ * producing `DeclaredSignature.value` and when verifying it.
+ */
+export function canonicalizeMemoryEnvelopeV2Signature(input: unknown, signature: V2SignatureMetadata): string {
+  return canonicalizeSignature(parseMemoryEnvelopeV2(input), signature);
 }
 
 function resolveKey(source: V2SignatureKeySource, keyId: string): Ed25519PublicKey | undefined {
@@ -213,17 +292,6 @@ export function verifyMemoryEnvelopeV2Signatures(input: unknown, options: V2Sign
     issues: [{ path: "$.signatures", code: "UNSIGNED_ENVELOPE", message: "at least one Ed25519 signature is required" }]
   };
 
-  let canonical: string;
-  try {
-    canonical = canonicalizeUnsignedEnvelope(envelope);
-  } catch (error) {
-    return {
-      verified: false,
-      envelope,
-      issues: [{ path: "$", code: "INVALID_ENVELOPE", message: error instanceof Error ? error.message : "envelope cannot be canonicalized" }]
-    };
-  }
-
   const source: V2SignatureKeySource = options?.keyResolver !== undefined ? options.keyResolver : options?.keys as V2SignatureKeySource;
   const replayStore = options?.replayStore ?? defaultReplayStore;
   const replayCandidates: Array<{ readonly index: number; readonly signature: DeclaredSignature; readonly key: string }> = [];
@@ -245,7 +313,7 @@ export function verifyMemoryEnvelopeV2Signatures(input: unknown, options: V2Sign
     }
     let verified = false;
     try {
-      verified = verifySignature(null, Buffer.from(canonical, "utf8"), verificationKey, signatureBytes);
+      verified = verifySignature(null, Buffer.from(canonicalizeSignature(envelope, signature), "utf8"), verificationKey, signatureBytes);
     } catch {
       verified = false;
     }
@@ -258,18 +326,22 @@ export function verifyMemoryEnvelopeV2Signatures(input: unknown, options: V2Sign
   if (issues.length > 0) return { verified: false, envelope, issues };
 
   const seenReplayKeys = new Set<string>();
-  for (const candidate of replayCandidates) {
-    let claimed = false;
-    try {
-      claimed = replayStore.claim(candidate.key);
-    } catch {
-      claimed = false;
-    }
-    if (seenReplayKeys.has(candidate.key) || !claimed) {
-      issues.push(signatureIssue(candidate.signature, candidate.index, "REPLAY", "signature was already accepted"));
-    }
+  const duplicateCandidates = replayCandidates.filter((candidate) => {
+    if (seenReplayKeys.has(candidate.key)) return true;
     seenReplayKeys.add(candidate.key);
+    return false;
+  });
+  for (const candidate of duplicateCandidates) issues.push(signatureIssue(candidate.signature, candidate.index, "REPLAY", "signature was declared more than once"));
+  if (issues.length > 0) return { verified: false, envelope, issues };
+  let claimed = false;
+  try {
+    claimed = typeof replayStore.claimMany === "function"
+      ? replayStore.claimMany(replayCandidates.map((candidate) => candidate.key))
+      : replayCandidates.every((candidate) => replayStore.claim(candidate.key));
+  } catch {
+    claimed = false;
   }
+  if (!claimed) for (const candidate of replayCandidates) issues.push(signatureIssue(candidate.signature, candidate.index, "REPLAY", "one or more signatures were already accepted"));
   return issues.length === 0 ? { verified: true, envelope, issues: [] } : { verified: false, envelope, issues };
 }
 
@@ -281,6 +353,132 @@ export function verifyMemoryEnvelopeV2(input: unknown, options: V2SignatureVerif
 /** Verify signatures and throw when the envelope cannot be trusted. */
 export function parseAndVerifyMemoryEnvelopeV2(input: unknown, options: V2SignatureVerificationOptions): MemoryEnvelopeV2 {
   const result = verifyMemoryEnvelopeV2Signatures(input, options);
+  if (!result.verified || result.envelope === undefined) throw new V2SignatureVerificationError(result.issues);
+  return result.envelope;
+}
+
+function asyncOptionsIssues(options: V2SignatureVerificationAsyncOptions | undefined): V2SignatureVerificationIssue[] {
+  if (!isRecord(options)) return [{ path: "$.options", code: "INVALID_OPTIONS", message: "verification options are required" }];
+  const keyIssues = optionsIssues(options as unknown as V2SignatureVerificationOptions);
+  if (keyIssues.length > 0) return keyIssues;
+  if (!isRecord(options.replayStore) || typeof (options.replayStore as { claim?: unknown }).claim !== "function" || typeof (options.replayStore as { claimMany?: unknown }).claimMany !== "function") {
+    return [{ path: "$.options.replayStore", code: "INVALID_OPTIONS", message: "replayStore must implement async claim(claim) and atomic claimMany(claims)" }];
+  }
+  const maxClockSkewMs = options.maxClockSkewMs ?? 5 * 60 * 1_000;
+  if (!Number.isSafeInteger(maxClockSkewMs) || maxClockSkewMs < 1 || maxClockSkewMs > 24 * 60 * 60 * 1_000) {
+    return [{ path: "$.options.maxClockSkewMs", code: "INVALID_OPTIONS", message: "maxClockSkewMs must be a safe integer from 1 to 86400000" }];
+  }
+  return [];
+}
+
+function clockValue(value: string | number | Date | undefined): number | undefined {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Verify signatures with a durable asynchronous replay store and an explicit
+ * signedAt freshness window. This additive API is the production path for
+ * multi-replica services; the synchronous verifier remains for embedded and
+ * backwards-compatible local integrations.
+ */
+export async function verifyMemoryEnvelopeV2SignaturesAsync(
+  input: unknown,
+  options: V2SignatureVerificationAsyncOptions
+): Promise<V2SignatureVerificationResult> {
+  const optionIssues = asyncOptionsIssues(options);
+  if (optionIssues.length > 0) return { verified: false, issues: optionIssues };
+  const issues = structuralIssues(input);
+  if (issues.length > 0) return { verified: false, issues };
+  const envelope = input as MemoryEnvelopeV2;
+  if (envelope.signatures.length === 0) return {
+    verified: false,
+    envelope,
+    issues: [{ path: "$.signatures", code: "UNSIGNED_ENVELOPE", message: "at least one Ed25519 signature is required" }]
+  };
+
+  const nowMs = clockValue(options.now?.() ?? Date.now());
+  const maxClockSkewMs = options.maxClockSkewMs ?? 5 * 60 * 1_000;
+  if (nowMs === undefined) return {
+    verified: false,
+    envelope,
+    issues: [{ path: "$.options.now", code: "INVALID_OPTIONS", message: "now must resolve to a finite timestamp" }]
+  };
+  const source: V2SignatureKeySource = options.keyResolver !== undefined ? options.keyResolver : options.keys as V2SignatureKeySource;
+  const replayCandidates: Array<{ readonly index: number; readonly signature: DeclaredSignature; readonly signedAtMs: number }> = [];
+  for (const [index, signature] of envelope.signatures.entries()) {
+    const signedAtMs = Date.parse(signature.signedAt);
+    if (!Number.isFinite(signedAtMs) || Math.abs(nowMs - signedAtMs) > maxClockSkewMs) {
+      issues.push(signatureIssue(signature, index, "SIGNATURE_TIME_INVALID", `signedAt is outside the allowed ${maxClockSkewMs} ms clock window`));
+      continue;
+    }
+    const key = resolveKey(source, signature.keyId);
+    if (key === undefined) {
+      issues.push(signatureIssue(signature, index, "UNKNOWN_KEY_ID", `no public key is configured for keyId ${signature.keyId}`));
+      continue;
+    }
+    const signatureBytes = decodeBase64(signature.value);
+    if (signatureBytes === undefined || signatureBytes.length !== 64) {
+      issues.push(signatureIssue(signature, index, "INVALID_SIGNATURE_ENCODING", "value must be canonical base64 for a 64-byte Ed25519 signature"));
+      continue;
+    }
+    const verificationKey = publicKey(key);
+    if (verificationKey === undefined) {
+      issues.push(signatureIssue(signature, index, "INVALID_SIGNATURE", "keyId does not resolve to a public Ed25519 key"));
+      continue;
+    }
+    let verified = false;
+    try {
+      verified = verifySignature(null, Buffer.from(canonicalizeSignature(envelope, signature), "utf8"), verificationKey, signatureBytes);
+    } catch {
+      verified = false;
+    }
+    if (!verified) {
+      issues.push(signatureIssue(signature, index, "INVALID_SIGNATURE", "Ed25519 verification failed"));
+      continue;
+    }
+    replayCandidates.push({ index, signature, signedAtMs });
+  }
+  if (issues.length > 0) return { verified: false, envelope, issues };
+
+  const seenReplayKeys = new Set<string>();
+  const duplicateCandidates = replayCandidates.filter((candidate) => {
+    if (seenReplayKeys.has(candidate.signature.value)) return true;
+    seenReplayKeys.add(candidate.signature.value);
+    return false;
+  });
+  for (const candidate of duplicateCandidates) issues.push(signatureIssue(candidate.signature, candidate.index, "REPLAY", "signature was declared more than once"));
+  if (issues.length > 0) return { verified: false, envelope, issues };
+  const claims = replayCandidates.map((candidate) => ({
+    key: candidate.signature.value,
+    tenantId: envelope.tenantId,
+    signatureId: candidate.signature.signatureId,
+    keyId: candidate.signature.keyId,
+    signedAt: candidate.signature.signedAt,
+    acceptedAt: new Date(nowMs).toISOString(),
+    expiresAt: new Date(nowMs + maxClockSkewMs).toISOString()
+  }));
+  try {
+    if (!await options.replayStore.claimMany(claims)) {
+      for (const candidate of replayCandidates) issues.push(signatureIssue(candidate.signature, candidate.index, "REPLAY", "one or more signatures were already accepted"));
+    }
+  } catch (error) {
+    for (const candidate of replayCandidates) issues.push(signatureIssue(candidate.signature, candidate.index, "REPLAY_STORE_UNAVAILABLE", `durable replay store failed closed: ${error instanceof Error ? error.message : "unknown store error"}`));
+  }
+  return issues.length === 0 ? { verified: true, envelope, issues: [] } : { verified: false, envelope, issues };
+}
+
+export async function verifyMemoryEnvelopeV2Async(input: unknown, options: V2SignatureVerificationAsyncOptions): Promise<boolean> {
+  return (await verifyMemoryEnvelopeV2SignaturesAsync(input, options)).verified;
+}
+
+export async function parseAndVerifyMemoryEnvelopeV2Async(input: unknown, options: V2SignatureVerificationAsyncOptions): Promise<MemoryEnvelopeV2> {
+  const result = await verifyMemoryEnvelopeV2SignaturesAsync(input, options);
   if (!result.verified || result.envelope === undefined) throw new V2SignatureVerificationError(result.issues);
   return result.envelope;
 }

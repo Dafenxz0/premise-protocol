@@ -274,6 +274,7 @@ jobs:
           set -euo pipefail
           mkdir -p .ga-artifacts .local
           chmod 0777 .ga-artifacts
+          printf '{}\n' > .local/premise_signature_public_keys.json
           metrics_token="$(openssl rand -hex 32)"
           echo "::add-mask::$metrics_token"
           printf '%s\n' "$metrics_token" > .local/premise_metrics_token
@@ -542,6 +543,7 @@ jobs:
           set -euo pipefail
           mkdir -p .local/backups .ga-artifacts
           chmod 0777 .local/backups
+          printf '{}\n' > .local/premise_signature_public_keys.json
           metrics_token="$(openssl rand -hex 32)"
           echo "::add-mask::$metrics_token"
           printf '%s\n' "$metrics_token" > .local/premise_metrics_token
@@ -624,7 +626,7 @@ jobs:
         run: |
           set -o pipefail
           docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup
-          docker compose -f "${COMPOSE_FILE}" --profile ops run --rm backup node /app/ops/restore-verify.mjs | tee .ga-artifacts/restore-verify.json
+          docker compose -f "${COMPOSE_FILE}" --profile ops run --rm restore-verify | tee .ga-artifacts/restore-verify.json
           sudo chown "$(id -u):$(id -g)" .local/backups/premise-v2-latest.ndjson
           cp .local/backups/premise-v2-latest.ndjson .ga-artifacts/premise-v2-latest.ndjson
       - name: Capture stack logs
@@ -665,6 +667,7 @@ jobs:
           set -euo pipefail
           mkdir -p .local/backups .ga-artifacts
           chmod 0777 .local/backups
+          printf '{}\n' > .local/premise_signature_public_keys.json
           metrics_token="$(openssl rand -hex 32)"
           echo "::add-mask::$metrics_token"
           printf '%s\n' "$metrics_token" > .local/premise_metrics_token
@@ -835,6 +838,7 @@ jobs:
           set -euo pipefail
           mkdir -p .ga-artifacts .local/backups
           chmod 0777 .local/backups
+          printf '{}\n' > .local/premise_signature_public_keys.json
           metrics_token="$(openssl rand -hex 32)"
           echo "::add-mask::$metrics_token"
           printf '%s\n' "$metrics_token" > .local/premise_metrics_token
@@ -918,8 +922,18 @@ jobs:
           node scripts/collect-ga-evidence.mjs \
             --input .ga-input \
             --output .ga-artifacts/canonical \
+            --strict-maps \
             --commit "${GITHUB_SHA}" \
-            --source "github-actions://${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}"
+            --source "github-actions://${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}" \
+            --map "external-holdout.json=premise-ga-holdout-${GITHUB_SHA}/external-holdout.json" \
+            --map "dataset-manifest.json=premise-ga-holdout-${GITHUB_SHA}/dataset-manifest.json" \
+            --map "load-full.json=premise-ga-load-full-${GITHUB_SHA}/load-full.json" \
+            --map "postgres-scale.json=premise-ga-postgres-scale-${GITHUB_SHA}/postgres-scale.json" \
+            --map "recovery-report.json=premise-ga-postgres-scale-${GITHUB_SHA}/recovery-report.json" \
+            --map "soak-availability.json=premise-ga-soak-${GITHUB_SHA}/soak-availability.json" \
+            --map "cost-report.json=premise-ga-cost-${GITHUB_SHA}/cost-report.json" \
+            --map "rollback-report.json=premise-ga-rollback-${GITHUB_SHA}/rollback-report.json" \
+            --map "backup-restore.json=premise-ga-evidence-${GITHUB_SHA}/.ga-artifacts/restore-verify.json"
           collector_status=$?
           printf '%s\n' "$collector_status" > .ga-artifacts/collector.exit
           exit 0
@@ -927,7 +941,7 @@ jobs:
         if: always()
         run: |
           set +e
-          PREMiSE_GA_EVIDENCE_DIR=.ga-artifacts/canonical node scripts/ga-gate.mjs --strict > .ga-artifacts/ga-gate.json 2> .ga-artifacts/ga-gate.log
+          PREMISE_GA_EVIDENCE_DIR=.ga-artifacts/canonical node scripts/ga-gate.mjs --strict > .ga-artifacts/ga-gate.json 2> .ga-artifacts/ga-gate.log
           gate_status=$?
           printf '%s\n' "$gate_status" > .ga-artifacts/ga-gate.exit
           cat .ga-artifacts/ga-gate.json
@@ -940,3 +954,12 @@ jobs:
           test "$(cat .ga-artifacts/collector.exit)" = 0
           test "$(cat .ga-artifacts/ga-gate.exit)" = 0
           echo "All v2.0 GA certification campaigns and canonical evidence gates passed; inspect and publish their pinned artifacts before release."
+      - name: Upload final GA certification bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premise-ga-certification-${{ github.sha }}-${{ github.run_id }}
+          path: .ga-artifacts
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90

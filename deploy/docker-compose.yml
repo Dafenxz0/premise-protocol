@@ -45,8 +45,8 @@ services:
         SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD %L', :'app_user', :'app_password')
         WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') \gexec
         SELECT format('ALTER ROLE %I WITH LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD %L', :'app_user', :'app_password') \gexec
-        SELECT format('GRANT CONNECT, CREATE ON DATABASE %I TO %I', current_database(), :'app_user') \gexec
-        SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'app_user') \gexec
+        SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_user') \gexec
+        SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'app_user') \gexec
         SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', :'app_user') \gexec
         SELECT format('GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO %I', :'app_user') \gexec
         SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I', current_user, :'app_user') \gexec
@@ -112,6 +112,7 @@ services:
       PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
       PREMISE_REQUIRE_SIGNED_ENVELOPES: ${PREMISE_REQUIRE_SIGNED_ENVELOPES:-0}
       PREMISE_SIGNATURE_KEYS_FILE: ${PREMISE_SIGNATURE_KEYS_FILE:-}
+      PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS: ${PREMISE_SIGNATURE_MAX_CLOCK_SKEW_MS:-300000}
       PREMISE_MAX_BODY_BYTES: ${PREMISE_MAX_BODY_BYTES:-1048576}
       PREMISE_RUNTIME_WRITE_CONCURRENCY: ${PREMISE_RUNTIME_WRITE_CONCURRENCY:-4}
       PREMISE_RUNTIME_MAX_PENDING_WRITES: ${PREMISE_RUNTIME_MAX_PENDING_WRITES:-10000}
@@ -125,6 +126,9 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
       OTEL_PROPAGATORS: ${OTEL_PROPAGATORS:-tracecontext,baggage}
+    secrets:
+      - source: premise_signature_public_keys
+        target: premise_signature_public_keys.json
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -195,6 +199,60 @@ services:
         condition: service_completed_successfully
     command: ["node", "/app/ops/backup.mjs"]
 
+  restore-verify:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    profiles: ["ops"]
+    # Verification creates isolated temporary tables, so it uses the migration
+    # owner rather than granting DDL to the long-lived application role.
+    user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
+      PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      BACKUP_FILE: /backup/premise-v2-latest.ndjson
+    volumes:
+      - ../.local/backups:/backup:ro
+    depends_on:
+      db-roles:
+        condition: service_completed_successfully
+    command: ["node", "/app/ops/restore-verify.mjs"]
+
+  restore:
+    image: ${PREMISE_IMAGE:-premise-v2:local}
+    profiles: ["ops"]
+    # Destructive restore also needs the migration owner for forward-compatible
+    # schema checks; the API role never receives DDL privileges.
+    user: "10001:10001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      DATABASE_URL: ${MIGRATIONS_DATABASE_URL:-postgresql://${POSTGRES_USER:-premise}:${POSTGRES_PASSWORD:-local-only-not-for-production}@postgres:5432/${POSTGRES_DB:-premise}}
+      PREMISE_DB_POOL_SIZE: ${PREMISE_DB_POOL_SIZE:-8}
+      PREMISE_TENANT_ID: ${PREMISE_TENANT_ID:-tenant:local}
+      PREMISE_TABLE_PREFIX: ${PREMISE_TABLE_PREFIX:-premise_v2}
+      BACKUP_FILE: /backup/premise-v2-latest.ndjson
+    volumes:
+      - ../.local/backups:/backup:rw
+    depends_on:
+      db-roles:
+        condition: service_completed_successfully
+    command: ["node", "/app/ops/restore.mjs"]
+
 volumes:
   postgres-data:
   prometheus-data:
@@ -202,3 +260,5 @@ volumes:
 secrets:
   premise_metrics_token:
     file: ${PREMISE_METRICS_TOKEN_FILE:-../.local/premise_metrics_token}
+  premise_signature_public_keys:
+    file: ${PREMISE_SIGNATURE_KEYS_SOURCE:-../.local/premise_signature_public_keys.json}

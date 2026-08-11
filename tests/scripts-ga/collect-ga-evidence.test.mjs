@@ -88,6 +88,15 @@ test("collector rejects mappings outside input and records the failure", async (
   await assert.rejects(stat(join(output, "external-holdout.json")));
 });
 
+test("strict collection requires explicit canonical mappings and never falls back by basename", async (t) => {
+  const { input, output } = await directories(t);
+  await writeFile(join(input, "threat-model.md"), "# Existing threat model\n", "utf8");
+  const result = await collectGaEvidence({ inputDir: input, outputDir: output, strictMaps: true });
+  assert.equal(result.exitCode, 1);
+  assert.ok(result.failures.some((item) => item.code === "mapping-required" && item.target === "threat-model.md"));
+  assert.equal(result.trace.strictMaps, true);
+});
+
 test("collector refuses to mix a new collection with stale output files", async (t) => {
   const { input, output } = await directories(t);
   await mkdir(output, { recursive: true });

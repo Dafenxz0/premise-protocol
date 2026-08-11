@@ -13,6 +13,10 @@ function numeric(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function text(value) {
+  return value === null || value === undefined || value === "" ? null : String(value);
+}
+
 function rounded(value) {
   return value === null || value === undefined ? null : Number(Number(value).toFixed(3));
 }
@@ -82,6 +86,16 @@ export async function readPostgresTelemetry(query, capturedAt = new Date()) {
       current_database() AS database,
       current_setting('server_version_num')::int AS server_version_num,
       current_setting('max_connections')::int AS max_connections,
+      current_setting('checkpoint_timeout') AS checkpoint_timeout,
+      current_setting('checkpoint_completion_target')::double precision AS checkpoint_completion_target,
+      current_setting('checkpoint_flush_after') AS checkpoint_flush_after,
+      current_setting('max_wal_size') AS max_wal_size,
+      current_setting('min_wal_size') AS min_wal_size,
+      current_setting('wal_buffers') AS wal_buffers,
+      current_setting('wal_compression') AS wal_compression,
+      current_setting('fsync') AS fsync,
+      current_setting('full_page_writes') AS full_page_writes,
+      current_setting('synchronous_commit') AS synchronous_commit,
       (to_regclass('pg_catalog.pg_stat_checkpointer') IS NOT NULL) AS has_checkpointer,
       (to_regclass('pg_catalog.pg_stat_wal') IS NOT NULL) AS has_wal
   `), "metadata");
@@ -171,6 +185,19 @@ export async function readPostgresTelemetry(query, capturedAt = new Date()) {
     capturedAt: timestamp.toISOString(),
     database: String(metadata.database ?? "unknown"),
     serverVersionNum: numeric(metadata.server_version_num),
+    configuration: {
+      maxConnections: numeric(metadata.max_connections),
+      checkpointTimeout: text(metadata.checkpoint_timeout),
+      checkpointCompletionTarget: numeric(metadata.checkpoint_completion_target),
+      checkpointFlushAfter: text(metadata.checkpoint_flush_after),
+      maxWalSize: text(metadata.max_wal_size),
+      minWalSize: text(metadata.min_wal_size),
+      walBuffers: text(metadata.wal_buffers),
+      walCompression: text(metadata.wal_compression),
+      fsync: text(metadata.fsync),
+      fullPageWrites: text(metadata.full_page_writes),
+      synchronousCommit: text(metadata.synchronous_commit)
+    },
     checkpoint: {
       view: checkpointView,
       timed: numeric(checkpoint.checkpoints_timed),
@@ -258,7 +285,18 @@ function deltaFields(start, end, fields, resetDetected) {
   return Object.fromEntries(fields.map((field) => [field, delta(start[field], end[field], resetDetected)]));
 }
 
-export function diffPostgresTelemetry(start, end, elapsedMs, { counterRegression = false } = {}) {
+function configurationChanged(start, end) {
+  if (!start || !end) return false;
+  return JSON.stringify(start) !== JSON.stringify(end);
+}
+
+function configurationDriftDetected(samples) {
+  if (!Array.isArray(samples) || samples.length < 2) return false;
+  const first = JSON.stringify(samples[0]?.configuration ?? null);
+  return samples.slice(1).some((sample) => JSON.stringify(sample?.configuration ?? null) !== first);
+}
+
+export function diffPostgresTelemetry(start, end, elapsedMs, { counterRegression = false, configurationChanged: configurationDrift = false } = {}) {
   if (!start || !end) return { available: false, reason: "two PostgreSQL telemetry samples are required" };
   const elapsed = numeric(elapsedMs);
   const windowMs = elapsed !== null && elapsed > 0 ? elapsed : 0;
@@ -312,6 +350,11 @@ export function diffPostgresTelemetry(start, end, elapsedMs, { counterRegression
       tempBytes: database.tempBytes,
       deadlocks: database.deadlocks
     },
+    configuration: {
+      start: start.configuration ?? null,
+      end: end.configuration ?? null,
+      changed: configurationDrift || configurationChanged(start.configuration, end.configuration)
+    },
     connections: {
       start: start.connections,
       end: end.connections,
@@ -332,7 +375,16 @@ export function summarizePostgresTelemetry(samples, elapsedMs) {
   if (!Array.isArray(samples) || samples.length < 2) {
     return { available: false, reason: "two PostgreSQL telemetry samples are required", sampleCount: Array.isArray(samples) ? samples.length : 0 };
   }
-  const deltaResult = diffPostgresTelemetry(samples[0], samples[samples.length - 1], elapsedMs, { counterRegression: counterRegressionDetected(samples) });
+  const firstCapturedAt = Date.parse(samples[0]?.capturedAt ?? "");
+  const lastCapturedAt = Date.parse(samples[samples.length - 1]?.capturedAt ?? "");
+  const timestampElapsedMs = Number.isFinite(firstCapturedAt) && Number.isFinite(lastCapturedAt) && lastCapturedAt > firstCapturedAt
+    ? lastCapturedAt - firstCapturedAt
+    : null;
+  const measuredElapsedMs = timestampElapsedMs ?? elapsedMs;
+  const deltaResult = diffPostgresTelemetry(samples[0], samples[samples.length - 1], measuredElapsedMs, {
+    counterRegression: counterRegressionDetected(samples),
+    configurationChanged: configurationDriftDetected(samples)
+  });
   const peak = peakConnections(samples);
   const connectionMax = peak.max ?? deltaResult.connections.max;
   const connectionUtilization = connectionMax === null || connectionMax === 0 || peak.total === null ? null : rounded(peak.total / connectionMax);
