@@ -1,0 +1,16 @@
+{
+  "id": "tenant-isolation",
+  "operation": "check",
+  "tenant": "team-b",
+  "memory": {
+    "specVersion": "premise/1",
+    "memoryId": "m-private",
+    "tenantId": "team-a",
+    "evidence": [{ "evidenceId": "e-6", "source": "private", "version": "v1", "observedAt": "2026-08-11T10:00:00Z", "validity": "FRESH" }],
+    "dependencies": [],
+    "invalidation": null
+  },
+  "observations": { "private": { "available": true, "version": "v1" } },
+  "target": "m-private",
+  "expected": { "state": "UNKNOWN", "decision": "REJECT" }
+}

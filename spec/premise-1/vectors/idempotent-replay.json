@@ -1,0 +1,9 @@
+{
+  "id": "idempotent-replay",
+  "operation": "replay",
+  "operations": [
+    { "idempotencyKey": "op-1", "payload": { "memoryId": "m-1", "action": "invalidate" } },
+    { "idempotencyKey": "op-1", "payload": { "memoryId": "m-1", "action": "invalidate" } }
+  ],
+  "expected": { "applied": 1, "replayed": 1, "conflicts": 0 }
+}

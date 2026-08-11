@@ -1,0 +1,18 @@
+{
+  "format": "premisebench-scenario-catalog/1",
+  "scenarios": [
+    { "id": "stable-source", "worlds": ["filesystem", "github", "postgres"], "status": "smoke" },
+    { "id": "changed-repairable", "worlds": ["filesystem", "github", "postgres"], "status": "smoke" },
+    { "id": "changed-incompatible", "worlds": ["filesystem", "github", "postgres"], "status": "smoke" },
+    { "id": "dependency-chain", "worlds": ["filesystem", "postgres"], "status": "smoke-next" },
+    { "id": "dependency-fanout", "worlds": ["filesystem", "postgres"], "status": "smoke-next" },
+    { "id": "conflicting-sources", "worlds": ["github", "postgres"], "status": "live-design" },
+    { "id": "concurrent-writers", "worlds": ["github", "postgres"], "status": "live-design" },
+    { "id": "change-during-revalidation", "worlds": ["filesystem", "postgres"], "status": "smoke" },
+    { "id": "change-before-write", "worlds": ["filesystem", "github", "postgres"], "status": "smoke" },
+    { "id": "connector-timeout", "worlds": ["github", "postgres"], "status": "live-design" },
+    { "id": "permission-denied", "worlds": ["github", "postgres"], "status": "live-design" },
+    { "id": "idempotent-replay", "worlds": ["filesystem", "github", "postgres"], "status": "conformance" }
+  ],
+  "rule": "A scenario marked live-design is not a passing benchmark result until a controlled target, blind candidate, evaluator trace and cleanup record exist."
+}

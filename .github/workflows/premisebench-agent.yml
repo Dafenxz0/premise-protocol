@@ -1,0 +1,81 @@
+name: PremiseBench-Agent gates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/premisebench-agent.yml"
+      - "benchmarks/premisebench-agent/**"
+      - "conformance/**"
+      - "reference/python/**"
+      - "reference/typescript/**"
+      - "spec/premise-1/**"
+      - "scripts/premisebench-agent/**"
+      - "docs/benchmarks/**"
+      - "README.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  pull_request:
+    paths:
+      - ".github/workflows/premisebench-agent.yml"
+      - "benchmarks/premisebench-agent/**"
+      - "conformance/**"
+      - "reference/python/**"
+      - "reference/typescript/**"
+      - "spec/premise-1/**"
+      - "scripts/premisebench-agent/**"
+      - "docs/benchmarks/**"
+      - "README.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: premisebench-agent-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Node 24, PREMiSE/1, smoke, and self-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Node 24 gate
+        run: node scripts/premisebench-agent/node24-check.mjs
+      - name: PREMiSE/1 conformance gate
+        run: node conformance/run.mjs
+      - name: Python reference unit tests
+        run: python -m unittest discover -s reference/python -p "test_*.py"
+      - name: PremiseBench-Agent benchmark smoke
+        run: node benchmarks/premisebench-agent/runner.mjs --tasks=100 --seed=20260811
+      - name: PremiseBench-Agent self-check
+        run: |
+          node benchmarks/premisebench-agent/self-check.mjs
+          node benchmarks/premisebench-agent/security/oracle-leakage.mjs
+          node --test benchmarks/premisebench-agent/scenarios/toctou.test.mjs benchmarks/premisebench-agent/harness/*.test.mjs
+          node scripts/premisebench-agent/check-artifacts.mjs
+          node scripts/premisebench-agent/check-claims.mjs
+      - name: Upload PremiseBench-Agent smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: premisebench-agent-smoke-${{ github.sha }}
+          path: benchmarks/premisebench-agent/artifacts
+          if-no-files-found: warn
+          retention-days: 14

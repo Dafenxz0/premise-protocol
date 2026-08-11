@@ -1,0 +1,40 @@
+{
+  "format": "premise-test-vector/1",
+  "protocol": "premise/1",
+  "vectorId": "decisions",
+  "category": "positive",
+  "description": "La tabla de check es total y no tiene efectos laterales.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-11T10:00:00Z" },
+    "memories": [
+      { "tenantId": "tenant:decision", "memoryId": "memory:decision:fresh", "status": "FRESH", "dependsOn": [] },
+      { "tenantId": "tenant:decision", "memoryId": "memory:decision:stale", "status": "STALE", "dependsOn": [] },
+      { "tenantId": "tenant:decision", "memoryId": "memory:decision:unknown", "status": "UNKNOWN", "dependsOn": [] },
+      { "tenantId": "tenant:decision", "memoryId": "memory:decision:invalid", "status": "INVALID", "dependsOn": [] }
+    ],
+    "events": []
+  },
+  "steps": [
+    {
+      "id": "check-statuses",
+      "operation": "check",
+      "input": { "tenantId": "tenant:decision", "memoryIds": ["memory:decision:fresh", "memory:decision:stale", "memory:decision:unknown", "memory:decision:invalid"] },
+      "expect": {
+        "results": [
+          { "memoryId": "memory:decision:fresh", "status": "FRESH", "decision": "USE" },
+          { "memoryId": "memory:decision:stale", "status": "STALE", "decision": "REVALIDATE" },
+          { "memoryId": "memory:decision:unknown", "status": "UNKNOWN", "decision": "REJECT" },
+          { "memoryId": "memory:decision:invalid", "status": "INVALID", "decision": "REJECT" }
+        ],
+        "events": [],
+        "stateUnchanged": true
+      }
+    },
+    {
+      "id": "required-capabilities",
+      "operation": "capabilities",
+      "input": { "specVersion": "premise/1", "profile": "PREMiSE-compatible premise/1", "capabilities": ["RECORD", "DEPENDENCY", "REVALIDATION", "TENANCY", "IDEMPOTENCY"] },
+      "expect": { "compatible": true, "missing": [], "events": [] }
+    }
+  ]
+}

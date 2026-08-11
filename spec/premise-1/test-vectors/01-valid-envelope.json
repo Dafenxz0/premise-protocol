@@ -1,0 +1,43 @@
+{
+  "format": "premise-test-vector/1",
+  "protocol": "premise/1",
+  "vectorId": "valid-envelope",
+  "category": "positive",
+  "description": "Una observación versionada directa se registra como FRESH.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-11T10:00:00Z" },
+    "memories": [],
+    "events": []
+  },
+  "steps": [
+    {
+      "id": "register-fresh",
+      "operation": "register",
+      "input": {
+        "envelope": {
+          "specVersion": "premise/1",
+          "tenantId": "tenant:vector",
+          "memoryId": "memory:vector:1",
+          "contentDigest": "sha256:vector-content-1",
+          "evidence": [
+            {
+              "evidenceId": "e:1",
+              "sourceUri": "source://vector/1",
+              "observedAt": "2026-08-11T10:00:00Z",
+              "version": { "scheme": "revision", "token": "r1" },
+              "validator": { "id": "vector", "operation": "read" }
+            }
+          ],
+          "validity": { "status": "FRESH", "checkedAt": "2026-08-11T10:00:00Z", "policy": "VERSIONED" },
+          "dependsOn": []
+        }
+      },
+      "expect": {
+        "accepted": true,
+        "status": "FRESH",
+        "decision": "USE",
+        "events": [{ "type": "MemoryRegistered", "memoryId": "memory:vector:1", "at": "2026-08-11T10:00:00Z" }]
+      }
+    }
+  ]
+}

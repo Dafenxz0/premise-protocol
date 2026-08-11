@@ -1,0 +1,43 @@
+{
+  "format": "premise-test-vector/1",
+  "protocol": "premise/1",
+  "vectorId": "dependency-propagation",
+  "category": "transition",
+  "description": "El cambio de un soporte alcanza solo a sus derivados y los ciclos se rechazan sin mutación.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-11T10:00:00Z" },
+    "memories": [],
+    "events": []
+  },
+  "steps": [
+    {
+      "id": "register-source",
+      "operation": "register",
+      "input": { "envelope": { "specVersion": "premise/1", "tenantId": "tenant:graph", "memoryId": "memory:graph:source", "evidence": [{ "evidenceId": "e:source", "sourceUri": "source://graph/source", "observedAt": "2026-08-11T10:00:00Z" }], "validity": { "status": "FRESH", "checkedAt": "2026-08-11T10:00:00Z", "policy": "MANUAL" }, "dependsOn": [] } },
+      "expect": { "accepted": true, "status": "FRESH" }
+    },
+    {
+      "id": "derive-child",
+      "operation": "derive",
+      "input": { "envelope": { "specVersion": "premise/1", "tenantId": "tenant:graph", "memoryId": "memory:graph:child", "evidence": [], "validity": { "status": "FRESH", "checkedAt": "2026-08-11T10:00:00Z", "policy": "MANUAL" }, "dependsOn": ["memory:graph:source"] } },
+      "expect": { "accepted": true, "status": "FRESH", "events": [{ "type": "MemoryDerived", "memoryId": "memory:graph:child", "at": "2026-08-11T10:00:00Z" }] }
+    },
+    {
+      "id": "signal-source",
+      "operation": "signal",
+      "input": { "memoryId": "memory:graph:source", "sourceUri": "source://graph/source", "version": { "scheme": "revision", "token": "r2" } },
+      "expect": {
+        "accepted": true,
+        "affected": ["memory:graph:child", "memory:graph:source"],
+        "states": { "memory:graph:source": "STALE", "memory:graph:child": "STALE" },
+        "unrelated": { "memory:graph:other": "FRESH" }
+      }
+    },
+    {
+      "id": "reject-cycle",
+      "operation": "derive",
+      "input": { "envelope": { "specVersion": "premise/1", "tenantId": "tenant:graph", "memoryId": "memory:graph:cycle", "evidence": [], "validity": { "status": "UNKNOWN", "checkedAt": "2026-08-11T10:00:00Z", "policy": "MANUAL" }, "dependsOn": ["memory:graph:cycle"] } },
+      "expect": { "accepted": false, "error": "DEPENDENCY_CYCLE", "events": [], "stateUnchanged": true, "historyUnchanged": true }
+    }
+  ]
+}

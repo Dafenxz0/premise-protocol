@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/premise-1/contract.schema.json",
+  "title": "PREMiSE premise/1 contract",
+  "description": "Envelope, operation, event, validation and capability declarations for the normative premise/1 profile.",
+  "oneOf": [
+    { "$ref": "#/$defs/envelope" },
+    { "$ref": "#/$defs/operation" },
+    { "$ref": "#/$defs/event" },
+    { "$ref": "#/$defs/validationResult" },
+    { "$ref": "#/$defs/capabilities" }
+  ],
+  "$defs": {
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:.+$"
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheme", "token"],
+      "properties": {
+        "scheme": { "$ref": "#/$defs/nonEmptyString" },
+        "token": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "operation"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "operation": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "method"],
+      "properties": {
+        "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "method": { "$ref": "#/$defs/nonEmptyString" },
+        "assessedAt": { "$ref": "#/$defs/dateTime" },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "sourceUri", "observedAt"],
+      "properties": {
+        "evidenceId": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceUri": { "$ref": "#/$defs/nonEmptyString" },
+        "observedAt": { "$ref": "#/$defs/dateTime" },
+        "validFrom": { "$ref": "#/$defs/dateTime" },
+        "validUntil": { "$ref": "#/$defs/dateTime" },
+        "version": { "$ref": "#/$defs/version" },
+        "validator": { "$ref": "#/$defs/validator" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "kind": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["version"] },
+          "then": { "required": ["validator"] }
+        },
+        {
+          "if": { "required": ["validator"] },
+          "then": { "required": ["version"] }
+        }
+      ]
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checkedAt", "policy"],
+      "properties": {
+        "status": { "enum": ["FRESH", "STALE", "INVALID", "UNKNOWN"] },
+        "checkedAt": { "$ref": "#/$defs/dateTime" },
+        "policy": { "enum": ["IMMUTABLE", "VERSIONED", "TTL", "MANUAL"] },
+        "expiresAt": { "$ref": "#/$defs/dateTime" }
+      },
+      "oneOf": [
+        {
+          "properties": { "policy": { "const": "TTL" } },
+          "required": ["expiresAt"]
+        },
+        {
+          "properties": { "policy": { "enum": ["IMMUTABLE", "VERSIONED", "MANUAL"] } },
+          "not": { "required": ["expiresAt"] }
+        }
+      ]
+    },
+    "temporal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asOf"],
+      "properties": {
+        "asOf": { "$ref": "#/$defs/dateTime" },
+        "validFrom": { "$ref": "#/$defs/dateTime" },
+        "validUntil": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "conflictResolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "resolvedAt"],
+      "properties": {
+        "strategy": { "enum": ["MANUAL", "PREFER_CONFIDENCE", "PREFER_NEWEST", "MERGE"] },
+        "resolvedAt": { "$ref": "#/$defs/dateTime" },
+        "selectedEvidenceId": { "$ref": "#/$defs/nonEmptyString" },
+        "note": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflictId", "evidenceIds", "status"],
+      "properties": {
+        "conflictId": { "$ref": "#/$defs/nonEmptyString" },
+        "evidenceIds": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "status": { "enum": ["OPEN", "RESOLVED"] },
+        "resolution": { "$ref": "#/$defs/conflictResolution" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "RESOLVED" } } },
+          "then": { "required": ["resolution"] }
+        },
+        {
+          "if": { "properties": { "status": { "const": "OPEN" } } },
+          "then": { "not": { "required": ["resolution"] } }
+        }
+      ]
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signatureId", "signerId", "keyId", "algorithm", "value", "signedAt"],
+      "properties": {
+        "signatureId": { "$ref": "#/$defs/nonEmptyString" },
+        "signerId": { "$ref": "#/$defs/nonEmptyString" },
+        "keyId": { "$ref": "#/$defs/nonEmptyString" },
+        "algorithm": { "const": "ed25519" },
+        "value": { "$ref": "#/$defs/nonEmptyString" },
+        "signedAt": { "$ref": "#/$defs/dateTime" },
+        "evidenceId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specVersion", "tenantId", "memoryId", "evidence", "validity", "dependsOn"],
+      "properties": {
+        "specVersion": { "const": "premise/1" },
+        "tenantId": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+        "memoryId": { "$ref": "#/$defs/nonEmptyString" },
+        "contentDigest": { "$ref": "#/$defs/digest" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" }, "uniqueItems": true },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" }, "uniqueItems": true },
+        "temporal": { "$ref": "#/$defs/temporal" },
+        "validity": { "$ref": "#/$defs/validity" },
+        "dependsOn": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "signatures": { "type": "array", "items": { "$ref": "#/$defs/signature" }, "uniqueItems": true }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            { "properties": { "evidence": { "minItems": 1 } } },
+            { "properties": { "dependsOn": { "minItems": 1 } } }
+          ]
+        },
+        {
+          "if": { "required": ["conflicts"] },
+          "then": {
+            "properties": {
+              "conflicts": {
+                "items": {
+                  "if": { "properties": { "status": { "const": "OPEN" } } },
+                  "then": { "properties": { "status": { "const": "OPEN" } } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specVersion", "tenantId", "operationId", "operation", "idempotencyKey", "requestDigest", "requestedAt", "payload"],
+      "properties": {
+        "specVersion": { "const": "premise/1" },
+        "tenantId": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+        "operationId": { "$ref": "#/$defs/nonEmptyString" },
+        "operation": { "enum": ["register", "derive", "replace", "signal", "validate", "migrate", "check", "history"] },
+        "idempotencyKey": { "$ref": "#/$defs/nonEmptyString" },
+        "requestDigest": { "$ref": "#/$defs/digest" },
+        "requestedAt": { "$ref": "#/$defs/dateTime" },
+        "payload": { "type": "object" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specVersion", "tenantId", "eventId", "operationId", "idempotencyKey", "requestDigest", "type", "occurredAt", "payload"],
+      "properties": {
+        "specVersion": { "const": "premise/1" },
+        "tenantId": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+        "eventId": { "$ref": "#/$defs/nonEmptyString" },
+        "operationId": { "$ref": "#/$defs/nonEmptyString" },
+        "idempotencyKey": { "$ref": "#/$defs/nonEmptyString" },
+        "requestDigest": { "$ref": "#/$defs/digest" },
+        "type": { "enum": ["MemoryRegistered", "MemoryDerived", "SourceChanged", "MemoryStaled", "MemoryInvalidated", "MemoryRevalidated", "MemoryReplaced", "MemoryMigrated"] },
+        "occurredAt": { "$ref": "#/$defs/dateTime" },
+        "memoryId": { "$ref": "#/$defs/nonEmptyString" },
+        "payload": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["MemoryRegistered", "MemoryDerived", "MemoryStaled", "MemoryInvalidated", "MemoryRevalidated", "MemoryReplaced", "MemoryMigrated"] } } },
+          "then": { "required": ["memoryId"] }
+        }
+      ]
+    },
+    "validationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specVersion", "tenantId", "memoryId", "result", "status", "checkedAt"],
+      "properties": {
+        "specVersion": { "const": "premise/1" },
+        "tenantId": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+        "memoryId": { "$ref": "#/$defs/nonEmptyString" },
+        "result": { "enum": ["UNCHANGED", "CHANGED", "MISSING", "UNKNOWN"] },
+        "status": { "enum": ["FRESH", "INVALID", "UNKNOWN"] },
+        "checkedAt": { "$ref": "#/$defs/dateTime" },
+        "sourceUri": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/version" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "result": { "enum": ["UNCHANGED", "CHANGED"] } } },
+          "then": { "required": ["version"] }
+        }
+      ]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specVersion", "profile", "capabilities"],
+      "properties": {
+        "specVersion": { "const": "premise/1" },
+        "profile": { "const": "PREMiSE-compatible premise/1" },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["RECORD", "DEPENDENCY", "REVALIDATION", "TENANCY", "IDEMPOTENCY", "RETRIEVAL", "GATE"] }
+        }
+      }
+    }
+  }
+}

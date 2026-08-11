@@ -187,3 +187,23 @@ El servidor v1 mantiene el entrypoint original. La superficie v2 se importa expl
 `v2.0.0-rc.1` es un release candidate técnico. El contrato, runtime, adapters, persistencia local, API y benchmarks están versionados y probados; aún hacen falta campañas de despliegue para declarar GA: PostgreSQL real, carga de 1M en infraestructura objetivo, chaos/soak, revisión de seguridad independiente, dos entornos cloud, holdout ciego e intervalos de confianza.
 
 El detalle está en [`docs/v2-production-checklist.md`](./docs/v2-production-checklist.md). Este repositorio no incluye una licencia pública por diseño.
+
+## Nueva evidencia: PREMiSE/1 y PremiseBench-Agent
+
+La línea `premise/1` congela una primitive pequeña y portable: evidencia,
+versión, dependencias, invalidación, revalidación y un `check` que devuelve
+`USE`, `REVALIDATE` o `REJECT`. No añade retrieval, embeddings, base vectorial,
+dashboard ni servicio cloud.
+
+La prueba cross-language y el benchmark causal se ejecutan por separado:
+
+```bash
+pnpm conformance:premise1
+pnpm benchmark:premisebench:smoke
+pnpm benchmark:premisebench:self-check
+```
+
+El smoke usa un filesystem temporal y un control determinista. Sus tablas no
+son resultados de un modelo ni una declaración GA. Las campañas GitHub y
+PostgreSQL son opt-in, requieren un destino controlado y publican `NOT_RUN`
+cuando falta acceso. Consulta [`docs/benchmarks/premisebench-agent.md`](./docs/benchmarks/premisebench-agent.md) y la [especificación mínima](./spec/premise-1/).

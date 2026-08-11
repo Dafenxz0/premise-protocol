@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="Demo local de una mutación A a B y la diferencia entre un agente sin protocolo y PREMiSE.">
+    <title>PREMiSE | Demo A → B</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="PREMiSE demo local">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>PREMiSE</span>
+      </a>
+      <span class="local-badge"><span class="local-badge__mark" aria-hidden="true">local</span> solo en tu navegador</span>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Una demostración breve</p>
+          <h1 id="page-title">Si el dato cambia, la respuesta también.</h1>
+          <p class="hero-lede">Mira qué pasa cuando una información pasa de A a B y el agente debe decidir si su respuesta sigue siendo válida.</p>
+          <button class="primary-action" id="mutateButton" type="button" aria-pressed="false">
+            <span id="mutateButtonLabel">Simular el cambio A → B</span>
+            <span class="primary-action__arrow" aria-hidden="true">↗</span>
+          </button>
+        </div>
+
+        <aside class="hero-note" aria-label="Idea principal">
+          <span class="hero-note__rule" aria-hidden="true"></span>
+          <div>
+            <p class="hero-note__label">La idea</p>
+            <p class="hero-note__copy">No basta con recordar un dato. Hay que reconocer cuándo dejó de ser el dato correcto.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="mutation-section" aria-labelledby="mutation-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="mutation-title">El mismo dato, en dos momentos</h2>
+            <p>Primero vemos A. Después hacemos un cambio sencillo: el valor pasa a ser B.</p>
+          </div>
+          <span class="demo-status" id="demoStatus" role="status">Antes del cambio</span>
+        </div>
+
+        <div class="mutation-track">
+          <article class="mutation-card mutation-card--current">
+            <span class="step-label">Al principio</span>
+            <div class="state-letter" aria-hidden="true">A</div>
+            <h3>La información original</h3>
+            <p>El pedido aparece con el estado <strong>A</strong>.</p>
+          </article>
+
+          <div class="mutation-arrow" aria-hidden="true">→</div>
+
+          <article class="mutation-card mutation-card--next" id="nextStateCard">
+            <span class="step-label">Después del cambio</span>
+            <div class="state-letter state-letter--next" id="nextStateLetter" aria-hidden="true">B</div>
+            <h3 id="nextStateTitle">El cambio todavía no ocurre</h3>
+            <p id="nextStateCopy">Pulsa el botón para cambiar el estado del pedido.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="comparison-section" aria-labelledby="comparison-title">
+        <div class="section-heading section-heading--compact">
+          <div>
+            <h2 id="comparison-title">Qué responde cada agente</h2>
+            <p>Los dos empiezan igual. La diferencia aparece justo después del cambio.</p>
+          </div>
+        </div>
+
+        <div class="agent-grid">
+          <article class="agent-card agent-card--plain" id="plainAgentCard">
+            <div class="agent-card__header">
+              <span class="agent-index" aria-hidden="true">01</span>
+              <div>
+                <h3>Agente sin protocolo</h3>
+                <p>Responde con lo último que recuerda.</p>
+              </div>
+            </div>
+            <div class="response-box">
+              <span class="response-box__label">Respuesta que entrega</span>
+              <strong class="response-value" id="plainResponse" aria-live="polite">A</strong>
+              <span class="response-status" id="plainStatus" role="status">Todo coincide por ahora.</span>
+            </div>
+          </article>
+
+          <article class="agent-card agent-card--premise" id="premiseAgentCard">
+            <div class="agent-card__header">
+              <span class="agent-index" aria-hidden="true">02</span>
+              <div>
+                <h3>PREMiSE</h3>
+                <p>Comprueba el dato cuando detecta un cambio.</p>
+              </div>
+            </div>
+            <div class="response-box">
+              <span class="response-box__label">Respuesta que entrega</span>
+              <strong class="response-value" id="premiseResponse" aria-live="polite">A</strong>
+              <span class="response-status" id="premiseStatus" role="status">Todo coincide por ahora.</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="table-section" aria-labelledby="table-title">
+        <div class="section-heading section-heading--compact">
+          <div>
+            <h2 id="table-title">La comparación, en palabras sencillas</h2>
+            <p>Una tabla corta para ver la diferencia sin entrar en detalles técnicos.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Comparación del agente sin protocolo y PREMiSE antes y después del cambio A a B</caption>
+            <thead>
+              <tr>
+                <th scope="col">Qué observamos</th>
+                <th scope="col">Agente sin protocolo</th>
+                <th scope="col">PREMiSE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Antes del cambio</th>
+                <td>A</td>
+                <td>A</td>
+              </tr>
+              <tr>
+                <th scope="row">Después del cambio</th>
+                <td id="plainAfter">Todavía no lo sabe</td>
+                <td id="premiseAfter">Todavía no ocurre</td>
+              </tr>
+              <tr>
+                <th scope="row">Respuesta que entrega</th>
+                <td id="plainAnswer">La respuesta anterior</td>
+                <td id="premiseAnswer">La respuesta anterior</td>
+              </tr>
+              <tr>
+                <th scope="row">Resultado</th>
+                <td id="plainResult">Ambos empiezan igual</td>
+                <td id="premiseResult">Ambos empiezan igual</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="takeaway" aria-labelledby="takeaway-title">
+        <span class="takeaway-mark" aria-hidden="true">✓</span>
+        <div>
+          <h2 id="takeaway-title">La diferencia no es recordar más.</h2>
+          <p>Es saber cuándo dejar de confiar en una respuesta anterior.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      Demo local. No usa nube, base de datos ni servicios externos.
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "@premise/reference-typescript",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/reference.test.mjs",
+    "vectors": "npm run build && node dist/cli.js vectors/basic.json"
+  }
+}

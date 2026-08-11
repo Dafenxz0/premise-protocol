@@ -1,0 +1,16 @@
+{
+  "id": "unknown-source",
+  "operation": "check",
+  "tenant": "team-a",
+  "memory": {
+    "specVersion": "premise/1",
+    "memoryId": "m-unknown",
+    "tenantId": "team-a",
+    "evidence": [{ "evidenceId": "e-4", "source": "private-api", "version": "v1", "observedAt": "2026-08-11T10:00:00Z", "validity": "FRESH" }],
+    "dependencies": [],
+    "invalidation": null
+  },
+  "observations": { "private-api": { "available": false } },
+  "target": "m-unknown",
+  "expected": { "state": "UNKNOWN", "decision": "REJECT" }
+}
