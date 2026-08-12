@@ -1,0 +1,1028 @@
+{
+  "format": "premise-protocol-evolution-benchmark/1",
+  "benchmark": "protocol-evolution",
+  "version": 1,
+  "mode": "offline-deterministic",
+  "seed": "premise-protocol-evolution-v1",
+  "execution": {
+    "networkAccess": false,
+    "externalDependencies": [],
+    "wallClockConsulted": false,
+    "randomnessConsulted": false,
+    "mutableExternalState": false
+  },
+  "measurement": {
+    "unit": "integer operation counts",
+    "safety": "An outcome is safe only when it respects the scenario invariant; unsafe effects are counted separately.",
+    "physicalWork": "Counts simulated authoritative reads, validation calls, guard checks, conditional checks, commits, effects, invalidations, revalidations, shared hits and snapshot reads.",
+    "totalOperations": "The sum of the named operation counts; it is a transparent work count, not a cost model.",
+    "notMeasured": [
+      "elapsed time",
+      "latency",
+      "money",
+      "energy",
+      "provider billing",
+      "capacity"
+    ]
+  },
+  "claims": {
+    "eligibleForPublicProductClaim": false,
+    "reason": "This is a deterministic protocol model, not production or provider performance evidence."
+  },
+  "overview": {
+    "scenarioCount": 5,
+    "caseCount": 13,
+    "strategyRows": 11,
+    "referenceRows": 5,
+    "baselineRows": 6,
+    "referenceUnsafeOutcomes": 0,
+    "referenceSafetyRatePercent": 100,
+    "baselineUnsafeOutcomes": 4,
+    "baselineSafetyRatePercent": 76.47
+  },
+  "scenarios": [
+    {
+      "id": "identity-aba",
+      "title": "Identity and ABA",
+      "category": "safety",
+      "question": "Can a receipt survive delete/recreate or cross-tenant identity reuse?",
+      "caseCount": 3,
+      "strategies": [
+        {
+          "strategy": "tenant-resource-version",
+          "baseline": true,
+          "protocol": "simple-baseline",
+          "description": "Matches tenant, resource and version; ignores incarnation and observation identity.",
+          "cases": [
+            {
+              "caseId": "unchanged-observation",
+              "safe": true,
+              "outcome": "USE",
+              "reason": "EXACT_IDENTITY_MATCH",
+              "unnecessaryRevalidation": false,
+              "matched": true,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "aba-delete-recreate",
+              "safe": false,
+              "outcome": "USE",
+              "reason": "WEAK_IDENTITY_ACCEPTED",
+              "unnecessaryRevalidation": false,
+              "matched": true,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "cross-tenant-replay",
+              "safe": true,
+              "outcome": "REJECT",
+              "reason": "IDENTITY_MISMATCH",
+              "unnecessaryRevalidation": false,
+              "matched": false,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 3,
+            "safeOutcomes": 2,
+            "unsafeOutcomes": 1,
+            "safetyRatePercent": 66.67,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 3,
+            "validationCalls": 3,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 6
+          }
+        },
+        {
+          "strategy": "full-identity",
+          "baseline": false,
+          "protocol": "premise/1.1-reference",
+          "description": "Matches all five identity fields, including incarnation and observation.",
+          "cases": [
+            {
+              "caseId": "unchanged-observation",
+              "safe": true,
+              "outcome": "USE",
+              "reason": "EXACT_IDENTITY_MATCH",
+              "unnecessaryRevalidation": false,
+              "matched": true,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "aba-delete-recreate",
+              "safe": true,
+              "outcome": "REJECT",
+              "reason": "IDENTITY_MISMATCH",
+              "unnecessaryRevalidation": false,
+              "matched": false,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "cross-tenant-replay",
+              "safe": true,
+              "outcome": "REJECT",
+              "reason": "IDENTITY_MISMATCH",
+              "unnecessaryRevalidation": false,
+              "matched": false,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 3,
+            "safeOutcomes": 3,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 3,
+            "validationCalls": 3,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "scoped-invalidation",
+      "title": "Scoped invalidation",
+      "category": "safety + work",
+      "question": "Does an unrelated scope preserve reuse while a dependent scope forces revalidation?",
+      "caseCount": 2,
+      "strategies": [
+        {
+          "strategy": "resource-wide-invalidation",
+          "baseline": true,
+          "protocol": "simple-baseline",
+          "description": "Invalidates every cached decision for the resource after any scope change.",
+          "cases": [
+            {
+              "caseId": "unrelated-metadata-change",
+              "safe": true,
+              "outcome": "REVALIDATE",
+              "reason": "DEPENDENCY_SCOPE_CHANGED",
+              "unnecessaryRevalidation": true,
+              "affected": true,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 1,
+                "revalidations": 1,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "dependent-head-change",
+              "safe": true,
+              "outcome": "REVALIDATE",
+              "reason": "DEPENDENCY_SCOPE_CHANGED",
+              "unnecessaryRevalidation": false,
+              "affected": true,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 1,
+                "revalidations": 1,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 2,
+            "safeOutcomes": 2,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 1
+          },
+          "physicalWork": {
+            "sourceReads": 2,
+            "validationCalls": 2,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 2,
+            "revalidations": 2,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 8
+          }
+        },
+        {
+          "strategy": "scope-aware-invalidation",
+          "baseline": false,
+          "protocol": "premise/1.1-reference",
+          "description": "Invalidates only when a changed scope equals a scope in the receipt.",
+          "cases": [
+            {
+              "caseId": "unrelated-metadata-change",
+              "safe": true,
+              "outcome": "USE",
+              "reason": "CHANGED_SCOPE_UNRELATED",
+              "unnecessaryRevalidation": false,
+              "affected": false,
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "dependent-head-change",
+              "safe": true,
+              "outcome": "REVALIDATE",
+              "reason": "DEPENDENCY_SCOPE_CHANGED",
+              "unnecessaryRevalidation": false,
+              "affected": true,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 1,
+                "revalidations": 1,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 2,
+            "safeOutcomes": 2,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 1,
+            "validationCalls": 2,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 1,
+            "revalidations": 1,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "receipt-sharing-single-flight",
+      "title": "Receipt sharing and single-flight",
+      "category": "safety + work",
+      "question": "Can concurrent work share a receipt without crossing scope, policy or frontier boundaries?",
+      "caseCount": 4,
+      "strategies": [
+        {
+          "strategy": "no-sharing",
+          "baseline": true,
+          "protocol": "simple-baseline",
+          "description": "Validates every request independently.",
+          "cases": [
+            {
+              "caseId": "request-a1",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "request-a1",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-a2",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "request-a2",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-a3",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "request-a3",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-b1",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "request-b1",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 4,
+            "safeOutcomes": 4,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 4,
+            "validationCalls": 4,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 8
+          }
+        },
+        {
+          "strategy": "resource-only-sharing",
+          "baseline": true,
+          "protocol": "simple-baseline",
+          "description": "Shares by tenant and resource only; it ignores scope and policy identity.",
+          "cases": [
+            {
+              "caseId": "request-a1",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"resourceId\":\"doc:7\",\"tenantId\":\"tenant:a\"}",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-a2",
+              "safe": true,
+              "outcome": "RECEIPT_SHARED",
+              "reason": "EXACT_SHARING_KEY",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"resourceId\":\"doc:7\",\"tenantId\":\"tenant:a\"}",
+              "owner": "request-a1",
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 0,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 1,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-a3",
+              "safe": true,
+              "outcome": "RECEIPT_SHARED",
+              "reason": "EXACT_SHARING_KEY",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"resourceId\":\"doc:7\",\"tenantId\":\"tenant:a\"}",
+              "owner": "request-a1",
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 0,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 1,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-b1",
+              "safe": false,
+              "outcome": "SCOPE_MISMATCH_SHARED",
+              "reason": "SHARING_SCOPE_MISMATCH",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"resourceId\":\"doc:7\",\"tenantId\":\"tenant:a\"}",
+              "owner": "request-a1",
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 0,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 1,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 4,
+            "safeOutcomes": 3,
+            "unsafeOutcomes": 1,
+            "safetyRatePercent": 75,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 1,
+            "validationCalls": 1,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 3,
+            "snapshotReads": 0,
+            "totalOperations": 5
+          }
+        },
+        {
+          "strategy": "exact-key-single-flight",
+          "baseline": false,
+          "protocol": "premise-policy/1-reference",
+          "description": "One owner per complete sharing key; waiters reuse only an exact receipt.",
+          "cases": [
+            {
+              "caseId": "request-a1",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"authorization\":\"reader\",\"frontier\":[\"/head\"],\"incarnationId\":\"inc:1\",\"policy\":\"policy:read-safe\",\"resourceId\":\"doc:7\",\"scopes\":[\"/head\"],\"tenantId\":\"tenant:a\",\"validator\":\"validator:v1\"}",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-a2",
+              "safe": true,
+              "outcome": "RECEIPT_SHARED",
+              "reason": "EXACT_SHARING_KEY",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"authorization\":\"reader\",\"frontier\":[\"/head\"],\"incarnationId\":\"inc:1\",\"policy\":\"policy:read-safe\",\"resourceId\":\"doc:7\",\"scopes\":[\"/head\"],\"tenantId\":\"tenant:a\",\"validator\":\"validator:v1\"}",
+              "owner": "request-a1",
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 0,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 1,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-a3",
+              "safe": true,
+              "outcome": "RECEIPT_SHARED",
+              "reason": "EXACT_SHARING_KEY",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"authorization\":\"reader\",\"frontier\":[\"/head\"],\"incarnationId\":\"inc:1\",\"policy\":\"policy:read-safe\",\"resourceId\":\"doc:7\",\"scopes\":[\"/head\"],\"tenantId\":\"tenant:a\",\"validator\":\"validator:v1\"}",
+              "owner": "request-a1",
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 0,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 1,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "request-b1",
+              "safe": true,
+              "outcome": "OWNER_VALIDATE",
+              "reason": "SINGLE_FLIGHT_OWNER",
+              "unnecessaryRevalidation": false,
+              "sharingKey": "{\"authorization\":\"reader\",\"frontier\":[\"/checks\"],\"incarnationId\":\"inc:1\",\"policy\":\"policy:read-safe\",\"resourceId\":\"doc:7\",\"scopes\":[\"/checks\"],\"tenantId\":\"tenant:a\",\"validator\":\"validator:v1\"}",
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 4,
+            "safeOutcomes": 4,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 2,
+            "validationCalls": 2,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 2,
+            "snapshotReads": 0,
+            "totalOperations": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "coherence",
+      "title": "Causal coherence",
+      "category": "safety + work",
+      "question": "Does a multi-member read reject mixed event heads or bind all members to one snapshot?",
+      "caseCount": 2,
+      "strategies": [
+        {
+          "strategy": "naive-member-reads",
+          "baseline": true,
+          "protocol": "simple-baseline",
+          "description": "Reads members separately and publishes without binding them to one event head.",
+          "cases": [
+            {
+              "caseId": "stable-members",
+              "safe": true,
+              "outcome": "USE",
+              "reason": "COINCIDENTAL_SAME_EVENT_HEAD",
+              "unnecessaryRevalidation": false,
+              "eventHeads": [
+                "event:0",
+                "event:0"
+              ],
+              "coherent": true,
+              "physicalWork": {
+                "sourceReads": 2,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "mutation-between-members",
+              "safe": false,
+              "outcome": "USE",
+              "reason": "MIXED_EVENT_HEADS_ACCEPTED",
+              "unnecessaryRevalidation": false,
+              "eventHeads": [
+                "event:0",
+                "event:1"
+              ],
+              "coherent": false,
+              "physicalWork": {
+                "sourceReads": 2,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 2,
+            "safeOutcomes": 1,
+            "unsafeOutcomes": 1,
+            "safetyRatePercent": 50,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 4,
+            "validationCalls": 2,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 6
+          }
+        },
+        {
+          "strategy": "transactional-snapshot",
+          "baseline": false,
+          "protocol": "premise/1.1-reference",
+          "description": "Captures all members at one causal point before producing a coherent result.",
+          "cases": [
+            {
+              "caseId": "stable-members",
+              "safe": true,
+              "outcome": "USE",
+              "reason": "ATOMIC_CAUSAL_SNAPSHOT",
+              "unnecessaryRevalidation": false,
+              "snapshotEventHead": "event:0",
+              "coherent": true,
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 1
+              }
+            },
+            {
+              "caseId": "mutation-between-members",
+              "safe": true,
+              "outcome": "USE",
+              "reason": "ATOMIC_CAUSAL_SNAPSHOT",
+              "unnecessaryRevalidation": false,
+              "snapshotEventHead": "event:0",
+              "coherent": true,
+              "physicalWork": {
+                "sourceReads": 0,
+                "validationCalls": 1,
+                "guardChecks": 0,
+                "conditionalChecks": 0,
+                "commits": 0,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 1
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 2,
+            "safeOutcomes": 2,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 0,
+            "validationCalls": 2,
+            "guardChecks": 0,
+            "conditionalChecks": 0,
+            "commits": 0,
+            "effects": 0,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 2,
+            "totalOperations": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "guard-toctou",
+      "title": "Guard TOCTOU",
+      "category": "safety + physical work",
+      "question": "Does a mutation after validation cause an effect, or does conditional commit fail closed?",
+      "caseCount": 2,
+      "strategies": [
+        {
+          "strategy": "read-then-write",
+          "baseline": true,
+          "protocol": "simple-baseline",
+          "description": "Checks a revision, then writes unconditionally.",
+          "cases": [
+            {
+              "caseId": "unchanged-before-commit",
+              "safe": true,
+              "outcome": "COMMITTED",
+              "reason": "REVISION_UNCHANGED",
+              "unnecessaryRevalidation": false,
+              "observedRevision": 1,
+              "revisionAtCommit": 1,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 0,
+                "guardChecks": 1,
+                "conditionalChecks": 0,
+                "commits": 1,
+                "effects": 1,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "mutation-after-validation",
+              "safe": false,
+              "outcome": "COMMITTED",
+              "reason": "TOCTOU_UNCHECKED",
+              "unnecessaryRevalidation": false,
+              "observedRevision": 1,
+              "revisionAtCommit": 2,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 0,
+                "guardChecks": 1,
+                "conditionalChecks": 0,
+                "commits": 1,
+                "effects": 1,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 2,
+            "safeOutcomes": 1,
+            "unsafeOutcomes": 1,
+            "safetyRatePercent": 50,
+            "unsafeEffects": 1,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 2,
+            "validationCalls": 0,
+            "guardChecks": 2,
+            "conditionalChecks": 0,
+            "commits": 2,
+            "effects": 2,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 8
+          }
+        },
+        {
+          "strategy": "conditional-CAS",
+          "baseline": false,
+          "protocol": "premise-guard/1-reference",
+          "description": "Commits only when the observed identity and revision still match atomically.",
+          "cases": [
+            {
+              "caseId": "unchanged-before-commit",
+              "safe": true,
+              "outcome": "COMMITTED",
+              "reason": "CAS_MATCH",
+              "unnecessaryRevalidation": false,
+              "observedRevision": 1,
+              "revisionAtCommit": 1,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 0,
+                "guardChecks": 1,
+                "conditionalChecks": 1,
+                "commits": 1,
+                "effects": 1,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            },
+            {
+              "caseId": "mutation-after-validation",
+              "safe": true,
+              "outcome": "REJECTED",
+              "reason": "VERSION_MISMATCH_NO_EFFECT",
+              "unnecessaryRevalidation": false,
+              "observedRevision": 1,
+              "revisionAtCommit": 2,
+              "physicalWork": {
+                "sourceReads": 1,
+                "validationCalls": 0,
+                "guardChecks": 1,
+                "conditionalChecks": 1,
+                "commits": 1,
+                "effects": 0,
+                "invalidations": 0,
+                "revalidations": 0,
+                "sharedHits": 0,
+                "snapshotReads": 0
+              }
+            }
+          ],
+          "safety": {
+            "attempts": 2,
+            "safeOutcomes": 2,
+            "unsafeOutcomes": 0,
+            "safetyRatePercent": 100,
+            "unsafeEffects": 0,
+            "unnecessaryRevalidations": 0
+          },
+          "physicalWork": {
+            "sourceReads": 2,
+            "validationCalls": 0,
+            "guardChecks": 2,
+            "conditionalChecks": 2,
+            "commits": 2,
+            "effects": 1,
+            "invalidations": 0,
+            "revalidations": 0,
+            "sharedHits": 0,
+            "snapshotReads": 0,
+            "totalOperations": 9
+          }
+        }
+      ]
+    }
+  ]
+}
