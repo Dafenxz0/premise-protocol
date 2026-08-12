@@ -12,6 +12,8 @@ import {
   type V2MemoryStatus,
   type VersionReference
 } from "@premise/protocol-types";
+export * from "./premise-policy.js";
+export * from "./premise-guard.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;

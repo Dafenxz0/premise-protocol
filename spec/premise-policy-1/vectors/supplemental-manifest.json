@@ -1,6 +1,7 @@
 {
   "format": "premise-policy-test-manifest/1",
   "protocol": "premise-policy/1",
+  "profile": "premise-policy/1-supplemental",
   "baseManifest": "./manifest.json",
   "description": "Vectores adicionales para identidad, lecturas condicionales, coherencia, idempotency, TTL y selección segura de frontier.",
   "vectors": [

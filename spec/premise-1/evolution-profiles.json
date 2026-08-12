@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "base": "premise/1",
+  "rule": "exact-version-and-explicit-negotiation",
+  "profiles": {
+    "premise/1.1": "explicit negotiation required",
+    "premise-policy/1": "explicit negotiation required",
+    "premise-guard/1": "explicit negotiation required"
+  },
+  "downgrade": {
+    "lossReportRequired": true,
+    "notPreserved": [
+      "incarnationId",
+      "scoped-dependencies",
+      "change-sets",
+      "validation-receipts",
+      "causal-snapshots",
+      "premise-set-coherence",
+      "conditional-action"
+    ]
+  }
+}

@@ -11,6 +11,9 @@ Baseline: `origin/main` at `54b6bef` (the production PostgreSQL and live read-on
 | Historical contract | `spec/premise-v0.1.md`, `spec/test-vectors/` | `spec-legacy` | Preserve and document compatibility. |
 | Current v2 contract | `spec/v2/`, `spec/schemas/` | `spec` | Preserve; do not call it the minimal portable contract. |
 | Minimal portable contract | `spec/premise-1/` | `spec` | New evidence-first contract, deliberately small. |
+| Protocol evolution core | `spec/premise-1.1/` | `spec` | Identity, scoped evidence, receipts and coherence; separate exact profile. |
+| Protocol policy | `spec/premise-policy-1/` | `spec` | Capability negotiation, sharing, leases and safe optimization. |
+| Action guard | `spec/premise-guard-1/` | `spec` | Critical slices and conditional commit/TOCTOU boundary. |
 | TypeScript runtime | `packages/runtime-core/`, `packages/reference-ts/` | `core` | Preserve public imports; add premise/1 reference separately. |
 | Storage and integrations | `packages/store-*`, `packages/validator-*`, `packages/connector-*` | `adapter` | Keep opt-in; not part of conformance core. |
 | Security and HTTP | `packages/security-core/`, `packages/premise-server/`, `ops/`, `deploy/` | `deploy` | Existing GA candidate surface; out of the primitive proof. |
@@ -32,6 +35,7 @@ The current workspace contains runtime and protocol packages (`protocol-types`, 
 - `ga-load`, `ga-soak`, `ga-cost`: operational scale evidence; retained as production evidence.
 - `long-context-bench`, `context-corpus-bench`, `giant-context-v2`: context/scale evidence, not proof of stale-memory safety.
 - `comparative-bench`, `evaluation`: historical comparisons.
+- `protocol-evolution`: deterministic protocol-level benchmark for identity, scopes, sharing, coherence and TOCTOU.
 - `premisebench-agent`: new task-level benchmark; the only suite allowed to make agent efficacy claims after independent holdout review.
 
 ## Compatibility and move rules
@@ -50,6 +54,9 @@ spec/premise-legacy/  # compatibility wrapper for 0.1 and v2 docs
 reference/typescript/
 reference/python/
 conformance/
+spec/premise-1.1/
+spec/premise-policy-1/
+spec/premise-guard-1/
 adapters/{filesystem,git,github,postgres,mcp}/
 benchmarks/premisebench-agent/
 docs/{protocol,benchmarks,integration,operations}/

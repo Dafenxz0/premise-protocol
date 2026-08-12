@@ -42,6 +42,11 @@
       "path": "08-coherent-premise-set.json",
       "vectorIds": ["coherent-premise-set"],
       "covers": ["Premise Set", "coherence", "USE", "empty-frontier"]
+    },
+    {
+      "path": "09-atomic-change-set.json",
+      "vectorIds": ["atomic-change-set-rejection"],
+      "covers": ["change-set", "atomicity", "partial-mutation-rejection"]
     }
   ],
   "comparison": {

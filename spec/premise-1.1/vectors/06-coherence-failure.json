@@ -1,0 +1,7 @@
+{
+  "id": "causal-coherence-failure",
+  "operation": "coherence",
+  "premiseSet": {"setId":"merge-set","members":["head","checks"],"coherence":"SAME_CAUSAL_FRONTIER"},
+  "observations": [{"observationId":"head","versionToken":"h1","causalFrontier":["event-10"],"available":true},{"observationId":"checks","versionToken":"c1","causalFrontier":["event-9"],"available":true}],
+  "expected": {"coherent":false,"reason":"CAUSAL_FRONTIER_MISMATCH"}
+}

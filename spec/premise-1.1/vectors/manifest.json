@@ -1,0 +1,14 @@
+{
+  "format": "premise-test-manifest/1",
+  "protocol": "premise/1.1",
+  "vectors": [
+    "01-scoped-irrelevant.json",
+    "02-scoped-relevant.json",
+    "03-aba-reject.json",
+    "04-tenant-reject.json",
+    "05-receipt-match.json",
+    "06-coherence-failure.json",
+    "07-minimal-frontier.json",
+    "08-differential-invalidation.json"
+  ]
+}

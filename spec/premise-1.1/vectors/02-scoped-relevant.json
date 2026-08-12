@@ -1,0 +1,8 @@
+{
+  "id": "scoped-relevant-change",
+  "operation": "check",
+  "target": "deploy-memory",
+  "memories": [{"memoryId":"deploy-memory","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"evidence":[{"evidenceId":"e1","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"observationId":"o1","versionToken":"v1","scopes":["/deploy/region"]}],"dependsOn":[]}],
+  "observations": [{"observationId":"o2","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"versionToken":"v2","scopes":["/deploy/region"],"changedScopes":["/deploy/region"],"available":true}],
+  "expected": {"state":"STALE","decision":"REVALIDATE"}
+}

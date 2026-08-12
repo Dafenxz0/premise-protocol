@@ -1,0 +1,8 @@
+{
+  "id": "tenant-isolation",
+  "operation": "check",
+  "target": "memory",
+  "memories": [{"memoryId":"memory","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"evidence":[{"evidenceId":"e1","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"observationId":"o1","versionToken":"v1","scopes":["/"]}],"dependsOn":[]}],
+  "observations": [{"observationId":"o2","identity":{"tenantId":"team-b","resourceId":"repo/config","incarnationId":"inc-a"},"versionToken":"v1","scopes":["/"],"available":true}],
+  "expected": {"state":"UNKNOWN","decision":"REJECT"}
+}

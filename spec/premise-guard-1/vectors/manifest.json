@@ -1,6 +1,7 @@
 {
   "format": "premise-guard-test-manifest/1",
   "specVersion": "premise-guard/1",
+  "profile": "premise-guard/1-rich",
   "vectors": [
     "01-toctou-source-change.json",
     "02-change-between-validate-and-commit.json",

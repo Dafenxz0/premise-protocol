@@ -1,0 +1,1 @@
+{"id":"capability-fallback","operation":"negotiate","requested":["VERSION_TOKEN","SCOPED_READ","CAS"],"available":["VERSION_TOKEN","SCOPED_READ"],"expected":{"supported":["VERSION_TOKEN","SCOPED_READ"],"unsupported":["CAS"],"decision":"UNSUPPORTED"}}

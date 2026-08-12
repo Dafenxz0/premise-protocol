@@ -1,0 +1,7 @@
+{
+  "id": "minimal-frontier",
+  "operation": "frontier",
+  "target": "action",
+  "memories": [{"memoryId":"action","state":"FRESH","dependsOn":["derived"]},{"memoryId":"derived","state":"FRESH","dependsOn":["source-a","source-b"]},{"memoryId":"source-a","state":"FRESH","dependsOn":[]},{"memoryId":"source-b","state":"STALE","dependsOn":[]}],
+  "expected": {"frontier":["source-b"]}
+}

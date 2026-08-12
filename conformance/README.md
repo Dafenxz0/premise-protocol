@@ -1,39 +1,28 @@
-# PREMiSE/1 conformance
+# PREMiSE protocol conformance
 
-`run.mjs` is the single conformance entry point for the portable `premise/1`
-contract. It keeps the two vector suites separate:
+`conformance/run.mjs` es el gate reproducible de las superficies protocolarias
+pequeñas. Ejecuta sin red, base de datos, modelo ni API key:
 
-- The nine compact vectors in `spec/premise-1/vectors/` run against an
-  independent TypeScript reference and an independent Python reference. Both
-  outputs are compared with the expected result in each vector.
-- The five wire vectors in `spec/premise-1/test-vectors/` are loaded from
-  their manifest and registered individually as `NOT_RUN`. There is no
-  independent `premise/1` wire reference available yet, so the runner does
-  not derive or assert wire expectations from an implementation.
+- nueve vectores semánticos compactos de `premise/1`;
+- cinco vectores wire históricos de `premise/1`, ejecutados por un state machine
+  independiente dentro del gate;
+- nueve vectores wire de `premise/1.1`, ejecutados por un state machine
+  independiente para identidad, scope, receipts y coherencia causal;
+- ocho vectores de `premise/1.1`;
+- ocho vectores de `premise-guard/1`;
+- cinco vectores de `premise-policy/1`;
+- cuatro vectores suplementarios de policy para CAS, coherencia, TTL y
+  selección segura de frontera.
 
-```text
-pnpm conformance:premise1
+Para los perfiles nuevos, TypeScript y Python son referencias separadas y sus
+salidas se comparan entre sí y contra los `expected` escritos en cada vector.
+Los expected no se generan a partir de ninguna implementación.
+
+```powershell
+node conformance/run.mjs
+pnpm conformance:protocol
 ```
 
-The command builds `reference/typescript/src/`, runs the Node CLI, runs
-`reference/python/cli-premise1.py`, and exits non-zero on any mismatch. It
-requires no database, network, model, or API key. A successful compact gate
-keeps the compatible message:
-
-```text
-PREMiSE/1 conformance: PASS (9 vectors; TypeScript == Python == expected)
-```
-
-The wire-suite record is explicit and is not a PASS:
-
-```text
-PREMiSE/1 wire conformance: NOT_RUN (5 vectors; no independent premise/1 wire reference available)
-```
-
-Handoff: add an independent `premise/1` wire reference/executor before
-changing those five records from `NOT_RUN`; that implementation is outside
-this conformance-only change.
-
-The historical v0.1/v2 package conformance remains under
-`packages/conformance/` and is intentionally not mixed into this minimal
-protocol gate.
+El resultado PASS demuestra únicamente que las referencias y los vectores
+coinciden. No certifica un adaptador externo, una base de datos, una escritura
+remota ni una garantía de disponibilidad.

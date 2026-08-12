@@ -1,0 +1,7 @@
+{
+  "id": "differential-invalidation",
+  "operation": "invalidate",
+  "change": {"identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"changedScopes":["/deploy/region"]},
+  "memories": [{"memoryId":"deploy","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"scopes":["/deploy/region"]},{"memoryId":"title","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"scopes":["/title"]},{"memoryId":"other","identity":{"tenantId":"team-a","resourceId":"repo/other","incarnationId":"inc-a"},"scopes":["/deploy/region"]}],
+  "expected": {"affected":["deploy"]}
+}
