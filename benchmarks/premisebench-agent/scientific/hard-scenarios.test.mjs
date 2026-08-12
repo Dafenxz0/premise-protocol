@@ -56,10 +56,29 @@ test("private controls include dependencies, event races, writers and local worl
   assert.equal(connectorPayload.protocol, "connector-snapshot/v1");
   assert.equal(connectorPayload.connector, `${byKind.get("giant-context").world}-like`);
   assert.equal(connectorPayload.records.length, 257);
+  assert.equal(connectorPayload.records.some((record) => record.role === "requested"), true);
+  assert.equal(connectorPayload.records.filter((record) => record.role === "d").length, 256);
+  assert.ok(tasks.every((task) => task.initial.dependencies.every((dependency) => Object.keys(dependency).sort().join(",") === "source,version")));
+  assert.ok(tasks.every((task) => task.agentInput.memory.dependencies.every((dependency) => Object.hasOwn(dependency, "content"))));
   assert.ok(tasks.every((task) => task.worldSpec.mode === "local" && task.worldSpec.network === false));
   assert.deepEqual(new Set(tasks.map((task) => task.worldSpec.kind)), new Set([
     "filesystem-like", "git-like", "postgres-like", "calendar-like"
   ]));
+});
+
+test("hard LLM envelopes stay bounded without removing the adversarial controls", () => {
+  const tasks = makeHardTasks({ count: 40, seed: 20260811, volatility: 25 });
+  const maxInitialBytes = Math.max(...tasks.map((task) => Buffer.byteLength(JSON.stringify(task.initial), "utf8")));
+  const maxBytes = Math.max(...tasks.map((task) => Buffer.byteLength(JSON.stringify(task.agentInput), "utf8")));
+  const giant = tasks.find((task) => task.hardCase.kind === "giant-context");
+  assert.ok(giant);
+  assert.ok(maxInitialBytes < 20_000, `LLM start snapshot unexpectedly large: ${maxInitialBytes} bytes`);
+  assert.ok(maxBytes < 30_000, `public hard context unexpectedly large: ${maxBytes} bytes`);
+  assert.ok(giant.mutationWindow !== undefined);
+  assert.ok(giant.dependencies.length >= 2);
+  assert.ok(giant.hardCase.control.eventCount >= 1);
+  assert.equal(Object.hasOwn(giant.agentInput, "mutation"), false);
+  assert.equal(Object.hasOwn(giant.agentInput, "evaluator"), false);
 });
 
 test("agentInput and public manifests contain no evaluator oracle", () => {

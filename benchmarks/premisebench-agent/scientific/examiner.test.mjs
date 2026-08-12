@@ -109,6 +109,15 @@ test("rejects invalid or inconsistent metrics", () => {
   assert.throws(() => examine(inconsistent), /aliases disagree/iu);
 });
 
+for (const status of ["RATE_LIMITED", "PAYMENT_REQUIRED", "NOT_COMPARABLE"]) {
+  test(`refuses an LLM blind report with status ${status} before scoring`, () => {
+    const partial = report();
+    partial.format = "premisebench-agent/llm-blind/v1";
+    partial.status = status;
+    assert.throws(() => examine(partial), /LLM blind report is not comparable/iu);
+  });
+}
+
 test("CLI reads one blind report and writes only the examined report", async () => {
   const directory = await mkdtemp(join(os.tmpdir(), "premise-examiner-"));
   try {

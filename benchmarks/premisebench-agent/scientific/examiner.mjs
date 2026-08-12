@@ -72,6 +72,15 @@ function inspectBlind(value, location = "$", seen = new WeakSet()) {
   }
 }
 
+function assertComparableInput(input) {
+  // The LLM campaign is the only examiner input that carries an explicit
+  // comparability state. Never let a hand-crafted partial/rate-limited report
+  // reach the scorer, even if it happens to contain candidate-shaped metrics.
+  if (input.format === "premisebench-agent/llm-blind/v1") {
+    assert(input.status === "READY_FOR_EXAMINER", "LLM blind report is not comparable");
+  }
+}
+
 function numberValue(value, label, { min = 0, max = Number.POSITIVE_INFINITY, integer = false } = {}) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
     fail(`${label} must be a finite number in [${min}, ${max}]`);
@@ -316,6 +325,7 @@ function compareResults(left, right) {
 export function examine(report) {
   const input = typeof report === "string" ? JSON.parse(report) : report;
   assert(record(input), "input must be a JSON object");
+  assertComparableInput(input);
   inspectBlind(input);
   assert(Array.isArray(input.results) && input.results.length > 0, "results must be a non-empty array");
   const taskCount = taskCountFor(input);

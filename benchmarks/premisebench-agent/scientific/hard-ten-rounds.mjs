@@ -64,6 +64,8 @@ export function parseArgs(argv = process.argv.slice(2)) {
   const model = String(value(argv, "model", "gemini-3.5-flash-lite")).trim();
   const maxTokens = integer(value(argv, "max-tokens", "256"), "max-tokens", 1, 32_768);
   const delayMs = integer(value(argv, "delay-ms", "1000"), "delay-ms", 0, 60_000);
+  const responseFormat = String(value(argv, "response-format", "json-object")).trim().toLowerCase();
+  if (!["json-object", "none"].includes(responseFormat)) throw new TypeError("--response-format must be json-object or none");
   const endpointValue = String(value(argv, "endpoint", "")).trim();
   const credentialEnvValue = String(value(argv, "credential-env", "")).trim();
   const output = resolve(root, String(value(argv, "output", ".tmp/scientific-mvp/hard-ten-rounds")).trim());
@@ -76,6 +78,7 @@ export function parseArgs(argv = process.argv.slice(2)) {
     model,
     maxTokens,
     delayMs,
+    responseFormat,
     endpoint: endpointValue || null,
     credentialEnv: credentialEnvValue || null,
     output,
@@ -408,6 +411,7 @@ export async function runCampaign(args) {
         `--provider=${args.provider}`,
         `--model=${args.model}`,
         `--max-tokens=${args.maxTokens}`,
+        `--response-format=${args.responseFormat}`,
         "--scenario=hard",
         `--tasks=${Math.min(args.llmTasks, plan.tasks)}`,
         `--seed=${plan.seed}`,

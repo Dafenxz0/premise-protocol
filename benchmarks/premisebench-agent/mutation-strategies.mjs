@@ -16,6 +16,23 @@ function actionFor(snapshot, includeVersion = true) {
 const READ_REVALIDATE = "revalidate";
 const READ_RETRY_AFTER_CAS = "retry";
 
+function conflictSnapshot(response) {
+  const current = response?.current;
+  return current
+    && typeof current.version === "string"
+    && current.version === response.currentVersion
+    && current.content !== undefined
+    ? current
+    : null;
+}
+
+async function refreshAfterConflict(ctx, response) {
+  // Prefer a snapshot returned by the conditional write. It is already part
+  // of that response and is charged there; connectors without it fall back to
+  // the ordinary read, preserving the safety invariant.
+  return conflictSnapshot(response) ?? await ctx.sourceRead(READ_RETRY_AFTER_CAS);
+}
+
 export const mutationStrategies = Object.freeze({
   basic: {
     name: "Memoria básica",
@@ -43,7 +60,7 @@ export const mutationStrategies = Object.freeze({
 
       let response = await ctx.actIfVersion(current.version, actionFor(current, false));
       if (!response.accepted) {
-        current = await ctx.sourceRead(READ_RETRY_AFTER_CAS);
+        current = await refreshAfterConflict(ctx, response);
         if (current.content.status === "blocked") return { accepted: true, kind: "reject" };
         response = await ctx.actIfVersion(current.version, actionFor(current, false));
       }
@@ -63,7 +80,7 @@ async function guardedWithRetry(ctx, snapshot, attempts = 3) {
     if (current.content.status === "blocked") return { accepted: true, kind: "reject" };
     const response = await ctx.actIfVersion(current.version, actionFor(current, false));
     if (response.accepted) return response;
-    current = await ctx.sourceRead(READ_RETRY_AFTER_CAS);
+    current = await refreshAfterConflict(ctx, response);
     if (current.content.status === "blocked") return { accepted: true, kind: "reject" };
   }
   return { accepted: false, reason: "retry-limit" };
