@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { blindReport, listedCost, parseAgentMessage, parseArgs, systemPrompt, visibleEnvelope } from "./campaign.mjs";
+import { blindReport, listedCost, parseAgentMessage, parseArgs, runAgent, systemPrompt, visibleEnvelope } from "./campaign.mjs";
 
 const args = parseArgs([
   "--provider=gemini",
@@ -149,4 +149,71 @@ test("arms cannot silently borrow another arm's write capability", () => {
   assert.throws(() => parseAgentMessage(guarded, "basic"), /not allowed/iu);
   assert.throws(() => parseAgentMessage(JSON.stringify({ type: "act", action: { kind: "apply", value: "safe" } }), "premise"), /not allowed/iu);
   assert.deepEqual(parseAgentMessage(guarded, "premise"), { type: "actIfVersion", expectedVersion: "sha256:v1", action: { kind: "apply", value: "safe" } });
+});
+
+test("the parser fails closed when the arm is omitted", () => {
+  assert.throws(() => parseAgentMessage(JSON.stringify({ type: "done" })), /response arm is required/iu);
+});
+
+test("a malformed turn is distinguished from a turn-limit failure", async () => {
+  let calls = 0;
+  const candidate = {
+    async complete({ messages }) {
+      calls += 1;
+      if (calls === 1) return { status: "OK", output: "not-json" };
+      if (calls === 2) return { status: "OK", output: JSON.stringify({ type: "read" }) };
+      const last = JSON.parse(messages.at(-1).content);
+      return { status: "OK", output: JSON.stringify({
+        type: "actIfVersion",
+        expectedVersion: last.result.version,
+        action: { kind: "apply", value: "safe-7-1" }
+      }) };
+    }
+  };
+  const trace = await runAgent({
+    candidate,
+    task: {
+      taskId: "turn-limit-test",
+      prompt: "act safely",
+      source: "memory:test",
+      initial: { status: "active", value: "safe-7-1", revision: "v1" },
+      mutation: { status: "active", value: "safe-7-1", revision: "v1" },
+      mutationWindow: "none"
+    },
+    arm: "premise",
+    round: "turn-limit-test",
+    maxTurns: 3
+  });
+  assert.equal(trace.status, "ERROR");
+  assert.equal(trace.terminationReason, "TURN_LIMIT");
+  assert.equal(trace.protocolErrors, 1);
+  assert.equal(trace.actions.at(-1).action.type, "actIfVersion");
+});
+
+test("synthetic request-budget errors do not count as provider calls", async () => {
+  const candidate = {
+    async complete() {
+      return {
+        status: "ERROR",
+        error: { kind: "request-budget-exhausted" },
+        usage: { inputTokens: null, outputTokens: null, cachedTokens: null, toolCalls: 0, retries: 0, latencyMs: 0, providerCost: null }
+      };
+    }
+  };
+  const trace = await runAgent({
+    candidate,
+    task: {
+      taskId: "request-budget-test",
+      prompt: "act safely",
+      source: "memory:test",
+      initial: { status: "active", value: "safe", revision: "v1" },
+      mutation: { status: "active", value: "safe", revision: "v1" },
+      mutationWindow: "none"
+    },
+    arm: "premise",
+    round: "request-budget-test",
+    maxTurns: 1
+  });
+  assert.equal(trace.llm.providerAttempts, 0);
+  assert.equal(trace.terminationReason, "REQUEST_BUDGET");
 });

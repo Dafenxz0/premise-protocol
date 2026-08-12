@@ -95,3 +95,14 @@ public model pricing endpoint. `providerCost` is a provider-reported value;
 snapshot, and is never presented as a billing receipt. Token counts, retries,
 latency, completion requests, external reads/writes, protocol errors and
 request-budget usage are stored in `summary.json` and `manifest.json`.
+
+The public trace also records why an arm ended (`DONE`, `TURN_LIMIT`,
+`MODEL_PROTOCOL_ERROR`, provider error, or budget stop). A successful guarded
+action is never relabelled as safe when the model failed to complete the
+bounded protocol; the evaluator remains fail-closed.
+
+Nemotron’s bounded live command is available as:
+
+```powershell
+pnpm benchmark:llm:nemotron-lightning
+```

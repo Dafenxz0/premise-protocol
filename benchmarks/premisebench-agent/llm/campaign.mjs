@@ -207,12 +207,20 @@ function createCandidate(args) {
   let requestCount = 0;
   let lastRequestAt = 0;
   let tokenCount = 0;
+  let tokenBudgetUnknown = false;
 
   async function complete(request = {}) {
     if (args.maxProviderRequests > 0 && requestCount >= args.maxProviderRequests) {
       return {
         status: "ERROR",
         error: { kind: "request-budget-exhausted" },
+        usage: { inputTokens: null, outputTokens: null, cachedTokens: null, toolCalls: 0, retries: 0, latencyMs: 0, providerCost: null }
+      };
+    }
+    if (args.maxProviderTokens > 0 && tokenBudgetUnknown) {
+      return {
+        status: "ERROR",
+        error: { kind: "token-budget-unknown" },
         usage: { inputTokens: null, outputTokens: null, cachedTokens: null, toolCalls: 0, retries: 0, latencyMs: 0, providerCost: null }
       };
     }
@@ -230,7 +238,14 @@ function createCandidate(args) {
     const result = await candidate.complete(request);
     const inputTokens = finiteNumber(result?.usage?.inputTokens);
     const outputTokens = finiteNumber(result?.usage?.outputTokens);
+    if (args.maxProviderTokens > 0 && result.status === "OK" && (inputTokens === null || outputTokens === null)) {
+      tokenBudgetUnknown = true;
+      return { ...result, status: "ERROR", output: null, error: { kind: "token-budget-unknown-after-call" } };
+    }
     if (inputTokens !== null && outputTokens !== null) tokenCount += inputTokens + outputTokens;
+    if (args.maxProviderTokens > 0 && tokenCount > args.maxProviderTokens) {
+      return { ...result, status: "ERROR", output: null, error: { kind: "token-budget-exceeded" } };
+    }
     return result;
   }
 
@@ -264,7 +279,7 @@ function systemPrompt(arm) {
     ...[...allowedResponseTypes(arm)].map((type) => forms[type]),
     "Use only data present in the current messages. The start message already contains the observed memory. If its content.status is active, apply its exact content.value; if it is blocked, reject. A read returns content and an opaque version. A guarded action is accepted only for the version it names.",
     "Do not explain, ask a question, or emit prose. Emit an action as soon as the current messages contain enough information. If localCheck is present, obey it before choosing whether to read.",
-    "After an action result, either continue with another permitted JSON object or return done."
+    "If a response was rejected as invalid, emit a fresh permitted JSON object. After an accepted action result, return done."
   ].join("\n");
 }
 
@@ -327,7 +342,8 @@ function normalizeAction(action, { reject = false } = {}) {
   return { kind: "apply", value: action.value };
 }
 
-function parseAgentMessage(output, arm = null) {
+function parseAgentMessage(output, arm) {
+  if (!Object.hasOwn(armPolicies, arm)) throw new TypeError("response arm is required");
   if (typeof output !== "string" || output.trim() === "") throw new TypeError("empty response");
   let value;
   try {
@@ -393,7 +409,12 @@ function safeUsage(result) {
 
 function providerAttempts(result, usage) {
   if (result?.status === "NOT_RUN") return 0;
-  if (result?.status === "ERROR" && result.error?.kind === "fetch-unavailable") return 0;
+  if (result?.status === "ERROR" && [
+    "fetch-unavailable",
+    "request-budget-exhausted",
+    "token-budget-exhausted",
+    "token-budget-unknown"
+  ].includes(result.error?.kind)) return 0;
   if (!usage || !Number.isSafeInteger(usage.retries)) return null;
   return 1 + usage.retries;
 }
@@ -496,6 +517,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
   const actions = [];
   let protocolErrors = 0;
   let agentStatus = null;
+  let terminationReason = null;
   const started = performance.now();
 
   for (let turn = 0; turn < turnLimit; turn += 1) {
@@ -512,10 +534,16 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
 
     if (result.status === "NOT_RUN") {
       agentStatus = "NOT_RUN";
+      terminationReason = result.reason === "missing-credential" ? "MISSING_CREDENTIAL" : "NOT_RUN";
       break;
     }
     if (result.status === "ERROR") {
       agentStatus = "ERROR";
+      terminationReason = result.error?.kind === "request-budget-exhausted"
+        ? "REQUEST_BUDGET"
+        : result.error?.kind?.startsWith("token-budget")
+          ? "TOKEN_BUDGET"
+          : "PROVIDER_ERROR";
       break;
     }
 
@@ -524,6 +552,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
       message = parseAgentMessage(result.output, arm);
     } catch {
       protocolErrors += 1;
+      terminationReason = "MODEL_PROTOCOL_ERROR";
       messages.push({ role: "assistant", content: "[invalid JSON response omitted]" });
       const feedback = observationEnvelope({
         world,
@@ -541,6 +570,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
     messages.push({ role: "assistant", content: JSON.stringify(message) });
     if (message.type === "done") {
       agentStatus = "OK";
+      terminationReason = protocolErrors > 0 ? "DONE_AFTER_PROTOCOL_ERROR" : "DONE";
       break;
     }
 
@@ -578,7 +608,10 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
     messages.push({ role: "user", content: JSON.stringify(feedback) });
   }
 
-  if (agentStatus === null) agentStatus = "ERROR";
+  if (agentStatus === null) {
+    agentStatus = "ERROR";
+    terminationReason = "TURN_LIMIT";
+  }
   const evaluation = world.evaluate();
   const llm = summarizeCalls(calls);
   return {
@@ -587,6 +620,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
     status: agentStatus,
     providerStatus: providerStatus(calls),
     agentStatus,
+    terminationReason,
     taskLatencyMs: Number((performance.now() - started).toFixed(3)),
     localChecks: local.count,
     localCheckStates: local.states,
@@ -605,7 +639,8 @@ function campaignStatus(items) {
   if (items.some((item) => item.calls?.some((call) => call.error?.status === 402))) return "PAYMENT_REQUIRED";
   if (items.some((item) => item.calls?.some((call) => call.error?.status === 429))) return "RATE_LIMITED";
   if (items.some((item) => item.calls?.some((call) => call.error?.kind === "request-budget-exhausted"))) return "REQUEST_BUDGET_EXHAUSTED";
-  if (items.some((item) => item.calls?.some((call) => call.error?.kind === "token-budget-exhausted"))) return "TOKEN_BUDGET_EXHAUSTED";
+  if (items.some((item) => item.calls?.some((call) => ["token-budget-exhausted", "token-budget-exceeded"].includes(call.error?.kind)))) return "TOKEN_BUDGET_EXHAUSTED";
+  if (items.some((item) => item.calls?.some((call) => ["token-budget-unknown", "token-budget-unknown-after-call"].includes(call.error?.kind)))) return "TOKEN_BUDGET_UNKNOWN";
   if (items.some((item) => item.status === "ERROR")) return "ERROR";
   if (items.some((item) => item.status === "NOT_RUN")) return "NOT_RUN";
   return "OK";
@@ -783,6 +818,7 @@ function publicTrace(trace) {
     externalReads: trace.externalReads,
     externalWrites: trace.externalWrites,
     protocolErrors: trace.protocolErrors,
+    terminationReason: trace.terminationReason,
     providerCalls: trace.calls.length,
     completedCalls: trace.calls.filter((call) => call.status === "OK").length,
     actionCount: trace.actions.length
@@ -1008,9 +1044,18 @@ async function main(argv = process.argv.slice(2)) {
       const paymentRequired = trace.calls.some((call) => call.error?.status === 402);
       const rateLimited = trace.calls.some((call) => call.error?.status === 429);
       const requestBudgetExhausted = trace.calls.some((call) => call.error?.kind === "request-budget-exhausted");
-      const tokenBudgetExhausted = trace.calls.some((call) => call.error?.kind === "token-budget-exhausted");
-      if (paymentRequired || rateLimited || requestBudgetExhausted || tokenBudgetExhausted) {
-        stopReason = paymentRequired ? "PAYMENT_REQUIRED" : rateLimited ? "RATE_LIMITED" : tokenBudgetExhausted ? "TOKEN_BUDGET_EXHAUSTED" : "REQUEST_BUDGET_EXHAUSTED";
+      const tokenBudgetError = trace.calls.some((call) => ["token-budget-exhausted", "token-budget-exceeded"].includes(call.error?.kind));
+      const tokenBudgetUnknown = trace.calls.some((call) => ["token-budget-unknown", "token-budget-unknown-after-call"].includes(call.error?.kind));
+      if (paymentRequired || rateLimited || requestBudgetExhausted || tokenBudgetError || tokenBudgetUnknown) {
+        stopReason = paymentRequired
+          ? "PAYMENT_REQUIRED"
+          : rateLimited
+            ? "RATE_LIMITED"
+            : requestBudgetExhausted
+              ? "REQUEST_BUDGET_EXHAUSTED"
+              : tokenBudgetUnknown
+                ? "TOKEN_BUDGET_UNKNOWN"
+                : "TOKEN_BUDGET_EXHAUSTED";
         break outer;
       }
     }
