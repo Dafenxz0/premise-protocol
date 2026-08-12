@@ -1,0 +1,82 @@
+{
+  "format": "premise-policy-vector/1",
+  "id": "frontier-cannot-drop-core",
+  "operation": "selectFrontier",
+  "coreRequirements": [
+    "RESOURCE_IDENTITY",
+    "EVIDENCE_PROPERTIES",
+    "SCOPED_READ",
+    "DECISION",
+    "SAFE_FAILURE",
+    "CAS_FOR_WRITE"
+  ],
+  "objectives": ["externalReads", "requests", "latencyMs", "costUsd"],
+  "candidates": [
+    {
+      "id": "safe-balanced",
+      "coreComplete": true,
+      "identityVerified": true,
+      "evidenceVerified": true,
+      "scopeMatched": true,
+      "causalFrontierComplete": true,
+      "unsafeActions": 0,
+      "casForWrite": true,
+      "metrics": { "externalReads": 2, "requests": 3, "latencyMs": 10, "costUsd": 2 }
+    },
+    {
+      "id": "safe-low-read",
+      "coreComplete": true,
+      "identityVerified": true,
+      "evidenceVerified": true,
+      "scopeMatched": true,
+      "causalFrontierComplete": true,
+      "unsafeActions": 0,
+      "casForWrite": true,
+      "metrics": { "externalReads": 1, "requests": 4, "latencyMs": 20, "costUsd": 3 }
+    },
+    {
+      "id": "cheap-no-cas",
+      "coreComplete": false,
+      "identityVerified": true,
+      "evidenceVerified": true,
+      "scopeMatched": true,
+      "causalFrontierComplete": true,
+      "unsafeActions": 1,
+      "casForWrite": false,
+      "metrics": { "externalReads": 0, "requests": 1, "latencyMs": 2, "costUsd": 0 }
+    },
+    {
+      "id": "unknown-cost",
+      "coreComplete": true,
+      "identityVerified": true,
+      "evidenceVerified": true,
+      "scopeMatched": true,
+      "causalFrontierComplete": true,
+      "unsafeActions": 0,
+      "casForWrite": true,
+      "metrics": { "externalReads": 1, "requests": 2, "latencyMs": 8, "costUsd": "UNKNOWN" }
+    },
+    {
+      "id": "scope-mismatch",
+      "coreComplete": true,
+      "identityVerified": true,
+      "evidenceVerified": true,
+      "scopeMatched": false,
+      "causalFrontierComplete": true,
+      "unsafeActions": 0,
+      "casForWrite": true,
+      "metrics": { "externalReads": 1, "requests": 1, "latencyMs": 1, "costUsd": 1 }
+    }
+  ],
+  "expected": {
+    "eligible": ["safe-balanced", "safe-low-read"],
+    "excluded": {
+      "cheap-no-cas": "CORE_REQUIREMENT_MISSING",
+      "unknown-cost": "UNKNOWN_METRIC",
+      "scope-mismatch": "SCOPE_MISMATCH"
+    },
+    "frontier": ["safe-balanced", "safe-low-read"],
+    "coreRequirementsRemoved": false
+  },
+  "properties": ["identity-bound", "evidence-verified", "scope-matched", "cas-accepted"]
+}

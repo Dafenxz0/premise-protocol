@@ -6,12 +6,17 @@ on:
     paths:
       - ".github/workflows/premisebench-agent.yml"
       - "benchmarks/premisebench-agent/**"
+      - "benchmarks/protocol-evolution/**"
       - "conformance/**"
       - "reference/python/**"
       - "reference/typescript/**"
       - "spec/premise-1/**"
+      - "spec/premise-1.1/**"
+      - "spec/premise-guard-1/**"
+      - "spec/premise-policy-1/**"
       - "scripts/premisebench-agent/**"
       - "docs/benchmarks/**"
+      - "docs/protocol/**"
       - "README.md"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -19,12 +24,17 @@ on:
     paths:
       - ".github/workflows/premisebench-agent.yml"
       - "benchmarks/premisebench-agent/**"
+      - "benchmarks/protocol-evolution/**"
       - "conformance/**"
       - "reference/python/**"
       - "reference/typescript/**"
       - "spec/premise-1/**"
+      - "spec/premise-1.1/**"
+      - "spec/premise-guard-1/**"
+      - "spec/premise-policy-1/**"
       - "scripts/premisebench-agent/**"
       - "docs/benchmarks/**"
+      - "docs/protocol/**"
       - "README.md"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -73,6 +83,12 @@ jobs:
         run: node scripts/premisebench-agent/node24-check.mjs
       - name: PREMiSE/1 conformance gate
         run: node conformance/run.mjs
+      - name: Protocol evolution adversarial gate
+        run: node --test tests/premise-protocol/*.test.mjs
+      - name: Protocol evolution self-check
+        run: node scripts/protocol-evolution/self-check.mjs
+      - name: Protocol evolution benchmark self-check
+        run: pnpm benchmark:protocol-evolution:check
       - name: Python reference unit tests
         run: python -m unittest discover -s reference/python -p "test_*.py"
       - name: PremiseBench-Agent benchmark smoke

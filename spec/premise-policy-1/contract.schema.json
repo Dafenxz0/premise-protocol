@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://premise.dev/spec/premise-policy-1/contract.schema.json",
+  "title":"PREMiSE premise-policy/1 contract",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["specVersion","requested","available"],
+  "properties":{
+    "specVersion":{"const":"premise-policy/1"},
+    "requested":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "available":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "requiredEvidence":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "risk":{"enum":["LOW","MEDIUM","HIGH","CRITICAL"]},
+    "sharingKey":{"type":"array","items":{"type":"string","minLength":1}},
+    "lease":{"type":"object","additionalProperties":false,"required":["leaseId","fencingToken","expiresAt"],"properties":{"leaseId":{"type":"string","minLength":1},"fencingToken":{"type":"string","minLength":1},"expiresAt":{"type":"string","format":"date-time"}}}
+  }
+}

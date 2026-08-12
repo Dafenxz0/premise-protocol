@@ -1,0 +1,97 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "atomic-change-set-rejection",
+  "category": "negative",
+  "description": "Un conflicto en una mutación de un change set no puede dejar aplicada parcialmente otra mutación del mismo conjunto.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T18:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "seed-existing",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:atomic:seed",
+        "operation": "apply",
+        "idempotencyKey": "idem:atomic:seed",
+        "requestDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "requestedAt": "2026-08-12T18:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:atomic:seed",
+            "causalSnapshot": { "snapshotId": "snap:atomic:empty", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:existing",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:2", "versionToken": "B", "observationId": "obs:2" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": { "disposition": "APPLIED" }
+    },
+    {
+      "id": "reject-whole-set",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:atomic:reject",
+        "operation": "apply",
+        "idempotencyKey": "idem:atomic:reject",
+        "requestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "requestedAt": "2026-08-12T18:01:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:atomic:reject",
+            "causalSnapshot": {
+              "snapshotId": "snap:atomic:old",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:existing", "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:old", "dependsOn": [] }
+              ]
+            },
+            "changes": [
+              {
+                "resourceId": "resource:new",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:new:1", "versionToken": "N", "observationId": "obs:new" },
+                "dependsOn": []
+              },
+              {
+                "resourceId": "resource:existing",
+                "action": "UPDATE",
+                "after": { "incarnationId": "inc:3", "versionToken": "C", "observationId": "obs:3" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "REJECTED",
+        "reason": "ABA_MISMATCH",
+        "stateUnchanged": true,
+        "receiptCreated": false,
+        "state": [
+          { "tenantId": "tenant:acme", "resourceId": "resource:existing", "incarnationId": "inc:2", "versionToken": "B", "observationId": "obs:2", "dependsOn": [] }
+        ]
+      }
+    }
+  ]
+}

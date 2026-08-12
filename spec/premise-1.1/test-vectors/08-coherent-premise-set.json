@@ -1,0 +1,71 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "coherent-premise-set",
+  "category": "positive",
+  "description": "Una Premise Set con dependencia scoped y snapshot idéntico es coherente y utilizable.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T17:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "check-closed-set",
+      "operation": "check",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:coherence:closed",
+        "operation": "check",
+        "idempotencyKey": "idem:coherence:closed",
+        "requestDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "requestedAt": "2026-08-12T17:00:00Z",
+        "payload": {
+          "premiseSet": {
+            "kind": "premiseSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "setId": "set:coherence:closed",
+            "members": [
+              { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] },
+              {
+                "tenantId": "tenant:acme",
+                "resourceId": "resource:derived",
+                "incarnationId": "inc:derived:1",
+                "versionToken": "D1",
+                "observationId": "obs:derived:1",
+                "dependsOn": [
+                  { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                ]
+              }
+            ],
+            "causalSnapshot": {
+              "snapshotId": "snap:coherence:closed",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] },
+                {
+                  "tenantId": "tenant:acme",
+                  "resourceId": "resource:derived",
+                  "incarnationId": "inc:derived:1",
+                  "versionToken": "D1",
+                  "observationId": "obs:derived:1",
+                  "dependsOn": [
+                    { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                  ]
+                }
+              ]
+            }
+          },
+          "requestedFrontier": []
+        }
+      },
+      "expect": {
+        "coherence": "COHERENT",
+        "decision": "USE",
+        "frontier": []
+      }
+    }
+  ]
+}

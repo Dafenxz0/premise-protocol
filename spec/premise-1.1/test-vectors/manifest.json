@@ -1,0 +1,75 @@
+{
+  "format": "premise-test-manifest/1.1",
+  "protocol": "premise/1.1",
+  "description": "Vectores JSON authored-by-hand para identidad, scope, change sets, receipts y coherencia causal de premise/1.1.",
+  "files": [
+    {
+      "path": "01-aba-positive.json",
+      "vectorIds": ["aba-positive-reincarnation"],
+      "covers": ["resourceId", "incarnationId", "versionToken", "observationId", "reincarnation", "coherent-premise-set"]
+    },
+    {
+      "path": "02-aba-negative.json",
+      "vectorIds": ["aba-negative-stale-incarnation"],
+      "covers": ["ABA", "base-snapshot-mismatch", "atomic-rejection"]
+    },
+    {
+      "path": "03-tenant-scope-positive.json",
+      "vectorIds": ["tenant-scope-positive"],
+      "covers": ["scoped-dependencies", "same-tenant", "premise-set"]
+    },
+    {
+      "path": "04-tenant-scope-negative.json",
+      "vectorIds": ["tenant-scope-negative"],
+      "covers": ["cross-tenant-dependency", "atomic-rejection"]
+    },
+    {
+      "path": "05-receipt-replay.json",
+      "vectorIds": ["receipt-replay-and-conflict"],
+      "covers": ["receipts", "replay", "idempotency", "digest-conflict"]
+    },
+    {
+      "path": "06-causal-incoherence.json",
+      "vectorIds": ["causal-incoherence"],
+      "covers": ["causal-snapshot", "coherence", "revalidate", "minimal-frontier"]
+    },
+    {
+      "path": "07-frontier-incomplete.json",
+      "vectorIds": ["frontier-incomplete"],
+      "covers": ["requested-frontier", "frontier-incomplete", "reject"]
+    },
+    {
+      "path": "08-coherent-premise-set.json",
+      "vectorIds": ["coherent-premise-set"],
+      "covers": ["Premise Set", "coherence", "USE", "empty-frontier"]
+    },
+    {
+      "path": "09-atomic-change-set.json",
+      "vectorIds": ["atomic-change-set-rejection"],
+      "covers": ["change-set", "atomicity", "partial-mutation-rejection"]
+    }
+  ],
+  "comparison": {
+    "timestamps": "exact UTC strings",
+    "objects": "key order is irrelevant",
+    "arrays": "order is significant",
+    "state": "sorted by tenantId then resourceId",
+    "frontier": "sorted by tenantId then resourceId"
+  },
+  "coverage": {
+    "positive": [
+      "aba-positive-reincarnation",
+      "tenant-scope-positive",
+      "coherent-premise-set"
+    ],
+    "negative": [
+      "aba-negative-stale-incarnation",
+      "tenant-scope-negative",
+      "causal-incoherence",
+      "frontier-incomplete"
+    ],
+    "transition": [
+      "receipt-replay-and-conflict"
+    ]
+  }
+}

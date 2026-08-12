@@ -22,6 +22,8 @@ PREMiSE ya es un protocolo implementado, portable y probado para trabajar con
 recuerdos cuya fuente puede cambiar. El núcleo incluye:
 
 - contrato portable `premise/1` con vectores de conformidad en TypeScript y Python;
+- evolución protocolaria separada en `premise/1.1`, `premise-policy/1` y
+  `premise-guard/1`, sin modificar el contrato cerrado anterior;
 - runtime con evidencias, versiones, dependencias, invalidación y revalidación;
 - protección compare-and-set (CAS) antes de aplicar una acción;
 - adapters y ejemplos para filesystem, Git, GitHub, PostgreSQL y MCP;
@@ -92,6 +94,31 @@ mitad de las tareas. Un sistema no gana por llamar menos si actúa con datos
 obsoletos. Los tokens y costes de la tabla son proxies deterministas de payloads;
 los tokens reales del proveedor y el coste facturado están en
 `UNKNOWN/NOT_MEASURED`.
+
+## Evidencia protocolaria reproducible
+
+La evolución del protocolo tiene además un benchmark pequeño y determinista para
+aislar la semántica, sin red ni proveedor:
+
+| Qué se prueba | Resultado de referencia |
+| --- | ---: |
+| Escenarios | 5 |
+| Casos | 13 |
+| Resultados inseguros de las referencias | 0 |
+| Resultados inseguros de los baselines deliberadamente simples | 4 |
+
+Mide identidad/ABA, invalidación por scope, sharing seguro, single-flight,
+coherencia causal y TOCTOU. Cuenta operaciones físicas simuladas, no latencia ni
+euros; por eso no se presenta como evidencia de producción. Se puede repetir con:
+
+```bash
+pnpm benchmark:protocol-evolution:check
+```
+
+La [especificación `premise/1.1`](./spec/premise-1.1/), la
+[policy](./spec/premise-policy-1/) y el [guard](./spec/premise-guard-1/)
+mantienen sus contratos y vectores separados. El detalle del benchmark está en
+[`benchmarks/protocol-evolution/report.md`](./benchmarks/protocol-evolution/report.md).
 
 La serie completa —100-A, 100-B, 200-A, 200-B y 200-C— está descrita en la
 [campaña mutable](./benchmarks/premisebench-agent/MUTATION_CAMPAIGN.md) y sus
@@ -168,12 +195,16 @@ siendo `UNKNOWN`, nunca cero.
 | Ruta | Para qué sirve |
 | --- | --- |
 | [`spec/premise-1/`](./spec/premise-1/) | Contrato pequeño, decisiones y reglas de eficiencia. |
+| [`spec/premise-1.1/`](./spec/premise-1.1/) | Identidad, scopes, change sets, receipts y coherencia causal. |
+| [`spec/premise-policy-1/`](./spec/premise-policy-1/) | Capabilities, sharing, single-flight, leases y fallbacks. |
+| [`spec/premise-guard-1/`](./spec/premise-guard-1/) | Action slices, CAS, fencing, replay y protección TOCTOU. |
 | [`packages/runtime-core/`](./packages/runtime-core/) | Evidencias, dependencias, invalidación y revalidación. |
 | [`packages/protocol-types/`](./packages/protocol-types/) | Tipos y validación del protocolo. |
 | [`packages/validator-github/`](./packages/validator-github/) | Lecturas GitHub, ETags, checks, reviews y webhooks. |
 | [`packages/store-postgres/`](./packages/store-postgres/) | Adapter PostgreSQL y persistencia durable. |
 | [`packages/context-engine/`](./packages/context-engine/) | Selección de contexto con presupuesto y trazabilidad. |
 | [`benchmarks/premisebench-agent/`](./benchmarks/premisebench-agent/) | Baselines, mutaciones, examinador ciego y tablas. |
+| [`benchmarks/protocol-evolution/`](./benchmarks/protocol-evolution/) | Benchmark determinista de la semántica protocolaria. |
 | [`docs/`](./docs/) | Integración, operación, límites y metodología. |
 | [`assets/`](./assets/) | Logo, overview y arquitectura visual. |
 

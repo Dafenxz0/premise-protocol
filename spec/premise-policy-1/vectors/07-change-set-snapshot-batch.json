@@ -1,0 +1,52 @@
+{
+  "format": "premise-policy-vector/1",
+  "id": "change-set-snapshot-batch",
+  "operation": "coherentBatch",
+  "risk": "HIGH",
+  "requested": [
+    "CHANGE_SET",
+    "TRANSACTION_SNAPSHOT",
+    "CAUSAL_FRONTIER",
+    "BATCH_READ",
+    "ATOMIC_BATCH"
+  ],
+  "scope": {
+    "tenantId": "tenant:a",
+    "authorizationScope": "subject:a"
+  },
+  "changeSet": {
+    "changeSetId": "cs:9",
+    "requiredMembers": ["obs:head", "obs:checks"],
+    "frontier": { "source:repo": "r9" },
+    "members": [
+      { "observationId": "obs:head", "versionToken": "r9", "available": true },
+      { "observationId": "obs:checks", "versionToken": "r8", "available": true }
+    ]
+  },
+  "snapshot": {
+    "snapshotId": "snap:9",
+    "capturedAt": "2026-08-12T10:00:00Z",
+    "eventHead": "event:41",
+    "frontier": { "source:repo": "r9" }
+  },
+  "batch": {
+    "atomicity": "all-or-nothing",
+    "items": [
+      { "id": "memory:head", "required": ["obs:head"] },
+      { "id": "memory:checks", "required": ["obs:checks"] }
+    ]
+  },
+  "expected": {
+    "decision": "REVALIDATE",
+    "reason": "CHANGE_SET_INCOMPLETE",
+    "missingOrMismatched": ["obs:checks"],
+    "batchCommit": "NOT_ATTEMPTED",
+    "perItem": [
+      { "id": "memory:head", "decision": "REVALIDATE" },
+      { "id": "memory:checks", "decision": "REVALIDATE" }
+    ],
+    "effect": "NONE",
+    "events": 0
+  },
+  "properties": ["change-set-complete", "snapshot-coherent", "frontier-complete", "batch-attributed"]
+}

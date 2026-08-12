@@ -1,18 +1,28 @@
-# PREMiSE/1 conformance
+# PREMiSE protocol conformance
 
-`run.mjs` is the single conformance entry point for the new portable
-`premise/1` contract. It executes the same nine semantic vectors against an
-independent TypeScript reference and an independent Python reference, then
-compares both outputs with the expected result.
+`conformance/run.mjs` es el gate reproducible de las superficies protocolarias
+pequeñas. Ejecuta sin red, base de datos, modelo ni API key:
 
-```text
-pnpm conformance:premise1
+- nueve vectores semánticos compactos de `premise/1`;
+- cinco vectores wire históricos de `premise/1`, ejecutados por un state machine
+  independiente dentro del gate;
+- nueve vectores wire de `premise/1.1`, ejecutados por un state machine
+  independiente para identidad, scope, receipts y coherencia causal;
+- ocho vectores de `premise/1.1`;
+- ocho vectores de `premise-guard/1`;
+- cinco vectores de `premise-policy/1`;
+- cuatro vectores suplementarios de policy para CAS, coherencia, TTL y
+  selección segura de frontera.
+
+Para los perfiles nuevos, TypeScript y Python son referencias separadas y sus
+salidas se comparan entre sí y contra los `expected` escritos en cada vector.
+Los expected no se generan a partir de ninguna implementación.
+
+```powershell
+node conformance/run.mjs
+pnpm conformance:protocol
 ```
 
-The command builds `reference/typescript/src/`, runs the Node CLI, runs
-`reference/python/cli-premise1.py`, and exits non-zero on any mismatch. It
-requires no database, network, model, or API key.
-
-The historical v0.1/v2 package conformance remains under
-`packages/conformance/` and is intentionally not mixed into this minimal
-protocol gate.
+El resultado PASS demuestra únicamente que las referencias y los vectores
+coinciden. No certifica un adaptador externo, una base de datos, una escritura
+remota ni una garantía de disponibilidad.

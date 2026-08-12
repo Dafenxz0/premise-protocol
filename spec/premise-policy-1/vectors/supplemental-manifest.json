@@ -1,0 +1,20 @@
+{
+  "format": "premise-policy-test-manifest/1",
+  "protocol": "premise-policy/1",
+  "profile": "premise-policy/1-supplemental",
+  "baseManifest": "./manifest.json",
+  "description": "Vectores adicionales para identidad, lecturas condicionales, coherencia, idempotency, TTL y selección segura de frontier.",
+  "vectors": [
+    { "id": "identity-conditional-cas", "file": "06-identity-conditional-cas.json", "category": "safety" },
+    { "id": "change-set-snapshot-batch", "file": "07-change-set-snapshot-batch.json", "category": "coherence" },
+    { "id": "idempotency-ttl-risk", "file": "08-idempotency-ttl-risk.json", "category": "fallback" },
+    { "id": "frontier-cannot-drop-core", "file": "09-frontier-core.json", "category": "selection" }
+  ],
+  "comparison": {
+    "timestamps": "exact UTC strings",
+    "objects": "key order is irrelevant",
+    "arrays": "order is significant",
+    "unknown": "never equals zero",
+    "rejectedEffects": "state and events remain unchanged"
+  }
+}

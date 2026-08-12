@@ -1,0 +1,7 @@
+{
+  "id": "receipt-match",
+  "operation": "receipt",
+  "receipt": {"receiptId":"r1","identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"versionToken":"v2","observationId":"o2","scopes":["/deploy/region"],"validatorId":"git-validator/1","authorizationContextDigest":"sha256:auth-a","causalFrontier":["event-2"]},
+  "request": {"identity":{"tenantId":"team-a","resourceId":"repo/config","incarnationId":"inc-a"},"versionToken":"v2","requiredScopes":["/deploy/region"],"validatorId":"git-validator/1","authorizationContextDigest":"sha256:auth-a","causalFrontier":["event-2"]},
+  "expected": {"valid":true,"reason":"MATCH"}
+}

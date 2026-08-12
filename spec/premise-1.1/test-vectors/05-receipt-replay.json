@@ -1,0 +1,139 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "receipt-replay-and-conflict",
+  "category": "transition",
+  "description": "Un retry exacto devuelve el receipt original; el mismo idempotencyKey con otro digest es conflicto.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T14:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "first-apply",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:receipt:first",
+        "operation": "apply",
+        "idempotencyKey": "idem:receipt:one",
+        "requestDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "requestedAt": "2026-08-12T14:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:receipt:first",
+            "causalSnapshot": { "snapshotId": "snap:receipt:empty", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:receipt",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:receipt:1", "versionToken": "R1", "observationId": "obs:receipt:1" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "APPLIED",
+        "receiptId": "receipt:op:receipt:first",
+        "receipt": {
+          "kind": "receipt",
+          "specVersion": "premise/1.1",
+          "tenantId": "tenant:acme",
+          "receiptId": "receipt:op:receipt:first",
+          "operationId": "op:receipt:first",
+          "operation": "apply",
+          "idempotencyKey": "idem:receipt:one",
+          "requestDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "changeSetId": "cs:receipt:first",
+          "outcome": "APPLIED",
+          "coherence": "COHERENT",
+          "causalSnapshot": { "snapshotId": "snap:receipt:empty", "entries": [] },
+          "frontier": []
+        }
+      }
+    },
+    {
+      "id": "exact-replay",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:receipt:first",
+        "operation": "apply",
+        "idempotencyKey": "idem:receipt:one",
+        "requestDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "requestedAt": "2026-08-12T14:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:receipt:first",
+            "causalSnapshot": { "snapshotId": "snap:receipt:empty", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:receipt",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:receipt:1", "versionToken": "R1", "observationId": "obs:receipt:1" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "REPLAY",
+        "receiptId": "receipt:op:receipt:first",
+        "receiptSameAs": "first-apply",
+        "stateUnchanged": true
+      }
+    },
+    {
+      "id": "conflicting-retry",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:receipt:conflict",
+        "operation": "apply",
+        "idempotencyKey": "idem:receipt:one",
+        "requestDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "requestedAt": "2026-08-12T14:01:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:receipt:conflict",
+            "causalSnapshot": { "snapshotId": "snap:receipt:conflict", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:receipt-other",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:receipt-other:1", "versionToken": "R2", "observationId": "obs:receipt-other:1" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "CONFLICT",
+        "reason": "IDEMPOTENCY_CONFLICT",
+        "stateUnchanged": true,
+        "receiptCreated": false,
+        "priorReceipt": "first-apply"
+      }
+    }
+  ]
+}

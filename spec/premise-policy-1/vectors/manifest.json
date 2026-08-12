@@ -1,0 +1,1 @@
+{"format":"premise-test-manifest/1","protocol":"premise-policy/1","vectors":["01-capability-fallback.json","02-sharing-scope.json","03-single-flight.json","04-lease-fencing.json","05-strength-no-repair.json"]}

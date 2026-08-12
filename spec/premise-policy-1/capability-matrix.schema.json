@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/premise-policy-1/capability-matrix.schema.json",
+  "title": "PREMiSE premise-policy/1 capability matrix",
+  "description": "Closed machine-readable matrix. A policy capability is evidence-backed and cannot remove core or guard requirements.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "profile", "core", "capabilities", "frontier"],
+  "properties": {
+    "specVersion": { "const": "premise-policy/1" },
+    "profile": { "const": "premise-policy-capability-matrix/1" },
+    "core": { "$ref": "#/$defs/core" },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "frontier": { "$ref": "#/$defs/frontier" }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "capabilityId": {
+      "enum": [
+        "RESOURCE_IDENTITY",
+        "INCARNATION_ID",
+        "VERSION_TOKEN",
+        "EVIDENCE_PROPERTIES",
+        "SCOPED_READ",
+        "CONDITIONAL_READ",
+        "CHANGE_SET",
+        "TRANSACTION_SNAPSHOT",
+        "CAUSAL_FRONTIER",
+        "BATCH_READ",
+        "ATOMIC_BATCH",
+        "SUBSCRIPTIONS",
+        "ORDERED_EVENTS",
+        "CAS",
+        "CONDITIONAL_ACTION",
+        "IDEMPOTENCY_KEY",
+        "TTL_ONLY",
+        "UNVERSIONED",
+        "SINGLE_FLIGHT",
+        "SCOPED_SHARING",
+        "FENCED_LEASE",
+        "FULL_RESOURCE_ONLY"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "authorizationScope"],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/nonEmptyString" },
+        "authorizationScope": { "$ref": "#/$defs/nonEmptyString" },
+        "subjectId": { "$ref": "#/$defs/nonEmptyString" },
+        "sharing": { "enum": ["none", "same-subject", "explicit"] }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "predicate",
+        "subject",
+        "result",
+        "observedAt",
+        "verifier",
+        "artifactDigest"
+      ],
+      "properties": {
+        "evidenceId": { "$ref": "#/$defs/nonEmptyString" },
+        "predicate": {
+          "enum": [
+            "identity-bound",
+            "tenant-isolated",
+            "incarnation-unique",
+            "version-bound",
+            "evidence-verified",
+            "scope-matched",
+            "conditional-read-bound",
+            "change-set-complete",
+            "snapshot-coherent",
+            "frontier-complete",
+            "batch-attributed",
+            "batch-atomic",
+            "event-source-bound",
+            "event-ordered",
+            "event-scoped",
+            "cas-accepted",
+            "cas-rejected-without-effect",
+            "conditional-commit",
+            "replay-stable",
+            "conflict-rejected",
+            "ttl-bounded",
+            "clock-observed",
+            "version-unknown",
+            "single-flight-one-owner",
+            "sharing-scope-equal",
+            "lease-fenced",
+            "stale-owner-rejected"
+          ]
+        },
+        "subject": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tenantId", "resourceId", "incarnationId"],
+          "properties": {
+            "tenantId": { "$ref": "#/$defs/nonEmptyString" },
+            "resourceId": { "$ref": "#/$defs/nonEmptyString" },
+            "incarnationId": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        },
+        "scope": { "$ref": "#/$defs/scope" },
+        "result": { "const": "VERIFIED" },
+        "observedAt": { "$ref": "#/$defs/dateTime" },
+        "expiresAt": { "$ref": "#/$defs/dateTime" },
+        "verifier": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "operation"],
+          "properties": {
+            "id": { "$ref": "#/$defs/nonEmptyString" },
+            "operation": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        },
+        "artifactDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "class", "mode", "requires", "proof", "missingOutcome", "fallback"],
+      "properties": {
+        "id": { "$ref": "#/$defs/capabilityId" },
+        "class": { "enum": ["core", "safety", "coherence", "audit", "optimization", "fallback"] },
+        "mode": { "enum": ["native", "delegated", "fallback"] },
+        "requires": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capabilityId" }
+        },
+        "proof": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/proof" }
+        },
+        "risk": { "enum": ["low", "medium", "high", "critical"] },
+        "missingOutcome": { "enum": ["REJECT", "REVALIDATE", "UNSUPPORTED"] },
+        "fallback": { "enum": ["none", "per-item", "TTL_ONLY", "single-shot-CAS", "REVALIDATE"] },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxBatchItems": { "type": "integer", "minimum": 1 },
+            "maxTtlSeconds": { "type": "integer", "minimum": 1 },
+            "maxLeaseSeconds": { "type": "integer", "minimum": 1 },
+            "maxRetries": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonDroppable", "write"],
+      "properties": {
+        "nonDroppable": {
+          "const": [
+            "RESOURCE_IDENTITY",
+            "EVIDENCE_PROPERTIES",
+            "SCOPED_READ",
+            "DECISION",
+            "SAFE_FAILURE"
+          ]
+        },
+        "write": {
+          "const": ["CAS", "CONDITIONAL_ACTION"]
+        }
+      }
+    },
+    "frontier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hardGates", "unknownMetrics"],
+      "properties": {
+        "hardGates": {
+          "const": [
+            "core-complete",
+            "identity-verified",
+            "evidence-verified",
+            "scope-matched",
+            "causal-frontier-complete",
+            "no-unsafe-action",
+            "cas-for-write"
+          ]
+        },
+        "unknownMetrics": {
+          "const": "exclude-from-frontier"
+        }
+      }
+    }
+  }
+}

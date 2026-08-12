@@ -1,0 +1,1 @@
+{"id":"single-flight","operation":"singleFlight","requests":[{"tenant":"a","resource":"r","incarnation":"i","scopes":["/head"],"validator":"v"},{"tenant":"a","resource":"r","incarnation":"i","scopes":["/head"],"validator":"v"},{"tenant":"a","resource":"r","incarnation":"i","scopes":["/checks"],"validator":"v"}],"expected":{"physicalValidations":2,"waiters":1}}

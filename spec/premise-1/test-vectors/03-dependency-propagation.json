@@ -6,7 +6,7 @@
   "description": "El cambio de un soporte alcanza solo a sus derivados y los ciclos se rechazan sin mutación.",
   "initial": {
     "clock": { "mode": "manual", "now": "2026-08-11T10:00:00Z" },
-    "memories": [],
+    "memories": [{ "tenantId": "tenant:graph", "memoryId": "memory:graph:other", "status": "FRESH", "dependsOn": [] }],
     "events": []
   },
   "steps": [

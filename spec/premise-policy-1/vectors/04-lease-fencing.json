@@ -1,0 +1,1 @@
+{"id":"lease-fencing","operation":"lease","lease":{"valid":false,"fencingToken":"old"},"expected":{"usable":false,"reason":"FENCING_REPLAY"}}

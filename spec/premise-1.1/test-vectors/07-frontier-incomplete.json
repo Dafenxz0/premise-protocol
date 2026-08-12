@@ -1,0 +1,74 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "frontier-incomplete",
+  "category": "negative",
+  "description": "Una frontera solicitada vacía no puede ocultar la causa mínima de una incoherencia causal.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T16:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "reject-incomplete-frontier",
+      "operation": "check",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:frontier:incomplete",
+        "operation": "check",
+        "idempotencyKey": "idem:frontier:incomplete",
+        "requestDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "requestedAt": "2026-08-12T16:00:00Z",
+        "payload": {
+          "premiseSet": {
+            "kind": "premiseSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "setId": "set:frontier:incomplete",
+            "members": [
+              {
+                "tenantId": "tenant:acme",
+                "resourceId": "resource:derived",
+                "incarnationId": "inc:derived:1",
+                "versionToken": "D1",
+                "observationId": "obs:derived:1",
+                "dependsOn": [
+                  { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                ]
+              },
+              { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] }
+            ],
+            "causalSnapshot": {
+              "snapshotId": "snap:frontier:incomplete",
+              "entries": [
+                {
+                  "tenantId": "tenant:acme",
+                  "resourceId": "resource:derived",
+                  "incarnationId": "inc:derived:1",
+                  "versionToken": "D1",
+                  "observationId": "obs:derived:1",
+                  "dependsOn": [
+                    { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                  ]
+                },
+                { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S2", "observationId": "obs:source:2", "dependsOn": [] }
+              ]
+            }
+          },
+          "requestedFrontier": []
+        }
+      },
+      "expect": {
+        "coherence": "INCOHERENT",
+        "decision": "REJECT",
+        "reason": "FRONTIER_INCOMPLETE",
+        "frontier": [
+          { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1" }
+        ]
+      }
+    }
+  ]
+}

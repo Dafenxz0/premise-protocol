@@ -1,0 +1,138 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "tenant-scope-positive",
+  "category": "positive",
+  "description": "Una dependencia explícitamente scoped al mismo tenant puede cerrar una Premise Set.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T12:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "create-source",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:scope:source",
+        "operation": "apply",
+        "idempotencyKey": "idem:scope:source",
+        "requestDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "requestedAt": "2026-08-12T12:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:scope:source",
+            "causalSnapshot": { "snapshotId": "snap:scope:empty", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:source",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": { "disposition": "APPLIED" }
+    },
+    {
+      "id": "create-derived",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:scope:derived",
+        "operation": "apply",
+        "idempotencyKey": "idem:scope:derived",
+        "requestDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "requestedAt": "2026-08-12T12:01:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:scope:derived",
+            "causalSnapshot": {
+              "snapshotId": "snap:scope:source",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] }
+              ]
+            },
+            "changes": [
+              {
+                "resourceId": "resource:derived",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:derived:1", "versionToken": "D1", "observationId": "obs:derived:1" },
+                "dependsOn": [
+                  { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "expect": { "disposition": "APPLIED" }
+    },
+    {
+      "id": "check-scoped-set",
+      "operation": "check",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:scope:check",
+        "operation": "check",
+        "idempotencyKey": "idem:scope:check",
+        "requestDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "requestedAt": "2026-08-12T12:02:00Z",
+        "payload": {
+          "premiseSet": {
+            "kind": "premiseSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "setId": "set:scope:derived",
+            "members": [
+              { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] },
+              {
+                "tenantId": "tenant:acme",
+                "resourceId": "resource:derived",
+                "incarnationId": "inc:derived:1",
+                "versionToken": "D1",
+                "observationId": "obs:derived:1",
+                "dependsOn": [
+                  { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                ]
+              }
+            ],
+            "causalSnapshot": {
+              "snapshotId": "snap:scope:closed",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] },
+                {
+                  "tenantId": "tenant:acme",
+                  "resourceId": "resource:derived",
+                  "incarnationId": "inc:derived:1",
+                  "versionToken": "D1",
+                  "observationId": "obs:derived:1",
+                  "dependsOn": [
+                    { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                  ]
+                }
+              ]
+            }
+          },
+          "requestedFrontier": []
+        }
+      },
+      "expect": { "coherence": "COHERENT", "decision": "USE", "frontier": [] }
+    }
+  ]
+}

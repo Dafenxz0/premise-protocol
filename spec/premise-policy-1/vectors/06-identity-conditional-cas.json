@@ -1,0 +1,66 @@
+{
+  "format": "premise-policy-vector/1",
+  "id": "identity-conditional-cas",
+  "operation": "guardedWrite",
+  "risk": "HIGH",
+  "requested": [
+    "RESOURCE_IDENTITY",
+    "INCARNATION_ID",
+    "VERSION_TOKEN",
+    "CONDITIONAL_READ",
+    "CAS",
+    "CONDITIONAL_ACTION",
+    "ORDERED_EVENTS"
+  ],
+  "initial": {
+    "identity": {
+      "tenantId": "tenant:a",
+      "resourceId": "doc:42",
+      "incarnationId": "inc:7"
+    },
+    "versionToken": "v7",
+    "actionDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "cases": [
+    {
+      "id": "aba",
+      "sourceNow": {
+        "tenantId": "tenant:a",
+        "resourceId": "doc:42",
+        "incarnationId": "inc:8",
+        "versionToken": "v7"
+      },
+      "expected": {
+        "conditionalRead": "GONE",
+        "decision": "REJECT",
+        "reason": "IDENTITY_MISMATCH",
+        "cas": "NOT_ATTEMPTED",
+        "effect": "NONE",
+        "events": 0
+      }
+    },
+    {
+      "id": "toctou",
+      "sourceNow": {
+        "tenantId": "tenant:a",
+        "resourceId": "doc:42",
+        "incarnationId": "inc:7",
+        "versionToken": "v8"
+      },
+      "expected": {
+        "conditionalRead": "MISMATCH",
+        "decision": "REVALIDATE",
+        "reason": "CAS_MISMATCH",
+        "cas": "REJECTED",
+        "effect": "NONE",
+        "events": 0
+      }
+    }
+  ],
+  "properties": [
+    "identity-bound",
+    "incarnation-unique",
+    "conditional-read-bound",
+    "cas-rejected-without-effect"
+  ]
+}

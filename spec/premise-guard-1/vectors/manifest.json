@@ -1,0 +1,15 @@
+{
+  "format": "premise-guard-test-manifest/1",
+  "specVersion": "premise-guard/1",
+  "profile": "premise-guard/1-rich",
+  "vectors": [
+    "01-toctou-source-change.json",
+    "02-change-between-validate-and-commit.json",
+    "03-delete-recreate.json",
+    "04-expired-receipt.json",
+    "05-expired-lease.json",
+    "06-incomplete-slice.json",
+    "07-replay.json",
+    "08-no-cas-fail-closed.json"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "format": "premise-guard-test-vector/1",
+  "specVersion": "premise-guard/1",
+  "vectorId": "adapter-without-cas-fails-closed",
+  "category": "negative",
+  "description": "Un adapter sin CAS no ejecuta una acción aunque la validación emita USE.",
+  "initial": {
+    "now": "2026-08-12T17:00:00Z",
+    "adapter": {
+      "adapterId": "adapter:legacy",
+      "capabilities": ["IDEMPOTENCY", "FENCING"]
+    },
+    "memories": [
+      {
+        "memoryId": "memory:answer",
+        "incarnation": "memory:answer#1",
+        "revision": "r1",
+        "status": "FRESH",
+        "dependsOn": [],
+        "sourceVersions": []
+      }
+    ],
+    "resources": [
+      {
+        "resourceId": "resource:order:1",
+        "incarnation": "order:1",
+        "revision": "r7"
+      }
+    ],
+    "lease": {
+      "leaseId": "lease:8",
+      "scope": "resource:order:1",
+      "fenceToken": 14,
+      "expiresAt": "2026-08-12T17:10:00Z"
+    }
+  },
+  "steps": [
+    {
+      "id": "validate-without-cas",
+      "operation": "validate",
+      "input": {
+        "intentId": "intent:no-cas:1",
+        "tenantId": "tenant:example",
+        "memoryIds": ["memory:answer"],
+        "actionDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "expect": { "decision": "USE", "receipt": "receipt:no-cas:1" }
+    },
+    {
+      "id": "commit-must-fail-closed",
+      "operation": "commit",
+      "input": { "receipt": "receipt:no-cas:1" },
+      "expect": {
+        "status": "REJECTED",
+        "reason": "CAS_REQUIRED",
+        "effects": 0,
+        "toctouEscaped": false
+      }
+    }
+  ]
+}
