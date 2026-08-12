@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { blindReport, parseAgentMessage, parseArgs, systemPrompt, visibleEnvelope } from "./campaign.mjs";
+import { blindReport, listedCost, parseAgentMessage, parseArgs, systemPrompt, visibleEnvelope } from "./campaign.mjs";
 
 const args = parseArgs([
   "--provider=gemini",
@@ -112,6 +112,36 @@ test("free OpenRouter models can opt out of structured-output enforcement", () =
     "--arms=premise"
   ]);
   assert.equal(openrouter.responseFormat, "none");
+});
+
+test("OpenRouter live guard exposes a bounded request budget and interval", () => {
+  const guarded = parseArgs([
+    "--provider=openrouter",
+    "--model=inclusionai/ling-3.0-tiny:free",
+    "--tasks=2",
+    "--max-turns=4",
+    "--max-provider-requests=36",
+    "--min-request-interval-ms=4000",
+    "--max-provider-tokens=24000",
+    "--max-retries=0",
+    "--round=ling-guard-test"
+  ]);
+  assert.equal(guarded.maxTurns, 4);
+  assert.equal(guarded.maxProviderRequests, 36);
+  assert.equal(guarded.minRequestIntervalMs, 4000);
+  assert.equal(guarded.maxProviderTokens, 24000);
+  assert.throws(() => parseArgs([
+    "--provider=openrouter",
+    "--model=inclusionai/ling-3.0-tiny:free",
+    "--max-provider-requests=1",
+    "--max-retries=1"
+  ]), /max-retries must be 0/iu);
+});
+
+test("listed OpenRouter price is calculated only from complete usage", () => {
+  const pricing = { status: "OK", pricing: { prompt: 0, completion: 0, request: 0 } };
+  assert.equal(listedCost({ inputTokens: 20, outputTokens: 5, completionRequests: 2, cachedTokens: 0, usageStatus: "COMPLETE" }, pricing), 0);
+  assert.equal(listedCost({ inputTokens: 20, outputTokens: 5, completionRequests: 2, cachedTokens: 0, usageStatus: "PARTIAL_OR_UNKNOWN" }, pricing), null);
 });
 
 test("arms cannot silently borrow another arm's write capability", () => {

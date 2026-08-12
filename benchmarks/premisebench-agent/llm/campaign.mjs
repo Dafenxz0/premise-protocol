@@ -104,8 +104,13 @@ function parseArgs(argv = process.argv.slice(2)) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(round)) throw new TypeError("--round must be a safe directory name");
   const arms = parseArms(cliValue(argv, "arms", defaultArms.join(",")));
   const maxRetries = integerArg(cliValue(argv, "max-retries", "0"), "max-retries", { min: 0, max: 5 });
+  const configuredMaxTurns = integerArg(cliValue(argv, "max-turns", String(maxTurns)), "max-turns", { min: 1, max: maxTurns });
   const maxTokens = integerArg(cliValue(argv, "max-tokens", "256"), "max-tokens", { min: 1, max: 32_768 });
   const delayMs = integerArg(cliValue(argv, "delay-ms", "0"), "delay-ms", { min: 0, max: 60_000 });
+  const maxProviderRequests = integerArg(cliValue(argv, "max-provider-requests", "0"), "max-provider-requests", { min: 0, max: 10_000 });
+  const minRequestIntervalMs = integerArg(cliValue(argv, "min-request-interval-ms", "0"), "min-request-interval-ms", { min: 0, max: 300_000 });
+  const maxProviderTokens = integerArg(cliValue(argv, "max-provider-tokens", "0"), "max-provider-tokens", { min: 0, max: 10_000_000 });
+  if (maxProviderRequests > 0 && maxRetries > 0) throw new TypeError("--max-retries must be 0 when --max-provider-requests is set");
   const responseFormat = String(cliValue(argv, "response-format", "json-object")).trim().toLowerCase();
   if (!["json-object", "none"].includes(responseFormat)) throw new TypeError("--response-format must be json-object or none");
   const endpointValue = String(cliValue(argv, "endpoint", "")).trim();
@@ -123,8 +128,12 @@ function parseArgs(argv = process.argv.slice(2)) {
     outputRoot: resolve(root, configuredOutputRoot),
     arms,
     maxRetries,
+    maxTurns: configuredMaxTurns,
     maxTokens,
     delayMs,
+    maxProviderRequests,
+    minRequestIntervalMs,
+    maxProviderTokens,
     responseFormat,
     endpoint: endpointValue || null,
     credentialEnv: credentialEnvValue || null,
@@ -194,7 +203,48 @@ function candidateConfig(args) {
 }
 
 function createCandidate(args) {
-  return createLlmCandidate(candidateConfig(args));
+  const candidate = createLlmCandidate(candidateConfig(args));
+  let requestCount = 0;
+  let lastRequestAt = 0;
+  let tokenCount = 0;
+
+  async function complete(request = {}) {
+    if (args.maxProviderRequests > 0 && requestCount >= args.maxProviderRequests) {
+      return {
+        status: "ERROR",
+        error: { kind: "request-budget-exhausted" },
+        usage: { inputTokens: null, outputTokens: null, cachedTokens: null, toolCalls: 0, retries: 0, latencyMs: 0, providerCost: null }
+      };
+    }
+    if (args.maxProviderTokens > 0 && tokenCount >= args.maxProviderTokens) {
+      return {
+        status: "ERROR",
+        error: { kind: "token-budget-exhausted" },
+        usage: { inputTokens: null, outputTokens: null, cachedTokens: null, toolCalls: 0, retries: 0, latencyMs: 0, providerCost: null }
+      };
+    }
+    const waitMs = Math.max(0, args.minRequestIntervalMs - (Date.now() - lastRequestAt));
+    if (waitMs > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, waitMs));
+    requestCount += 1;
+    lastRequestAt = Date.now();
+    const result = await candidate.complete(request);
+    const inputTokens = finiteNumber(result?.usage?.inputTokens);
+    const outputTokens = finiteNumber(result?.usage?.outputTokens);
+    if (inputTokens !== null && outputTokens !== null) tokenCount += inputTokens + outputTokens;
+    return result;
+  }
+
+  return Object.freeze({
+    ...candidate,
+    complete,
+    requestStats: () => Object.freeze({
+      requestsStarted: requestCount,
+      maxProviderRequests: args.maxProviderRequests,
+      minRequestIntervalMs: args.minRequestIntervalMs,
+      tokensObserved: tokenCount,
+      maxProviderTokens: args.maxProviderTokens
+    })
+  });
 }
 
 function systemPrompt(arm) {
@@ -430,7 +480,7 @@ function traceEvaluation(status, evaluation) {
   };
 }
 
-async function runAgent({ candidate, task, arm, round, delayMs = 0 }) {
+async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: turnLimit = maxTurns }) {
   const world = createWorld(task);
   const initial = world.initial;
   if (task.mutationWindow === "before-action") world.mutate();
@@ -448,7 +498,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0 }) {
   let agentStatus = null;
   const started = performance.now();
 
-  for (let turn = 0; turn < maxTurns; turn += 1) {
+  for (let turn = 0; turn < turnLimit; turn += 1) {
     const requestId = `${round}:${arm}:${task.taskId}:${turn + 1}`;
     let result;
     try {
@@ -554,6 +604,8 @@ function campaignStatus(items) {
   if (items.length === 0) return "NOT_RUN";
   if (items.some((item) => item.calls?.some((call) => call.error?.status === 402))) return "PAYMENT_REQUIRED";
   if (items.some((item) => item.calls?.some((call) => call.error?.status === 429))) return "RATE_LIMITED";
+  if (items.some((item) => item.calls?.some((call) => call.error?.kind === "request-budget-exhausted"))) return "REQUEST_BUDGET_EXHAUSTED";
+  if (items.some((item) => item.calls?.some((call) => call.error?.kind === "token-budget-exhausted"))) return "TOKEN_BUDGET_EXHAUSTED";
   if (items.some((item) => item.status === "ERROR")) return "ERROR";
   if (items.some((item) => item.status === "NOT_RUN")) return "NOT_RUN";
   return "OK";
@@ -642,6 +694,76 @@ function makeBlindIds(arms) {
   return ids;
 }
 
+function decimal(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function pricingFields(value) {
+  if (!recordObject(value)) return null;
+  const fields = ["prompt", "completion", "request", "input_cache_read", "input_cache_write"];
+  const pricing = {};
+  for (const field of fields) {
+    const parsed = decimal(value[field]);
+    if (parsed !== null) pricing[field] = parsed;
+  }
+  return Object.keys(pricing).length > 0 ? pricing : null;
+}
+
+async function fetchOpenRouterPricing(args) {
+  if (args.provider !== "openrouter") return { status: "NOT_APPLICABLE", source: null, pricing: null };
+  const modelPath = args.model.split("/").map((part) => encodeURIComponent(part)).join("/");
+  const endpoint = `https://openrouter.ai/api/v1/model/${modelPath}`;
+  try {
+    const response = await fetch(endpoint, { headers: { accept: "application/json" } });
+    if (!response.ok) return { status: "UNKNOWN", source: endpoint, httpStatus: response.status, pricing: null };
+    const body = await response.json();
+    const pricing = pricingFields(body?.data?.pricing);
+    return {
+      status: pricing === null ? "UNKNOWN" : "OK",
+      source: endpoint,
+      modelId: typeof body?.data?.id === "string" ? body.data.id : args.model,
+      pricing,
+      unit: "USD per token/request/unit",
+      fetchedAt: new Date().toISOString()
+    };
+  } catch (error) {
+    return { status: "UNKNOWN", source: endpoint, reason: error?.name === "AbortError" ? "timeout" : "network", pricing: null };
+  }
+}
+
+function listedCost(metrics, pricingSnapshot) {
+  const pricing = pricingSnapshot?.pricing;
+  if (pricingSnapshot?.status !== "OK" || !pricing) return null;
+  if (!["inputTokens", "outputTokens", "completionRequests"].every((key) => finiteNumber(metrics[key]) !== null)) return null;
+  if (metrics.usageStatus !== "COMPLETE") return null;
+  const prompt = decimal(pricing.prompt);
+  const completion = decimal(pricing.completion);
+  const request = decimal(pricing.request ?? 0);
+  if (prompt === null || completion === null || request === null) return null;
+  const cached = finiteNumber(metrics.cachedTokens);
+  if (cached !== null && cached > 0 && decimal(pricing.input_cache_read) === null) return null;
+  const uncachedInput = Math.max(0, metrics.inputTokens - (cached ?? 0));
+  const cachedInput = cached ?? 0;
+  const cachedRate = cachedInput > 0 ? decimal(pricing.input_cache_read) : 0;
+  if (cachedRate === null) return null;
+  return Number((uncachedInput * prompt + cachedInput * cachedRate + metrics.outputTokens * completion + metrics.completionRequests * request).toFixed(12));
+}
+
+function attachListedPricing(results, pricingSnapshot) {
+  return results.map((result) => {
+    const cost = listedCost(result, pricingSnapshot);
+    return {
+      ...result,
+      listedCost: cost,
+      listedCostPerSafeAttempt: cost === null || result.safeAttempts === null || result.safeAttempts === 0 ? null : cost / result.safeAttempts,
+      listedCsfa: cost === null || result.completed === null || result.completed === 0 ? null : cost / result.completed
+    };
+  });
+}
+
 function hasExecutedLlmTask(trace) {
   return trace.calls.some((call) => call.status === "OK");
 }
@@ -713,6 +835,11 @@ function blindReport(args, results, taskHash, blindIds = makeBlindIds(results.ma
         metrics.costPerSafeSuccessfulTaskUsd = result.completed > 0 ? result.providerCost / result.completed : null;
         metrics.csfaUsd = result.completed > 0 ? result.providerCost / result.completed : null;
       }
+      if (finiteNumber(result.listedCost) !== null) {
+        metrics.listedCostUsd = result.listedCost;
+        metrics.listedCostPerSafeAttemptUsd = result.listedCostPerSafeAttempt;
+        metrics.listedCsfaUsd = result.listedCsfa;
+      }
       return { id: blindIds.get(result.arm), metrics };
     })
   };
@@ -725,7 +852,7 @@ function fixed(value, digits = 2) {
 function reportMarkdown({ args, manifest, summary }) {
   const rows = summary.results.map((result) => {
     const metrics = result.metrics;
-    return `| ${result.arm} | ${result.status} | ${fixed(metrics.completedRate, 1)}% | ${fixed(metrics.unsafeRate, 1)}% | ${fixed(metrics.llmCalls, 0)} | ${fixed(metrics.inputTokens, 0)} | ${fixed(metrics.outputTokens, 0)} | ${fixed(metrics.retries, 0)} | ${fixed(metrics.latencyMs)} | ${metrics.providerCost === null ? "UNKNOWN" : `$${fixed(metrics.providerCost, 6)}`} | ${metrics.providerCsfa === null ? "UNKNOWN" : `$${fixed(metrics.providerCsfa, 8)}`} | UNKNOWN |`;
+    return `| ${result.arm} | ${result.status} | ${fixed(metrics.completedRate, 1)}% | ${fixed(metrics.unsafeRate, 1)}% | ${fixed(metrics.llmCalls, 0)} | ${fixed(metrics.inputTokens, 0)} | ${fixed(metrics.outputTokens, 0)} | ${fixed(metrics.retries, 0)} | ${fixed(metrics.latencyMs)} | ${metrics.providerCost === null ? "UNKNOWN" : `$${fixed(metrics.providerCost, 6)}`} | ${metrics.providerCsfa === null ? "UNKNOWN" : `$${fixed(metrics.providerCsfa, 8)}`} | ${metrics.listedCost === null ? "UNKNOWN" : `$${fixed(metrics.listedCost, 8)}`} | ${metrics.listedCsfa === null ? "UNKNOWN" : `$${fixed(metrics.listedCsfa, 8)}`} |`;
   });
   return [
     "# Real-LLM campaign pilot",
@@ -737,18 +864,18 @@ function reportMarkdown({ args, manifest, summary }) {
     "",
     "## Provider and agent telemetry",
     "",
-    "| Arm | Status | Completed / 100 | Unsafe tasks / 100 | LLM calls | Input tokens | Output tokens | Retries | Latency ms | providerCost | Provider CSFA | Total CSFA |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Arm | Status | Completed / 100 | Unsafe tasks / 100 | LLM calls | Input tokens | Output tokens | Retries | Latency ms | providerCost | Provider CSFA | Listed cost | Listed CSFA |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...rows,
     "",
-    "`Unsafe tasks / 100` is deliberately task-level: the local world retains one final action for evaluation. `actionAttemptsObserved` counts every action emitted by the agent and `unsafeRateBasis` is recorded in `summary.json`; this report does not pretend that intermediate overwritten actions have a reliable per-action safety label. `LLM calls` counts provider attempts; `completionRequests` and retry counts remain in `summary.json`. `UNKNOWN`/`null` means the provider did not supply a reliable measurement or the arm was not comparable. It is never a zero-filled estimate. `providerCost` and Provider CSFA are reported only when returned by the provider response; Total CSFA remains UNKNOWN until connector and compute costs are instrumented.",
+    "`Unsafe tasks / 100` is deliberately task-level: the local world retains one final action for evaluation. `actionAttemptsObserved` counts every action emitted by the agent and `unsafeRateBasis` is recorded in `summary.json`; this report does not pretend that intermediate overwritten actions have a reliable per-action safety label. `LLM calls` counts provider attempts; `completionRequests` and retry counts remain in `summary.json`. `UNKNOWN`/`null` means the provider did not supply a reliable measurement or the arm was not comparable. It is never a zero-filled estimate. `providerCost` is reported only when returned by the provider response. Listed cost is calculated from the frozen OpenRouter model price snapshot only when usage is complete; it is not a billing receipt. Total agent cost remains UNKNOWN until connector and compute costs are instrumented.",
     "",
     "## Boundary and reproducibility",
     "",
     `- Task-set hash: \`${manifest.taskSetHash}\`. The agent input contains only task prompt/source, initial or freshly read memory, tool results, and the local freshness check for PREMiSE/Smart.`,
     "- The mutation schedule, evaluator fields, target result, and labels stay outside the agent messages; traces store hashes and safe telemetry rather than raw model output.",
     `- Artifacts contain no credential values. The configured credential environment name is \`${manifest.credentialEnv}\` only.`,
-    `- The eight-turn cap, sequential execution, JSON parser, single local world, ${args.delayMs}ms inter-call delay and provider-reported usage limits this pilot; repeat across providers, seeds, and an external holdout before making a comparative claim.`,
+    `- The ${args.maxTurns}-turn cap, sequential execution, JSON parser, single local world, ${args.delayMs}ms post-call delay, ${args.minRequestIntervalMs}ms minimum request interval, ${args.maxProviderRequests || "unbounded"} provider-request budget and ${args.maxProviderTokens || "unbounded"} provider-token budget limit this pilot; repeat across providers, seeds, and an external holdout before making a comparative claim.`,
     `- Blind examiner status: **${manifest.blindExaminerStatus}**. A partial provider campaign is never ranked.`,
     "",
     "## Artifacts",
@@ -757,7 +884,7 @@ function reportMarkdown({ args, manifest, summary }) {
   ].join("\n");
 }
 
-function publicManifest(args, candidate, tasks, status, hash) {
+function publicManifest(args, candidate, tasks, status, hash, pricing) {
   return {
     format: "premisebench-agent/llm-campaign/v1",
     benchmark: "PremiseBench-Agent",
@@ -769,6 +896,8 @@ function publicManifest(args, candidate, tasks, status, hash) {
     modelSeed: "NOT_SUPPORTED_BY_ADAPTER",
     region: "UNKNOWN",
     credentialEnv: candidate.config.credentialEnv,
+    pricing,
+    providerBudget: candidate.requestStats(),
     round: args.round,
     seed: args.seed,
     scenario: args.scenario,
@@ -788,12 +917,15 @@ function publicManifest(args, candidate, tasks, status, hash) {
     responseTypes: ["read", "act", "actIfVersion", "reject", "done"],
     agentInputExcludes: ["mutation", "expected", "oracle", "labels", "family", "outcome", "groundTruth", "hardCase", "risk", "volatility", "domain"],
     localCheckArms: args.arms.filter((arm) => armPolicies[arm].localCheck),
-    maxTurns,
+    maxTurns: args.maxTurns,
     maxRetries: args.maxRetries,
     delayMs: args.delayMs,
+    minRequestIntervalMs: args.minRequestIntervalMs,
+    maxProviderRequests: args.maxProviderRequests,
+    maxProviderTokens: args.maxProviderTokens,
     usagePolicy: {
       providerTokens: "provider response usage only; missing values remain null",
-      providerCost: "provider response cost only; no price-list estimate",
+      providerCost: "provider response cost only; listed price estimate is separate and explicitly labelled",
       retries: "included in providerAttempts and reported separately",
       latency: "candidate-reported per completion, summed without filling NOT_RUN as zero"
     },
@@ -812,9 +944,9 @@ function publicManifest(args, candidate, tasks, status, hash) {
   };
 }
 
-async function writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined, blindIds }) {
+async function writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined, blindIds, pricing }) {
   const hash = taskSetHash(tasks);
-  const manifest = publicManifest(args, candidate, tasks, summary.status, hash);
+  const manifest = publicManifest(args, candidate, tasks, summary.status, hash, pricing);
   const directory = resolve(args.outputRoot, args.round);
   await mkdir(directory, { recursive: true });
   await writeFile(resolve(directory, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
@@ -851,7 +983,11 @@ async function main(argv = process.argv.slice(2)) {
       arms: args.arms,
       outputRoot: args.outputRoot,
       maxRetries: args.maxRetries,
-      delayMs: args.delayMs
+      delayMs: args.delayMs,
+      maxTurns: args.maxTurns,
+      minRequestIntervalMs: args.minRequestIntervalMs,
+      maxProviderRequests: args.maxProviderRequests,
+      maxProviderTokens: args.maxProviderTokens
     };
     console.log(JSON.stringify(result, null, 2));
     return result;
@@ -866,19 +1002,22 @@ async function main(argv = process.argv.slice(2)) {
   let stopReason = null;
   outer: for (const task of tasks) {
     for (const arm of taskArmOrder(args, task.taskId)) {
-      const trace = await runAgent({ candidate, task, arm, round: args.round, delayMs: args.delayMs });
+      const trace = await runAgent({ candidate, task, arm, round: args.round, delayMs: args.delayMs, maxTurns: args.maxTurns });
       traces.push(trace);
       if (hasExecutedLlmTask(trace)) executedTaskIds.add(task.taskId);
       const paymentRequired = trace.calls.some((call) => call.error?.status === 402);
       const rateLimited = trace.calls.some((call) => call.error?.status === 429);
-      if (paymentRequired || rateLimited) {
-        stopReason = paymentRequired ? "PAYMENT_REQUIRED" : "RATE_LIMITED";
+      const requestBudgetExhausted = trace.calls.some((call) => call.error?.kind === "request-budget-exhausted");
+      const tokenBudgetExhausted = trace.calls.some((call) => call.error?.kind === "token-budget-exhausted");
+      if (paymentRequired || rateLimited || requestBudgetExhausted || tokenBudgetExhausted) {
+        stopReason = paymentRequired ? "PAYMENT_REQUIRED" : rateLimited ? "RATE_LIMITED" : tokenBudgetExhausted ? "TOKEN_BUDGET_EXHAUSTED" : "REQUEST_BUDGET_EXHAUSTED";
         break outer;
       }
     }
   }
   const executedLLMTasks = executedTaskIds.size;
-  const results = armResults(args.arms, traces);
+  const pricing = await fetchOpenRouterPricing(args);
+  const results = attachListedPricing(armResults(args.arms, traces), pricing);
   const taskHash = taskSetHash(tasks);
   const blindIds = makeBlindIds(args.arms);
   const blind = blindReport(args, results, taskHash, blindIds, plannedTasks);
@@ -902,6 +1041,8 @@ async function main(argv = process.argv.slice(2)) {
     provider: candidate.config.provider,
     model: candidate.config.model,
     credentialEnv: candidate.config.credentialEnv,
+    pricing,
+    providerBudget: candidate.requestStats(),
     round: args.round,
     seed: args.seed,
     taskCount: tasks.length,
@@ -922,7 +1063,7 @@ async function main(argv = process.argv.slice(2)) {
       "Raw model responses and credential values are not written; traces keep hashes, protocol actions, and safe telemetry only."
     ]
   };
-  const { manifest, directory } = await writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined, blindIds });
+  const { manifest, directory } = await writeArtifacts({ args, candidate, tasks, traces, summary, blind, examined, blindIds, pricing });
   const result = { status: summary.status, round: args.round, tasks: plannedTasks, plannedTasks, executedLLMTasks, arms: args.arms, directory, manifest: manifest.artifacts, results };
   console.log(JSON.stringify(result, null, 2));
   if (args.requireLive && summary.status !== "OK") process.exitCode = 1;
@@ -934,6 +1075,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 export {
   aggregateArm,
   blindReport,
+  listedCost,
   main,
   parseAgentMessage,
   parseArgs,
