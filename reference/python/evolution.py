@@ -18,6 +18,12 @@ def _equal(left: Any, right: Any) -> bool:
     return json.dumps(left, sort_keys=True, separators=(",", ":"), ensure_ascii=False) == json.dumps(right, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _string_set_equal(left: Any, right: Any) -> bool:
+    a = sorted(set(item for item in left if isinstance(item, str))) if isinstance(left, list) else []
+    b = sorted(set(item for item in right if isinstance(item, str))) if isinstance(right, list) else []
+    return a == b
+
+
 def _identity(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -193,11 +199,14 @@ def _policy(vector: dict[str, Any]) -> dict[str, Any]:
         requested, available = vector.get("requested", []), set(vector.get("available", []))
         supported = [item for item in requested if item in available]
         unsupported = [item for item in requested if item not in available]
-        return {"supported": supported, "unsupported": unsupported, "decision": "ALLOW" if not unsupported else "UNSUPPORTED"}
+        return {"supported": supported, "unsupported": unsupported, "decision": "SUPPORTED" if not unsupported else "UNSUPPORTED"}
     if operation == "share":
         left, right = vector.get("left", {}), vector.get("right", {})
-        fields = ("tenant", "resource", "incarnation", "scopes", "validator", "auth", "causal")
-        match = all(_equal(left.get(field), right.get(field)) for field in fields)
+        fields = ("tenant", "resource", "incarnation", "version", "query", "validator", "auth", "policy")
+        change_set_known = "changeSet" in left and "changeSet" in right and (left.get("changeSet") is None or bool(_text(left.get("changeSet")))) and (right.get("changeSet") is None or bool(_text(right.get("changeSet"))))
+        if not change_set_known or any(not _text(left.get(field)) or not _text(right.get(field)) for field in fields):
+            return {"share": False, "reason": "SCOPE_MISMATCH"}
+        match = all(_equal(left.get(field), right.get(field)) for field in fields) and _equal(left.get("changeSet"), right.get("changeSet")) and _string_set_equal(left.get("scopes"), right.get("scopes")) and _string_set_equal(left.get("causal"), right.get("causal"))
         return {"share": match, "reason": "MATCH" if match else "SCOPE_MISMATCH"}
     if operation == "singleFlight":
         keys = {json.dumps(item, sort_keys=True, separators=(",", ":")) for item in _items(vector.get("requests"))}

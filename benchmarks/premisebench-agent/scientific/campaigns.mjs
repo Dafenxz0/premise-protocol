@@ -221,7 +221,8 @@ export function toAgentInput(value) {
     prompt: input?.prompt,
     source: input?.source,
     tools: input?.tools ?? [...TOOLS],
-    memory: input?.memory
+    memory: input?.memory,
+    ...(input?.risk === undefined ? {} : { risk: risk(input.risk) })
   };
   if (typeof result.taskId !== "string" || typeof result.prompt !== "string" || typeof result.source !== "string" || !result.memory) {
     throw new TypeError("Scientific campaigns: item is missing public agent input");

@@ -145,6 +145,14 @@ La clave de `SINGLE_FLIGHT` es el digest canónico de:
 validity policy, required scopes, change set, expected frontier)
 ```
 
+La proyección canónica usa el dominio `premise-policy-sharing/1` e incluye
+explícitamente `(resourceId, incarnationId, versionToken)`. `required scopes`
+y `expected frontier` son conjuntos: se eliminan duplicados y se ordenan antes
+del digest. Ningún otro array cambia de orden. La clave wire es
+`sha256:<64 hex>`. Si query, versión, autorización, policy o change set no se
+pueden identificar, la implementación MUST desactivar sharing en vez de crear
+una clave parcial.
+
 Solo una llamada es `owner`. Los waiters pueden recibir el resultado del owner
 si la clave coincide exactamente; un timeout o error del owner no fabrica un
 resultado válido y permite un nuevo owner. Keys distintas pueden validar la
@@ -181,6 +189,16 @@ El riesgo se refiere al daño de usar una premisa obsoleta:
 
 Una policy puede ser más estricta. Nunca puede bajar el nivel de riesgo para
 hacer que una candidate entre en la frontier.
+
+### Planner ejecutable mínimo
+
+La referencia runtime expone `planPremiseValidation` como función pura. Recibe
+operación, riesgo, estado, modo de fuente, capabilities y cobertura causal. Su
+salida separa `decision`, método de validación y `guardRequired`. Para un write
+`FRESH` y versionado puede ahorrar la lectura previa, pero solo devuelve `USE`
+si sigue exigiendo CAS/conditional action e idempotencia; riesgo alto/crítico
+también exige frontier completa, y una lease declarada exige fencing. `USE` en
+policy nunca significa que el efecto pueda saltarse `premise-guard/1`.
 
 ## Frontier segura
 

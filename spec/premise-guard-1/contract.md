@@ -173,6 +173,13 @@ compara solo una parte del slice o si verifica la versión después de escribir.
 Un fallo de CAS exige una nueva observación, un nuevo intent y una nueva
 validación. El caller MUST NOT reutilizar el receipt que falló.
 
+El adapter MAY adjuntar `conflictObservation` al rechazo cuando el mismo CAS
+fallido obtuvo atómicamente el slice actual completo. Esta observación puede
+evitar una lectura física redundante, pero no es una autorización: el caller
+MUST comprobar su autoridad, completitud, identidad y digest, crear un intent
+nuevo y volver a pasar por policy y guard. Un slice parcial, duplicado, no
+vigente o no atribuible al adapter se ignora y obliga a observar de nuevo.
+
 ## 7. Fencing
 
 `fenceToken` es un entero positivo, monotónico por `lease.scope` y nunca se

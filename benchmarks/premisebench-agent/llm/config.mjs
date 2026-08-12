@@ -4,6 +4,7 @@ import { DEFAULT_ENDPOINTS, normalizeProvider } from "./adapters.mjs";
 const DEFAULT_CREDENTIAL_ENV = Object.freeze({
   "openai-compatible": "OPENAI_API_KEY",
   openrouter: "OPENROUTER_API_KEY",
+  zai: "ZAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   gemini: "GEMINI_API_KEY",
 });
@@ -18,6 +19,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   maxTokens: 512,
   timeoutMs: 30_000,
   maxRetries: 2,
+  retryDelayMs: 1_000,
   responseFormat: null,
 });
 
@@ -103,6 +105,12 @@ export function parseConfig(input) {
       throw new TypeError("OpenRouter endpoint must be https://openrouter.ai/api/v1/chat/completions");
     }
   }
+  if (provider === "zai") {
+    const parsed = new URL(endpoint);
+    if (parsed.protocol !== "https:" || parsed.hostname !== "api.z.ai" || parsed.port !== "" || parsed.pathname !== "/api/paas/v4/chat/completions" || parsed.search !== "" || parsed.hash !== "") {
+      throw new TypeError("Z.ai endpoint must be https://api.z.ai/api/paas/v4/chat/completions");
+    }
+  }
   const prompt = optionalString(raw.prompt, "prompt");
   const systemPrompt = optionalString(raw.systemPrompt, "systemPrompt");
   const headers = parseHeaders(raw.headers);
@@ -116,10 +124,11 @@ export function parseConfig(input) {
     credentialEnv,
     prompt,
     systemPrompt,
-    temperature: boundedNumber(raw.temperature ?? DEFAULT_CONFIG.temperature, "temperature", { max: 2 }),
+    temperature: boundedNumber(raw.temperature ?? DEFAULT_CONFIG.temperature, "temperature", { max: provider === "zai" ? 1 : 2 }),
     maxTokens: boundedNumber(raw.maxTokens ?? DEFAULT_CONFIG.maxTokens, "maxTokens", { integer: true, min: 1 }),
     timeoutMs: boundedNumber(raw.timeoutMs ?? DEFAULT_CONFIG.timeoutMs, "timeoutMs", { integer: true, min: 1 }),
     maxRetries: boundedNumber(raw.maxRetries ?? DEFAULT_CONFIG.maxRetries, "maxRetries", { integer: true, min: 0, max: 10 }),
+    retryDelayMs: boundedNumber(raw.retryDelayMs ?? DEFAULT_CONFIG.retryDelayMs, "retryDelayMs", { integer: true, min: 0, max: 300_000 }),
     responseFormat: raw.responseFormat ?? raw.response_format ?? DEFAULT_CONFIG.responseFormat,
     headers,
   };

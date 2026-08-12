@@ -11,7 +11,7 @@ import {
   publicHardTask
 } from "./hard-scenarios.mjs";
 
-const FORBIDDEN = /^(?:accepted|agentInput|after|decision|domain|event|events|evaluator|expected|family|final|finalSource|groundTruth|hardCase|kind|label|labels|mutation|mutationWindow|mutations|objective|oracle|outcome|planned|risk|scheduled|terminal|volatility|winner|world)$/iu;
+const FORBIDDEN = /^(?:accepted|agentInput|after|decision|domain|event|events|evaluator|expected|family|final|finalSource|groundTruth|hardCase|kind|label|labels|mutation|mutationWindow|mutations|objective|oracle|outcome|planned|scheduled|terminal|volatility|winner|world)$/iu;
 
 function assertNoOracle(value, path = "$") {
   if (Array.isArray(value)) {
@@ -85,7 +85,7 @@ test("agentInput and public manifests contain no evaluator oracle", () => {
   const tasks = makeHardTasks({ count: 20, seed: 7, volatility: 50 });
   for (const task of tasks) {
     assertNoOracle(task.agentInput);
-    assert.deepEqual(Object.keys(task.agentInput).sort(), ["memory", "prompt", "source", "taskId", "tools"]);
+    assert.deepEqual(Object.keys(task.agentInput).sort(), ["memory", "prompt", "risk", "source", "taskId", "tools"]);
     assert.equal(Object.hasOwn(task.agentInput.memory, "mutation"), false);
     assert.equal(Object.hasOwn(task.agentInput.memory, "final"), false);
     assert.deepEqual(publicHardTask(task), task.agentInput);
@@ -103,12 +103,15 @@ test("agentInput and public manifests contain no evaluator oracle", () => {
   }), /private hard-scenario field/iu);
 });
 
-test("risk changes private mutation pressure without changing the public question", () => {
+test("risk is public policy input while the mutation schedule remains private", () => {
   const low = makeHardTasks({ count: 240, seed: 91, volatility: 50, risk: "low", worlds: ["filesystem"] });
   const critical = makeHardTasks({ count: 240, seed: 91, volatility: 50, risk: "critical", worlds: ["filesystem"] });
   assert.ok(critical.filter((task) => task.mutationWindow !== "none").length > low.filter((task) => task.mutationWindow !== "none").length);
-  assert.deepEqual(low.map(({ agentInput }) => agentInput), critical.map(({ agentInput }) => agentInput));
-  assert.ok(low.every(({ agentInput }) => JSON.stringify(agentInput).match(/"(?:risk|volatility|world|domain)"\s*:/iu) === null));
+  const withoutRisk = (agentInput) => { const { risk: _risk, ...rest } = agentInput; return rest; };
+  assert.deepEqual(low.map(({ agentInput }) => withoutRisk(agentInput)), critical.map(({ agentInput }) => withoutRisk(agentInput)));
+  assert.ok(low.every(({ agentInput }) => agentInput.risk === "low"));
+  assert.ok(critical.every(({ agentInput }) => agentInput.risk === "critical"));
+  assert.ok(low.every(({ agentInput }) => JSON.stringify(agentInput).match(/"(?:volatility|world|domain)"\s*:/iu) === null));
 });
 
 test("volatility is deterministic and zero means no scheduled mutation", () => {

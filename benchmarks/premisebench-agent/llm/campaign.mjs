@@ -16,13 +16,12 @@ const defaultProvider = "openai-compatible";
 const defaultSeed = 20260811;
 const defaultRound = "llm-pilot";
 const maxTurns = 8;
-const allowedProviders = new Set(["gemini", "anthropic", "openai-compatible", "openrouter"]);
+const allowedProviders = new Set(["gemini", "anthropic", "openai-compatible", "openrouter", "zai"]);
 const toolSchema = Object.freeze([
   { type: "read", fields: ["reason"] },
   { type: "act", fields: ["action.kind", "action.value"] },
   { type: "actIfVersion", fields: ["expectedVersion", "action.kind", "action.value"] },
-  { type: "reject", fields: ["reason"] },
-  { type: "done", fields: [] }
+  { type: "reject", fields: ["reason"] }
 ]);
 
 // Pilot limits: 20 tasks by default, sequential execution, eight model turns
@@ -32,32 +31,43 @@ const armPolicies = Object.freeze({
   basic: Object.freeze({
     name: "Basic memory",
     localCheck: false,
+    eventSignal: false,
     tools: Object.freeze(["act", "reject"]),
-    instruction: "Use the initial memory directly. Do not refresh before acting unless the observed protocol requires it."
+    instruction: "Use the initial memory directly and do not refresh. For an active snapshot, apply its exact value and include its memory.version as basedOnVersion; this is an annotation, not a guarded write. For blocked evidence, reject locally."
   }),
   conventional: Object.freeze({
     name: "Conventional revalidation",
     localCheck: false,
+    eventSignal: false,
     tools: Object.freeze(["read", "act", "reject"]),
-    instruction: "Read the source before acting, then use the returned snapshot for an ordinary action."
+    instruction: "Read the source before acting, then use the returned snapshot. For an active snapshot, apply its exact value and include that snapshot version as basedOnVersion; this ordinary write is not guarded against TOCTOU. For blocked evidence, reject locally."
+  }),
+  always: Object.freeze({
+    name: "Always revalidate",
+    localCheck: false,
+    eventSignal: false,
+    tools: Object.freeze(["read", "actIfVersion", "reject"]),
+    instruction: "Read the source before every decision, then use actIfVersion with the returned version. Retry from the atomic conflict snapshot when a guarded write is rejected; reject blocked evidence locally."
   }),
   premise: Object.freeze({
     name: "PREMiSE",
     localCheck: true,
+    eventSignal: false,
     tools: Object.freeze(["read", "actIfVersion", "reject"]),
-    instruction: "Use the supplied localCheck. Read only when the cached evidence is stale, and guard writes with actIfVersion. Retry from a fresh read after a rejected guarded write."
+    instruction: "Use the supplied localCheck. Read only when the cached evidence is stale, and guard writes with actIfVersion. If a rejected guarded write returns an atomic current snapshot, treat it as new evidence and retry from that snapshot without a redundant read; otherwise read before retrying."
   }),
   smart: Object.freeze({
     name: "Smart Revalidate",
-    localCheck: true,
+    localCheck: false,
+    eventSignal: true,
     tools: Object.freeze(["read", "actIfVersion", "reject"]),
-    instruction: "Use the supplied localCheck as a local freshness probe. Re-read stale evidence, use actIfVersion, and retry a rejected guarded write from a fresh read."
+    instruction: "Use the eventSignal as a cache invalidation hint, without PREMiSE localCheck semantics. Re-read only after INVALIDATE, use actIfVersion, and retry a rejected guarded write from the atomic conflict snapshot."
   })
 });
 const defaultArms = Object.freeze(Object.keys(armPolicies));
 
 function allowedResponseTypes(arm) {
-  return new Set([...(armPolicies[arm]?.tools ?? ["read", "act", "actIfVersion", "reject"]), "done"]);
+  return new Set(armPolicies[arm]?.tools ?? ["read", "act", "actIfVersion", "reject"]);
 }
 
 function cliValue(argv, name, fallback = null) {
@@ -85,13 +95,13 @@ function parseArms(value) {
   const raw = String(value ?? "").trim().toLowerCase();
   if (raw === "all") return [...defaultArms];
   const arms = [...new Set(raw.split(/[\s,]+/).filter(Boolean))];
-  if (arms.length === 0 || arms.some((arm) => !Object.hasOwn(armPolicies, arm))) throw new TypeError("--arms must contain basic, conventional, premise, or smart");
+  if (arms.length === 0 || arms.some((arm) => !Object.hasOwn(armPolicies, arm))) throw new TypeError("--arms must contain basic, conventional, always, premise, or smart");
   return arms;
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
   const provider = String(cliValue(argv, "provider", defaultProvider)).trim().toLowerCase();
-  if (!allowedProviders.has(provider)) throw new TypeError("--provider must be gemini, anthropic, openai-compatible, or openrouter");
+  if (!allowedProviders.has(provider)) throw new TypeError("--provider must be gemini, anthropic, openai-compatible, openrouter, or zai");
   const model = String(cliValue(argv, "model", "")).trim();
   if (model === "") throw new TypeError("--model is required");
   const tasks = integerArg(cliValue(argv, "tasks", "20"), "tasks", { min: 1, max: 10_000 });
@@ -104,6 +114,7 @@ function parseArgs(argv = process.argv.slice(2)) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(round)) throw new TypeError("--round must be a safe directory name");
   const arms = parseArms(cliValue(argv, "arms", defaultArms.join(",")));
   const maxRetries = integerArg(cliValue(argv, "max-retries", "0"), "max-retries", { min: 0, max: 5 });
+  const retryDelayMs = integerArg(cliValue(argv, "retry-delay-ms", "1000"), "retry-delay-ms", { min: 0, max: 300_000 });
   const configuredMaxTurns = integerArg(cliValue(argv, "max-turns", String(maxTurns)), "max-turns", { min: 1, max: maxTurns });
   const maxTokens = integerArg(cliValue(argv, "max-tokens", "256"), "max-tokens", { min: 1, max: 32_768 });
   const delayMs = integerArg(cliValue(argv, "delay-ms", "0"), "delay-ms", { min: 0, max: 60_000 });
@@ -111,6 +122,10 @@ function parseArgs(argv = process.argv.slice(2)) {
   const minRequestIntervalMs = integerArg(cliValue(argv, "min-request-interval-ms", "0"), "min-request-interval-ms", { min: 0, max: 300_000 });
   const maxProviderTokens = integerArg(cliValue(argv, "max-provider-tokens", "0"), "max-provider-tokens", { min: 0, max: 10_000_000 });
   if (maxProviderRequests > 0 && maxRetries > 0) throw new TypeError("--max-retries must be 0 when --max-provider-requests is set");
+  const completeCampaignRequestCeiling = tasks * arms.length * configuredMaxTurns;
+  if (maxProviderRequests > 0 && maxProviderRequests < completeCampaignRequestCeiling) {
+    throw new RangeError(`--max-provider-requests must be at least ${completeCampaignRequestCeiling} for complete candidate coverage`);
+  }
   const responseFormat = String(cliValue(argv, "response-format", "json-object")).trim().toLowerCase();
   if (!["json-object", "none"].includes(responseFormat)) throw new TypeError("--response-format must be json-object or none");
   const endpointValue = String(cliValue(argv, "endpoint", "")).trim();
@@ -128,6 +143,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     outputRoot: resolve(root, configuredOutputRoot),
     arms,
     maxRetries,
+    retryDelayMs,
     maxTurns: configuredMaxTurns,
     maxTokens,
     delayMs,
@@ -180,12 +196,24 @@ function publicTask(task) {
     taskId: task.taskId,
     prompt: task.prompt,
     source: task.source,
+    ...(typeof task.risk === "string" ? { risk: task.risk } : {}),
     memory: safeSnapshot({ version: sha(task.initial), content: task.initial })
   };
 }
 
 function taskSetHash(tasks) {
   return sha(tasks.map(publicTask));
+}
+
+function privateScheduleHash(tasks) {
+  return sha(tasks.map((task) => ({
+    taskId: task.taskId,
+    mutation: task.mutation,
+    mutationWindow: task.mutationWindow,
+    events: task.events,
+    evaluator: task.evaluator,
+    hardCase: task.hardCase
+  })));
 }
 
 function candidateConfig(args) {
@@ -196,6 +224,7 @@ function candidateConfig(args) {
     maxTokens: args.maxTokens,
     timeoutMs: 30_000,
     maxRetries: args.maxRetries,
+    retryDelayMs: args.retryDelayMs,
     responseFormat: args.responseFormat === "none" ? null : "json-object",
     ...(args.endpoint ? { endpoint: args.endpoint } : {}),
     ...(args.credentialEnv ? { credentialEnv: args.credentialEnv } : {})
@@ -266,10 +295,9 @@ function systemPrompt(arm) {
   const policy = armPolicies[arm];
   const forms = {
     read: '{"type":"read"}',
-    act: '{"type":"act","action":{"kind":"apply","value":"..."}}',
+    act: '{"type":"act","action":{"kind":"apply","value":"...","basedOnVersion":"sha256:..."}}',
     actIfVersion: '{"type":"actIfVersion","expectedVersion":"sha256:...","action":{"kind":"apply","value":"..."}}',
-    reject: '{"type":"reject","action":{"kind":"reject"}}',
-    done: '{"type":"done"}'
+    reject: '{"type":"reject","action":{"kind":"reject"}}'
   };
   return [
     "You are a bounded action agent for a mutable source.",
@@ -277,9 +305,9 @@ function systemPrompt(arm) {
     `This run uses its assigned memory policy: ${policy.instruction}`,
     "Allowed response forms are:",
     ...[...allowedResponseTypes(arm)].map((type) => forms[type]),
-    "Use only data present in the current messages. The start message already contains the observed memory. If its content.status is active, apply its exact content.value; if it is blocked, reject. A read returns content and an opaque version. A guarded action is accepted only for the version it names.",
-    "Do not explain, ask a question, or emit prose. Emit an action as soon as the current messages contain enough information. If localCheck is present, obey it before choosing whether to read.",
-    "If a response was rejected as invalid, emit a fresh permitted JSON object. After an accepted action result, return done."
+    "Use only data present in the current messages. The start message already contains the observed memory. If its content.status is active, apply its exact content.value; if it is blocked, reject. A read returns content and an opaque version. A normal action may annotate basedOnVersion but is not guarded. A guarded action is accepted only for the version it names.",
+    "Do not explain, ask a question, or emit prose. Emit an action as soon as the assigned policy and current messages contain enough information. If localCheck or eventSignal is present, obey it before choosing whether to read.",
+    "If a response was rejected as invalid, emit a fresh permitted JSON object. A reject or accepted action is terminal."
   ].join("\n");
 }
 
@@ -304,18 +332,27 @@ function visibleEnvelope({ task, memory, arm, world, local }) {
     taskId: task.taskId,
     prompt: task.prompt,
     source: task.source,
+    ...(typeof task.risk === "string" ? { risk: task.risk } : {}),
     memory: safeSnapshot(memory),
     tools: [...armPolicies[arm].tools]
   };
   if (armPolicies[arm].localCheck) value.localCheck = checkLocalEvidence(world, memory);
-  if (local) local.count += armPolicies[arm].localCheck ? 1 : 0;
+  if (armPolicies[arm].eventSignal) value.eventSignal = world.mutationEvent === null ? "NONE" : "INVALIDATE";
+  if (local) {
+    local.count += armPolicies[arm].localCheck ? 1 : 0;
+    local.signals += armPolicies[arm].eventSignal ? 1 : 0;
+  }
   return value;
 }
 
 function observationEnvelope({ world, memory, arm, local, tool, result }) {
   const value = { protocol, type: "tool-result", tool, result };
   if (armPolicies[arm].localCheck) value.localCheck = checkLocalEvidence(world, memory);
-  if (local) local.count += armPolicies[arm].localCheck ? 1 : 0;
+  if (armPolicies[arm].eventSignal) value.eventSignal = world.mutationEvent === null ? "NONE" : "INVALIDATE";
+  if (local) {
+    local.count += armPolicies[arm].localCheck ? 1 : 0;
+    local.signals += armPolicies[arm].eventSignal ? 1 : 0;
+  }
   return value;
 }
 
@@ -339,7 +376,11 @@ function normalizeAction(action, { reject = false } = {}) {
   assertAllowedKeys(action, new Set(["kind", "value", "basedOnVersion", "reason"]));
   if (reject) return { kind: "reject" };
   if (action.kind !== "apply" || typeof action.value !== "string") throw new TypeError("apply action requires a string value");
-  return { kind: "apply", value: action.value };
+  return {
+    kind: "apply",
+    value: action.value,
+    ...(typeof action.basedOnVersion === "string" ? { basedOnVersion: action.basedOnVersion } : {})
+  };
 }
 
 function parseAgentMessage(output, arm) {
@@ -353,7 +394,7 @@ function parseAgentMessage(output, arm) {
   }
   if (!recordObject(value)) throw new TypeError("response must be a JSON object");
   if (value.protocol !== undefined && value.protocol !== protocol) throw new TypeError("protocol mismatch");
-  if (typeof value.type !== "string" || !["read", "act", "actIfVersion", "reject", "done"].includes(value.type)) throw new TypeError("unsupported response type");
+  if (typeof value.type !== "string" || !["read", "act", "actIfVersion", "reject"].includes(value.type)) throw new TypeError("unsupported response type");
   if (arm !== null && !allowedResponseTypes(arm).has(value.type)) throw new TypeError(`response type ${value.type} is not allowed for this arm`);
 
   if (value.type === "read") {
@@ -382,7 +423,7 @@ function parseAgentMessage(output, arm) {
   }
   assertAllowedKeys(value, new Set(["protocol", "type", "reason"]));
   optionalString(value.reason, "reason");
-  return { type: "done" };
+  throw new TypeError("unsupported response type");
 }
 
 function safeProviderError(error) {
@@ -390,6 +431,8 @@ function safeProviderError(error) {
   const safe = {};
   if (typeof error.kind === "string") safe.kind = error.kind;
   if (Number.isSafeInteger(error.status)) safe.status = error.status;
+  if (typeof error.code === "string" || Number.isSafeInteger(error.code)) safe.code = error.code;
+  if (typeof error.message === "string") safe.message = error.message.slice(0, 256);
   return Object.keys(safe).length === 0 ? null : safe;
 }
 
@@ -399,6 +442,7 @@ function safeUsage(result) {
   return {
     inputTokens: finiteNumber(usage.inputTokens),
     outputTokens: finiteNumber(usage.outputTokens),
+    totalTokens: finiteNumber(usage.totalTokens),
     cachedTokens: finiteNumber(usage.cachedTokens),
     toolCalls: Number.isSafeInteger(usage.toolCalls) ? usage.toolCalls : null,
     retries: Number.isSafeInteger(usage.retries) ? usage.retries : null,
@@ -429,6 +473,7 @@ function callTrace(result, requestIndex) {
     outputHash: output === null ? null : sha(output),
     outputBytes: output === null ? null : Buffer.byteLength(output, "utf8"),
     finishReason: typeof result?.finishReason === "string" ? result.finishReason : null,
+    providerRequestId: typeof result?.providerRequestId === "string" ? result.providerRequestId : null,
     providerAttempts: providerAttempts(result, usage),
     usage,
     error: safeProviderError(result?.error)
@@ -446,18 +491,38 @@ function safeToolResult(tool, result) {
   const safe = { accepted: result?.accepted === true };
   if (typeof result?.reason === "string") safe.reason = result.reason;
   if (typeof result?.currentVersion === "string") safe.currentVersion = result.currentVersion;
+  if (result?.reason === "VERSION_MISMATCH" && result?.current) safe.current = safeSnapshot(result.current);
   return safe;
 }
 
-function safeAction(action, type) {
+function safeAction(action, type, expectedVersion) {
   const safe = { type };
   if (action?.kind) safe.kind = action.kind;
   if (typeof action?.value === "string") {
     safe.valueHash = sha(action.value);
     safe.valueBytes = Buffer.byteLength(action.value, "utf8");
   }
-  if (typeof action?.expectedVersion === "string") safe.expectedVersion = action.expectedVersion;
+  if (typeof expectedVersion === "string") safe.expectedVersion = expectedVersion;
+  if (typeof action?.basedOnVersion === "string") safe.basedOnVersion = action.basedOnVersion;
   return safe;
+}
+
+function countConflictSnapshotsReused(actions) {
+  let reused = 0;
+  for (let index = 0; index < actions.length; index += 1) {
+    const conflict = actions[index];
+    if (conflict.action.type !== "actIfVersion" || conflict.result.reason !== "VERSION_MISMATCH" || !conflict.result.current) continue;
+    for (let next = index + 1; next < actions.length; next += 1) {
+      const action = actions[next].action;
+      if (action.type === "read") break;
+      if (action.type === "actIfVersion") {
+        if (action.expectedVersion === conflict.result.current.version) reused += 1;
+        break;
+      }
+      if (["act", "reject"].includes(action.type)) break;
+    }
+  }
+  return reused;
 }
 
 function providerStatus(calls) {
@@ -471,7 +536,7 @@ function summarizeCalls(calls) {
   const attempted = calls.filter((call) => call.status !== "NOT_RUN");
   const latency = calls.map((call) => call.status === "NOT_RUN" ? null : call.usage?.latencyMs ?? null);
   const retryTelemetryIncomplete = calls.some((call) => (call.usage?.retries ?? 0) > 0);
-  const completeUsage = attempted.length > 0 && !retryTelemetryIncomplete && attempted.every((call) => ["inputTokens", "outputTokens", "cachedTokens", "providerCost"].every((key) => finiteNumber(call.usage?.[key]) !== null));
+  const completeUsage = attempted.length > 0 && !retryTelemetryIncomplete && attempted.every((call) => ["inputTokens", "outputTokens", "cachedTokens"].every((key) => finiteNumber(call.usage?.[key]) !== null));
   const tokenMetric = (key) => retryTelemetryIncomplete || attempted.length === 0 ? null : sumKnown(usages.map((usage) => usage?.[key] ?? null));
   return {
     completionRequests: calls.length,
@@ -480,6 +545,7 @@ function summarizeCalls(calls) {
     retries: sumKnown(usages.map((usage) => usage?.retries ?? null)),
     inputTokens: tokenMetric("inputTokens"),
     outputTokens: tokenMetric("outputTokens"),
+    totalTokens: tokenMetric("totalTokens"),
     cachedTokens: tokenMetric("cachedTokens"),
     latencyMs: attempted.length === 0 ? null : sumKnown(latency),
     providerCost: tokenMetric("providerCost"),
@@ -488,16 +554,30 @@ function summarizeCalls(calls) {
   };
 }
 
-function traceEvaluation(status, evaluation) {
+function traceEvaluation(status, evaluation, actions) {
   if (status !== "OK") return null;
+  const casConflict = actions.some(({ action, result }) => action.type === "actIfVersion" && result.reason === "VERSION_MISMATCH");
+  const terminalOutcome = evaluation.unsafe
+    ? "UNSAFE"
+    : evaluation.correct && evaluation.action?.kind === "apply"
+      ? "COMPLETED_FRESH"
+      : evaluation.correct && evaluation.action?.kind === "reject"
+        ? "SAFE_REJECT"
+        : casConflict
+          ? "CAS_CONFLICT"
+          : evaluation.falseBlock
+            ? "FALSE_BLOCK"
+            : "UNKNOWN";
   return {
-    completed: evaluation.correct,
+    completed: terminalOutcome === "COMPLETED_FRESH",
     unsafeAction: evaluation.unsafe,
     falseBlock: evaluation.falseBlock,
     changed: evaluation.changed,
     recovered: evaluation.recovered,
     toctouEscape: evaluation.toctouEscape,
-    actionAttempted: evaluation.action !== null
+    actionAttempted: evaluation.action !== null,
+    safety: evaluation.unsafe ? "UNSAFE" : "SAFE",
+    terminalOutcome
   };
 }
 
@@ -506,7 +586,7 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
   const initial = world.initial;
   if (task.mutationWindow === "before-action") world.mutate();
 
-  const local = { count: 0, states: [] };
+  const local = { count: 0, states: [], signals: 0 };
   let memory = initial;
   const messages = [{ role: "system", content: systemPrompt(arm) }];
   const start = visibleEnvelope({ task, memory, arm, world, local });
@@ -568,12 +648,6 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
     }
 
     messages.push({ role: "assistant", content: JSON.stringify(message) });
-    if (message.type === "done") {
-      agentStatus = "OK";
-      terminationReason = protocolErrors > 0 ? "DONE_AFTER_PROTOCOL_ERROR" : "DONE";
-      break;
-    }
-
     let tool;
     let resultValue;
     if (message.type === "read") {
@@ -591,18 +665,29 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
       tool = "reject";
       resultValue = world.act({ kind: "reject" });
     }
+    const safeResult = safeToolResult(tool, resultValue);
     actions.push({
       turn: turn + 1,
-      action: safeAction(message.action, message.type),
-      result: safeToolResult(tool, resultValue)
+      action: safeAction(message.action, message.type, message.expectedVersion),
+      result: safeResult
     });
+    // A CAS response may expose the conflicting snapshot, but it is not an
+    // implicit read. Keep it in the tool result only; a candidate must issue
+    // an explicit read before using refreshed state. This preserves both the
+    // signal and its operation accounting.
+    const accepted = resultValue?.accepted === true;
+    if (tool === "reject" || (accepted && ["act", "actIfVersion"].includes(tool))) {
+      agentStatus = "OK";
+      terminationReason = tool === "reject" ? "REJECTED" : "ACTION_ACCEPTED";
+      break;
+    }
     const feedback = observationEnvelope({
       world,
       memory,
       arm,
       local,
       tool,
-      result: tool === "read" ? resultValue : safeToolResult(tool, resultValue)
+      result: tool === "read" ? resultValue : safeResult
     });
     if (armPolicies[arm].localCheck) local.states.push(feedback.localCheck.state);
     messages.push({ role: "user", content: JSON.stringify(feedback) });
@@ -623,14 +708,19 @@ async function runAgent({ candidate, task, arm, round, delayMs = 0, maxTurns: tu
     terminationReason,
     taskLatencyMs: Number((performance.now() - started).toFixed(3)),
     localChecks: local.count,
+    eventSignals: local.signals,
     localCheckStates: local.states,
     externalReads: actions.filter(({ action }) => action.type === "read").length,
-    externalWrites: actions.filter(({ action }) => ["act", "actIfVersion", "reject"].includes(action.type)).length,
+    externalWrites: actions.filter(({ action }) => ["act", "actIfVersion"].includes(action.type)).length,
+    sourceRequests: actions.filter(({ action }) => ["read", "act", "actIfVersion"].includes(action.type)).length,
+    casConflicts: actions.filter(({ action, result }) => action.type === "actIfVersion" && result.reason === "VERSION_MISMATCH").length,
+    conflictSnapshotsReused: countConflictSnapshotsReused(actions),
+    localRejects: actions.filter(({ action }) => action.type === "reject").length,
     protocolErrors,
     llm,
     calls,
     actions,
-    evaluation: traceEvaluation(agentStatus, evaluation)
+    evaluation: traceEvaluation(agentStatus, evaluation, actions)
   };
 }
 
@@ -651,11 +741,22 @@ function rate(traces, key, comparable) {
   return (traces.filter((trace) => trace.evaluation?.[key] === true).length * 100) / traces.length;
 }
 
+function outcomeCounts(traces, comparable) {
+  if (!comparable) return null;
+  const counts = Object.fromEntries(["COMPLETED_FRESH", "SAFE_REJECT", "FALSE_BLOCK", "CAS_CONFLICT", "UNSAFE", "UNKNOWN"].map((outcome) => [outcome, 0]));
+  for (const trace of traces) {
+    const outcome = trace.evaluation?.terminalOutcome ?? "UNKNOWN";
+    counts[outcome] = (counts[outcome] ?? 0) + 1;
+  }
+  return counts;
+}
+
 function aggregateArm(arm, traces) {
   const status = campaignStatus(traces);
   const comparable = status === "OK";
   const metric = (key) => sumKnown(traces.map((trace) => trace.llm[key]));
   const latencyValues = traces.map((trace) => trace.llm.latencyMs);
+  const taskLatencyValues = traces.map((trace) => trace.taskLatencyMs);
   const completed = comparable ? traces.filter((trace) => trace.evaluation.completed).length : null;
   const unsafeActions = comparable ? traces.filter((trace) => trace.evaluation.unsafeAction).length : null;
   const actionAttempts = comparable ? traces.filter((trace) => trace.evaluation.actionAttempted).length : null;
@@ -663,6 +764,9 @@ function aggregateArm(arm, traces) {
     ? sumKnown(traces.map((trace) => trace.actions.filter(({ action }) => ["act", "actIfVersion", "reject"].includes(action.type)).length))
     : null;
   const safeAttempts = actionAttempts === null ? null : actionAttempts - unsafeActions;
+  const successfulFreshActions = comparable
+    ? traces.filter((trace) => trace.evaluation.completed && trace.actions.some(({ action, result }) => action.kind === "apply" && result.accepted === true)).length
+    : null;
   const providerCost = metric("providerCost");
   const usageStatuses = new Set(traces.map((trace) => trace.llm.usageStatus));
   return {
@@ -677,37 +781,47 @@ function aggregateArm(arm, traces) {
     unsafeRateBasis: "final-world-action-per-task",
     falseBlocks: comparable ? traces.filter((trace) => trace.evaluation.falseBlock).length : null,
     falseBlockRate: rate(traces, "falseBlock", comparable),
+    outcomeCounts: outcomeCounts(traces, comparable),
     recoveredRate: rate(traces, "recovered", comparable),
     toctouEscapeRate: rate(traces, "toctouEscape", comparable),
     actionAttempts,
     actionAttemptsObserved,
     safeAttempts,
-    safeSuccessfulTasks: completed,
+    safeSuccessfulTasks: successfulFreshActions,
     completionRequests: metric("completionRequests"),
     llmCalls: metric("llmCalls"),
     providerAttempts: metric("providerAttempts"),
     retries: metric("retries"),
     inputTokens: metric("inputTokens"),
     outputTokens: metric("outputTokens"),
+    totalTokens: metric("totalTokens"),
     cachedTokens: metric("cachedTokens"),
     latencyMs: metric("latencyMs"),
     latencyP50Ms: percentile(latencyValues, 0.5),
     latencyP95Ms: percentile(latencyValues, 0.95),
+    taskLatencyMs: sumKnown(taskLatencyValues),
+    taskLatencyP50Ms: percentile(taskLatencyValues, 0.5),
+    taskLatencyP95Ms: percentile(taskLatencyValues, 0.95),
     providerCost,
     providerCostPerSafeAttempt: providerCost === null || safeAttempts === null || safeAttempts === 0 ? null : providerCost / safeAttempts,
-    providerCsfa: providerCost === null || completed === null || completed === 0 ? null : providerCost / completed,
+    providerCsfa: providerCost === null || successfulFreshActions === null || successfulFreshActions === 0 ? null : providerCost / successfulFreshActions,
     totalCsfa: null,
     totalCostStatus: "UNKNOWN_CONNECTOR_AND_COMPUTE_COST",
     wastedTasks: completed === null ? null : traces.length - completed,
     wastedWorkRate: completed === null ? null : (traces.length - completed) / traces.length,
-    tokensPerSafeSuccessfulTask: completed === null || completed === 0 || metric("inputTokens") === null || metric("outputTokens") === null
+    tokensPerSafeSuccessfulTask: successfulFreshActions === null || successfulFreshActions === 0 || metric("inputTokens") === null || metric("outputTokens") === null
       ? null
-      : (metric("inputTokens") + metric("outputTokens")) / completed,
+      : (metric("inputTokens") + metric("outputTokens")) / successfulFreshActions,
     toolCalls: metric("toolCalls"),
     usageStatus: usageStatuses.size === 1 ? [...usageStatuses][0] : "MIXED",
     localChecks: sumKnown(traces.map((trace) => trace.localChecks)),
+    eventSignals: sumKnown(traces.map((trace) => trace.eventSignals)),
     externalReads: sumKnown(traces.map((trace) => trace.externalReads)),
     externalWrites: sumKnown(traces.map((trace) => trace.externalWrites)),
+    sourceRequests: sumKnown(traces.map((trace) => trace.sourceRequests)),
+    casConflicts: sumKnown(traces.map((trace) => trace.casConflicts)),
+    conflictSnapshotsReused: sumKnown(traces.map((trace) => trace.conflictSnapshotsReused)),
+    localRejects: sumKnown(traces.map((trace) => trace.localRejects)),
     protocolErrors: sumKnown(traces.map((trace) => trace.protocolErrors)),
     statusCounts: Object.fromEntries(["OK", "NOT_RUN", "ERROR"].map((value) => [value, traces.filter((trace) => trace.status === value).length]))
   };
@@ -762,11 +876,40 @@ async function fetchOpenRouterPricing(args) {
       modelId: typeof body?.data?.id === "string" ? body.data.id : args.model,
       pricing,
       unit: "USD per token/request/unit",
+      pricingHash: pricing === null ? null : sha({ source: endpoint, model: args.model, pricing }),
       fetchedAt: new Date().toISOString()
     };
   } catch (error) {
     return { status: "UNKNOWN", source: endpoint, reason: error?.name === "AbortError" ? "timeout" : "network", pricing: null };
   }
+}
+
+function fetchZaiPricing(args) {
+  if (args.provider !== "zai") return { status: "NOT_APPLICABLE", source: null, pricing: null };
+  if (args.model !== "glm-4.7-flash") {
+    return {
+      status: "UNKNOWN",
+      source: "https://docs.z.ai/guides/overview/pricing",
+      pricing: null,
+      reason: "model-not-in-frozen-free-sheet"
+    };
+  }
+  return {
+    status: "OK",
+    source: "https://docs.z.ai/guides/overview/pricing",
+    modelId: args.model,
+    pricing: { prompt: 0, completion: 0, request: 0, input_cache_read: 0 },
+    unit: "USD per token/request/unit",
+    priceBasis: "published-list-price; not a billing receipt",
+    snapshot: "official-pricing-page-free-tier",
+    pricingHash: sha({ source: "https://docs.z.ai/guides/overview/pricing", model: args.model, pricing: { prompt: 0, completion: 0, request: 0, input_cache_read: 0 } }),
+    fetchedAt: new Date().toISOString()
+  };
+}
+
+async function fetchPricing(args) {
+  if (args.provider === "openrouter") return fetchOpenRouterPricing(args);
+  return fetchZaiPricing(args);
 }
 
 function listedCost(metrics, pricingSnapshot) {
@@ -794,7 +937,7 @@ function attachListedPricing(results, pricingSnapshot) {
       ...result,
       listedCost: cost,
       listedCostPerSafeAttempt: cost === null || result.safeAttempts === null || result.safeAttempts === 0 ? null : cost / result.safeAttempts,
-      listedCsfa: cost === null || result.completed === null || result.completed === 0 ? null : cost / result.completed
+      listedCsfa: cost === null || result.safeSuccessfulTasks === null || result.safeSuccessfulTasks === 0 ? null : cost / result.safeSuccessfulTasks
     };
   });
 }
@@ -815,10 +958,17 @@ function publicTrace(trace) {
   return {
     taskId: trace.taskId,
     localChecks: trace.localChecks,
+    eventSignals: trace.eventSignals,
     externalReads: trace.externalReads,
     externalWrites: trace.externalWrites,
+    sourceRequests: trace.sourceRequests,
+    casConflicts: trace.casConflicts,
+    conflictSnapshotsReused: trace.conflictSnapshotsReused,
     protocolErrors: trace.protocolErrors,
+    taskLatencyMs: trace.taskLatencyMs,
     terminationReason: trace.terminationReason,
+    safety: trace.evaluation?.safety ?? null,
+    terminalOutcome: trace.evaluation?.terminalOutcome ?? null,
     providerCalls: trace.calls.length,
     completedCalls: trace.calls.filter((call) => call.status === "OK").length,
     actionCount: trace.actions.length
@@ -832,7 +982,7 @@ function blindReport(args, results, taskHash, blindIds = makeBlindIds(results.ma
     && results.length === expectedArms.length
     && new Set(actualArms).size === expectedArms.length
     && expectedArms.every((arm) => actualArms.includes(arm))
-    && results.every((result) => result.status === "OK" && result.tasks === plannedTasks);
+    && results.every((result) => result.status === "OK" && result.tasks === plannedTasks && result.protocolErrors === 0);
   if (!comparable) {
     return {
       format: "premisebench-agent/llm-blind/v1",
@@ -858,18 +1008,28 @@ function blindReport(args, results, taskHash, blindIds = makeBlindIds(results.ma
         attempts,
         actionAttemptsObserved: result.actionAttemptsObserved,
         safeAttempts,
-        safeSuccessfulTasks: result.completed,
+        safeSuccessfulTasks: result.safeSuccessfulTasks,
         unsafeActions: result.unsafeActions,
         unsafeRateBasis: result.unsafeRateBasis,
         falseBlocks: result.falseBlocks,
-        connectorRequests: result.completionRequests,
-        externalReads: result.externalReads
+        outcomeCounts: result.outcomeCounts,
+        modelTurns: result.completionRequests,
+        connectorRequests: result.sourceRequests,
+        providerAttempts: result.providerAttempts,
+        externalReads: result.externalReads,
+        externalWrites: result.externalWrites,
+        sourceRequests: result.sourceRequests,
+        casConflicts: result.casConflicts,
+        conflictSnapshotsReused: result.conflictSnapshotsReused,
+        localChecks: result.localChecks,
+        eventSignals: result.eventSignals,
+        protocolErrors: result.protocolErrors
       };
       if (result.providerCost !== null) {
         metrics.providerCostUsd = result.providerCost;
         metrics.costPerSafeAttemptUsd = safeAttempts > 0 ? result.providerCost / safeAttempts : null;
-        metrics.costPerSafeSuccessfulTaskUsd = result.completed > 0 ? result.providerCost / result.completed : null;
-        metrics.csfaUsd = result.completed > 0 ? result.providerCost / result.completed : null;
+        metrics.costPerSafeSuccessfulTaskUsd = result.safeSuccessfulTasks > 0 ? result.providerCost / result.safeSuccessfulTasks : null;
+        metrics.csfaUsd = result.safeSuccessfulTasks > 0 ? result.providerCost / result.safeSuccessfulTasks : null;
       }
       if (finiteNumber(result.listedCost) !== null) {
         metrics.listedCostUsd = result.listedCost;
@@ -888,7 +1048,7 @@ function fixed(value, digits = 2) {
 function reportMarkdown({ args, manifest, summary }) {
   const rows = summary.results.map((result) => {
     const metrics = result.metrics;
-    return `| ${result.arm} | ${result.status} | ${fixed(metrics.completedRate, 1)}% | ${fixed(metrics.unsafeRate, 1)}% | ${fixed(metrics.llmCalls, 0)} | ${fixed(metrics.inputTokens, 0)} | ${fixed(metrics.outputTokens, 0)} | ${fixed(metrics.retries, 0)} | ${fixed(metrics.latencyMs)} | ${metrics.providerCost === null ? "UNKNOWN" : `$${fixed(metrics.providerCost, 6)}`} | ${metrics.providerCsfa === null ? "UNKNOWN" : `$${fixed(metrics.providerCsfa, 8)}`} | ${metrics.listedCost === null ? "UNKNOWN" : `$${fixed(metrics.listedCost, 8)}`} | ${metrics.listedCsfa === null ? "UNKNOWN" : `$${fixed(metrics.listedCsfa, 8)}`} |`;
+    return `| ${result.arm} | ${result.status} | ${fixed(metrics.completedRate, 1)}% | ${fixed(metrics.unsafeRate, 1)}% | ${fixed(metrics.completionRequests, 0)} | ${fixed(metrics.sourceRequests, 0)} | ${fixed(metrics.externalReads, 0)} | ${fixed(metrics.inputTokens, 0)} | ${fixed(metrics.outputTokens, 0)} | ${fixed(metrics.totalTokens, 0)} | ${fixed(metrics.retries, 0)} | ${fixed(metrics.taskLatencyP50Ms)} | ${metrics.providerCost === null ? "UNKNOWN" : `$${fixed(metrics.providerCost, 6)}`} | ${metrics.listedCost === null ? "UNKNOWN" : `$${fixed(metrics.listedCost, 8)}`} | ${metrics.listedCsfa === null ? "UNKNOWN" : `$${fixed(metrics.listedCsfa, 8)}`} |`;
   });
   return [
     "# Real-LLM campaign pilot",
@@ -900,15 +1060,15 @@ function reportMarkdown({ args, manifest, summary }) {
     "",
     "## Provider and agent telemetry",
     "",
-    "| Arm | Status | Completed / 100 | Unsafe tasks / 100 | LLM calls | Input tokens | Output tokens | Retries | Latency ms | providerCost | Provider CSFA | Listed cost | Listed CSFA |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Arm | Status | Completed / 100 | Unsafe tasks / 100 | Model turns | Source requests | Reads | Input tokens | Output tokens | Total tokens | Retries | Task p50 ms | providerCost | Listed cost | Listed CSFA |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...rows,
     "",
-    "`Unsafe tasks / 100` is deliberately task-level: the local world retains one final action for evaluation. `actionAttemptsObserved` counts every action emitted by the agent and `unsafeRateBasis` is recorded in `summary.json`; this report does not pretend that intermediate overwritten actions have a reliable per-action safety label. `LLM calls` counts provider attempts; `completionRequests` and retry counts remain in `summary.json`. `UNKNOWN`/`null` means the provider did not supply a reliable measurement or the arm was not comparable. It is never a zero-filled estimate. `providerCost` is reported only when returned by the provider response. Listed cost is calculated from the frozen OpenRouter model price snapshot only when usage is complete; it is not a billing receipt. Total agent cost remains UNKNOWN until connector and compute costs are instrumented.",
+    "`Unsafe tasks / 100` is deliberately task-level: the local world retains one final action for evaluation. `actionAttemptsObserved` counts every action emitted by the agent and `unsafeRateBasis` is recorded in `summary.json`; this report does not pretend that intermediate overwritten actions have a reliable per-action safety label. `Model turns` counts completion requests; `Source requests` counts synthetic reads and writes, while provider attempts and retries remain in `summary.json`. `UNKNOWN`/`null` means the provider did not supply a reliable measurement or the arm was not comparable. It is never a zero-filled estimate. `providerCost` is reported only when returned by the provider response. Listed cost is calculated from the provider's frozen published price snapshot only when usage is complete; it is not a billing receipt. Total agent cost remains UNKNOWN until connector and compute costs are instrumented.",
     "",
     "## Boundary and reproducibility",
     "",
-    `- Task-set hash: \`${manifest.taskSetHash}\`. The agent input contains only task prompt/source, initial or freshly read memory, tool results, and the local freshness check for PREMiSE/Smart.`,
+    `- Task-set hash: \`${manifest.taskSetHash}\`; private mutation schedule commitment: \`${manifest.privateScheduleHash}\`. The agent input contains only task prompt/source, declared action risk when present, initial or freshly read memory, tool results, and the assigned freshness/event signal.`,
     "- The mutation schedule, evaluator fields, target result, and labels stay outside the agent messages; traces store hashes and safe telemetry rather than raw model output.",
     `- Artifacts contain no credential values. The configured credential environment name is \`${manifest.credentialEnv}\` only.`,
     `- The ${args.maxTurns}-turn cap, sequential execution, JSON parser, single local world, ${args.delayMs}ms post-call delay, ${args.minRequestIntervalMs}ms minimum request interval, ${args.maxProviderRequests || "unbounded"} provider-request budget and ${args.maxProviderTokens || "unbounded"} provider-token budget limit this pilot; repeat across providers, seeds, and an external holdout before making a comparative claim.`,
@@ -943,6 +1103,7 @@ function publicManifest(args, candidate, tasks, status, hash, pricing) {
     arms: args.arms,
     armTools: Object.fromEntries(args.arms.map((arm) => [arm, armPolicies[arm].tools])),
     taskSetHash: hash,
+    privateScheduleHash: privateScheduleHash(tasks),
     mutationWorld: args.scenario === "hard" ? "private:createWorld(hard-task)" : "private:createWorld(task)",
     mutationSchedule: "private",
     labels: "withheld-from-agent",
@@ -950,11 +1111,13 @@ function publicManifest(args, candidate, tasks, status, hash, pricing) {
     toolSchemaHash: sha(toolSchema),
     systemPromptHashes: Object.fromEntries(args.arms.map((arm) => [arm, sha(systemPrompt(arm))])),
     taskPromptHashes: Object.fromEntries(tasks.map((task) => [task.taskId, sha(task.prompt)])),
-    responseTypes: ["read", "act", "actIfVersion", "reject", "done"],
-    agentInputExcludes: ["mutation", "expected", "oracle", "labels", "family", "outcome", "groundTruth", "hardCase", "risk", "volatility", "domain"],
+    responseTypes: ["read", "act", "actIfVersion", "reject"],
+    agentInputExcludes: ["mutation", "expected", "oracle", "labels", "family", "outcome", "groundTruth", "hardCase", "volatility", "domain", "events", "evaluator"],
     localCheckArms: args.arms.filter((arm) => armPolicies[arm].localCheck),
+    eventSignalArms: args.arms.filter((arm) => armPolicies[arm].eventSignal),
     maxTurns: args.maxTurns,
     maxRetries: args.maxRetries,
+    retryDelayMs: args.retryDelayMs,
     delayMs: args.delayMs,
     minRequestIntervalMs: args.minRequestIntervalMs,
     maxProviderRequests: args.maxProviderRequests,
@@ -1061,9 +1224,10 @@ async function main(argv = process.argv.slice(2)) {
     }
   }
   const executedLLMTasks = executedTaskIds.size;
-  const pricing = await fetchOpenRouterPricing(args);
+  const pricing = await fetchPricing(args);
   const results = attachListedPricing(armResults(args.arms, traces), pricing);
   const taskHash = taskSetHash(tasks);
+  const scheduleHash = privateScheduleHash(tasks);
   const blindIds = makeBlindIds(args.arms);
   const blind = blindReport(args, results, taskHash, blindIds, plannedTasks);
   const artifactDirectory = resolve(args.outputRoot, args.round);
@@ -1094,6 +1258,7 @@ async function main(argv = process.argv.slice(2)) {
     plannedTasks,
     executedLLMTasks,
     taskSetHash: taskHash,
+    privateScheduleHash: scheduleHash,
     scenario: args.scenario,
     stopReason,
     volatility: args.scenario === "hard" ? args.volatility : null,

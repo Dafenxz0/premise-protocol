@@ -1,17 +1,19 @@
 export const DEFAULT_ENDPOINTS = Object.freeze({
   "openai-compatible": "https://api.openai.com/v1/chat/completions",
   openrouter: "https://openrouter.ai/api/v1/chat/completions",
+  zai: "https://api.z.ai/api/paas/v4/chat/completions",
   anthropic: "https://api.anthropic.com/v1/messages",
   gemini: "https://generativelanguage.googleapis.com/v1beta",
 });
 
-const OPENAI_COMPATIBLE_PROVIDERS = new Set(["openai-compatible", "openrouter"]);
+const OPENAI_COMPATIBLE_PROVIDERS = new Set(["openai-compatible", "openrouter", "zai"]);
 
 export function normalizeProvider(value) {
   if (typeof value !== "string") return null;
   const provider = value.trim().toLowerCase();
   if (["openai", "openai-compatible", "openai_compatible", "chat-completions"].includes(provider)) return "openai-compatible";
   if (provider === "openrouter") return "openrouter";
+  if (["zai", "z.ai", "z-ai", "glm"].includes(provider)) return "zai";
   if (provider === "anthropic") return "anthropic";
   if (["gemini", "google", "google-gemini"].includes(provider)) return "gemini";
   return null;
@@ -119,6 +121,7 @@ export function buildProviderRequest({ config, credential, messages, tools = [] 
     // bounded action payload only. This keeps provider-side reasoning from
     // changing the protocol's observable contract or request budget.
     if (config.provider === "openrouter") body.reasoning = { enabled: false };
+    if (config.provider === "zai") body.thinking = { type: "disabled" };
     if (tools.length > 0) body.tools = tools;
     return {
       url: config.endpoint,
@@ -213,10 +216,13 @@ function outputText(value) {
   }).join("");
 }
 
-function commonMetrics({ inputTokens = null, outputTokens = null, cachedTokens = null, toolCalls = 0, providerCost: cost = null }) {
+function commonMetrics({ inputTokens = null, outputTokens = null, totalTokens = null, cachedTokens = null, toolCalls = 0, providerCost: cost = null }) {
+  const input = numberOrNull(inputTokens);
+  const output = numberOrNull(outputTokens);
   return {
-    inputTokens: numberOrNull(inputTokens),
-    outputTokens: numberOrNull(outputTokens),
+    inputTokens: input,
+    outputTokens: output,
+    totalTokens: numberOrNull(totalTokens) ?? (input === null || output === null ? null : input + output),
     cachedTokens: numberOrNull(cachedTokens),
     toolCalls: Number.isSafeInteger(toolCalls) && toolCalls >= 0 ? toolCalls : 0,
     providerCost: numberOrNull(cost),
@@ -232,9 +238,11 @@ export function normalizeProviderResponse(provider, body) {
     return {
       text: outputText(message.content),
       finishReason: choice.finish_reason ?? null,
+      providerRequestId: typeof body?.id === "string" ? body.id : typeof body?.request_id === "string" ? body.request_id : null,
       metrics: commonMetrics({
         inputTokens: firstNumber(usage.prompt_tokens, usage.input_tokens),
         outputTokens: firstNumber(usage.completion_tokens, usage.output_tokens),
+        totalTokens: firstNumber(usage.total_tokens, usage.totalTokens),
         cachedTokens: firstNumber(usage.prompt_tokens_details?.cached_tokens, usage.input_tokens_details?.cached_tokens, usage.input_cached_tokens, usage.cached_tokens),
         toolCalls,
         providerCost: providerCost(body?.providerCost, body?.provider_cost, body?.cost, usage.cost, usage.total_cost, usage.cost_usd),
@@ -248,9 +256,11 @@ export function normalizeProviderResponse(provider, body) {
     return {
       text: outputText(content),
       finishReason: body?.stop_reason ?? null,
+      providerRequestId: typeof body?.id === "string" ? body.id : typeof body?.request_id === "string" ? body.request_id : null,
       metrics: commonMetrics({
         inputTokens: firstNumber(usage.input_tokens, usage.prompt_tokens),
         outputTokens: firstNumber(usage.output_tokens, usage.completion_tokens),
+        totalTokens: firstNumber(usage.total_tokens, usage.totalTokens),
         cachedTokens: sumNumbers(usage.cache_read_input_tokens, usage.cache_creation_input_tokens, usage.cached_tokens),
         toolCalls: content.filter((part) => part?.type === "tool_use").length,
         providerCost: providerCost(body?.providerCost, body?.provider_cost, body?.cost, usage.cost, usage.total_cost, usage.cost_usd),
@@ -265,9 +275,11 @@ export function normalizeProviderResponse(provider, body) {
     return {
       text: outputText(parts),
       finishReason: candidate.finishReason ?? null,
+      providerRequestId: typeof body?.responseId === "string" ? body.responseId : null,
       metrics: commonMetrics({
         inputTokens: firstNumber(usage.promptTokenCount, usage.totalInputTokens, usage.input_tokens),
         outputTokens: firstNumber(usage.candidatesTokenCount, usage.totalOutputTokens, usage.output_tokens),
+        totalTokens: firstNumber(usage.totalTokenCount, usage.total_tokens),
         cachedTokens: firstNumber(usage.cachedContentTokenCount, usage.totalCachedTokens, usage.cached_tokens),
         toolCalls: parts.filter((part) => part?.functionCall || part?.function_call || part?.toolCall).length,
         providerCost: providerCost(body?.providerCost, body?.provider_cost, body?.cost, usage.cost, usage.total_cost, usage.cost_usd),

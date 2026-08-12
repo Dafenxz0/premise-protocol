@@ -75,6 +75,7 @@ test("OpenRouter aliases the OpenAI-compatible adapter with safe defaults", asyn
   assert.deepEqual(normalized.metrics, {
     inputTokens: 4,
     outputTokens: 2,
+    totalTokens: 6,
     cachedTokens: null,
     toolCalls: 0,
     providerCost: null,
@@ -97,6 +98,78 @@ test("OpenRouter credentials cannot be redirected or sent to arbitrary endpoints
     model: "openrouter/test-model",
     headers: { Cookie: "session=value" }
   }), /headers are limited/);
+});
+
+test("Z.ai GLM-4.7-Flash uses the official compatible endpoint and disables thinking", async () => {
+  const config = parseConfig({ provider: "zai", model: "glm-4.7-flash", maxRetries: 0 });
+  assert.equal(normalizeProvider("z.ai"), "zai");
+  assert.equal(config.endpoint, DEFAULT_ENDPOINTS.zai);
+  assert.equal(config.credentialEnv, "ZAI_API_KEY");
+  const secret = "zai-test-credential";
+  const request = buildProviderRequest({
+    config: { ...config, provider: "zai" },
+    credential: secret,
+    messages: [{ role: "user", content: "hello" }],
+  });
+  assert.equal(request.url, DEFAULT_ENDPOINTS.zai);
+  assert.equal(request.init.headers.authorization, `Bearer ${secret}`);
+  assert.deepEqual(JSON.parse(request.init.body).thinking, { type: "disabled" });
+  const candidate = createLlmCandidate({ provider: "zai", model: "glm-4.7-flash", prompt: "hello", maxRetries: 0 }, {
+    env: { ZAI_API_KEY: secret },
+    fetchImpl: async (url, init) => {
+      assert.equal(url, DEFAULT_ENDPOINTS.zai);
+      assert.equal(init.headers.authorization, `Bearer ${secret}`);
+      return { ok: true, json: async () => ({ id: "zai-request-1", model: "glm-4.7-flash", choices: [{ message: { content: "done" } }], usage: { prompt_tokens: 4, completion_tokens: 2, total_tokens: 6 } }) };
+    },
+  });
+  const result = await candidate.complete({ taskId: "zai-test" });
+  assert.equal(result.status, "OK");
+  assert.equal(result.providerRequestId, "zai-request-1");
+  assert.deepEqual(result.usage, {
+    inputTokens: 4,
+    outputTokens: 2,
+    totalTokens: 6,
+    cachedTokens: null,
+    toolCalls: 0,
+    retries: 0,
+    latencyMs: result.usage.latencyMs,
+    providerCost: null,
+  });
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.throws(() => parseConfig({ provider: "zai", model: "glm-4.7-flash", endpoint: "https://example.invalid/v1/chat/completions" }), /Z.ai endpoint/);
+  assert.throws(() => parseConfig({ provider: "zai", model: "glm-4.7-flash", temperature: 1.01 }), /temperature is invalid/);
+});
+
+test("retryable provider responses honor the bounded retry path", async () => {
+  let calls = 0;
+  const candidate = createLlmCandidate({
+    provider: "zai",
+    model: "glm-4.7-flash",
+    prompt: "hello",
+    maxRetries: 1,
+    retryDelayMs: 0,
+  }, {
+    env: { ZAI_API_KEY: "zai-retry-test" },
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) return { ok: false, status: 429, headers: new Headers() };
+      return { ok: true, json: async () => ({ choices: [{ message: { content: "done" } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }) };
+    },
+  });
+  const result = await candidate.complete({ taskId: "retry-test" });
+  assert.equal(result.status, "OK");
+  assert.equal(result.usage.retries, 1);
+  assert.equal(calls, 2);
+});
+
+test("HTTP provider errors preserve bounded provider code and message", async () => {
+  const candidate = createLlmCandidate({ provider: "zai", model: "glm-4.7-flash", prompt: "hello", maxRetries: 0 }, {
+    env: { ZAI_API_KEY: "zai-error-test" },
+    fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: { code: 1305, message: "temporarily overloaded" } }) }),
+  });
+  const result = await candidate.complete({ taskId: "error-test" });
+  assert.equal(result.status, "ERROR");
+  assert.deepEqual(result.error, { kind: "http", status: 429, code: 1305, message: "temporarily overloaded" });
 });
 
 test("redact removes secret values and sensitive fields without hiding metrics", () => {
@@ -144,6 +217,7 @@ test("missing credential returns NOT_RUN without invoking fetch", async () => {
   assert.deepEqual(result.usage, {
     inputTokens: null,
     outputTokens: null,
+    totalTokens: null,
     cachedTokens: null,
     toolCalls: 0,
     retries: 0,
@@ -184,6 +258,7 @@ test("adapters and usage normalization are pure offline operations", () => {
   assert.deepEqual(normalized.metrics, {
     inputTokens: 10,
     outputTokens: 3,
+    totalTokens: 13,
     cachedTokens: 2,
     toolCalls: 1,
     providerCost: 0.001,

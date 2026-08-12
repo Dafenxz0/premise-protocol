@@ -57,6 +57,22 @@ function eventId(prefix: string, memoryId: string, sequence: number): string {
   return `${prefix}:${memoryId}:${sequence}`;
 }
 
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
+function aggregateResults(memoryId: string, results: readonly ValidationResult[]): ValidationResult {
+  const priority: readonly ValidatorResult[] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
+  const selected = priority.map((result) => results.find((item) => item.result === result)).find((item) => item !== undefined);
+  if (selected === undefined) return { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: new Date().toISOString() };
+  return { ...selected, memoryId, status: statusForResult(selected.result) };
+}
+
 export class ReferenceProtocol {
   readonly states: MemoryStateStore;
   readonly journal = new EventJournal();
@@ -115,12 +131,27 @@ export class ReferenceProtocol {
     const eventIds: string[] = [];
     const prepared: { memoryId: string; previousStatus: MemoryStatus; result: ValidationResult }[] = [];
     const preparedReportItems = new Map<string, ValidationReportItem>();
+    const grouped = new Map<string, Promise<ValidationResult>>();
     const order = this.validationOrder(memoryIds);
     for (const memoryId of order) {
       const state = this.states.stateOf(memoryId);
       if (!state) throw new Error(`Unknown memory: ${memoryId}`);
-      const source = state.envelope.provenance?.[0];
-      const result = suppliedResults?.[memoryId] ?? await this.runValidator(source, memoryId);
+      let result = suppliedResults?.[memoryId];
+      if (result === undefined) {
+        const sources = state.envelope.provenance ?? [];
+        const validations = sources.length === 0
+          ? [this.runValidator(undefined, memoryId)]
+          : sources.map((source) => {
+            const key = canonical(source);
+            let validation = grouped.get(key);
+            if (validation === undefined) {
+              validation = Promise.resolve(this.runValidator(source, memoryId));
+              grouped.set(key, validation);
+            }
+            return validation.then((item) => ({ ...item, memoryId }));
+          });
+        result = aggregateResults(memoryId, await Promise.all(validations));
+      }
       if (result.memoryId !== memoryId || !isValidationResult(result)) throw new TypeError(`Invalid validation result for ${memoryId}`);
       prepared.push({ memoryId, previousStatus: state.status, result });
     }

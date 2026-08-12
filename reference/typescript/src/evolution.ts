@@ -21,6 +21,12 @@ function canonical(value: unknown): unknown {
 
 function equal(a: unknown, b: unknown): boolean { return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b)); }
 
+function stringSetEqual(a: unknown, b: unknown): boolean {
+  const left = [...new Set(arrayValue(a).map(text))].sort();
+  const right = [...new Set(arrayValue(b).map(text))].sort();
+  return equal(left, right);
+}
+
 function identity(value: unknown): JsonObject { return objectValue(value, "identity"); }
 
 function sameIdentity(left: unknown, right: unknown): boolean {
@@ -242,13 +248,17 @@ function policyVector(vector: JsonObject): JsonObject {
     case "negotiate": {
       const requested = arrayValue(vector.requested).map(text); const available = new Set(arrayValue(vector.available).map(text));
       const supported = requested.filter((item) => available.has(item)); const unsupported = requested.filter((item) => !available.has(item));
-      return { supported, unsupported, decision: unsupported.length === 0 ? "ALLOW" : "UNSUPPORTED" };
+      return { supported, unsupported, decision: unsupported.length === 0 ? "SUPPORTED" : "UNSUPPORTED" };
     }
     case "share": {
       const left = objectValue(vector.left, "left"); const right = objectValue(vector.right, "right");
-      const fields = ["tenant", "resource", "incarnation", "validator", "auth", "causal"];
-      const scopesEqual = equal(left.scopes, right.scopes);
-      const match = fields.every((field) => equal(left[field], right[field])) && scopesEqual;
+      const fields = ["tenant", "resource", "incarnation", "version", "query", "validator", "auth", "policy"];
+      const changeSetKnown = Object.hasOwn(left, "changeSet") && Object.hasOwn(right, "changeSet")
+        && (left.changeSet === null || text(left.changeSet).length > 0)
+        && (right.changeSet === null || text(right.changeSet).length > 0);
+      if (!changeSetKnown || fields.some((field) => text(left[field]).length === 0 || text(right[field]).length === 0)) return { share: false, reason: "SCOPE_MISMATCH" };
+      const setsEqual = stringSetEqual(left.scopes, right.scopes) && stringSetEqual(left.causal, right.causal);
+      const match = fields.every((field) => equal(left[field], right[field])) && equal(left.changeSet, right.changeSet) && setsEqual;
       return match ? { share: true, reason: "MATCH" } : { share: false, reason: "SCOPE_MISMATCH" };
     }
     case "singleFlight": {

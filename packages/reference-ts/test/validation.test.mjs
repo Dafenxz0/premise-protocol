@@ -38,4 +38,35 @@ const orderedReport = await orderedValidation.validate(["ordered-child", "ordere
 });
 assert.deepEqual(orderedReport.items.map((item) => [item.memoryId, item.status]), [["ordered-child", "FRESH"], ["ordered-root", "FRESH"]]);
 assert.equal(orderedValidation.history("ordered-child").some((event) => event.type === "MemoryStaled" && event.payload.reason === "UNCHANGED"), false);
+
+const completeFrontier = new ReferenceProtocol();
+completeFrontier.register({
+  ...base("multi-source"),
+  provenance: [
+    { sourceUri: "file://good", observedAt: at, version: { scheme: "test", token: "v1" }, validator: { id: "frontier", operation: "read" } },
+    { sourceUri: "file://changed", observedAt: at, version: { scheme: "test", token: "v1" }, validator: { id: "frontier", operation: "read" } }
+  ]
+});
+completeFrontier.registerValidator({ id: "frontier", validate: (source) => ({
+  memoryId: source.memoryId,
+  result: source.sourceUri === "file://changed" ? "CHANGED" : "UNCHANGED",
+  status: source.sourceUri === "file://changed" ? "INVALID" : "FRESH",
+  checkedAt: at,
+  version: source.version
+}) });
+const frontierReport = await completeFrontier.validate(["multi-source"]);
+assert.equal(frontierReport.items[0].status, "INVALID", "every provenance source must participate in validation");
+
+const coalesced = new ReferenceProtocol();
+coalesced.register(sharedEnvelope("coalesced-a"));
+coalesced.register(sharedEnvelope("coalesced-b"));
+coalesced.signal({ specVersion: "premise/0.1", eventId: "coalesced-change", type: "SourceChanged", occurredAt: at, payload: { sourceUri: "file://shared", version: { scheme: "test", token: "v2" } } });
+let coalescedCalls = 0;
+coalesced.registerValidator({ id: "test", validate: (source) => {
+  coalescedCalls += 1;
+  return { memoryId: source.memoryId, result: "UNCHANGED", status: "FRESH", checkedAt: at, version: source.version };
+} });
+const coalescedReport = await coalesced.validate(["coalesced-a", "coalesced-b"]);
+assert.equal(coalescedCalls, 1, "identical source validation must be single-flight within the batch");
+assert.deepEqual(coalescedReport.items.map((item) => item.status), ["FRESH", "FRESH"]);
 console.log("reference-ts validation tests passed");

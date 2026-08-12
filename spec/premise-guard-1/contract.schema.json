@@ -188,6 +188,16 @@
         "fenceToken": { "$ref": "#/$defs/fenceToken" }
       }
     },
+    "conflictObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapterId", "observedAt", "slice"],
+      "properties": {
+        "adapterId": { "$ref": "#/$defs/id" },
+        "observedAt": { "$ref": "#/$defs/dateTime" },
+        "slice": { "$ref": "#/$defs/criticalSlice" }
+      }
+    },
     "guardIntent": {
       "type": "object",
       "additionalProperties": false,
@@ -284,6 +294,12 @@
     "rejectedResult": {
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "required": ["conflictObservation"] },
+          "then": { "properties": { "reason": { "enum": ["CAS_MISMATCH", "SOURCE_CHANGED", "INCARNATION_MISMATCH"] } } }
+        }
+      ],
       "required": ["kind", "specVersion", "tenantId", "intentId", "idempotencyKey", "actionDigest", "status", "reason", "effects"],
       "properties": {
         "kind": { "const": "ActionResult" },
@@ -308,6 +324,7 @@
             "NOT_FOUND"
           ]
         },
+        "conflictObservation": { "$ref": "#/$defs/conflictObservation" },
         "effects": { "const": 0 }
       }
     },
