@@ -16,6 +16,6 @@ test("protocol conformance executes the closed premise/1 and evolution profiles"
   assert.match(stdout, /PREMiSE\/1\.1 wire conformance: PASS \(9 vectors/);
   assert.match(stdout, /PREMiSE premise\/1\.1 conformance: PASS \(8 vectors; TypeScript == Python == expected\)/);
   assert.match(stdout, /PREMiSE premise-guard\/1-rich conformance: PASS \(8 vectors; TypeScript == Python == expected\)/);
-  assert.match(stdout, /PREMiSE premise-policy\/1 conformance: PASS \(5 vectors; TypeScript == Python == expected\)/);
+  assert.match(stdout, /PREMiSE premise-policy\/1 conformance: PASS \(11 vectors; TypeScript == Python == expected\)/);
   assert.match(stdout, /PREMiSE premise-policy\/1-supplemental conformance: PASS \(4 vectors; TypeScript == Python == expected\)/);
 });

@@ -13,5 +13,5 @@ test("protocol conformance executes every separated profile", async () => {
   assert.match(stdout, /PREMiSE\/1\.1 wire conformance: PASS \(9 vectors/);
   assert.match(stdout, /PREMiSE premise\/1\.1 conformance: PASS \(8 vectors/);
   assert.match(stdout, /PREMiSE premise-guard\/1-rich conformance: PASS \(8 vectors/);
-  assert.match(stdout, /PREMiSE premise-policy\/1 conformance: PASS \(5 vectors/);
+  assert.match(stdout, /PREMiSE premise-policy\/1 conformance: PASS \(11 vectors/);
 });
