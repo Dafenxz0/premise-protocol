@@ -1,0 +1,27 @@
+{
+  "format": "premise-policy-vector/1",
+  "id": "idempotency-ttl-risk",
+  "operation": "retryAndFallback",
+  "requested": ["IDEMPOTENCY_KEY", "TTL_ONLY", "UNVERSIONED", "ORDERED_EVENTS"],
+  "clock": "2026-08-12T10:00:00Z",
+  "ttl": {
+    "observedAt": "2026-08-12T09:55:00Z",
+    "expiresAt": "2026-08-12T10:05:00Z",
+    "versionToken": null
+  },
+  "requests": [
+    { "id": "new", "risk": "LOW", "idempotencyKey": "op:1", "requestDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+    { "id": "replay", "risk": "LOW", "idempotencyKey": "op:1", "requestDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+    { "id": "conflict", "risk": "LOW", "idempotencyKey": "op:1", "requestDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333" },
+    { "id": "expired", "risk": "LOW", "idempotencyKey": "op:2", "requestDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "at": "2026-08-12T10:06:00Z" },
+    { "id": "high-risk", "risk": "HIGH", "idempotencyKey": "op:3", "requestDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555" }
+  ],
+  "expected": {
+    "new": { "status": "NEW", "decision": "USE", "effectCount": 1, "eventCount": 1 },
+    "replay": { "status": "REPLAY", "decision": "USE", "sameReceipt": true, "effectCount": 1, "eventCount": 1 },
+    "conflict": { "status": "CONFLICT", "decision": "REJECT", "effectCount": 1, "eventCount": 1 },
+    "expired": { "status": "NEW", "decision": "REVALIDATE", "reason": "TTL_EXPIRED", "effectCount": 0, "eventCount": 0 },
+    "high-risk": { "status": "NEW", "decision": "UNSUPPORTED", "reason": "TTL_NOT_ALLOWED_FOR_RISK", "effectCount": 0, "eventCount": 0 }
+  },
+  "properties": ["replay-stable", "conflict-rejected", "ttl-bounded", "clock-observed"]
+}
