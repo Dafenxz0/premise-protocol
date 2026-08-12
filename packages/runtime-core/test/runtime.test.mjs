@@ -145,6 +145,13 @@ const rejectedCommit = await runtime.revalidateAndAct("memory:source", {
   commit: () => ({ accepted: false, reason: "VERSION_MISMATCH", observedVersion: "b3" })
 });
 assert.deepEqual(rejectedCommit, { accepted: false, memoryId: "memory:source", expectedVersion: "b2", reason: "VERSION_MISMATCH", observedVersion: "b3" });
+let unsafeApplyCalls = 0;
+const casRequired = await runtime.revalidateAndAct("memory:source", {
+  expectedVersion: "b2",
+  apply: () => { unsafeApplyCalls += 1; return { unsafe: true }; }
+});
+assert.deepEqual(casRequired, { accepted: false, memoryId: "memory:source", expectedVersion: "b2", reason: "CAS_REQUIRED" });
+assert.equal(unsafeApplyCalls, 0, "legacy apply must never produce an effect without atomic commit");
 
 const sharedEvidence = { ...envelope("memory:shared-a").evidence[0], evidenceId: "evidence:shared" };
 const sharedA = { ...envelope("memory:shared-a"), evidence: [sharedEvidence] };
@@ -271,6 +278,24 @@ restored.restore(snapshot);
 assert.equal(restored.get("memory:derived").content.value, "derived");
 assert.equal(restored.history().length, runtime.history().length);
 assert.deepEqual(restored.signalSourceChanged("github://acme/repo/commit/main", { scheme: "github.commit", token: "b3" }), ["memory:source", "memory:derived"], "restore must rebuild source and dependency indexes");
+const restoreBeforeInvalidSnapshot = restored.snapshot();
+const invalidRestoreRecord = structuredClone(snapshot.records[0]);
+invalidRestoreRecord.envelope.memoryId = "";
+assert.throws(
+  () => restored.restore({ ...snapshot, records: [...snapshot.records, invalidRestoreRecord] }),
+  /Invalid PREMiSE v2 contract/iu
+);
+assert.deepEqual(restored.snapshot(), restoreBeforeInvalidSnapshot, "an invalid later entry must not partially restore records or events");
+const directStore = new InMemoryRuntimeStore();
+directStore.restore(snapshot);
+const directStoreBeforeInvalidRestore = directStore.snapshot("before-invalid-restore");
+assert.throws(
+  () => directStore.restore({ ...snapshot, records: [...snapshot.records, invalidRestoreRecord] }),
+  /non-empty|Invalid PREMiSE v2 contract/iu
+);
+const directStoreAfterInvalidRestore = directStore.snapshot("after-invalid-restore");
+assert.deepEqual(directStoreAfterInvalidRestore.records, directStoreBeforeInvalidRestore.records, "the store must not partially replace records");
+assert.deepEqual(directStoreAfterInvalidRestore.events, directStoreBeforeInvalidRestore.events, "the store must not partially replace events");
 
 const countedStore = new CountingStore();
 const counted = new PremiseRuntime({ store: countedStore, tenantId: "tenant:acme", now: () => at });

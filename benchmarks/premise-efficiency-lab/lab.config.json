@@ -1,0 +1,17 @@
+{
+  "format": "premise-efficiency-lab/0",
+  "protocolSemantics": "premise/1.1",
+  "defaultSeed": 20260812,
+  "partitions": ["development", "public-adversarial", "validation", "sealed-holdout"],
+  "topologies": ["chain", "star", "diamond", "deep", "wide", "mesh"],
+  "smokeNodeCounts": [100, 1000],
+  "stressNodeCounts": [10000, 100000, 1000000],
+  "unknownPolicy": "FAIL_CLOSED",
+  "safetyGates": {
+    "unsafeActions": 0,
+    "toctouEscapes": 0,
+    "crossTenantReuse": 0,
+    "affectedRecall": 1
+  },
+  "artifactsRoot": ".tmp/premise-efficiency-lab"
+}

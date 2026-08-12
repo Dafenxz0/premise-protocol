@@ -41,8 +41,8 @@ export async function createFilesystemWorld(task) {
   async function actIfVersion(expectedVersion, action) {
     const current = await readSnapshot();
     if (current.version !== expectedVersion) {
-      actions.push({ ...action, accepted: false, reason: "VERSION_MISMATCH", currentVersion: current.version });
-      return { accepted: false, reason: "VERSION_MISMATCH", currentVersion: current.version };
+      actions.push({ ...action, accepted: false, reason: "VERSION_MISMATCH", currentVersion: current.version, current: current.content });
+      return { accepted: false, reason: "VERSION_MISMATCH", currentVersion: current.version, current: current.content };
     }
     return act(action);
   }

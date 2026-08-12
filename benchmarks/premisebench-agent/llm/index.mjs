@@ -70,10 +70,11 @@ function elapsedMs(started, now) {
   return Math.round(Math.max(0, now() - started) * 100) / 100;
 }
 
-function usage({ inputTokens = null, outputTokens = null, cachedTokens = null, toolCalls = 0, retries = 0, latencyMs = 0, providerCost = null } = {}) {
+function usage({ inputTokens = null, outputTokens = null, totalTokens = null, cachedTokens = null, toolCalls = 0, retries = 0, latencyMs = 0, providerCost = null } = {}) {
   return {
     inputTokens,
     outputTokens,
+    totalTokens,
     cachedTokens,
     toolCalls,
     retries,
@@ -106,6 +107,7 @@ function publicConfig(config) {
     maxTokens: config.maxTokens,
     timeoutMs: config.timeoutMs,
     maxRetries: config.maxRetries,
+    retryDelayMs: config.retryDelayMs,
     responseFormat: config.responseFormat,
     headers: redact(config.headers),
   });
@@ -122,10 +124,37 @@ function timeoutSignal(timeoutMs) {
     : undefined;
 }
 
+function retryDelayMs(config, retries, response) {
+  const retryAfter = response?.headers?.get?.("retry-after");
+  const retryAfterSeconds = retryAfter === null || retryAfter === undefined ? null : Number(retryAfter);
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0) return Math.min(config.retryDelayMs * 10, Math.ceil(retryAfterSeconds * 1000));
+  return Math.min(config.retryDelayMs * (2 ** Math.max(0, retries - 1)), 300_000);
+}
+
+async function waitBeforeRetry(config, retries, response) {
+  const waitMs = retryDelayMs(config, retries, response);
+  if (waitMs > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, waitMs));
+}
+
 function safeError(error) {
   if (error?.name === "AbortError" || error?.name === "TimeoutError") return { kind: "timeout" };
   if (error instanceof SyntaxError) return { kind: "invalid-response" };
   return { kind: "network" };
+}
+
+async function safeHttpError(response) {
+  let body = null;
+  try {
+    if (typeof response.clone === "function") body = await response.clone().json();
+    else if (typeof response.json === "function") body = await response.json();
+  } catch {
+    body = null;
+  }
+  const providerError = body?.error ?? body;
+  const safe = { kind: "http", status: response.status };
+  if (typeof providerError?.code === "string" || Number.isSafeInteger(providerError?.code)) safe.code = providerError.code;
+  if (typeof providerError?.message === "string") safe.message = providerError.message.slice(0, 256);
+  return safe;
 }
 
 function noCredentialResult(base) {
@@ -174,23 +203,26 @@ export function createLlmCandidate(rawConfig, { env = process.env, fetchImpl = g
             status: "OK",
             output: parsed.text,
             finishReason: parsed.finishReason,
+            providerRequestId: parsed.providerRequestId,
             usage: usage({ ...parsed.metrics, retries, latencyMs: elapsedMs(started, now) }),
           };
         }
         if (RETRYABLE_STATUS.has(response.status) && retries < config.maxRetries) {
           retries += 1;
+          await waitBeforeRetry(config, retries, response);
           continue;
         }
         return {
           ...base,
           status: "ERROR",
-          error: { kind: "http", status: response.status },
+          error: await safeHttpError(response),
           usage: usage({ retries, latencyMs: elapsedMs(started, now) }),
         };
       } catch (error) {
         const safe = safeError(error);
         if ((safe.kind === "network" || safe.kind === "timeout") && retries < config.maxRetries) {
           retries += 1;
+          await waitBeforeRetry(config, retries);
           continue;
         }
         return {

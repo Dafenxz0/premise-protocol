@@ -11,7 +11,25 @@
     "available":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
     "requiredEvidence":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
     "risk":{"enum":["LOW","MEDIUM","HIGH","CRITICAL"]},
-    "sharingKey":{"type":"array","items":{"type":"string","minLength":1}},
+    "sharingKey":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},
+    "sharingScope":{
+      "type":"object",
+      "additionalProperties":false,
+      "required":["tenantId","resourceId","incarnationId","versionToken","scopes","queryDigest","validatorId","authorizationContextDigest","policyDigest","changeSetDigest","causalFrontier"],
+      "properties":{
+        "tenantId":{"type":"string","minLength":1},
+        "resourceId":{"type":"string","minLength":1},
+        "incarnationId":{"type":"string","minLength":1},
+        "versionToken":{"type":"string","minLength":1},
+        "scopes":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+        "queryDigest":{"type":"string","minLength":1},
+        "validatorId":{"type":"string","minLength":1},
+        "authorizationContextDigest":{"type":"string","minLength":1},
+        "policyDigest":{"type":"string","minLength":1},
+        "changeSetDigest":{"type":["string","null"],"minLength":1},
+        "causalFrontier":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}}
+      }
+    },
     "lease":{"type":"object","additionalProperties":false,"required":["leaseId","fencingToken","expiresAt"],"properties":{"leaseId":{"type":"string","minLength":1},"fencingToken":{"type":"string","minLength":1},"expiresAt":{"type":"string","format":"date-time"}}}
   }
 }

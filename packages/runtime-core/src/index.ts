@@ -123,7 +123,7 @@ export interface RuntimeActionRequest<T = unknown> {
    * atomic CAS; PREMiSE passes the version that was checked locally.
    */
   readonly commit?: (record: RuntimeRecord<T>, expectedVersion: string) => Promise<RuntimeActionCommitResult<T>> | RuntimeActionCommitResult<T>;
-  /** Legacy callback. It is retained for compatibility but has no external CAS guarantee. */
+  /** @deprecated Retained only for source compatibility; it is never executed without `commit`. */
   readonly apply?: (record: RuntimeRecord<T>) => Promise<unknown> | unknown;
 }
 
@@ -138,7 +138,7 @@ export interface RuntimeActionResult<T = unknown> {
   readonly accepted: boolean;
   readonly memoryId: string;
   readonly expectedVersion: string;
-  readonly reason?: "VERSION_MISMATCH" | "REJECT" | "REVALIDATE";
+  readonly reason?: "VERSION_MISMATCH" | "REJECT" | "REVALIDATE" | "CAS_REQUIRED";
   readonly observedVersion?: string;
   readonly result?: T;
 }
@@ -271,10 +271,30 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
 
   restore(snapshot: RuntimeSnapshot<T>): void {
     if (snapshot.format !== "premise-runtime-snapshot" || snapshot.version !== 1) throw new Error("Unsupported PREMiSE runtime snapshot");
+    if (!Array.isArray(snapshot.records) || !Array.isArray(snapshot.events)) throw new Error("Invalid PREMiSE runtime snapshot");
+
+    // Validate and prepare the complete replacement before touching live state.
+    // A malformed later entry must not leave an earlier record or event restored.
+    const nextRecords = new Map<string, RuntimeRecord<T>>();
+    for (const record of snapshot.records) {
+      const envelope = parseMemoryEnvelopeV2(record.envelope);
+      nextRecords.set(envelope.memoryId, cloneJson({ envelope, content: record.content }));
+    }
+    const nextEvents = new Map<string, V2Event>();
+    for (const event of snapshot.events) {
+      const parsed = parseV2Event(event);
+      const existing = nextEvents.get(parsed.idempotencyKey);
+      if (existing !== undefined && (existing.eventId !== parsed.eventId || existing.requestDigest !== parsed.requestDigest)) {
+        throw new Error(`Conflicting idempotency key: ${parsed.idempotencyKey}`);
+      }
+      nextEvents.set(parsed.idempotencyKey, cloneJson(parsed));
+    }
+
     this.records.clear();
+    for (const [memoryId, record] of nextRecords) this.records.set(memoryId, record);
     this.events.clear();
-    for (const record of snapshot.records) this.put(record);
-    for (const event of snapshot.events) this.appendEvent(event);
+    for (const [idempotencyKey, event] of nextEvents) this.events.set(idempotencyKey, event);
+    this._revision += nextRecords.size;
   }
 }
 
@@ -502,19 +522,16 @@ export class PremiseRuntime<T = unknown> {
     const check = this.check([memoryId])[0]!;
     if (check.decision === "REJECT") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REJECT" };
     if (check.decision === "REVALIDATE") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REVALIDATE" };
-    if (request.commit !== undefined) {
-      const committed = await request.commit(record, request.expectedVersion);
-      return {
-        accepted: committed.accepted,
-        memoryId,
-        expectedVersion: request.expectedVersion,
-        ...(committed.reason === undefined ? {} : { reason: committed.reason }),
-        ...(committed.observedVersion === undefined ? {} : { observedVersion: committed.observedVersion }),
-        ...(committed.result === undefined ? {} : { result: committed.result })
-      };
-    }
-    const result = request.apply === undefined ? undefined : await request.apply(record);
-    return { accepted: true, memoryId, expectedVersion: request.expectedVersion, ...(result === undefined ? {} : { result: result as T }) };
+    if (request.commit === undefined) return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "CAS_REQUIRED" };
+    const committed = await request.commit(record, request.expectedVersion);
+    return {
+      accepted: committed.accepted,
+      memoryId,
+      expectedVersion: request.expectedVersion,
+      ...(committed.reason === undefined ? {} : { reason: committed.reason }),
+      ...(committed.observedVersion === undefined ? {} : { observedVersion: committed.observedVersion }),
+      ...(committed.result === undefined ? {} : { result: committed.result })
+    };
   }
 
   signalSourceChanged(sourceUri: string, version: VersionReference, eventId?: string): readonly string[] {

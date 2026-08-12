@@ -27,6 +27,9 @@ jobs:
       - run: pnpm conformance
       - run: pnpm conformance:v2
       - run: pnpm benchmark:smoke
+      - run: pnpm benchmark:efficiency:check
+      - run: pnpm benchmark:efficiency:self-check
+      - run: pnpm benchmark:efficiency:scale
       - run: pnpm benchmark:real-world
       - run: pnpm benchmark:context-corpus
       - run: pnpm benchmark:compare
