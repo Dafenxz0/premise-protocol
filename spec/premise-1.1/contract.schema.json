@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://premise.dev/spec/premise-1.1/contract.schema.json",
+  "title": "PREMiSE premise/1.1 closed contract",
+  "description": "Closed JSON wire contract for observations, causal Premise Sets, change sets, decisions and receipts.",
+  "oneOf": [
+    { "$ref": "#/$defs/observation" },
+    { "$ref": "#/$defs/premiseSet" },
+    { "$ref": "#/$defs/changeSet" },
+    { "$ref": "#/$defs/operation" },
+    { "$ref": "#/$defs/decision" },
+    { "$ref": "#/$defs/receipt" },
+    { "$ref": "#/$defs/capabilities" }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$"
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$"
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^/[^\\s]*$"
+    },
+    "stateRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["incarnationId", "versionToken", "observationId"],
+      "properties": {
+        "incarnationId": { "$ref": "#/$defs/id" },
+        "versionToken": { "$ref": "#/$defs/id" },
+        "observationId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "scopedDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "resourceId", "incarnationId", "versionToken", "observationId", "scopes"],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "resourceId": { "$ref": "#/$defs/id" },
+        "incarnationId": { "$ref": "#/$defs/id" },
+        "versionToken": { "$ref": "#/$defs/id" },
+        "observationId": { "$ref": "#/$defs/id" },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope" }
+        }
+      }
+    },
+    "premiseMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "resourceId", "incarnationId", "versionToken", "observationId", "dependsOn"],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "resourceId": { "$ref": "#/$defs/id" },
+        "incarnationId": { "$ref": "#/$defs/id" },
+        "versionToken": { "$ref": "#/$defs/id" },
+        "observationId": { "$ref": "#/$defs/id" },
+        "dependsOn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scopedDependency" }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "resourceId", "incarnationId", "versionToken", "observationId", "observedAt", "dependsOn"],
+      "properties": {
+        "kind": { "const": "observation" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "resourceId": { "$ref": "#/$defs/id" },
+        "incarnationId": { "$ref": "#/$defs/id" },
+        "versionToken": { "$ref": "#/$defs/id" },
+        "observationId": { "$ref": "#/$defs/id" },
+        "observedAt": { "$ref": "#/$defs/dateTime" },
+        "dependsOn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scopedDependency" }
+        }
+      }
+    },
+    "causalSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotId", "entries"],
+      "properties": {
+        "snapshotId": { "$ref": "#/$defs/id" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/premiseMember" }
+        }
+      }
+    },
+    "emptyOrCausalSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotId", "entries"],
+      "properties": {
+        "snapshotId": { "$ref": "#/$defs/id" },
+        "entries": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/premiseMember" }
+        }
+      }
+    },
+    "premiseSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "setId", "members", "causalSnapshot"],
+      "properties": {
+        "kind": { "const": "premiseSet" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "setId": { "$ref": "#/$defs/id" },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/premiseMember" }
+        },
+        "causalSnapshot": { "$ref": "#/$defs/causalSnapshot" }
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "action", "after", "dependsOn"],
+      "properties": {
+        "resourceId": { "$ref": "#/$defs/id" },
+        "action": { "enum": ["CREATE", "UPDATE", "REINCARNATE", "DELETE"] },
+        "after": {
+          "oneOf": [
+            { "$ref": "#/$defs/stateRef" },
+            { "type": "null" }
+          ]
+        },
+        "dependsOn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scopedDependency" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "action": { "const": "DELETE" } } },
+          "then": {
+            "properties": {
+              "after": { "type": "null" },
+              "dependsOn": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "action": { "enum": ["CREATE", "UPDATE", "REINCARNATE"] } } },
+          "then": {
+            "properties": {
+              "after": { "$ref": "#/$defs/stateRef" }
+            }
+          }
+        }
+      ]
+    },
+    "changeSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "changeSetId", "causalSnapshot", "changes"],
+      "properties": {
+        "kind": { "const": "changeSet" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "changeSetId": { "$ref": "#/$defs/id" },
+        "causalSnapshot": { "$ref": "#/$defs/emptyOrCausalSnapshot" },
+        "changes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/change" }
+        }
+      }
+    },
+    "frontierItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantId", "resourceId", "incarnationId", "versionToken", "observationId"],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "resourceId": { "$ref": "#/$defs/id" },
+        "incarnationId": { "$ref": "#/$defs/id" },
+        "versionToken": { "$ref": "#/$defs/id" },
+        "observationId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "applyPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changeSet"],
+      "properties": {
+        "changeSet": { "$ref": "#/$defs/changeSet" }
+      }
+    },
+    "checkPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["premiseSet"],
+      "properties": {
+        "premiseSet": { "$ref": "#/$defs/premiseSet" },
+        "requestedFrontier": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/frontierItem" }
+        }
+      }
+    },
+    "applyOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "operationId", "operation", "idempotencyKey", "requestDigest", "requestedAt", "payload"],
+      "properties": {
+        "kind": { "const": "operation" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "operationId": { "$ref": "#/$defs/id" },
+        "operation": { "const": "apply" },
+        "idempotencyKey": { "$ref": "#/$defs/id" },
+        "requestDigest": { "$ref": "#/$defs/digest" },
+        "requestedAt": { "$ref": "#/$defs/dateTime" },
+        "payload": { "$ref": "#/$defs/applyPayload" }
+      }
+    },
+    "checkOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "operationId", "operation", "idempotencyKey", "requestDigest", "requestedAt", "payload"],
+      "properties": {
+        "kind": { "const": "operation" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "operationId": { "$ref": "#/$defs/id" },
+        "operation": { "const": "check" },
+        "idempotencyKey": { "$ref": "#/$defs/id" },
+        "requestDigest": { "$ref": "#/$defs/digest" },
+        "requestedAt": { "$ref": "#/$defs/dateTime" },
+        "payload": { "$ref": "#/$defs/checkPayload" }
+      }
+    },
+    "operation": {
+      "oneOf": [
+        { "$ref": "#/$defs/applyOperation" },
+        { "$ref": "#/$defs/checkOperation" }
+      ]
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "decisionId", "operationId", "premiseSetId", "coherence", "decision", "causalSnapshot", "frontier"],
+      "properties": {
+        "kind": { "const": "decision" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "decisionId": { "$ref": "#/$defs/id" },
+        "operationId": { "$ref": "#/$defs/id" },
+        "premiseSetId": { "$ref": "#/$defs/id" },
+        "coherence": { "enum": ["COHERENT", "INCOHERENT", "INCOMPLETE"] },
+        "decision": { "enum": ["USE", "REVALIDATE", "REJECT"] },
+        "causalSnapshot": { "$ref": "#/$defs/causalSnapshot" },
+        "frontier": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/frontierItem" }
+        },
+        "reason": {
+          "enum": ["CAUSAL_MISMATCH", "FRONTIER_INCOMPLETE", "TENANT_SCOPE", "DUPLICATE_RESOURCE", "CYCLE"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "coherence": { "const": "COHERENT" } } },
+          "then": {
+            "properties": {
+              "decision": { "const": "USE" },
+              "frontier": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "coherence": { "const": "INCOMPLETE" } } },
+          "then": {
+            "properties": {
+              "decision": { "const": "REJECT" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "decision": { "const": "REVALIDATE" } } },
+          "then": {
+            "properties": {
+              "coherence": { "const": "INCOHERENT" },
+              "frontier": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "tenantId", "receiptId", "operationId", "operation", "idempotencyKey", "requestDigest", "changeSetId", "outcome", "coherence", "causalSnapshot", "frontier"],
+      "properties": {
+        "kind": { "const": "receipt" },
+        "specVersion": { "const": "premise/1.1" },
+        "tenantId": { "$ref": "#/$defs/tenantId" },
+        "receiptId": { "$ref": "#/$defs/id" },
+        "operationId": { "$ref": "#/$defs/id" },
+        "operation": { "const": "apply" },
+        "idempotencyKey": { "$ref": "#/$defs/id" },
+        "requestDigest": { "$ref": "#/$defs/digest" },
+        "changeSetId": { "$ref": "#/$defs/id" },
+        "outcome": { "enum": ["APPLIED", "REJECTED"] },
+        "coherence": { "enum": ["COHERENT", "INCOHERENT", "INCOMPLETE"] },
+        "causalSnapshot": { "$ref": "#/$defs/emptyOrCausalSnapshot" },
+        "frontier": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/frontierItem" }
+        },
+        "reason": {
+          "enum": ["ABA_MISMATCH", "BASE_SNAPSHOT_MISMATCH", "TENANT_SCOPE", "CAUSAL_MISMATCH", "FRONTIER_INCOMPLETE", "DUPLICATE_RESOURCE", "CYCLE", "IDEMPOTENCY_CONFLICT"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "APPLIED" } } },
+          "then": {
+            "properties": {
+              "coherence": { "const": "COHERENT" },
+              "frontier": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "specVersion", "profile", "capabilities"],
+      "properties": {
+        "kind": { "const": "capabilities" },
+        "specVersion": { "const": "premise/1.1" },
+        "profile": { "const": "PREMiSE-compatible premise/1.1" },
+        "capabilities": {
+          "type": "array",
+          "minItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["OBSERVATION", "PREMISE_SET", "CHANGE_SET", "RECEIPT", "TENANCY", "FRONTIER"]
+          },
+          "allOf": [
+            { "contains": { "const": "OBSERVATION" } },
+            { "contains": { "const": "PREMISE_SET" } },
+            { "contains": { "const": "CHANGE_SET" } },
+            { "contains": { "const": "RECEIPT" } },
+            { "contains": { "const": "TENANCY" } },
+            { "contains": { "const": "FRONTIER" } }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "causal-incoherence",
+  "category": "negative",
+  "description": "El snapshot declara una observación distinta para el soporte de una Premise Set; la decisión es revalidar la causa mínima.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T15:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "check-mismatched-support",
+      "operation": "check",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:coherence:mismatch",
+        "operation": "check",
+        "idempotencyKey": "idem:coherence:mismatch",
+        "requestDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "requestedAt": "2026-08-12T15:00:00Z",
+        "payload": {
+          "premiseSet": {
+            "kind": "premiseSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "setId": "set:coherence:mismatch",
+            "members": [
+              {
+                "tenantId": "tenant:acme",
+                "resourceId": "resource:derived",
+                "incarnationId": "inc:derived:1",
+                "versionToken": "D1",
+                "observationId": "obs:derived:1",
+                "dependsOn": [
+                  { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                ]
+              },
+              { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "dependsOn": [] }
+            ],
+            "causalSnapshot": {
+              "snapshotId": "snap:coherence:mismatch",
+              "entries": [
+                {
+                  "tenantId": "tenant:acme",
+                  "resourceId": "resource:derived",
+                  "incarnationId": "inc:derived:1",
+                  "versionToken": "D1",
+                  "observationId": "obs:derived:1",
+                  "dependsOn": [
+                    { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                  ]
+                },
+                { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S2", "observationId": "obs:source:2", "dependsOn": [] }
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "coherence": "INCOHERENT",
+        "decision": "REVALIDATE",
+        "reason": "CAUSAL_MISMATCH",
+        "frontier": [
+          { "tenantId": "tenant:acme", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1" }
+        ]
+      }
+    }
+  ]
+}

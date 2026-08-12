@@ -1,0 +1,132 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "aba-positive-reincarnation",
+  "category": "positive",
+  "description": "La misma versionToken vuelve después de una nueva encarnación sin confundirse con el estado anterior.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T10:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "create-a",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:aba:create",
+        "operation": "apply",
+        "idempotencyKey": "idem:aba:create",
+        "requestDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "requestedAt": "2026-08-12T10:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:aba:create",
+            "causalSnapshot": { "snapshotId": "snap:aba:empty", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:doc",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:1" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "APPLIED",
+        "receiptId": "receipt:op:aba:create",
+        "state": [
+          { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:1" }
+        ]
+      }
+    },
+    {
+      "id": "reincarnate-a",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:aba:reincarnate",
+        "operation": "apply",
+        "idempotencyKey": "idem:aba:reincarnate",
+        "requestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "requestedAt": "2026-08-12T10:01:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:aba:reincarnate",
+            "causalSnapshot": {
+              "snapshotId": "snap:aba:a",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:1", "dependsOn": [] }
+              ]
+            },
+            "changes": [
+              {
+                "resourceId": "resource:doc",
+                "action": "REINCARNATE",
+                "after": { "incarnationId": "inc:2", "versionToken": "A", "observationId": "obs:2" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "APPLIED",
+        "receiptId": "receipt:op:aba:reincarnate",
+        "state": [
+          { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:2", "versionToken": "A", "observationId": "obs:2" }
+        ]
+      }
+    },
+    {
+      "id": "check-new-incarnation",
+      "operation": "check",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:aba:check",
+        "operation": "check",
+        "idempotencyKey": "idem:aba:check",
+        "requestDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "requestedAt": "2026-08-12T10:02:00Z",
+        "payload": {
+          "premiseSet": {
+            "kind": "premiseSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "setId": "set:aba:current",
+            "members": [
+              { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:2", "versionToken": "A", "observationId": "obs:2", "dependsOn": [] }
+            ],
+            "causalSnapshot": {
+              "snapshotId": "snap:aba:current",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:2", "versionToken": "A", "observationId": "obs:2", "dependsOn": [] }
+              ]
+            }
+          },
+          "requestedFrontier": []
+        }
+      },
+      "expect": {
+        "coherence": "COHERENT",
+        "decision": "USE",
+        "frontier": []
+      }
+    }
+  ]
+}

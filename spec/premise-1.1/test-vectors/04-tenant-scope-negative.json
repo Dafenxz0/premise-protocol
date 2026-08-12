@@ -1,0 +1,53 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "tenant-scope-negative",
+  "category": "negative",
+  "description": "Una dependencia de otro tenant se rechaza aunque resourceId, encarnación y token parezcan válidos.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T13:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "reject-cross-tenant-dependency",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:scope:cross-tenant",
+        "operation": "apply",
+        "idempotencyKey": "idem:scope:cross-tenant",
+        "requestDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "requestedAt": "2026-08-12T13:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:scope:cross-tenant",
+            "causalSnapshot": { "snapshotId": "snap:scope:cross-tenant", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:derived",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:derived:1", "versionToken": "D1", "observationId": "obs:derived:cross" },
+                "dependsOn": [
+                  { "tenantId": "tenant:other", "resourceId": "resource:source", "incarnationId": "inc:source:1", "versionToken": "S1", "observationId": "obs:source:1", "scopes": ["/source"] }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "REJECTED",
+        "reason": "TENANT_SCOPE",
+        "stateUnchanged": true,
+        "receiptCreated": false
+      }
+    }
+  ]
+}

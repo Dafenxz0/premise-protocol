@@ -1,0 +1,125 @@
+{
+  "format": "premise-test-vector/1.1",
+  "protocol": "premise/1.1",
+  "vectorId": "aba-negative-stale-incarnation",
+  "category": "negative",
+  "description": "Un change set que reusa el snapshot de la encarnación antigua no puede modificar la nueva encarnación.",
+  "initial": {
+    "clock": { "mode": "manual", "now": "2026-08-12T11:00:00Z" },
+    "state": [],
+    "receipts": []
+  },
+  "steps": [
+    {
+      "id": "seed-old",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:aba:seed",
+        "operation": "apply",
+        "idempotencyKey": "idem:aba:seed",
+        "requestDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "requestedAt": "2026-08-12T11:00:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:aba:seed",
+            "causalSnapshot": { "snapshotId": "snap:aba:seed:empty", "entries": [] },
+            "changes": [
+              {
+                "resourceId": "resource:doc",
+                "action": "CREATE",
+                "after": { "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:old" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": { "disposition": "APPLIED" }
+    },
+    {
+      "id": "recreate-new-incarnation",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:aba:recreate",
+        "operation": "apply",
+        "idempotencyKey": "idem:aba:recreate",
+        "requestDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "requestedAt": "2026-08-12T11:01:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:aba:recreate",
+            "causalSnapshot": {
+              "snapshotId": "snap:aba:old",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:old", "dependsOn": [] }
+              ]
+            },
+            "changes": [
+              {
+                "resourceId": "resource:doc",
+                "action": "REINCARNATE",
+                "after": { "incarnationId": "inc:2", "versionToken": "A", "observationId": "obs:new" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": { "disposition": "APPLIED" }
+    },
+    {
+      "id": "reject-old-snapshot",
+      "operation": "apply",
+      "input": {
+        "kind": "operation",
+        "specVersion": "premise/1.1",
+        "tenantId": "tenant:acme",
+        "operationId": "op:aba:stale-update",
+        "operation": "apply",
+        "idempotencyKey": "idem:aba:stale-update",
+        "requestDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "requestedAt": "2026-08-12T11:02:00Z",
+        "payload": {
+          "changeSet": {
+            "kind": "changeSet",
+            "specVersion": "premise/1.1",
+            "tenantId": "tenant:acme",
+            "changeSetId": "cs:aba:stale-update",
+            "causalSnapshot": {
+              "snapshotId": "snap:aba:stale-old",
+              "entries": [
+                { "tenantId": "tenant:acme", "resourceId": "resource:doc", "incarnationId": "inc:1", "versionToken": "A", "observationId": "obs:old", "dependsOn": [] }
+              ]
+            },
+            "changes": [
+              {
+                "resourceId": "resource:doc",
+                "action": "UPDATE",
+                "after": { "incarnationId": "inc:1", "versionToken": "B", "observationId": "obs:stale" },
+                "dependsOn": []
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "disposition": "REJECTED",
+        "reason": "ABA_MISMATCH",
+        "stateUnchanged": true,
+        "receiptCreated": false
+      }
+    }
+  ]
+}
