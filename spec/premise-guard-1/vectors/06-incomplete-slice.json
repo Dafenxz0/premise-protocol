@@ -1,0 +1,58 @@
+{
+  "format": "premise-guard-test-vector/1",
+  "specVersion": "premise-guard/1",
+  "vectorId": "incomplete-action-critical-slice",
+  "category": "negative",
+  "description": "Falta una dependencia transitiva del slice; no se emite receipt y no se puede actuar.",
+  "initial": {
+    "now": "2026-08-12T15:00:00Z",
+    "adapter": {
+      "adapterId": "adapter:cas",
+      "capabilities": ["CAS", "IDEMPOTENCY", "FENCING"]
+    },
+    "memories": [
+      {
+        "memoryId": "memory:root",
+        "incarnation": "memory:root#1",
+        "revision": "r1",
+        "status": "FRESH",
+        "dependsOn": ["memory:dependency"],
+        "sourceVersions": []
+      },
+      {
+        "memoryId": "memory:dependency",
+        "incarnation": "memory:dependency#1",
+        "revision": "r3",
+        "status": "FRESH",
+        "dependsOn": [],
+        "sourceVersions": []
+      }
+    ],
+    "resources": [],
+    "suppliedSlice": {
+      "complete": false,
+      "rootMemoryIds": ["memory:root"],
+      "memories": ["memory:root"],
+      "missing": ["memory:dependency"]
+    }
+  },
+  "steps": [
+    {
+      "id": "validate-partial-slice",
+      "operation": "validate",
+      "input": {
+        "intentId": "intent:incomplete:1",
+        "tenantId": "tenant:example",
+        "memoryIds": ["memory:root"],
+        "actionDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "suppliedSlice": "initial.suppliedSlice"
+      },
+      "expect": {
+        "decision": "REJECTED",
+        "reason": "SLICE_INCOMPLETE",
+        "receipt": null,
+        "effects": 0
+      }
+    }
+  ]
+}

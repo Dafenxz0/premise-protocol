@@ -1,0 +1,76 @@
+{
+  "format": "premise-guard-test-vector/1",
+  "specVersion": "premise-guard/1",
+  "vectorId": "change-between-validate-and-commit",
+  "category": "negative",
+  "description": "El estado del slice cambia después de validar y antes del commit.",
+  "initial": {
+    "now": "2026-08-12T11:00:00Z",
+    "adapter": {
+      "adapterId": "adapter:cas",
+      "capabilities": ["CAS", "IDEMPOTENCY", "FENCING"]
+    },
+    "memories": [
+      {
+        "memoryId": "memory:answer",
+        "incarnation": "memory:answer#1",
+        "revision": "r1",
+        "status": "FRESH",
+        "dependsOn": [],
+        "sourceVersions": [
+          {
+            "sourceUri": "source://catalog",
+            "scheme": "revision",
+            "token": "v1"
+          }
+        ]
+      }
+    ],
+    "resources": [
+      {
+        "resourceId": "resource:order:1",
+        "incarnation": "order:1",
+        "revision": "r7"
+      }
+    ],
+    "lease": {
+      "leaseId": "lease:2",
+      "scope": "resource:order:1",
+      "fenceToken": 8,
+      "expiresAt": "2026-08-12T11:05:00Z"
+    }
+  },
+  "steps": [
+    {
+      "id": "validate-r1",
+      "operation": "validate",
+      "input": {
+        "intentId": "intent:between:1",
+        "tenantId": "tenant:example",
+        "memoryIds": ["memory:answer"],
+        "actionDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "expect": { "decision": "USE", "receipt": "receipt:between:1" }
+    },
+    {
+      "id": "memory-revision-advances",
+      "operation": "mutate_memory",
+      "input": {
+        "memoryId": "memory:answer",
+        "revision": "r2",
+        "status": "FRESH"
+      },
+      "expect": { "effects": 0 }
+    },
+    {
+      "id": "commit-with-r1",
+      "operation": "commit",
+      "input": { "receipt": "receipt:between:1" },
+      "expect": {
+        "status": "REJECTED",
+        "reason": "CAS_MISMATCH",
+        "effects": 0
+      }
+    }
+  ]
+}

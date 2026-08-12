@@ -1,0 +1,80 @@
+{
+  "format": "premise-guard-test-vector/1",
+  "specVersion": "premise-guard/1",
+  "vectorId": "toctou-source-change",
+  "category": "negative",
+  "description": "Revalidar una fuente no basta si cambia durante el write; CAS debe bloquearlo.",
+  "initial": {
+    "now": "2026-08-12T10:00:00Z",
+    "adapter": {
+      "adapterId": "adapter:cas",
+      "capabilities": ["CAS", "IDEMPOTENCY", "FENCING"]
+    },
+    "memories": [
+      {
+        "memoryId": "memory:answer",
+        "incarnation": "memory:answer#1",
+        "revision": "r1",
+        "status": "FRESH",
+        "dependsOn": [],
+        "sourceVersions": [
+          {
+            "sourceUri": "source://catalog",
+            "scheme": "revision",
+            "token": "v1"
+          }
+        ]
+      }
+    ],
+    "resources": [
+      {
+        "resourceId": "resource:order:1",
+        "incarnation": "order:1",
+        "revision": "r7"
+      }
+    ],
+    "lease": {
+      "leaseId": "lease:1",
+      "scope": "resource:order:1",
+      "fenceToken": 7,
+      "expiresAt": "2026-08-12T10:05:00Z"
+    }
+  },
+  "steps": [
+    {
+      "id": "validate-v1",
+      "operation": "validate",
+      "input": {
+        "intentId": "intent:toctou:1",
+        "tenantId": "tenant:example",
+        "memoryIds": ["memory:answer"],
+        "actionDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expect": {
+        "decision": "USE",
+        "receipt": "receipt:toctou:1"
+      }
+    },
+    {
+      "id": "source-changes-during-write",
+      "operation": "mutate_source",
+      "input": {
+        "sourceUri": "source://catalog",
+        "scheme": "revision",
+        "token": "v2"
+      },
+      "expect": { "effects": 0 }
+    },
+    {
+      "id": "commit-old-receipt",
+      "operation": "commit",
+      "input": { "receipt": "receipt:toctou:1" },
+      "expect": {
+        "status": "REJECTED",
+        "reason": "SOURCE_CHANGED",
+        "effects": 0,
+        "toctouEscaped": false
+      }
+    }
+  ]
+}

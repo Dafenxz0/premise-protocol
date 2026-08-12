@@ -1,0 +1,66 @@
+{
+  "format": "premise-guard-test-vector/1",
+  "specVersion": "premise-guard/1",
+  "vectorId": "expired-lease",
+  "category": "negative",
+  "description": "El lease deja de estar vigente antes del commit y el fence token no lo rescata.",
+  "initial": {
+    "now": "2026-08-12T14:00:00Z",
+    "adapter": {
+      "adapterId": "adapter:cas",
+      "capabilities": ["CAS", "IDEMPOTENCY", "FENCING"]
+    },
+    "memories": [
+      {
+        "memoryId": "memory:answer",
+        "incarnation": "memory:answer#1",
+        "revision": "r1",
+        "status": "FRESH",
+        "dependsOn": [],
+        "sourceVersions": []
+      }
+    ],
+    "resources": [
+      {
+        "resourceId": "resource:order:1",
+        "incarnation": "order:1",
+        "revision": "r7"
+      }
+    ],
+    "lease": {
+      "leaseId": "lease:5",
+      "scope": "resource:order:1",
+      "fenceToken": 11,
+      "expiresAt": "2026-08-12T14:01:00Z"
+    }
+  },
+  "steps": [
+    {
+      "id": "validate-with-lease",
+      "operation": "validate",
+      "input": {
+        "intentId": "intent:lease-expired:1",
+        "tenantId": "tenant:example",
+        "memoryIds": ["memory:answer"],
+        "actionDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "expect": { "decision": "USE", "receipt": "receipt:lease-expired:1" }
+    },
+    {
+      "id": "clock-passes-lease-expiry",
+      "operation": "advance_time",
+      "input": { "now": "2026-08-12T14:02:00Z" },
+      "expect": { "effects": 0 }
+    },
+    {
+      "id": "commit-expired-lease",
+      "operation": "commit",
+      "input": { "receipt": "receipt:lease-expired:1" },
+      "expect": {
+        "status": "REJECTED",
+        "reason": "LEASE_EXPIRED",
+        "effects": 0
+      }
+    }
+  ]
+}

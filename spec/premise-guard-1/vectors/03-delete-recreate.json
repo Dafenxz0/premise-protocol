@@ -1,0 +1,70 @@
+{
+  "format": "premise-guard-test-vector/1",
+  "specVersion": "premise-guard/1",
+  "vectorId": "delete-recreate-same-id",
+  "category": "negative",
+  "description": "Borrar y recrear el mismo ID no conserva la incarnation enlazada por el receipt.",
+  "initial": {
+    "now": "2026-08-12T12:00:00Z",
+    "adapter": {
+      "adapterId": "adapter:cas",
+      "capabilities": ["CAS", "IDEMPOTENCY", "FENCING"]
+    },
+    "memories": [
+      {
+        "memoryId": "memory:answer",
+        "incarnation": "memory:answer#1",
+        "revision": "r1",
+        "status": "FRESH",
+        "dependsOn": [],
+        "sourceVersions": []
+      }
+    ],
+    "resources": [
+      {
+        "resourceId": "resource:order:1",
+        "incarnation": "order:1",
+        "revision": "r7"
+      }
+    ],
+    "lease": {
+      "leaseId": "lease:3",
+      "scope": "resource:order:1",
+      "fenceToken": 9,
+      "expiresAt": "2026-08-12T12:05:00Z"
+    }
+  },
+  "steps": [
+    {
+      "id": "validate-old-incarnation",
+      "operation": "validate",
+      "input": {
+        "intentId": "intent:recreate:1",
+        "tenantId": "tenant:example",
+        "memoryIds": ["memory:answer"],
+        "actionDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expect": { "decision": "USE", "receipt": "receipt:recreate:1" }
+    },
+    {
+      "id": "delete-and-recreate",
+      "operation": "delete_recreate",
+      "input": {
+        "resourceId": "resource:order:1",
+        "incarnation": "order:2",
+        "revision": "r1"
+      },
+      "expect": { "effects": 0 }
+    },
+    {
+      "id": "commit-old-incarnation",
+      "operation": "commit",
+      "input": { "receipt": "receipt:recreate:1" },
+      "expect": {
+        "status": "REJECTED",
+        "reason": "INCARNATION_MISMATCH",
+        "effects": 0
+      }
+    }
+  ]
+}
