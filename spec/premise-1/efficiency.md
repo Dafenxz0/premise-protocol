@@ -123,7 +123,64 @@ Al publicar resultados, conserva el commit común, `taskSetHash`, `inputSha256`,
 el manifiesto y los artefactos. Reporta `requests` y `reads` por separado; no
 infieras dinero o tokens a partir de ninguno de los dos.
 
-## 7. Perfil de ejecución mínima: `100-a`
+## 7. Telemetría de ejecución y denominadores fijos
+
+La eficiencia del benchmark no forma parte del wire contract de `premise/1`.
+Es telemetría del adapter/runner y debe distinguir trabajo lógico de trabajo
+físico. Un informe compatible MUST conservar, cuando existan:
+
+- `pairedReplays`: número total de replays emparejados;
+- `actionRequired`: replays cuya acción fresca debe completarse;
+- `safeRejectRequired`: replays que deben terminar en rechazo seguro;
+- `physicalSubmissions`: peticiones realmente enviadas al conector o proveedor;
+- `physicalReads`: lecturas o revalidaciones físicas intentadas;
+- `physicalWrites`: envíos mutables, incluidos conflictos, timeouts y rechazos;
+- `verifiedLogicalBatches`: envelopes cuya atribución de ramas y receipts está
+  verificada por el runner;
+- `branchRequestsOutsideBatch` y `readsOutsideBatch`: trabajo que no puede
+  atribuirse a un batch verificado.
+
+Los denominadores se congelan antes de ejecutar los candidatos y son comunes a
+todos los brazos. La eficiencia se compara solo después de los gates de
+seguridad y corrección:
+
+```text
+unsafeActions = 0
+falseBlocks = 0
+freshActions = actionRequired
+safeRejects = safeRejectRequired
+```
+
+Solo entonces se pueden publicar `physicalSubmissions / freshActions` y
+`physicalReads / freshActions`. También deben publicarse los totales sobre
+`pairedReplays`, para que el trabajo de los replays de rechazo no desaparezca
+del informe. Un brazo que rechaza todas las acciones no es eficiente: tiene
+`freshActions = 0` y todos los replays accionables son `falseBlocks`.
+
+`verifiedLogicalBatches` no equivale a peticiones físicas. Un batch puede tener
+una petición física o varias; cada una se cuenta. Una petición física tampoco
+puede ocultar fan-out del proveedor: el adapter debe declarar los items,
+ramas, lecturas y writes que contiene. Los contadores ausentes son
+`UNKNOWN`/`null`, nunca cero.
+
+Para un batch verificable, cada operación, guard, rama, intento y receipt debe
+referenciar el mismo identificador lógico. El runner debe poder comprobar:
+
+1. que las ramas y dependencias estaban declaradas antes del commit;
+2. que los guards se evaluaron con una versión o token de frescura;
+3. que una mutación TOCTOU produjo conflicto o rechazo, nunca un commit stale;
+4. que un retry con la misma clave devuelve el receipt previo y no duplica el
+   efecto;
+5. que el trabajo fuera del batch es cero o se cuenta explícitamente.
+
+El perfil r10 usa `24` replays emparejados, `15` replays de acción y `9` de
+rechazo seguro. Sus cifras manuales (`248` submissions y `156` reads para el
+brazo de menor trabajo) son contadores declarados de un replay aislado, no
+llamadas de proveedor, tokens ni coste facturado. Hasta disponer de
+telemetría de transporte autoritativa, no deben convertirse en claims de
+producción.
+
+## 8. Perfil de ejecución mínima: `100-a`
 
 Este perfil concreta una optimización de ejecución; no añade estados,
 decisiones ni campos a `premise/1`. La seguridad es una condición previa a la
