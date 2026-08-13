@@ -37,6 +37,7 @@ export * from "./receipt-cache.js";
 export * from "./journal.js";
 export * from "./checkpoint.js";
 export * from "./stream-burst.js";
+export * from "./session.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
