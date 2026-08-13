@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { V2Event } from "@premise/protocol-types";
 import type { RuntimeRecord } from "./index.js";
 
 export const RUNTIME_CHECKPOINT_FORMAT = "premise-runtime-checkpoint" as const;
@@ -24,6 +25,18 @@ export type RuntimeOperationalCheckpointInput<T = unknown> = Omit<RuntimeOperati
 export interface RuntimeCheckpointTailEntry {
   readonly cursor: number;
   readonly event?: unknown;
+}
+
+/** Compact replay metadata retained after old event objects are released. */
+export interface RuntimeIdempotencyRecord {
+  readonly idempotencyKey: string;
+  readonly tenantId: string;
+  readonly eventId: string;
+  readonly operationId: string;
+  readonly requestDigest: string;
+  readonly type: V2Event["type"];
+  readonly occurredAt: string;
+  readonly memoryId?: string;
 }
 
 export type RuntimeCheckpointRecovery =
@@ -115,4 +128,17 @@ export function verifyRuntimeCheckpointRecovery<T>(
     expected += 1;
   }
   return { status: "READY", checkpoint: checked, finalCursor: expected - 1 };
+}
+
+export function runtimeIdempotencyState(events: readonly V2Event[]): readonly RuntimeIdempotencyRecord[] {
+  return Object.freeze(events.map((event) => ({
+    idempotencyKey: event.idempotencyKey,
+    tenantId: event.tenantId,
+    eventId: event.eventId,
+    operationId: event.operationId,
+    requestDigest: event.requestDigest,
+    type: event.type,
+    occurredAt: event.occurredAt,
+    ...(event.memoryId === undefined ? {} : { memoryId: event.memoryId })
+  })));
 }
