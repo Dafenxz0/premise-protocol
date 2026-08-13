@@ -226,7 +226,15 @@ export function premiseReceiptSharingFrontierKey(scopes: readonly PremiseReceipt
   if (new Set(members.map(({ scope }) => scope.resourceId)).size !== members.length) {
     throw new TypeError("PREMiSE frontier cannot contain duplicate resources");
   }
-  const projection = canonical({ domain: "premise-policy-sharing-frontier/1", members: members.map(({ scope }) => scope) });
+  const canonicalSet = (values: readonly string[]) => [...new Set(values)].sort();
+  const projection = canonical({
+    domain: "premise-policy-sharing-frontier/1",
+    members: members.map(({ scope }) => ({
+      ...scope,
+      scopes: canonicalSet(scope.scopes),
+      causalFrontier: canonicalSet(scope.causalFrontier)
+    }))
+  });
   return `sha256:${createHash("sha256").update(projection, "utf8").digest("hex")}`;
 }
 

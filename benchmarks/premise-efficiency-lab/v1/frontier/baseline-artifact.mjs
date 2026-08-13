@@ -125,3 +125,10 @@ export async function loadBaselineEngine(options = {}) {
   if (typeof module.IncrementalFrontierEngine !== "function") throw new Error("BASELINE_ENGINE_EXPORT_MISSING");
   return Object.freeze({ ...artifact, Engine: module.IncrementalFrontierEngine });
 }
+
+export async function loadBaselineRuntime(options = {}) {
+  const artifact = await prepareBaselineArtifact(options);
+  const module = await import(pathToFileURL(artifact.runtimeEntry).href);
+  if (typeof module.PremiseRuntime !== "function") throw new Error("BASELINE_RUNTIME_EXPORT_MISSING");
+  return Object.freeze({ ...artifact, Runtime: module.PremiseRuntime, module });
+}

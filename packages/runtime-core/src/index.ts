@@ -19,6 +19,8 @@ import {
   type RuntimeInstrumentation
 } from "./instrumentation.js";
 import { IncrementalFrontierEngine, type FrontierResult } from "./frontier-engine.js";
+import { premiseReceiptSharingKey, type PremiseReceiptSharingScope } from "./premise-policy.js";
+import { RuntimeReceiptCache } from "./receipt-cache.js";
 export * from "./premise-policy.js";
 export * from "./premise-guard.js";
 export * from "./instrumentation.js";
@@ -102,6 +104,17 @@ export interface RuntimeOptions<T> {
   readonly signatureVerification?: V2SignatureVerificationOptions;
   /** Reject unsigned inbound envelopes even when no key source is configured. */
   readonly requireSignedEnvelopes?: boolean;
+  /**
+   * Optional completed-validation receipt cache. It is safe only with a
+   * caller-supplied scope factory that includes the complete authorization,
+   * resource, incarnation, version, query, policy and causal scope. Without
+   * a scope factory, validation is isolated per record rather than shared by
+   * a partial evidence key.
+   */
+  readonly receiptCache?: RuntimeReceiptCache<RuntimeValidationReport>;
+  readonly receiptScope?: RuntimeReceiptScopeFactory<T>;
+  /** Completed receipts are never reusable beyond this TTL. Defaults to 60s when enabled. */
+  readonly receiptTtlMs?: number;
 }
 
 export interface RuntimeCheckItem {
@@ -126,6 +139,11 @@ export interface RuntimeValidationReport {
   readonly evidenceId?: string;
   readonly reason?: string;
 }
+
+export type RuntimeReceiptScopeFactory<T> = (
+  evidence: EvidenceReference,
+  record: RuntimeRecord<T>
+) => PremiseReceiptSharingScope | undefined;
 
 export type RuntimeValidator<T> = (evidence: EvidenceReference, record: RuntimeRecord<T>) => Promise<RuntimeValidationReport>;
 
@@ -324,8 +342,14 @@ export class PremiseRuntime<T = unknown> {
   private readonly signatureVerification: V2SignatureVerificationOptions | undefined;
   private readonly requireSignedEnvelopes: boolean;
   private readonly instrumentation: RuntimeInstrumentation | undefined;
+  private readonly receiptCache: RuntimeReceiptCache<RuntimeValidationReport> | undefined;
+  private readonly receiptScope: RuntimeReceiptScopeFactory<T> | undefined;
+  private readonly receiptTtlMs: number;
+  /** A bounded epoch fences in-flight validations from repopulating the cache after invalidation. */
+  private receiptGeneration = 0;
   private frontierEngine: IncrementalFrontierEngine | undefined;
   private readonly validationFlights = new Map<string, Promise<RuntimeValidationReport>>();
+  private validationInvocation = 0;
   private sequence = 0;
   /**
    * Reverse indexes let source invalidation avoid scanning every record and
@@ -346,6 +370,14 @@ export class PremiseRuntime<T = unknown> {
     this.signatureVerification = options.signatureVerification;
     this.requireSignedEnvelopes = options.requireSignedEnvelopes ?? options.signatureVerification !== undefined;
     this.instrumentation = options.instrumentation;
+    if (options.receiptCache !== undefined && options.receiptScope === undefined) {
+      throw new TypeError("receiptCache requires a complete receiptScope factory");
+    }
+    const receiptTtlMs = options.receiptTtlMs ?? 60_000;
+    if (!Number.isSafeInteger(receiptTtlMs) || receiptTtlMs < 1) throw new RangeError("receiptTtlMs must be a positive integer");
+    this.receiptCache = options.receiptCache;
+    this.receiptScope = options.receiptScope;
+    this.receiptTtlMs = receiptTtlMs;
     this.frontierEngine = options.incrementalFrontier === true ? new IncrementalFrontierEngine() : undefined;
     if (this.requireSignedEnvelopes && this.signatureVerification === undefined) {
       throw new TypeError("requireSignedEnvelopes requires signatureVerification with an external key source");
@@ -417,6 +449,7 @@ export class PremiseRuntime<T = unknown> {
     if (next.memoryId !== memoryId) throw new Error("Replacement must keep the memory ID");
     this.assertTenant(next.tenantId);
     const stored = { envelope: next, content: cloneJson(content) };
+    this.invalidateRecordReceipts(current);
     const event = this.emit("MemoryReplaced", memoryId, { previousDigest: current.envelope.contentDigest, nextDigest: next.contentDigest }, idempotencyKey, false, { memoryId, envelope: next, content: stored.content });
     if (replay !== undefined) return;
     this.persistRecordAndEvent(stored, event);
@@ -515,8 +548,7 @@ export class PremiseRuntime<T = unknown> {
     }
     const reports: RuntimeValidationReport[] = [];
     for (const evidence of record.envelope.evidence) {
-      const key = `${evidence.evidenceId}:${canonicalJson(evidence)}`;
-      const shared = await this.sharedValidation(key, () => validator(evidence, record));
+      const shared = await this.validateEvidence(evidence, record, validator);
       // A shared source observation is reusable; the runtime-local memory ID
       // is not. Rebind it after joining a flight so one validator response
       // cannot be applied to a different record.
@@ -555,8 +587,7 @@ export class PremiseRuntime<T = unknown> {
         });
       }
       const validations = evidence.map((item) => {
-        const key = `${item.evidenceId}:${canonicalJson(item)}`;
-        return this.sharedValidation(key, () => validator(item, record)).then((report) => ({ ...report, memoryId }));
+        return this.validateEvidence(item, record, validator).then((report) => ({ ...report, memoryId }));
       });
       const reportsPromise = validations.length === 1 ? validations[0]!.then((report) => [report]) : Promise.all(validations);
       return reportsPromise.then((reports): { memoryId: string; report: RuntimeValidationReport } => ({
@@ -656,6 +687,7 @@ export class PremiseRuntime<T = unknown> {
     for (const memoryId of affected) {
       const record = this.store.get(memoryId);
       if (record !== undefined) this.operation("recordReads");
+      if (record !== undefined) this.invalidateRecordReceipts(record);
       if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
       const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
       this.operation("invalidationPropagations");
@@ -681,6 +713,7 @@ export class PremiseRuntime<T = unknown> {
     for (const memoryId of affected) {
       const record = this.store.get(memoryId);
       if (record !== undefined) this.operation("recordReads");
+      if (record !== undefined) this.invalidateRecordReceipts(record);
       if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
       const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
       this.operation("invalidationPropagations");
@@ -710,6 +743,8 @@ export class PremiseRuntime<T = unknown> {
       return { ...record, envelope };
     });
     this.store.restore({ ...snapshot, records });
+    this.receiptCache?.clear();
+    this.receiptGeneration += 1;
     this.rebuildIndexes();
   }
 
@@ -725,6 +760,7 @@ export class PremiseRuntime<T = unknown> {
   private applyValidation(record: RuntimeRecord<T>, report: RuntimeValidationReport, eventId?: string): RuntimeValidationReport {
     if (report.memoryId !== record.envelope.memoryId) throw new Error("Validation report memory ID does not match record");
     const status: V2MemoryStatus = report.result === "UNCHANGED" ? "FRESH" : report.result === "CHANGED" || report.result === "MISSING" ? "INVALID" : "UNKNOWN";
+    if (report.result !== "UNCHANGED") this.invalidateRecordReceipts(record);
     const stored = { envelope: this.withValidation(record.envelope, report, status), content: record.content };
     const event = this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`, false);
     this.persistRecordIfCurrent(record, stored, event);
@@ -850,6 +886,126 @@ export class PremiseRuntime<T = unknown> {
       }
     }
     return this.dependentClosure(direct);
+  }
+
+  private validationScope(evidence: EvidenceReference, record: RuntimeRecord<T>): { key: string; scope?: PremiseReceiptSharingScope } {
+    if (this.receiptScope === undefined) {
+      // A validator may depend on record-local policy, authorization or
+      // content. Without an explicit complete scope, sharing across records
+      // is therefore unsafe; keep the legacy API correct by isolating it.
+      this.operation("singleFlightSplits");
+      this.validationInvocation += 1;
+      return { key: `isolated:${record.envelope.memoryId}:${evidence.evidenceId}:${this.validationInvocation}` };
+    }
+    let scope: PremiseReceiptSharingScope | undefined;
+    try {
+      const supplied = this.receiptScope(evidence, record);
+      if (supplied !== undefined) {
+        // Validate the factory contract before interpolating any field. In
+        // particular, `undefined` must not become the literal string
+        // "undefined" and accidentally form a shareable key.
+        premiseReceiptSharingKey(supplied);
+        // Bind dimensions the runtime can observe directly. The factory still
+        // owns authorization, query, policy, change-set and incarnation
+        // semantics, while a stale or copied evidence version cannot be
+        // hidden behind a malformed factory result.
+        const evidenceVersion = evidence.version === undefined ? "none" : canonicalJson(evidence.version);
+        scope = {
+          ...supplied,
+          tenantId: record.envelope.tenantId,
+          resourceId: evidence.sourceUri,
+          validatorId: evidence.validator?.id ?? "",
+          versionToken: `${supplied.versionToken}|runtime-evidence:${evidenceVersion}`,
+          scopes: [...supplied.scopes],
+          causalFrontier: [...supplied.causalFrontier]
+        };
+        return { key: premiseReceiptSharingKey(scope), scope };
+      }
+    } catch {
+      // An incomplete or malformed scope must disable sharing, never broaden
+      // it to a weaker key. The validator remains correct but pays separately.
+    }
+    this.operation("singleFlightSplits");
+    this.validationInvocation += 1;
+    return { key: `isolated:${record.envelope.memoryId}:${evidence.evidenceId}:${this.validationInvocation}` };
+  }
+
+  private lookupReceipt(scope: PremiseReceiptSharingScope | undefined): RuntimeValidationReport | undefined {
+    if (this.receiptCache === undefined || scope === undefined) return undefined;
+    this.operation("receiptLookups");
+    const lookup = this.receiptCache.get(scope, this.now());
+    if (lookup.status === "HIT") {
+      this.operation("receiptHits");
+      return lookup.receipt!.value;
+    }
+    if (lookup.status === "MISS") this.operation("receiptMisses");
+    else this.operation("staleReceiptRejections");
+    return undefined;
+  }
+
+  private storeReceipt(evidence: EvidenceReference, scope: PremiseReceiptSharingScope | undefined, report: RuntimeValidationReport): void {
+    if (this.receiptCache === undefined || scope === undefined || report.result !== "UNCHANGED") return;
+    if (report.status !== "FRESH") return;
+    if (typeof report.checkedAt !== "string" || Number.isNaN(Date.parse(report.checkedAt))) return;
+    const now = this.now();
+    if (Date.parse(report.checkedAt) > Date.parse(now)) return;
+    if (Date.parse(report.checkedAt) < Date.parse(evidence.observedAt)) return;
+    if (report.evidenceId !== undefined && report.evidenceId !== evidence.evidenceId) return;
+    if (report.sourceUri !== undefined && report.sourceUri !== evidence.sourceUri) return;
+    // An UNCHANGED report with a different reported version is not a receipt
+    // for the input scope. Never cache it under the old version token.
+    if (
+      report.version !== undefined
+      && (evidence.version === undefined
+        || report.version.scheme !== evidence.version.scheme
+        || report.version.token !== evidence.version.token)
+    ) return;
+    try {
+      const observedAt = report.checkedAt;
+      const expiresAt = new Date(Date.parse(observedAt) + this.receiptTtlMs).toISOString();
+      this.receiptCache.put({ state: "FRESH", valid: true, scope, observedAt, expiresAt, value: cloneJson(report) });
+    } catch {
+      // Cacheability is an optimization. A malformed optional receipt must
+      // not turn a normal validation result into a runtime success/failure.
+    }
+  }
+
+  private invalidateReceipt(scope: PremiseReceiptSharingScope | undefined): void {
+    if (this.receiptCache === undefined || scope === undefined) return;
+    try {
+      premiseReceiptSharingKey(scope);
+      this.receiptGeneration += 1;
+      this.receiptCache.invalidate(scope);
+    } catch { /* fail closed to a miss */ }
+  }
+
+  private invalidateRecordReceipts(record: RuntimeRecord<T>): void {
+    if (this.receiptCache === undefined || this.receiptScope === undefined) return;
+    for (const evidence of record.envelope.evidence) this.invalidateReceipt(this.validationScope(evidence, record).scope);
+  }
+
+  private validateEvidence(
+    evidence: EvidenceReference,
+    record: RuntimeRecord<T>,
+    validator: RuntimeValidator<T>
+  ): Promise<RuntimeValidationReport> {
+    const validation = this.validationScope(evidence, record);
+    // A completed receipt may shortcut only a record that is still locally
+    // FRESH. External stores can be mutated without notifying this runtime;
+    // stale/unknown/invalid records must pay a new validation even if the
+    // evidence fields happen to be unchanged.
+    const cached = record.envelope.validity.status === "FRESH"
+      ? this.lookupReceipt(validation.scope)
+      : undefined;
+    if (cached !== undefined) return Promise.resolve(cached);
+    const generation = validation.scope === undefined ? undefined : this.receiptGeneration;
+    return this.sharedValidation(validation.key, async () => {
+      const report = await validator(evidence, record);
+      if (validation.scope !== undefined && this.receiptGeneration === generation) {
+        this.storeReceipt(evidence, validation.scope, report);
+      }
+      return report;
+    });
   }
 
   private operation(field: RuntimeCounterField, count = 1): void {

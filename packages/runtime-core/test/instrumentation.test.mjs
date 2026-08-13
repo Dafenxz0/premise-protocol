@@ -22,9 +22,23 @@ const envelope = (memoryId, dependsOn = [], sourceUri = "github://example/repo/m
   signatures: []
 });
 
+const sharingScope = (evidence, record) => ({
+  tenantId: record.envelope.tenantId,
+  resourceId: evidence.sourceUri,
+  incarnationId: `inc:${evidence.evidenceId}`,
+  versionToken: `${evidence.version.scheme}:${evidence.version.token}`,
+  scopes: ["read:source"],
+  queryDigest: "query:instrumentation-test",
+  validatorId: evidence.validator.id,
+  authorizationContextDigest: "auth:test",
+  policyDigest: "policy:instrumentation-test",
+  changeSetDigest: null,
+  causalFrontier: []
+});
+
 test("runtime instrumentation reports physical invalidation work without changing decisions", () => {
   const recorder = new RuntimeInstrumentationRecorder();
-  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder });
+  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder, receiptScope: sharingScope });
   runtime.register({ envelope: envelope("memory:root"), content: { value: "root" } });
   runtime.derive({ envelope: envelope("memory:child", ["memory:root"]), content: { value: "child" } });
 
@@ -44,7 +58,7 @@ test("runtime instrumentation reports physical invalidation work without changin
 
 test("record counters distinguish returned records from a physical getMany call", () => {
   const recorder = new RuntimeInstrumentationRecorder();
-  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder });
+  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder, receiptScope: sharingScope });
   runtime.register({ envelope: envelope("memory:single"), content: {} });
   runtime.check(["memory:single"]);
   const counters = recorder.snapshot();
@@ -54,7 +68,7 @@ test("record counters distinguish returned records from a physical getMany call"
 
 test("instrumentation records single-flight joins for shared evidence", async () => {
   const recorder = new RuntimeInstrumentationRecorder();
-  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder });
+  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder, receiptScope: sharingScope });
   const sharedEvidence = {
     ...envelope("memory:a").evidence[0],
     evidenceId: "evidence:shared"
@@ -147,7 +161,7 @@ test("runtime falls back to the complete closure when incremental frontier is in
 
 test("single-flight coalesces concurrent revalidation calls across runtime invocations", async () => {
   const recorder = new RuntimeInstrumentationRecorder();
-  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder });
+  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder, receiptScope: sharingScope });
   const sharedEvidence = { ...envelope("memory:shared").evidence[0], evidenceId: "evidence:cross-call" };
   runtime.register({ envelope: { ...envelope("memory:cross-a"), evidence: [sharedEvidence] }, content: {} });
   runtime.register({ envelope: { ...envelope("memory:cross-b"), evidence: [sharedEvidence] }, content: {} });
@@ -173,7 +187,7 @@ test("single-flight coalesces concurrent revalidation calls across runtime invoc
 });
 
 test("single-flight rebinds a shared observation to each memory record", async () => {
-  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at });
+  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, receiptScope: sharingScope });
   const sharedEvidence = { ...envelope("memory:shared").evidence[0], evidenceId: "evidence:rebind" };
   runtime.register({ envelope: { ...envelope("memory:rebind-a"), evidence: [sharedEvidence] }, content: {} });
   runtime.register({ envelope: { ...envelope("memory:rebind-b"), evidence: [sharedEvidence] }, content: {} });

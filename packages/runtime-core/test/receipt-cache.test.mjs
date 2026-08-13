@@ -26,6 +26,18 @@ test("receipt cache binds all sharing scope fields and rejects stale entries", (
   assert.equal(cache.stats().staleRejections, 1);
 });
 
+test("receipt cache snapshots mutable scope arrays and values", () => {
+  const cache = new RuntimeReceiptCache({ maxEntries: 2 });
+  const input = scope({ scopes: ["/head"], causalFrontier: ["event:1"] });
+  cache.put({ scope: input, state: "FRESH", valid: true, observedAt: "2026-08-13T00:00:00Z", expiresAt: "2026-08-13T00:01:00Z", value: { ok: true } });
+  input.scopes.push("/admin");
+  input.causalFrontier.push("event:2");
+  assert.equal(cache.get(scope(), "2026-08-13T00:00:30Z").status, "HIT");
+  const lookup = cache.get(scope(), "2026-08-13T00:00:30Z");
+  lookup.receipt.scope.scopes.push("/mutated-by-caller");
+  assert.equal(cache.get(scope(), "2026-08-13T00:00:30Z").status, "HIT");
+});
+
 test("negative cache never presents a negative fact as fresh evidence", () => {
   const cache = new RuntimeNegativeCache();
   cache.put(scope(), "EVENT_GAP", "2026-08-13T00:01:00Z");
