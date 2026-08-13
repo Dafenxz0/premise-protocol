@@ -12,8 +12,18 @@ import {
   type V2MemoryStatus,
   type VersionReference
 } from "@premise/protocol-types";
+import {
+  recordRuntimeOperation,
+  type RuntimeCounterField,
+  type RuntimeDecisionEvent,
+  type RuntimeInstrumentation
+} from "./instrumentation.js";
+import { IncrementalFrontierEngine, type FrontierResult } from "./frontier-engine.js";
 export * from "./premise-policy.js";
 export * from "./premise-guard.js";
+export * from "./instrumentation.js";
+export * from "./frontier-engine.js";
+export * from "./receipt-cache.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
@@ -80,6 +90,10 @@ export interface RuntimeOptions<T> {
   readonly tenantId?: string;
   readonly principal?: RuntimePrincipal;
   readonly now?: () => string;
+  /** Optional physical-operation observer. It never participates in safety decisions. */
+  readonly instrumentation?: RuntimeInstrumentation;
+  /** Enable the incremental frontier in shadow mode; public decisions remain authoritative here. */
+  readonly incrementalFrontier?: boolean;
   /**
    * Optional trust configuration for inbound v2 envelopes. When supplied,
    * every register/derive/replace/restore input must carry a valid Ed25519
@@ -309,6 +323,9 @@ export class PremiseRuntime<T = unknown> {
   private readonly now: () => string;
   private readonly signatureVerification: V2SignatureVerificationOptions | undefined;
   private readonly requireSignedEnvelopes: boolean;
+  private readonly instrumentation: RuntimeInstrumentation | undefined;
+  private frontierEngine: IncrementalFrontierEngine | undefined;
+  private readonly validationFlights = new Map<string, Promise<RuntimeValidationReport>>();
   private sequence = 0;
   /**
    * Reverse indexes let source invalidation avoid scanning every record and
@@ -328,6 +345,8 @@ export class PremiseRuntime<T = unknown> {
     this.now = options.now ?? (() => new Date().toISOString());
     this.signatureVerification = options.signatureVerification;
     this.requireSignedEnvelopes = options.requireSignedEnvelopes ?? options.signatureVerification !== undefined;
+    this.instrumentation = options.instrumentation;
+    this.frontierEngine = options.incrementalFrontier === true ? new IncrementalFrontierEngine() : undefined;
     if (this.requireSignedEnvelopes && this.signatureVerification === undefined) {
       throw new TypeError("requireSignedEnvelopes requires signatureVerification with an external key source");
     }
@@ -350,6 +369,11 @@ export class PremiseRuntime<T = unknown> {
     if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     this.persistRecordAndEvent(stored, event);
     this.indexRecord(stored);
+    try {
+      this.frontierEngine?.setDependencies(stored.envelope.memoryId, stored.envelope.dependsOn);
+    } catch {
+      this.frontierEngine?.markUnknown();
+    }
     this.syncStoreRevision();
   }
 
@@ -374,6 +398,11 @@ export class PremiseRuntime<T = unknown> {
     if (this.store.get(envelope.memoryId) !== undefined) throw new Error(`Memory already registered: ${envelope.memoryId}`);
     this.persistRecordAndEvent(stored, event);
     this.indexRecord(stored);
+    try {
+      this.frontierEngine?.setDependencies(stored.envelope.memoryId, stored.envelope.dependsOn);
+    } catch {
+      this.frontierEngine?.markUnknown();
+    }
     this.syncStoreRevision();
   }
 
@@ -391,11 +420,17 @@ export class PremiseRuntime<T = unknown> {
     this.persistRecordAndEvent(stored, event);
     this.deindexRecord(current);
     this.indexRecord(stored);
+    try {
+      this.frontierEngine?.setDependencies(stored.envelope.memoryId, stored.envelope.dependsOn);
+    } catch {
+      this.frontierEngine?.markUnknown();
+    }
     this.syncStoreRevision();
   }
 
   get(memoryId: string, principal = this.principal): RuntimeRecord<T> | undefined {
     const record = this.store.get(memoryId);
+    if (record !== undefined) this.operation("recordReads");
     return record !== undefined && record.envelope.tenantId === principal.tenantId ? record : undefined;
   }
 
@@ -403,12 +438,30 @@ export class PremiseRuntime<T = unknown> {
     return this.store.list().filter((record) => record.envelope.tenantId === principal.tenantId);
   }
 
+  /**
+   * Expose the optional incremental frontier for physical adapters and the
+   * Efficiency Lab. It is never consulted by the legacy status decision path
+   * unless the caller explicitly opts into `incrementalFrontier`.
+   */
+  frontier(memoryId: string): FrontierResult {
+    if (this.frontierEngine === undefined) throw new Error("Incremental frontier is disabled");
+    const result = this.frontierEngine.frontier(memoryId);
+    this.operation(result.cacheHit ? "cacheHits" : "cacheMisses");
+    if (!result.cacheHit) this.operation("frontierRecomputes");
+    this.operation("frontierNodesVisited", result.nodesVisited);
+    this.operation("edgesTraversed", result.edgesTraversed);
+    return result;
+  }
+
   check(memoryIds: readonly string[], principal = this.principal): readonly RuntimeCheckItem[] {
     return this.checkMany(memoryIds, principal);
   }
 
   checkMany(memoryIds: readonly string[], principal = this.principal): readonly RuntimeCheckItem[] {
+    const ids = unique(memoryIds);
     const records = readMany(this.store, memoryIds);
+    recordRuntimeOperation(this.instrumentation, "recordBatchReads", typeof this.store.getMany === "function" && ids.length > 0 ? 1 : 0);
+    recordRuntimeOperation(this.instrumentation, "recordReads", records.size);
     const checked = new Map<string, RuntimeCheckItem>();
     for (const memoryId of memoryIds) {
       if (checked.has(memoryId)) continue;
@@ -419,12 +472,16 @@ export class PremiseRuntime<T = unknown> {
         : accessible
           ? { memoryId, status: record.envelope.validity.status, decision: usability(record.envelope.validity.status) }
           : { memoryId, status: "INVALID", decision: "REJECT", reason: "missing or inaccessible memory" });
+      this.emitDecision(checked.get(memoryId)!);
     }
     return memoryIds.map((memoryId) => checked.get(memoryId)!);
   }
 
   retrieve(memoryIds: readonly string[], principal = this.principal): readonly RuntimeRetrieval<T>[] {
+    const ids = unique(memoryIds);
     const records = readMany(this.store, memoryIds);
+    recordRuntimeOperation(this.instrumentation, "recordBatchReads", typeof this.store.getMany === "function" && ids.length > 0 ? 1 : 0);
+    recordRuntimeOperation(this.instrumentation, "recordReads", records.size);
     const result: RuntimeRetrieval<T>[] = [];
     for (const memoryId of unique(memoryIds)) {
       const record = records.get(memoryId);
@@ -439,13 +496,20 @@ export class PremiseRuntime<T = unknown> {
 
   async revalidate(memoryId: string, validator: RuntimeValidator<T>, eventId?: string): Promise<RuntimeValidationReport> {
     const record = this.require(memoryId);
-    const storeRevision = readStoreRevision(this.store);
+    const storeRevision = typeof this.store.putAndAppendIfUnchanged === "function" ? undefined : readStoreRevision(this.store);
     if (record.envelope.evidence.length === 0) {
       this.assertRecordUnchanged(record, storeRevision);
       return this.applyValidation(record, { memoryId, result: "UNKNOWN", status: "UNKNOWN", checkedAt: this.now(), reason: "memory has no evidence" }, eventId);
     }
     const reports: RuntimeValidationReport[] = [];
-    for (const evidence of record.envelope.evidence) reports.push(await validator(evidence, record));
+    for (const evidence of record.envelope.evidence) {
+      const key = `${evidence.evidenceId}:${canonicalJson(evidence)}`;
+      const shared = await this.sharedValidation(key, () => validator(evidence, record));
+      // A shared source observation is reusable; the runtime-local memory ID
+      // is not. Rebind it after joining a flight so one validator response
+      // cannot be applied to a different record.
+      reports.push({ ...shared, memoryId: record.envelope.memoryId });
+    }
     const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
     const selected = priority.map((result) => reports.find((report) => report.result === result)).find((report): report is RuntimeValidationReport => report !== undefined) ?? reports[0]!;
     this.assertRecordUnchanged(record, storeRevision);
@@ -456,6 +520,9 @@ export class PremiseRuntime<T = unknown> {
     const ids: string[] = [];
     const records = new Map<string, RuntimeRecord<T>>();
     const loaded = readMany(this.store, memoryIds);
+    const requestedIds = unique(memoryIds);
+    recordRuntimeOperation(this.instrumentation, "recordBatchReads", typeof this.store.getMany === "function" && requestedIds.length > 0 ? 1 : 0);
+    recordRuntimeOperation(this.instrumentation, "recordReads", loaded.size);
     for (const memoryId of memoryIds) {
       if (records.has(memoryId)) continue;
       ids.push(memoryId);
@@ -463,8 +530,7 @@ export class PremiseRuntime<T = unknown> {
       if (record === undefined || record.envelope.tenantId !== this.principal.tenantId) throw new Error(`Memory not found or inaccessible: ${memoryId}`);
       records.set(memoryId, record);
     }
-    const storeRevision = readStoreRevision(this.store);
-    const grouped = new Map<string, Promise<RuntimeValidationReport>>();
+    const storeRevision = typeof this.store.putAndAppendIfUnchanged === "function" ? undefined : readStoreRevision(this.store);
     const priority: readonly RuntimeValidationReport["result"][] = ["MISSING", "CHANGED", "UNKNOWN", "UNCHANGED"];
 
     const pending = ids.map((memoryId) => {
@@ -478,13 +544,7 @@ export class PremiseRuntime<T = unknown> {
       }
       const validations = evidence.map((item) => {
         const key = `${item.evidenceId}:${canonicalJson(item)}`;
-        // Sharing is conservative: differing evidence payloads with the same key fall back to separate validation.
-        let validation = grouped.get(key);
-        if (validation === undefined) {
-          validation = Promise.resolve().then(() => validator(item, record));
-          grouped.set(key, validation);
-        }
-        return validation.then((report) => ({ ...report, memoryId }));
+        return this.sharedValidation(key, () => validator(item, record)).then((report) => ({ ...report, memoryId }));
       });
       const reportsPromise = validations.length === 1 ? validations[0]!.then((report) => [report]) : Promise.all(validations);
       return reportsPromise.then((reports): { memoryId: string; report: RuntimeValidationReport } => ({
@@ -519,11 +579,23 @@ export class PremiseRuntime<T = unknown> {
     if (versions.length === 0 || versions.some((version) => version !== request.expectedVersion)) {
       return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "VERSION_MISMATCH" };
     }
-    const check = this.check([memoryId])[0]!;
+    // `record` is the same snapshot already loaded above. Re-reading it here
+    // adds physical work without adding a safety guarantee; the connector's
+    // conditional commit remains the authoritative race check.
+    const check: RuntimeCheckItem = {
+      memoryId,
+      status: record.envelope.validity.status,
+      decision: usability(record.envelope.validity.status)
+    };
+    this.emitDecision(check);
     if (check.decision === "REJECT") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REJECT" };
     if (check.decision === "REVALIDATE") return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "REVALIDATE" };
     if (request.commit === undefined) return { accepted: false, memoryId, expectedVersion: request.expectedVersion, reason: "CAS_REQUIRED" };
+    this.operation("writeIntents");
+    this.operation("CASAttempts");
     const committed = await request.commit(record, request.expectedVersion);
+    if (committed.accepted) this.operation("CASSuccesses");
+    else if (committed.reason === "VERSION_MISMATCH") this.operation("CASConflicts");
     return {
       accepted: committed.accepted,
       memoryId,
@@ -547,11 +619,14 @@ export class PremiseRuntime<T = unknown> {
    */
   signalSourcesChanged(changes: readonly RuntimeSourceChange[]): readonly string[] {
     if (changes.length === 0) return [];
+    this.operation("batchItems", changes.length);
+    if (changes.length > 1) this.operation("batchCount");
     for (const change of changes) {
       if (change.sourceUri.length === 0) throw new TypeError("sourceUri must be non-empty");
     }
     const uniqueChanges = [...new Map(changes.map((change) => [canonicalJson(change), change])).values()];
     if (uniqueChanges.length === 1) return this.signalSingleSourceChanged(uniqueChanges[0]!);
+    this.operation("eventContinuityChecks", uniqueChanges.length);
     this.refreshIndexesIfStoreChanged();
     const sourceEvents = uniqueChanges.map((change) => this.emit(
       "SourceChanged",
@@ -559,14 +634,19 @@ export class PremiseRuntime<T = unknown> {
       sourceChangePayload(change),
       change.eventId ?? `source:${change.sourceUri}:${change.version.scheme}:${change.version.token}`
     ));
-    const direct = this.orderedIds([...new Set(uniqueChanges.flatMap((change) => [...(this.sourceMemoryIds.get(change.sourceUri) ?? [])]))]);
-    const affected = this.dependentClosure(direct);
+    const direct = this.orderedIds([...new Set(uniqueChanges.flatMap((change) => {
+      this.operation("reverseIndexLookups");
+      return [...(this.sourceMemoryIds.get(change.sourceUri) ?? [])];
+    }))]);
+    const affected = this.affectedBySourceChange(direct);
     const sourcePayload = uniqueChanges.map(sourceChangePayload);
     const staleEventKey = `${sourceEvents.map((event) => event.eventId).join(":")}:stale`;
     for (const memoryId of affected) {
       const record = this.store.get(memoryId);
+      if (record !== undefined) this.operation("recordReads");
       if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
       const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
+      this.operation("invalidationPropagations");
       const staleEvent = this.emit("MemoryStaled", memoryId, { changes: sourcePayload }, `${staleEventKey}:${memoryId}`, false);
       this.persistRecordAndEvent(stored, staleEvent);
     }
@@ -576,18 +656,22 @@ export class PremiseRuntime<T = unknown> {
 
   private signalSingleSourceChanged(change: RuntimeSourceChange): readonly string[] {
     this.refreshIndexesIfStoreChanged();
+    this.operation("eventContinuityChecks");
     const sourceEvent = this.emit(
       "SourceChanged",
       undefined,
       sourceChangePayload(change),
       change.eventId ?? `source:${change.sourceUri}:${change.version.scheme}:${change.version.token}`
     );
+    this.operation("reverseIndexLookups");
     const direct = this.orderedIds(this.sourceMemoryIds.get(change.sourceUri) ?? []);
-    const affected = this.dependentClosure(direct);
+    const affected = this.affectedBySourceChange(direct);
     for (const memoryId of affected) {
       const record = this.store.get(memoryId);
+      if (record !== undefined) this.operation("recordReads");
       if (record === undefined || record.envelope.tenantId !== this.tenantId || record.envelope.validity.status === "INVALID" || record.envelope.validity.status === "STALE") continue;
       const stored = { envelope: this.withStatus(record.envelope, "STALE"), content: record.content };
+      this.operation("invalidationPropagations");
       const staleEvent = this.emit("MemoryStaled", memoryId, sourceChangePayload(change), `${sourceEvent.eventId}:stale:${memoryId}`, false);
       this.persistRecordAndEvent(stored, staleEvent);
     }
@@ -632,11 +716,43 @@ export class PremiseRuntime<T = unknown> {
     const stored = { envelope: this.withValidation(record.envelope, report, status), content: record.content };
     const event = this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`, false);
     this.persistRecordIfCurrent(record, stored, event);
+    if (this.frontierEngine !== undefined) {
+      try {
+        const impact = report.result === "UNCHANGED"
+          ? this.frontierEngine.resolve(record.envelope.memoryId)
+          : report.result === "CHANGED" || report.result === "MISSING"
+            ? this.frontierEngine.markDirty([record.envelope.memoryId], "INVALID")
+            : undefined;
+        if (impact !== undefined) {
+          this.operation("frontierIncrementalUpdates");
+          this.operation("nodesVisited", impact.nodesVisited);
+          this.operation("edgesTraversed", impact.edgesTraversed);
+          this.operation("dirtyPropagations", impact.dirtyPropagations);
+          this.operation("branchesSkippedAlreadyDirty", impact.branchesSkippedAlreadyDirty);
+          this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
+          this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
+        } else if (report.result === "UNKNOWN") {
+          this.frontierEngine.markUnknown();
+        }
+      } catch {
+        this.frontierEngine.markUnknown();
+      }
+    }
     this.syncStoreRevision();
+    this.emitDecision({
+      memoryId: record.envelope.memoryId,
+      status,
+      decision: usability(status),
+      ...(report.reason === undefined ? {} : { reason: report.reason })
+    });
     return { ...report, status };
   }
 
   private assertRecordUnchanged(record: RuntimeRecord<T>, expectedRevision?: number): void {
+    // A store with per-record atomic put-and-append performs the definitive
+    // compare-and-swap in persistRecordIfCurrent. Re-reading here would add a
+    // physical read and still leave a race between this check and the commit.
+    if (typeof this.store.putAndAppendIfUnchanged === "function") return;
     if (expectedRevision !== undefined) {
       if (readStoreRevision(this.store) !== expectedRevision) {
         throw new Error(`Concurrent mutation detected during revalidation: ${record.envelope.memoryId}`);
@@ -644,6 +760,7 @@ export class PremiseRuntime<T = unknown> {
       return;
     }
     const current = this.store.get(record.envelope.memoryId);
+    if (current !== undefined) this.operation("recordReads");
     if (current === undefined || canonicalJson(current) !== canonicalJson(record)) {
       throw new Error(`Concurrent mutation detected during revalidation: ${record.envelope.memoryId}`);
     }
@@ -675,14 +792,77 @@ export class PremiseRuntime<T = unknown> {
     let cursor = 0;
     while (cursor < queue.length) {
       const memoryId = queue[cursor++]!;
+      this.operation("nodesVisited");
+      this.operation("indexLookups");
       result.push(memoryId);
+      this.operation("reverseIndexLookups");
       for (const dependentId of this.orderedIds(this.dependentsByDependency.get(memoryId) ?? [])) {
-        if (seen.has(dependentId)) continue;
+        this.operation("edgesTraversed");
+        if (seen.has(dependentId)) {
+          continue;
+        }
         seen.add(dependentId);
         queue.push(dependentId);
+        this.operation("dirtyPropagations");
       }
     }
     return result;
+  }
+
+  private affectedBySourceChange(direct: readonly string[]): readonly string[] {
+    if (this.frontierEngine !== undefined) {
+      try {
+        const impact = this.frontierEngine.markDirty(direct);
+        this.operation("frontierIncrementalUpdates");
+        this.operation("nodesVisited", impact.nodesVisited);
+        this.operation("edgesTraversed", impact.edgesTraversed);
+        this.operation("indexLookups", impact.nodesVisited);
+        this.operation("reverseIndexLookups", impact.nodesVisited);
+        this.operation("branchesSkippedAlreadyDirty", impact.branchesSkippedAlreadyDirty);
+        this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
+        this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
+        this.operation("dirtyPropagations", impact.dirtyPropagations);
+        return this.orderedIds(impact.affected);
+      } catch {
+        // A missing/corrupt incremental index must fail closed to the
+        // authoritative traversal, never silently under-invalidate.
+        this.frontierEngine.markUnknown();
+      }
+    }
+    return this.dependentClosure(direct);
+  }
+
+  private operation(field: RuntimeCounterField, count = 1): void {
+    recordRuntimeOperation(this.instrumentation, field, count);
+  }
+
+  private sharedValidation(key: string, task: () => Promise<RuntimeValidationReport> | RuntimeValidationReport): Promise<RuntimeValidationReport> {
+    const current = this.validationFlights.get(key);
+    if (current !== undefined) {
+      this.operation("singleFlightJoins");
+      return current;
+    }
+    this.operation("singleFlightLeaders");
+    const result = Promise.resolve().then(task);
+    this.validationFlights.set(key, result);
+    const cleanup = (): void => {
+      if (this.validationFlights.get(key) === result) this.validationFlights.delete(key);
+    };
+    void result.then(cleanup, cleanup);
+    return result;
+  }
+
+  private emitDecision(item: RuntimeCheckItem): void {
+    const event: RuntimeDecisionEvent = {
+      memoryId: item.memoryId,
+      decision: item.decision,
+      ...(item.reason === undefined ? {} : { reason: item.reason })
+    };
+    try {
+      this.instrumentation?.onDecision?.(event);
+    } catch {
+      // An observer cannot affect the runtime decision.
+    }
   }
 
   private rebuildIndexes(): void {
@@ -690,7 +870,22 @@ export class PremiseRuntime<T = unknown> {
     this.dependentsByDependency.clear();
     this.recordOrder.clear();
     this.nextRecordOrder = 0;
-    for (const record of this.store.list()) this.indexRecord(record);
+    const records = this.store.list();
+    if (this.frontierEngine !== undefined) {
+      try {
+        const tenantRecords = records.filter((record) => record.envelope.tenantId === this.tenantId);
+        this.frontierEngine = new IncrementalFrontierEngine(tenantRecords
+          .map((record) => ({ id: record.envelope.memoryId, dependsOn: record.envelope.dependsOn })));
+        const knownIds = new Set(tenantRecords.map((record) => record.envelope.memoryId));
+        if (tenantRecords.some((record) => record.envelope.dependsOn.some((dependencyId) => !knownIds.has(dependencyId)))) {
+          this.frontierEngine.markUnknown();
+        }
+      } catch {
+        this.frontierEngine = new IncrementalFrontierEngine();
+        this.frontierEngine.markUnknown();
+      }
+    }
+    for (const record of records) this.indexRecord(record);
     this.indexedStoreRevision = readStoreRevision(this.store);
   }
 

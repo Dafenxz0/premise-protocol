@@ -1,0 +1,18 @@
+{
+  "format": "premise-efficiency-lab/1",
+  "protocolSemantics": "premise/1.1",
+  "runtimeCandidate": "@premise/runtime-core",
+  "historicalModel": "premise-efficiency-lab/0",
+  "defaultSeed": 20260813,
+  "partitions": ["development", "public-adversarial", "validation", "sealed-holdout"],
+  "topologies": ["chain", "star", "diamond", "deep", "wide", "mesh"],
+  "requiredNodeCounts": [100, 1000, 10000],
+  "diagnosticNodeCounts": [100000, 1000000],
+  "consumerCounts": [1, 10, 100, 1000],
+  "horizonSteps": [1, 10, 100, 1000],
+  "unknownPolicy": "FAIL_CLOSED",
+  "oracleModes": ["EXACT", "CERTIFIED_LOWER_BOUND", "UNKNOWN"],
+  "safetyGatesFile": "SAFETY-GATES.md",
+  "instrumentationSchema": "RUNTIME-INSTRUMENTATION-SCHEMA.md",
+  "artifactsRoot": ".tmp/premise-efficiency-lab/v1"
+}
