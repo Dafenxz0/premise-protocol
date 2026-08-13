@@ -192,7 +192,7 @@ under `.tmp/`.
 
 The current execution status is intentionally conservative: root-explosion
 smoke is `PASS` (16/16 comparable rows); medium is `INCONCLUSIVE` (14/24
-comparable rows, 94.8% reduction in that subset); and full is pending a clean,
-provenance-verified rerun after the final Candidate C accounting changes. The
-medium/full comparable-subset reductions are descriptive only and do not
+comparable rows, 94.8% reduction in that subset); and full is `INCONCLUSIVE`
+(17/48 comparable rows, 94.8% reduction in that subset). The medium/full
+comparable-subset reductions are descriptive only and do not
 replace the champion or support a production-scale claim.
