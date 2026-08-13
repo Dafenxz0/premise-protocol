@@ -371,6 +371,7 @@ export class PremiseRuntime<T = unknown> {
     this.indexRecord(stored);
     try {
       this.frontierEngine?.setDependencies(stored.envelope.memoryId, stored.envelope.dependsOn);
+      this.frontierEngine?.replaceStatus(stored.envelope.memoryId, stored.envelope.validity.status);
     } catch {
       this.frontierEngine?.markUnknown();
     }
@@ -400,6 +401,7 @@ export class PremiseRuntime<T = unknown> {
     this.indexRecord(stored);
     try {
       this.frontierEngine?.setDependencies(stored.envelope.memoryId, stored.envelope.dependsOn);
+      this.frontierEngine?.replaceStatus(stored.envelope.memoryId, stored.envelope.validity.status);
     } catch {
       this.frontierEngine?.markUnknown();
     }
@@ -422,6 +424,16 @@ export class PremiseRuntime<T = unknown> {
     this.indexRecord(stored);
     try {
       this.frontierEngine?.setDependencies(stored.envelope.memoryId, stored.envelope.dependsOn);
+      const impact = this.frontierEngine?.replaceStatus(stored.envelope.memoryId, stored.envelope.validity.status);
+      if (impact !== undefined) {
+        this.operation("frontierIncrementalUpdates");
+        this.operation("nodesVisited", impact.nodesVisited);
+        this.operation("edgesTraversed", impact.edgesTraversed);
+        this.operation("dirtyPropagations", impact.dirtyPropagations);
+        this.operation("branchesSkippedAlreadyDirty", impact.branchesSkippedAlreadyDirty);
+        this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
+        this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
+      }
     } catch {
       this.frontierEngine?.markUnknown();
     }
@@ -877,6 +889,7 @@ export class PremiseRuntime<T = unknown> {
         this.frontierEngine = new IncrementalFrontierEngine(tenantRecords
           .map((record) => ({ id: record.envelope.memoryId, dependsOn: record.envelope.dependsOn })));
         const knownIds = new Set(tenantRecords.map((record) => record.envelope.memoryId));
+        this.frontierEngine.restoreStates(tenantRecords.map((record) => ({ id: record.envelope.memoryId, status: record.envelope.validity.status })));
         if (tenantRecords.some((record) => record.envelope.dependsOn.some((dependencyId) => !knownIds.has(dependencyId)))) {
           this.frontierEngine.markUnknown();
         }

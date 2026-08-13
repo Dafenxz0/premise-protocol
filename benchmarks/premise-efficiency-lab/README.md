@@ -74,6 +74,18 @@ The campaign writes only under `.tmp/premise-efficiency-lab/v1/` when an
 output path is supplied or the CLI is used. Its blind report is not a
 holdout result until physical process isolation is certified.
 
+PR #23 is the first optimization cycle after the immutable v1 baseline. It
+only measures incremental frontier computation, dirty propagation, targeted
+cache preservation and antichain maintenance. Run its differential smoke with:
+
+```powershell
+pnpm benchmark:efficiency:v1:frontier:check
+```
+
+It compares the real incremental engine with a full independent traversal,
+reports change locality, query work, maintenance work and cache preservation,
+and labels receipt/event/compaction campaigns as out of scope for this cycle.
+
 ## Scope
 
 v0 evaluates deterministic worlds with chain, star, diamond, deep DAG, wide
@@ -124,3 +136,22 @@ real connector, an LLM behaviour change, a provider bill, or a commercial cost
 reduction. Those claims stay unavailable until the same paired tasks pass an
 external, blind, holdout campaign with measured tokens, cost and wall-clock
 latency.
+## Frontier optimization campaign (PR #23)
+
+The immutable v1 baseline is `c86a6ea`. The frontier campaign compares the
+current incremental engine with that Champion and an independent full
+traversal reference across chain, star, diamond, nested-diamond, wide and
+meshed graphs. It measures physical graph work (`nodesVisited +
+edgesTraversed`) and checks exact frontier/status equivalence.
+
+```powershell
+pnpm benchmark:efficiency:v1:frontier:check
+node benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=medium
+node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/medium.json --output=.tmp/premise-efficiency-lab/v1/frontier/medium
+```
+
+This cycle is deliberately limited to dirty propagation, frontier lookup,
+cache preservation, antichain maintenance and deep-graph bootstrap. Receipts,
+event continuity, single-flight and compaction are separate cycles. Generated
+reports stay under `.tmp/` and do not support claims about tokens, dollars,
+external reads or commercial savings.

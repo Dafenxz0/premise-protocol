@@ -81,7 +81,26 @@ export class IncrementalFrontierEngine {
   private lastTraversal = { nodesVisited: 0, edgesTraversed: 0, branchesSkippedAlreadyDirty: 0, dirtyPropagations: 0 };
 
   constructor(nodes: readonly FrontierNode[] = []) {
-    for (const node of nodes) this.setDependencies(node.id, node.dependsOn ?? []);
+    // Bulk-build the immutable initial graph. Calling setDependencies for
+    // every node would clone the whole index and rebuild all dirty state on
+    // each insertion, turning construction of a deep graph into O(V²).
+    for (const node of nodes) {
+      assertId(node.id);
+      const dependencies = unique(node.dependsOn ?? []);
+      for (const dependencyId of dependencies) {
+        assertId(dependencyId, "dependency id");
+        if (dependencyId === node.id) throw new Error(`Dependency cycle at ${node.id}`);
+        if (!this.dependencies.has(dependencyId)) this.dependencies.set(dependencyId, new Set());
+      }
+      this.dependencies.set(node.id, new Set(dependencies));
+    }
+    for (const id of this.dependencies.keys()) this.dependents.set(id, new Set());
+    for (const [id, dependencies] of this.dependencies) {
+      for (const dependencyId of dependencies) this.dependents.get(dependencyId)!.add(id);
+    }
+    this.assertAcyclicGraph();
+    this.graphRevision = nodes.length;
+    this.generation = nodes.length;
     this.rebuildDirtyState();
   }
 
@@ -154,6 +173,51 @@ export class IncrementalFrontierEngine {
       generation: this.generation,
       direct: Object.freeze(direct),
       ...impact,
+      frontierCacheInvalidations: cache.invalidations,
+      frontierCacheEntriesPreserved: cache.preserved
+    });
+  }
+
+  /**
+   * Restore direct validity states from a persisted store in one propagation
+   * pass. This keeps reconstruction work accounted for without replaying one
+   * complete graph walk per record.
+   */
+  restoreStates(states: readonly Readonly<{ id: string; status: FrontierStatus }>[]): void {
+    const next = new Map<string, FrontierStatus>();
+    for (const { id, status } of states) {
+      assertId(id);
+      if (!this.dependencies.has(id)) throw new Error(`Unknown node: ${id}`);
+      if (status !== "FRESH") next.set(id, status);
+    }
+    this.directDirty.clear();
+    for (const [id, status] of next) this.directDirty.set(id, status);
+    this.generation += 1;
+    this.rebuildDirtyState();
+    this.invalidateAllCaches();
+  }
+
+  /**
+   * Replace a node's persisted validity state, allowing a fresh replacement
+   * to remove an older INVALID/STALE root without relaxing other causes.
+   */
+  replaceStatus(nodeId: string, status: FrontierStatus): FrontierImpact {
+    assertId(nodeId);
+    if (!this.dependencies.has(nodeId)) throw new Error(`Unknown node: ${nodeId}`);
+    const affected = this.descendantClosure(nodeId);
+    this.directDirty.delete(nodeId);
+    if (status !== "FRESH") this.directDirty.set(nodeId, status);
+    this.generation += 1;
+    this.rebuildDirtyState();
+    const cache = this.invalidateTargets(affected);
+    return Object.freeze({
+      generation: this.generation,
+      affected: Object.freeze([...affected].sort()),
+      direct: Object.freeze([nodeId]),
+      nodesVisited: this.lastTraversal.nodesVisited,
+      edgesTraversed: this.lastTraversal.edgesTraversed,
+      branchesSkippedAlreadyDirty: this.lastTraversal.branchesSkippedAlreadyDirty,
+      dirtyPropagations: this.lastTraversal.dirtyPropagations,
       frontierCacheInvalidations: cache.invalidations,
       frontierCacheEntriesPreserved: cache.preserved
     });
@@ -324,7 +388,6 @@ export class IncrementalFrontierEngine {
         queue.push([dependent, this.activeDirtyRoots.get(dependent)!]);
       }
     }
-    for (const roots of this.dirtyNodesByRoot.values()) for (const id of roots) affected.add(id);
     this.lastTraversal = { nodesVisited, edgesTraversed, branchesSkippedAlreadyDirty, dirtyPropagations };
     return Object.freeze({
       affected: Object.freeze([...affected].sort()),
@@ -449,14 +512,63 @@ export class IncrementalFrontierEngine {
   private assertAcyclic(start: string): void {
     const visiting = new Set<string>();
     const visited = new Set<string>();
-    const visit = (id: string): void => {
-      if (visiting.has(id)) throw new Error(`Dependency cycle at ${id}`);
-      if (visited.has(id)) return;
-      visiting.add(id);
-      for (const dependencyId of this.dependencies.get(id) ?? []) visit(dependencyId);
-      visiting.delete(id);
-      visited.add(id);
-    };
-    visit(start);
+    const stack: Array<{ id: string; exit: boolean }> = [{ id: start, exit: false }];
+    while (stack.length > 0) {
+      const frame = stack.pop()!;
+      if (frame.exit) {
+        visiting.delete(frame.id);
+        visited.add(frame.id);
+        continue;
+      }
+      if (visited.has(frame.id)) continue;
+      if (visiting.has(frame.id)) throw new Error(`Dependency cycle at ${frame.id}`);
+      visiting.add(frame.id);
+      stack.push({ id: frame.id, exit: true });
+      const dependencies = [...(this.dependencies.get(frame.id) ?? [])].reverse();
+      for (const dependencyId of dependencies) {
+        if (visiting.has(dependencyId)) throw new Error(`Dependency cycle at ${dependencyId}`);
+        if (!visited.has(dependencyId)) stack.push({ id: dependencyId, exit: false });
+      }
+    }
+  }
+
+  private descendantClosure(start: string): Set<string> {
+    const affected = new Set([start]);
+    const queue = [start];
+    for (let index = 0; index < queue.length; index += 1) {
+      for (const dependent of this.dependents.get(queue[index]!) ?? []) {
+        if (affected.has(dependent)) continue;
+        affected.add(dependent);
+        queue.push(dependent);
+      }
+    }
+    return affected;
+  }
+
+  private assertAcyclicGraph(): void {
+    const state = new Map<string, 0 | 1 | 2>();
+    for (const start of this.dependencies.keys()) {
+      if (state.get(start) === 2) continue;
+      state.set(start, 1);
+      const stack: Array<{ id: string; dependencies: string[]; index: number }> = [{
+        id: start,
+        dependencies: [...(this.dependencies.get(start) ?? [])],
+        index: 0
+      }];
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1]!;
+        if (frame.index >= frame.dependencies.length) {
+          state.set(frame.id, 2);
+          stack.pop();
+          continue;
+        }
+        const dependencyId = frame.dependencies[frame.index++]!;
+        const dependencyState = state.get(dependencyId) ?? 0;
+        if (dependencyState === 1) throw new Error(`Dependency cycle at ${dependencyId}`);
+        if (dependencyState === 2) continue;
+        state.set(dependencyId, 1);
+        stack.push({ id: dependencyId, dependencies: [...(this.dependencies.get(dependencyId) ?? [])], index: 0 });
+      }
+    }
   }
 }
