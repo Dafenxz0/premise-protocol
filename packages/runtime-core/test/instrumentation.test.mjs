@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PremiseRuntime, RuntimeInstrumentationRecorder } from "../dist/index.js";
+import { InMemoryRuntimeStore, PremiseRuntime, RuntimeInstrumentationRecorder } from "../dist/index.js";
 
 const at = "2026-08-13T10:00:00Z";
-const envelope = (memoryId, dependsOn = [], sourceUri = "github://example/repo/main") => ({
+const envelope = (memoryId, dependsOn = [], sourceUri = "github://example/repo/main", status = "FRESH") => ({
   specVersion: "premise/2",
   tenantId: "tenant:test",
   memoryId,
@@ -17,7 +17,7 @@ const envelope = (memoryId, dependsOn = [], sourceUri = "github://example/repo/m
   confidence: { score: null, method: "test", assessedAt: at },
   conflicts: [],
   temporal: { asOf: at },
-  validity: { status: "FRESH", checkedAt: at, policy: "MANUAL" },
+  validity: { status, checkedAt: at, policy: "MANUAL" },
   dependsOn,
   signatures: []
 });
@@ -115,6 +115,21 @@ test("incremental frontier uses the real runtime path and preserves invalidation
   // of walking the child -> root ancestor chain.
   assert.equal(counters.frontierNodesVisited, 1);
   assert.ok(counters.edgesTraversed >= 1);
+});
+
+test("incremental frontier restores persisted status and clears a replaced root", () => {
+  const store = new InMemoryRuntimeStore();
+  const seeded = new PremiseRuntime({ store, tenantId: "tenant:test", now: () => at, incrementalFrontier: true });
+  seeded.register({ envelope: envelope("memory:persisted-root", [], undefined, "INVALID"), content: { value: "old" } });
+  seeded.derive({ envelope: envelope("memory:persisted-child", ["memory:persisted-root"]), content: { value: "child" } });
+
+  const restored = new PremiseRuntime({ store, tenantId: "tenant:test", now: () => at, incrementalFrontier: true });
+  assert.deepEqual(restored.frontier("memory:persisted-child").frontier, ["memory:persisted-root"]);
+  assert.equal(restored.frontier("memory:persisted-child").status, "INVALID");
+
+  restored.replace("memory:persisted-root", { value: "new" }, envelope("memory:persisted-root", [], undefined, "FRESH"));
+  assert.deepEqual(restored.frontier("memory:persisted-child").frontier, []);
+  assert.equal(restored.frontier("memory:persisted-child").status, "FRESH");
 });
 
 test("single-flight coalesces concurrent revalidation calls across runtime invocations", async () => {

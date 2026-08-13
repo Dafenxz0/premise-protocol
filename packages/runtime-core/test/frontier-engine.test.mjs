@@ -62,6 +62,17 @@ test("graph changes invalidate frontier cache and cycles fail closed at construc
   assert.throws(() => engine.setDependencies("A", ["U"]), /Dependency cycle/);
 });
 
+test("constructs and propagates a deep graph without recursive bootstrap", () => {
+  const count = 10_000;
+  const engine = new IncrementalFrontierEngine(Array.from({ length: count }, (_, index) => ({
+    id: `n${index}`,
+    dependsOn: index === 0 ? [] : [`n${index - 1}`]
+  })));
+  const impact = engine.markDirty(["n0"]);
+  assert.equal(impact.affected.length, count);
+  assert.deepEqual(engine.frontier(`n${count - 1}`).frontier, ["n0"]);
+});
+
 test("repeated dirty roots skip already covered branches and preserve unrelated cache entries", () => {
   const engine = new IncrementalFrontierEngine([
     { id: "A" },
