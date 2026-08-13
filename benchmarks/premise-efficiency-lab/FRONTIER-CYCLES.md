@@ -46,8 +46,7 @@ Its results remain useful only as a record of what was previously published.
 
 ## PR24 certification rerun - baseline and accounting
 
-Status: **IN PROGRESS** until the exact frozen large campaign is executed and
-reviewed.
+Status: **MERGED; EVIDENCE CERTIFIED**.
 
 The gate requires:
 
@@ -108,7 +107,7 @@ That outcome is a safety failure/inconclusive run, never a win.
 
 ## PR27 - dirty propagation locality
 
-Status: **IMPLEMENTED LOCALLY; CANDIDATE EVIDENCE PASS; PR PENDING**.
+Status: **MERGED; CANDIDATE EVIDENCE PASS**.
 
 PR27 targets the repeated-signal path: an equal or weaker dirty signal for a
 root already represented at the same severity reuses an indexed affected
@@ -136,27 +135,42 @@ generated report is the source of exact numbers.
 
 ## PR28 - Cycle 2: receipts, reuse and single-flight
 
-Status: **CANDIDATE EVIDENCE PASS; EXACT REUSE ONLY**.
+Status: **MERGED; EXACT REUSE RUNTIME CHANGE, EVIDENCE CORRECTED BY PR29**.
 
 PR28 compares the candidate runtime with the compiled Champion N+1 artifact
 from `main` at `49f89f5`. The physical unit is validator invocations. The
 candidate reuses only completed `UNCHANGED/FRESH` receipts with a complete
 scope; no provider request, token, latency, RAM or cost claim is made.
 
-The smoke and medium profiles pass semantic equivalence, authorization
-isolation, source invalidation, expiry, failure and TOCTOU gates. The medium
-profile uses 1,000 records and reports its full counters in
+The corrected smoke and medium profiles pass full-trace semantic equivalence,
+independent-oracle, authorization/scope/tenant isolation, source invalidation,
+expiry, failure and in-flight invalidation gates. The medium profile uses
+1,000 records and reports its full counters in
 [`v1/receipts/PR28-RECEIPT-REUSE.md`](./v1/receipts/PR28-RECEIPT-REUSE.md).
 
 Partial/subsumption reuse is deliberately **not implemented**. It requires a
 separate proof and adversarial campaign before it can enter a champion.
 
-## Cycle 3 - events, long horizon and compaction
+## PR29 - Cycle 3: ordered event continuity
 
-Status: **NOT RUN in PR24**.
+Status: **CONTRACT HARDENING PASS; RUNTIME INTEGRATION NOT CLAIMED**.
 
-Event continuity, long-horizon maintenance and compaction remain separate
-experiments. No result from the evidence rerun implies anything about them.
+PR29 adds fail-closed ordered snapshot/delta continuity with exact current
+duplicates, gap/reorder/conflict detection, stream checks and snapshot
+requirements. Its benchmark uses a separate Node oracle and proves the
+legacy sorted helper would incorrectly accept several adversarial streams.
+The current `V2Event` schema has no sequence metadata and
+`PremiseRuntime.applyEvent` does not call this evaluator, so this PR makes no
+claim of event-driven coherence, provider-request savings or performance.
+Evidence and limits are documented in
+[`v1/events/PR29-EVENT-CONTINUITY.md`](./v1/events/PR29-EVENT-CONTINUITY.md).
+
+## PR30/PR31 - long horizon and compaction
+
+Status: **NOT RUN**.
+
+Long-horizon growth must be measured before adding compaction. No compaction
+claim is inferred from PR29.
 
 ## Reproducibility
 
@@ -164,6 +178,8 @@ experiments. No result from the evidence rerun implies anything about them.
 pnpm benchmark:efficiency:v1:frontier:check
 node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=large
 node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
+pnpm benchmark:efficiency:v1:receipts
+pnpm benchmark:efficiency:v1:events
 ```
 
 Generated JSON and Markdown reports remain under `.tmp/` and are excluded

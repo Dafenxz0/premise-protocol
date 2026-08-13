@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { RuntimeNegativeCache, RuntimeReceiptCache, assessEventContinuity, semanticFingerprint } from "../dist/index.js";
+import { RuntimeNegativeCache, RuntimeReceiptCache, assessEventContinuity, assessOrderedEventContinuity, semanticFingerprint } from "../dist/index.js";
 
 const scope = (overrides = {}) => ({
   tenantId: "tenant:a",
@@ -54,4 +54,46 @@ test("fingerprints bind incarnation and semantic aspect", () => {
 test("event continuity fails closed on gaps and accepts duplicates", () => {
   assert.equal(assessEventContinuity([{ sequence: 4 }, { sequence: 4 }, { sequence: 5 }]).status, "FRESH");
   assert.equal(assessEventContinuity([{ sequence: 4 }, { sequence: 6 }]).status, "UNKNOWN");
+});
+
+test("ordered event continuity preserves delivery order and distinguishes exact duplicates", () => {
+  const base = { streamId: "stream:source", kind: "SNAPSHOT" };
+  const fresh = assessOrderedEventContinuity([
+    { ...base, sequence: 10, eventId: "e10" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 11, eventId: "e11" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 11, eventId: "e11" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 12, eventId: "e12" }
+  ], { expectedSequence: 10, requireSnapshot: true });
+  assert.deepEqual(fresh, { status: "FRESH", finalSequence: 12, applied: [10, 11, 12], duplicates: [11] });
+  assert.equal(assessOrderedEventContinuity([
+    { ...base, sequence: 10, eventId: "e10" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 12, eventId: "e12" }
+  ]).reason, "GAP");
+  assert.equal(assessOrderedEventContinuity([
+    { ...base, sequence: 10, eventId: "e10" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 11, eventId: "e11" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 10, eventId: "late-10" }
+  ]).reason, "REORDERED");
+  assert.equal(assessOrderedEventContinuity([
+    { ...base, sequence: 10, eventId: "e10" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 11, eventId: "e11" },
+    { ...base, sequence: 10, eventId: "e10" }
+  ]).reason, "REORDERED");
+  assert.equal(assessOrderedEventContinuity([
+    { ...base, sequence: 10, eventId: "e10" },
+    { streamId: base.streamId, kind: "DELTA", sequence: 10, eventId: "different-10" }
+  ]).reason, "CONFLICT");
+});
+
+test("ordered continuity never treats a delta as a snapshot", () => {
+  const result = assessOrderedEventContinuity([
+    { streamId: "stream:source", kind: "DELTA", sequence: 1, eventId: "d1" }
+  ], { requireSnapshot: true });
+  assert.equal(result.status, "UNKNOWN");
+  assert.equal(result.reason, "DELTA_BEFORE_SNAPSHOT");
+});
+
+test("ordered continuity fails closed on malformed events", () => {
+  assert.equal(assessOrderedEventContinuity([null]).reason, "INVALID_EVENT");
+  assert.equal(assessOrderedEventContinuity([{ streamId: "stream:source", kind: "DELTA", sequence: 1, eventId: 1 }]).reason, "INVALID_EVENT");
 });

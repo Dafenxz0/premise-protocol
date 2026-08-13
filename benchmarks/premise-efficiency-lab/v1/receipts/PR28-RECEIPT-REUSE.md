@@ -1,6 +1,6 @@
 # PR28 — completed receipt reuse and validation deduplication
 
-Status: **candidate evidence PASS; exact reuse only**.
+Status: **merged runtime change; corrected evidence certified by PR29**.
 
 This cycle adds an opt-in completed-validation cache to the runtime. It is
 separate from in-flight single-flight promises and is usable only when the
@@ -53,10 +53,17 @@ candidate saves only the unchanged pre-change wave. The stampede row shows
 that completed receipts do not pretend to improve work that in-flight
 single-flight already coalesces.
 
-Additional safety rows cover validator failure, an in-flight invalidation
-(TOCTOU), externally staled records and a reported version that differs from
-the input evidence. All passed with semantic equivalence and no post-
-invalidation cache entry.
+The benchmark rows cover validator failure and in-flight cache fencing. The
+runtime unit suite, outside the physical comparison rows, also covers
+externally staled records and a reported version that differs from the input
+evidence. These are not provider-level or connector-level CAS tests.
+
+PR29 corrected the original evidence runner: it now uses a separate oracle
+process, compares full reports/record state/history rather than only visible
+status, exercises all caller-owned sharing dimensions plus tenant isolation
+and incomplete-scope fail-closed behavior, records cache state immediately
+after source invalidation, retains smoke and medium artifacts separately, and
+requires a clean candidate for `status: PASS`.
 
 ## Scope of the result
 

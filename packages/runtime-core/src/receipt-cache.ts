@@ -187,3 +187,91 @@ export function assessEventContinuity(events: readonly { sequence: number }[]): 
   }
   return Object.freeze({ status: "FRESH", finalSequence: sequences.at(-1)!, applied: Object.freeze(sequences) });
 }
+
+export type OrderedEventKind = "SNAPSHOT" | "DELTA";
+
+export interface OrderedEventObservation {
+  readonly streamId: string;
+  readonly sequence: number;
+  readonly kind: OrderedEventKind;
+  readonly eventId?: string;
+  readonly cursor?: string;
+}
+
+export type OrderedEventContinuityResult =
+  | {
+      readonly status: "FRESH";
+      readonly finalSequence: number;
+      readonly applied: readonly number[];
+      readonly duplicates: readonly number[];
+    }
+  | {
+      readonly status: "UNKNOWN";
+      readonly reason: "EMPTY" | "INVALID_EVENT" | "INVALID_SEQUENCE" | "STREAM_MISMATCH" | "GAP" | "REORDERED" | "CONFLICT" | "DELTA_BEFORE_SNAPSHOT";
+      readonly applied: readonly number[];
+      readonly duplicates: readonly number[];
+    };
+
+/**
+ * Checks an ordered delivery stream without sorting away delivery hazards.
+ * Duplicate deliveries of the exact same event are harmless; a reordered,
+ * gapped or conflicting sequence fails closed. A consumer that starts from a
+ * trusted snapshot may set `requireSnapshot` to require the first unique
+ * observation to establish that snapshot before applying deltas.
+ */
+export function assessOrderedEventContinuity(
+  events: readonly OrderedEventObservation[],
+  options: { readonly expectedSequence?: number; readonly requireSnapshot?: boolean } = {}
+): OrderedEventContinuityResult {
+  if (!Array.isArray(events)) return Object.freeze({ status: "UNKNOWN", reason: "INVALID_EVENT", applied: Object.freeze([]), duplicates: Object.freeze([]) });
+  if (events.length === 0) return Object.freeze({ status: "UNKNOWN", reason: "EMPTY", applied: Object.freeze([]), duplicates: Object.freeze([]) });
+  const first = events[0]!;
+  const expectedSequence = options?.expectedSequence;
+  const requireSnapshot = options?.requireSnapshot === true;
+  if (expectedSequence !== undefined && (!Number.isSafeInteger(expectedSequence) || expectedSequence < 0)) {
+    return Object.freeze({ status: "UNKNOWN", reason: "INVALID_SEQUENCE", applied: Object.freeze([]), duplicates: Object.freeze([]) });
+  }
+  const applied: number[] = [];
+  const duplicates: number[] = [];
+  const fingerprints = new Map<number, string>();
+  let lastSequence: number | undefined;
+  let hasSnapshot = false;
+  for (const event of events) {
+    if (event === null || typeof event !== "object" || typeof event.streamId !== "string" || event.streamId.length === 0
+      || (event.kind !== "SNAPSHOT" && event.kind !== "DELTA")
+      || (event.eventId !== undefined && typeof event.eventId !== "string")
+      || (event.cursor !== undefined && typeof event.cursor !== "string")) {
+      return Object.freeze({ status: "UNKNOWN", reason: "INVALID_EVENT", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    if (event.streamId !== first.streamId) {
+      return Object.freeze({ status: "UNKNOWN", reason: "STREAM_MISMATCH", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    if (!Number.isSafeInteger(event.sequence) || event.sequence < 0) {
+      return Object.freeze({ status: "UNKNOWN", reason: "INVALID_SEQUENCE", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    const fingerprint = JSON.stringify([event.kind, event.eventId ?? null, event.cursor ?? null]);
+    const prior = fingerprints.get(event.sequence);
+    if (lastSequence !== undefined && event.sequence < lastSequence) {
+      return Object.freeze({ status: "UNKNOWN", reason: "REORDERED", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    if (lastSequence !== undefined && event.sequence > lastSequence + 1) {
+      return Object.freeze({ status: "UNKNOWN", reason: "GAP", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    if (prior !== undefined) {
+      if (prior !== fingerprint) return Object.freeze({ status: "UNKNOWN", reason: "CONFLICT", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+      duplicates.push(event.sequence);
+      continue;
+    }
+    if (lastSequence === undefined && expectedSequence !== undefined && event.sequence !== expectedSequence) {
+      return Object.freeze({ status: "UNKNOWN", reason: "GAP", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    if (requireSnapshot && !hasSnapshot && event.kind !== "SNAPSHOT") {
+      return Object.freeze({ status: "UNKNOWN", reason: "DELTA_BEFORE_SNAPSHOT", applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+    }
+    fingerprints.set(event.sequence, fingerprint);
+    applied.push(event.sequence);
+    lastSequence = event.sequence;
+    hasSnapshot ||= event.kind === "SNAPSHOT";
+  }
+  return Object.freeze({ status: "FRESH", finalSequence: lastSequence!, applied: Object.freeze(applied), duplicates: Object.freeze(duplicates) });
+}
