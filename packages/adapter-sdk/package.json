@@ -1,6 +1,6 @@
 {
   "name": "@premise/adapter-sdk",
-  "version": "0.1.0-rc.1",
+  "version": "0.2.0-rc.1",
   "description": "Small PREMiSE adapter contract for versioned observations and guarded actions.",
   "type": "module",
   "dependencies": {

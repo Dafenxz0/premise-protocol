@@ -8,7 +8,7 @@ export type PremiseAdapterFeature =
   | "AUTHORITATIVE_SNAPSHOT";
 
 export interface PremiseAdapterCapabilities {
-  readonly contract: "premise-adapter/1";
+  readonly contract: "premise-adapter/2";
   readonly adapterId: string;
   readonly features: readonly PremiseAdapterFeature[];
   readonly streamCapabilities?: readonly V2StreamCapability[];
@@ -31,13 +31,16 @@ export interface AdapterObservation<T = unknown> {
 
 export interface AdapterRevalidateRequest<T = unknown> {
   readonly tenantId: string;
+  readonly resource: string;
   readonly record: T;
   readonly evidence: EvidenceReference;
+  readonly expectedVersion?: VersionReference;
   readonly signal?: AbortSignal;
 }
 
 export interface AdapterRevalidation {
-  readonly result: "UNCHANGED" | "CHANGED" | "MISSING" | "UNKNOWN";
+  readonly result: "UNCHANGED" | "CHANGED" | "MISSING" | "UNKNOWN" | "PRECONDITION_FAILED";
+  readonly status?: number;
   readonly version?: VersionReference;
   readonly checkedAt: string;
   readonly reason?: string;
@@ -46,7 +49,7 @@ export interface AdapterRevalidation {
 export interface AdapterConditionalActionRequest<TAction = unknown> {
   readonly tenantId: string;
   readonly resource: string;
-  readonly expectedVersion: string;
+  readonly expectedVersion: VersionReference;
   readonly action: TAction;
   readonly signal?: AbortSignal;
 }
@@ -55,7 +58,8 @@ export interface AdapterActionResult<TResult = unknown> {
   readonly accepted: boolean;
   readonly result?: TResult;
   readonly reason?: "VERSION_MISMATCH" | "REJECT" | "UNKNOWN";
-  readonly observedVersion?: string;
+  readonly observedVersion?: VersionReference;
+  readonly status?: number;
 }
 
 export interface PremiseAdapter<T = unknown, TAction = unknown, TResult = unknown> {
@@ -76,7 +80,7 @@ export function assertAdapterCapabilities(
   required: readonly PremiseAdapterFeature[] = ["OBSERVE", "REVALIDATE"]
 ): PremiseAdapterCapabilities {
   const capabilities = adapter.capabilities();
-  if (capabilities.contract !== "premise-adapter/1") throw new TypeError("Unsupported PREMiSE adapter contract");
+  if (capabilities.contract !== "premise-adapter/2") throw new TypeError("Unsupported PREMiSE adapter contract");
   nonEmpty(capabilities.adapterId, "adapterId");
   const features = new Set(capabilities.features);
   const missing = required.filter((feature) => !features.has(feature));

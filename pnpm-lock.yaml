@@ -65,6 +65,9 @@ importers:
 
   packages/conformance:
     dependencies:
+      '@premise/adapter-sdk':
+        specifier: workspace:*
+        version: link:../adapter-sdk
       '@premise/protocol-types':
         specifier: workspace:*
         version: link:../protocol-types

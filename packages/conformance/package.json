@@ -4,6 +4,7 @@
   "description": "PREMiSE conformance runner.",
   "type": "module",
   "dependencies": {
+    "@premise/adapter-sdk": "workspace:*",
     "@premise/protocol-types": "workspace:*"
   },
   "exports": {
@@ -18,6 +19,6 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node test/runner.test.mjs"
+    "test": "pnpm build && node test/runner.test.mjs && node test/adapter.test.mjs"
   }
 }
