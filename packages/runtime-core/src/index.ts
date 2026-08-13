@@ -368,6 +368,10 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
     return this.events.size;
   }
 
+  operationalStats(): Readonly<{ records: number; eventTail: number; idempotencyKeys: number; revision: number }> {
+    return Object.freeze({ records: this.records.size, eventTail: this.events.size, idempotencyKeys: this.idempotency.size, revision: this._revision });
+  }
+
   listEvents(): readonly V2Event[] {
     return [...this.events.values()].map((event) => cloneJson(event));
   }
