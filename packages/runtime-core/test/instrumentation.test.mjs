@@ -132,6 +132,19 @@ test("incremental frontier restores persisted status and clears a replaced root"
   assert.equal(restored.frontier("memory:persisted-child").status, "FRESH");
 });
 
+test("runtime falls back to the complete closure when incremental frontier is incomplete", () => {
+  const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, incrementalFrontier: true });
+  const roots = Array.from({ length: 200 }, (_, index) => `memory:budget-root-${index}`);
+  for (const memoryId of roots) runtime.register({ envelope: envelope(memoryId), content: { value: memoryId } });
+  runtime.derive({ envelope: envelope("memory:budget-target", roots), content: { value: "target" } });
+
+  const affected = runtime.signalSourceChanged("github://example/repo/main", { scheme: "github.commit", token: "budget-b2" });
+  assert.equal(affected.length, roots.length + 1);
+  assert.equal(new Set(affected).size, affected.length);
+  assert.ok(affected.includes("memory:budget-target"));
+  assert.equal(runtime.check(["memory:budget-target"])[0].decision, "REVALIDATE");
+});
+
 test("single-flight coalesces concurrent revalidation calls across runtime invocations", async () => {
   const recorder = new RuntimeInstrumentationRecorder();
   const runtime = new PremiseRuntime({ tenantId: "tenant:test", now: () => at, instrumentation: recorder });
