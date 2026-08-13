@@ -165,12 +165,28 @@ claim of event-driven coherence, provider-request savings or performance.
 Evidence and limits are documented in
 [`v1/events/PR29-EVENT-CONTINUITY.md`](./v1/events/PR29-EVENT-CONTINUITY.md).
 
-## PR30/PR31 - long horizon and compaction
+## PR30 - long horizon coherence measurement
 
-Status: **NOT RUN**.
+Status: **MERGED; MEASUREMENT PASS; COMPACTION REQUIRED FOR EVALUATION**.
 
-Long-horizon growth must be measured before adding compaction. No compaction
-claim is inferred from PR29.
+The current runtime was exercised for 1,000, 10,000 and 100,000 steps over an
+8-record dependency chain. The independent oracle passed every row, active
+records and frontier state stayed bounded, receipts stayed at one entry, and
+there were no runtime/frontier errors. Historical event and decision state
+grew linearly: 3,015/3,024 at 1,000 steps, 30,015/30,244 at 10,000 and
+300,015/302,434 at 100,000. This is measurement evidence, not a performance
+or production-memory claim.
+
+The result requires a separate compaction evaluation. It does not mean that
+compaction is implemented or safe.
+
+## PR31 - safe state compaction
+
+Status: **PENDING; NOT IMPLEMENTED**.
+
+Before any implementation, PR31 must preserve ABA/incarnation semantics,
+receipt replay and invalidation fences, causal evidence, idempotency replay,
+snapshot/restore behavior and the full audit proof required by the runtime.
 
 ## Reproducibility
 
