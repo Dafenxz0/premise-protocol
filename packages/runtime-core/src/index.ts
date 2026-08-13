@@ -21,11 +21,13 @@ import {
 import { IncrementalFrontierEngine, type FrontierResult } from "./frontier-engine.js";
 import { premiseReceiptSharingKey, type PremiseReceiptSharingScope } from "./premise-policy.js";
 import { RuntimeReceiptCache } from "./receipt-cache.js";
+import type { RuntimeJournal, RuntimeJournalEventEntry } from "./journal.js";
 export * from "./premise-policy.js";
 export * from "./premise-guard.js";
 export * from "./instrumentation.js";
 export * from "./frontier-engine.js";
 export * from "./receipt-cache.js";
+export * from "./journal.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
@@ -115,6 +117,8 @@ export interface RuntimeOptions<T> {
   readonly receiptScope?: RuntimeReceiptScopeFactory<T>;
   /** Completed receipts are never reusable beyond this TTL. Defaults to 60s when enabled. */
   readonly receiptTtlMs?: number;
+  /** Optional durable audit sink. Operational store state remains independent. */
+  readonly journal?: RuntimeJournal;
 }
 
 export interface RuntimeCheckItem {
@@ -345,6 +349,7 @@ export class PremiseRuntime<T = unknown> {
   private readonly receiptCache: RuntimeReceiptCache<RuntimeValidationReport> | undefined;
   private readonly receiptScope: RuntimeReceiptScopeFactory<T> | undefined;
   private readonly receiptTtlMs: number;
+  private readonly journal: RuntimeJournal | undefined;
   /** A bounded epoch fences in-flight validations from repopulating the cache after invalidation. */
   private receiptGeneration = 0;
   private frontierEngine: IncrementalFrontierEngine | undefined;
@@ -378,6 +383,7 @@ export class PremiseRuntime<T = unknown> {
     this.receiptCache = options.receiptCache;
     this.receiptScope = options.receiptScope;
     this.receiptTtlMs = receiptTtlMs;
+    this.journal = options.journal;
     this.frontierEngine = options.incrementalFrontier === true ? new IncrementalFrontierEngine() : undefined;
     if (this.requireSignedEnvelopes && this.signatureVerification === undefined) {
       throw new TypeError("requireSignedEnvelopes requires signatureVerification with an external key source");
@@ -729,6 +735,7 @@ export class PremiseRuntime<T = unknown> {
     const parsed = parseV2Event(event);
     this.assertTenant(parsed.tenantId);
     this.store.appendEvent(parsed);
+    this.auditEvent(parsed);
     return true;
   }
 
@@ -749,12 +756,16 @@ export class PremiseRuntime<T = unknown> {
   }
 
   history(memoryId?: string): readonly V2Event[] {
-    const events = this.store.listEvents();
+    const events = this.journal === undefined
+      ? this.store.listEvents()
+      : this.journal.readFrom(0).filter((entry): entry is RuntimeJournalEventEntry => entry.kind === "event").map((entry) => entry.event);
     return memoryId === undefined ? events : events.filter((event) => event.memoryId === memoryId);
   }
 
   eventCount(): number {
-    return typeof this.store.countEvents === "function" ? this.store.countEvents() : this.store.listEvents().length;
+    return this.journal === undefined
+      ? typeof this.store.countEvents === "function" ? this.store.countEvents() : this.store.listEvents().length
+      : this.journal.readFrom(0).filter((entry) => entry.kind === "event").length;
   }
 
   private applyValidation(record: RuntimeRecord<T>, report: RuntimeValidationReport, eventId?: string): RuntimeValidationReport {
@@ -1039,6 +1050,11 @@ export class PremiseRuntime<T = unknown> {
     } catch {
       // An observer cannot affect the runtime decision.
     }
+    try {
+      this.journal?.appendDecision(this.tenantId, event, this.now());
+    } catch {
+      // Journal diagnostics are not allowed to alter a safety decision.
+    }
   }
 
   private rebuildIndexes(): void {
@@ -1119,6 +1135,7 @@ export class PremiseRuntime<T = unknown> {
       this.store.put(record);
       this.store.appendEvent(event);
     }
+    this.auditEvent(event);
   }
 
   private persistRecordIfCurrent(expected: RuntimeRecord<T>, record: RuntimeRecord<T>, event: V2Event): void {
@@ -1136,6 +1153,15 @@ export class PremiseRuntime<T = unknown> {
     return typeof this.store.getEvent === "function"
       ? this.store.getEvent(idempotencyKey)
       : this.store.listEvents().find((event) => event.idempotencyKey === idempotencyKey);
+  }
+
+  private auditEvent(event: V2Event): void {
+    try {
+      this.journal?.appendEvent(event);
+    } catch {
+      // The journal is an audit sidecar. Its failure must not change the
+      // already-committed source/store decision.
+    }
   }
 
   private emit(type: V2Event["type"], memoryId: string | undefined, payload: Readonly<Record<string, unknown>>, idempotencyKey: string, persist = true, requestPayload: unknown = payload): V2Event {
@@ -1158,7 +1184,10 @@ export class PremiseRuntime<T = unknown> {
       ...(memoryId ? { memoryId } : {}),
       payload
     };
-    if (persist) this.store.appendEvent(event);
+    if (persist) {
+      this.store.appendEvent(event);
+      this.auditEvent(event);
+    }
     return event;
   }
 
