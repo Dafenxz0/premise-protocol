@@ -30,6 +30,17 @@ test("runtime applies ordered stream events and exact duplicates only", () => {
   assert.equal(runtime.eventCount(), 2);
 });
 
+test("runtime restores continuity from an exact persisted event without trusting a conflicting replay", () => {
+  const store = new InMemoryRuntimeStore();
+  const first = new PremiseRuntime({ store, tenantId: "tenant:stream", now: () => at });
+  const snapshot = streamEvent(0, "SNAPSHOT", "persisted");
+  assert.deepEqual(first.applyStreamEvent(snapshot), { status: "APPLIED", streamId: "stream:repo", sequence: 0 });
+  const restarted = new PremiseRuntime({ store, tenantId: "tenant:stream", now: () => at });
+  assert.deepEqual(restarted.applyStreamEvent(snapshot), { status: "DUPLICATE", streamId: "stream:repo", sequence: 0 });
+  assert.deepEqual(restarted.applyStreamEvent(streamEvent(1, "DELTA", "next")), { status: "APPLIED", streamId: "stream:repo", sequence: 1 });
+  assert.equal(restarted.applyStreamEvent({ ...snapshot, payload: { sourceUri: "source://other", version: { scheme: "git", token: "persisted" } } }).reason, "CONFLICT");
+});
+
 test("runtime fails closed on delta-before-snapshot, gaps, reorder, and same-sequence conflicts", () => {
   const instrumentation = new RuntimeInstrumentationRecorder();
   const runtime = new PremiseRuntime({ tenantId: "tenant:stream", now: () => at, instrumentation });

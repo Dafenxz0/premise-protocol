@@ -896,12 +896,17 @@ export class PremiseRuntime<T = unknown> {
     if (!state.hasSnapshot && parsed.kind !== "SNAPSHOT") return this.streamRepairRequired(parsed, state, "DELTA_BEFORE_SNAPSHOT");
     const { streamId: _streamId, sequence: _sequence, kind: _kind, cursor: _cursor, sourceVersion: _sourceVersion, ...legacy } = parsed;
     const accepted = this.applyEvent(legacy);
-    if (!accepted) return Object.freeze({ status: "DUPLICATE", streamId: parsed.streamId, sequence: parsed.sequence });
+    if (!accepted) {
+      const existing = this.eventFor(legacy.idempotencyKey);
+      if (existing === undefined || digestFor(existing) !== digestFor(legacy)) {
+        return this.streamRepairRequired(parsed, state, "CONFLICT");
+      }
+    }
     state.seen.set(parsed.sequence, fingerprint);
     state.nextSequence = parsed.sequence + 1;
     state.hasSnapshot ||= parsed.kind === "SNAPSHOT";
     this.streamStates.set(parsed.streamId, state);
-    return Object.freeze({ status: "APPLIED", streamId: parsed.streamId, sequence: parsed.sequence });
+    return Object.freeze({ status: accepted ? "APPLIED" : "DUPLICATE", streamId: parsed.streamId, sequence: parsed.sequence });
   }
 
   private streamRepairRequired(event: V2StreamEvent, state: { nextSequence: number; seen: Map<number, string>; hasSnapshot: boolean }, reason: RuntimeStreamRepairReason): RuntimeStreamApplyResult {
