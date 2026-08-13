@@ -74,17 +74,32 @@ The campaign writes only under `.tmp/premise-efficiency-lab/v1/` when an
 output path is supplied or the CLI is used. Its blind report is not a
 holdout result until physical process isolation is certified.
 
-PR #23 is the first optimization cycle after the immutable v1 baseline. It
-only measures incremental frontier computation, dirty propagation, targeted
-cache preservation and antichain maintenance. Run its differential smoke with:
+PR #23 is a historical optimization cycle after the immutable v1 baseline.
+Its reconstructed-champion reduction table is superseded by PR24 evidence
+work. Run the current differential smoke with:
 
 ```powershell
 pnpm benchmark:efficiency:v1:frontier:check
 ```
 
-It compares the real incremental engine with a full independent traversal,
-reports change locality, query work, maintenance work and cache preservation,
-and labels receipt/event/compaction campaigns as out of scope for this cycle.
+PR24 executes the current candidate, the actual compiled `c86a6ea` artifact
+from its manifest, and a full independent traversal. It reports initialization,
+maintenance and query primitive counters, verifies cache accounting and keeps
+baseline behavior differences visible. It does not divide the candidate's
+physical work by the old baseline's legacy counters, because those are not the
+same measurement contract. Receipt/event/compaction campaigns remain out of
+scope for this evidence cycle.
+
+For the frozen 10,000-node campaign, use the larger Node stack explicitly:
+
+```powershell
+node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=large
+node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
+```
+
+The historical table is preserved and marked `SUPERSEDED` in
+`FRONTIER-CYCLES.md`. No result here claims lower tokens, dollars, external
+reads, unsafe actions or commercial savings.
 
 ## Scope
 

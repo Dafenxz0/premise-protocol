@@ -1,13 +1,17 @@
-# PR #23 — Incremental frontier efficiency campaign
+# PR #23 - Incremental frontier efficiency campaign (historical)
 
-PR #22 (`c86a6ea`) is the immutable Efficiency Lab v1 baseline. This PR is
+> **SUPERSEDED by PR24 evidence work.** The implementation and table remain
+> for provenance, but their reconstructed-champion reductions are not current
+> certified results.
+
+PR #22 (`c86a6ea`) was the immutable Efficiency Lab v1 baseline. PR #23 was
 limited to graph frontier computation, dirty propagation, cache preservation
 and antichain maintenance. Receipts, event semantics, compaction and provider
-cost are explicitly out of scope.
+cost were explicitly out of scope.
 
-## Acceptance gate
+## Historical acceptance gate
 
-An optimization can become the next champion only when it has:
+An optimization could become the next champion only when it had:
 
 ```text
 referenceEquivalent = PASS
@@ -21,16 +25,9 @@ safe completion      >= champion
 false blocks         <= champion
 ```
 
-and either:
-
-```text
->= 20% less graph work
-or >= 15% less validation/external work
-or a proven better worst-case complexity.
-```
-
-The candidate is compared against the immediately preceding champion, never
-against an older weaker implementation.
+and either 20% less graph work, 15% less validation/external work, or a
+proven better worst-case complexity. PR24 does not inherit a reduction claim
+from this historical report.
 
 ## Frozen work model
 
@@ -43,22 +40,9 @@ WA_maintenance  = maintenance work / certified maintenance minimum
 WA_total        = (query + maintenance) / certified total minimum
 ```
 
-No ratio is claimed when the denominator is not certified. The campaign still
-reports physical counters and locality ratios without inventing a denominator.
-
-## Cycle 1 scope
-
-- incremental dirty propagation;
-- severity-aware dirty generations;
-- targeted frontier-cache invalidation;
-- maintained causal roots and antichain compression;
-- iterative bulk graph bootstrap and cycle validation for deep graphs;
-- runtime restoration of persisted frontier states and replacement-state repair;
-- differential closure/frontier/status testing.
-
-Cycle 2 is reserved for receipt reuse and single-flight. Cycle 3 is reserved
-for event processing, long-horizon maintenance and compaction. Neither may be
-silently folded into this PR.
+No ratio is claimed when the denominator is not certified. The PR24 report
+still emits physical counters and locality ratios without inventing a
+denominator.
 
 ## Reproducible command
 
@@ -66,10 +50,10 @@ silently folded into this PR.
 pnpm benchmark:efficiency:v1:frontier:check
 ```
 
-The runner writes reports only under `.tmp/premise-efficiency-lab/v1/frontier/`
-and labels 100k/1m profiles as diagnostic until memory and independent
-holdout gates are provisioned.
+The runner writes reports only under
+`.tmp/premise-efficiency-lab/v1/frontier/` and labels 100k/1m profiles as
+diagnostic until memory and independent holdout gates are provisioned.
 
-The public smoke gate also emits `report.md` and `summary.json`. These files
-contain physical graph-work comparisons only; they do not claim lower token
-usage, provider cost, external reads or commercial savings.
+The public smoke gate emits `report.md` and `summary.json`. These contain
+physical primitive evidence only; they do not claim lower token usage,
+provider cost, external reads or commercial savings.
