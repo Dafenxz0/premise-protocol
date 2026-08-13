@@ -38,6 +38,7 @@ export * from "./journal.js";
 export * from "./checkpoint.js";
 export * from "./stream-burst.js";
 export * from "./session.js";
+export * from "./explainability.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
