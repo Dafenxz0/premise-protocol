@@ -2,7 +2,7 @@
   "name": "premise-protocol",
   "version": "2.0.0-rc.1",
   "private": true,
-  "description": "PREMiSE protocol workspace with the additive v2 runtime and evaluation stack.",
+  "description": "PREMiSE coherence protocol and runtime for AI agents working with mutable external state.",
   "type": "module",
   "packageManager": "pnpm@10.13.1",
   "engines": {
