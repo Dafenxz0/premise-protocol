@@ -18,6 +18,7 @@
     { "path": "./packages/security-core" },
     { "path": "./packages/connector-webhook" },
     { "path": "./packages/sdk" },
+    { "path": "./packages/adapter-sdk" },
     { "path": "./packages/mcp-bridge" },
     { "path": "./packages/premise-server" },
     { "path": "./packages/testkit" },
