@@ -57,3 +57,37 @@ test("runtime scopes stream identity to its tenant", () => {
   const runtime = new PremiseRuntime({ tenantId: "tenant:stream", now: () => at });
   assert.throws(() => runtime.applyStreamEvent(streamEvent(0, "SNAPSHOT", "a1", { tenantId: "tenant:other" })), /Tenant boundary/);
 });
+
+test("runtime repairs a stream from a terminal authoritative snapshot page", () => {
+  const runtime = new PremiseRuntime({ tenantId: "tenant:stream", now: () => at });
+  const snapshot = streamEvent(4, "SNAPSHOT", "s4");
+  const delta = streamEvent(5, "DELTA", "s5");
+  const page = { specVersion: "premise/2", tenantId: "tenant:stream", streamId: "stream:repo", events: [snapshot, delta], headSequence: 5 };
+  assert.deepEqual(runtime.repairStreamFromSnapshot(page), {
+    status: "REPAIRED",
+    streamId: "stream:repo",
+    fromSequence: 4,
+    toSequence: 5,
+    applied: [4, 5],
+    duplicates: []
+  });
+  assert.deepEqual(runtime.applyStreamEvent(streamEvent(6, "DELTA", "s6")), { status: "APPLIED", streamId: "stream:repo", sequence: 6 });
+  assert.deepEqual(runtime.repairStreamFromSnapshot(page), {
+    status: "REPAIRED",
+    streamId: "stream:repo",
+    fromSequence: 4,
+    toSequence: 5,
+    applied: [],
+    duplicates: [4, 5]
+  });
+});
+
+test("runtime rejects incomplete or non-authoritative repair pages before applying them", () => {
+  const runtime = new PremiseRuntime({ tenantId: "tenant:stream", now: () => at });
+  const snapshot = streamEvent(4, "SNAPSHOT", "s4");
+  const delta = streamEvent(6, "DELTA", "s6");
+  assert.throws(() => runtime.repairStreamFromSnapshot({ specVersion: "premise/2", tenantId: "tenant:stream", streamId: "stream:repo", events: [snapshot], headSequence: 4, nextCursor: "more" }), /terminal page/);
+  assert.throws(() => runtime.repairStreamFromSnapshot({ specVersion: "premise/2", tenantId: "tenant:stream", streamId: "stream:repo", events: [streamEvent(4, "DELTA", "d4")], headSequence: 4 }), /SNAPSHOT/);
+  assert.throws(() => runtime.repairStreamFromSnapshot({ specVersion: "premise/2", tenantId: "tenant:stream", streamId: "stream:repo", events: [snapshot, delta], headSequence: 6 }), /contiguous/);
+  assert.equal(runtime.eventCount(), 0);
+});

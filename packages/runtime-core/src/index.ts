@@ -10,7 +10,9 @@ import {
   type V2SignatureVerificationOptions,
   type V2Event,
   parseV2StreamEvent,
+  parseV2EventStreamPage,
   type V2StreamEvent,
+  type V2EventStreamPage,
   type V2MemoryStatus,
   type VersionReference
 } from "@premise/protocol-types";
@@ -190,6 +192,15 @@ export type RuntimeStreamApplyResult =
   | { readonly status: "APPLIED"; readonly streamId: string; readonly sequence: number }
   | { readonly status: "DUPLICATE"; readonly streamId: string; readonly sequence: number }
   | { readonly status: "REPAIR_REQUIRED"; readonly streamId: string; readonly sequence: number; readonly reason: "GAP" | "REORDERED" | "CONFLICT" | "DELTA_BEFORE_SNAPSHOT" };
+
+export interface RuntimeStreamRepairResult {
+  readonly status: "REPAIRED";
+  readonly streamId: string;
+  readonly fromSequence: number;
+  readonly toSequence: number;
+  readonly applied: readonly number[];
+  readonly duplicates: readonly number[];
+}
 
 function cloneJson<T>(value: T): T {
   const serialized = JSON.stringify(value);
@@ -907,6 +918,62 @@ export class PremiseRuntime<T = unknown> {
     state.hasSnapshot ||= parsed.kind === "SNAPSHOT";
     this.streamStates.set(parsed.streamId, state);
     return Object.freeze({ status: accepted ? "APPLIED" : "DUPLICATE", streamId: parsed.streamId, sequence: parsed.sequence });
+  }
+
+  /**
+   * Replace an unknown stream frontier from a terminal, adapter-authoritative
+   * page whose first event is a snapshot. The page is validated before any
+   * event is applied; if storage fails halfway through, the stream remains
+   * fenced at the snapshot sequence and can be retried idempotently.
+   */
+  repairStreamFromSnapshot(page: V2EventStreamPage): RuntimeStreamRepairResult {
+    const parsed = parseV2EventStreamPage(page);
+    this.assertTenant(parsed.tenantId);
+    if (parsed.events.length === 0) throw new TypeError("Authoritative stream repair requires at least one event");
+    if (parsed.nextCursor !== undefined) throw new Error("Authoritative stream repair requires a terminal page");
+    const first = parsed.events[0]!;
+    const last = parsed.events[parsed.events.length - 1]!;
+    if (first.kind !== "SNAPSHOT") throw new Error("Authoritative stream repair must begin with a SNAPSHOT");
+    if (last.sequence !== parsed.headSequence) throw new Error("Authoritative stream repair page must end at headSequence");
+    for (let index = 1; index < parsed.events.length; index += 1) {
+      if (parsed.events[index]!.sequence !== parsed.events[index - 1]!.sequence + 1) {
+        throw new Error("Authoritative stream repair page must be contiguous");
+      }
+    }
+
+    const state = { nextSequence: first.sequence, seen: new Map<number, string>(), hasSnapshot: false };
+    this.streamStates.set(parsed.streamId, state);
+    this.receiptCache?.clear();
+    this.receiptGeneration += 1;
+    this.frontierEngine?.markUnknown();
+    this.operation("eventContinuityChecks");
+    this.operation("eventRepairs");
+    const applied: number[] = [];
+    const duplicates: number[] = [];
+    try {
+      for (const event of parsed.events) {
+        const result = this.applyStreamEvent(event);
+        if (result.status === "REPAIR_REQUIRED") throw new Error(`Authoritative stream repair failed: ${result.reason}`);
+        (result.status === "APPLIED" ? applied : duplicates).push(result.sequence);
+      }
+    } catch (error) {
+      state.seen.clear();
+      state.nextSequence = first.sequence;
+      state.hasSnapshot = false;
+      this.streamStates.set(parsed.streamId, state);
+      this.receiptCache?.clear();
+      this.receiptGeneration += 1;
+      this.frontierEngine?.markUnknown();
+      throw error;
+    }
+    return Object.freeze({
+      status: "REPAIRED",
+      streamId: parsed.streamId,
+      fromSequence: first.sequence,
+      toSequence: last.sequence,
+      applied: Object.freeze(applied),
+      duplicates: Object.freeze(duplicates)
+    });
   }
 
   private streamRepairRequired(event: V2StreamEvent, state: { nextSequence: number; seen: Map<number, string>; hasSnapshot: boolean }, reason: RuntimeStreamRepairReason): RuntimeStreamApplyResult {
