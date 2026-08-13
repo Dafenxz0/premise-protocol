@@ -5,6 +5,19 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const BASELINE_MANIFEST_FILE = new URL("./baseline-manifest.json", import.meta.url);
+export const FROZEN_BASELINE_MANIFEST = Object.freeze({
+  commit: "c86a6eaeb80107e3aa41d1a6c76c0025ec2477e1",
+  artifactDigest: "sha256:eddc9472d8e1f0802524fe0c329cb558fb2bf33302fe0422e5b468ba3f398227",
+  artifactFileCount: 36,
+  artifactExclude: ["**/tsconfig.tsbuildinfo"],
+  artifactPaths: ["packages/runtime-core/dist", "packages/protocol-types/dist"],
+  nodeVersion: "24",
+  pnpmVersion: "10.13.1",
+  typescriptVersion: "7.0.2",
+  protocol: "premise/1.1",
+  campaign: "frontier-cycle-1",
+  buildCommand: "pnpm build"
+});
 
 function command(commandName, args, cwd) {
   const executable = process.platform === "win32" && commandName === "pnpm" ? "pnpm.cmd" : commandName;
@@ -61,8 +74,17 @@ export async function artifactDigest(root, { relativeRoots = ["packages/runtime-
   return { digest: `sha256:${hash.digest("hex")}`, files: files.length, fileManifest: Object.freeze(fileManifest) };
 }
 
-async function readManifest() {
-  return JSON.parse(await readFile(BASELINE_MANIFEST_FILE, "utf8"));
+async function readManifest(manifestFile = BASELINE_MANIFEST_FILE) {
+  return JSON.parse(await readFile(manifestFile, "utf8"));
+}
+
+export function verifyFrozenManifest(manifest, expectedManifest = FROZEN_BASELINE_MANIFEST) {
+  for (const [key, expected] of Object.entries(expectedManifest)) {
+    if (JSON.stringify(manifest?.[key]) !== JSON.stringify(expected)) {
+      throw new Error(`BASELINE_MANIFEST_NOT_FROZEN:${key}`);
+    }
+  }
+  return true;
 }
 
 function verifyNode(manifest) {
@@ -78,8 +100,9 @@ function verifyToolchain(root, manifest) {
   if (manifest.typescriptVersion !== undefined && typescriptVersion !== `Version ${manifest.typescriptVersion}`) throw new Error(`BASELINE_TYPESCRIPT_VERSION_MISMATCH:${typescriptVersion}`);
 }
 
-export async function prepareBaselineArtifact({ root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../"), fetchMissing = true } = {}) {
-  const manifest = await readManifest();
+export async function prepareBaselineArtifact({ root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../"), fetchMissing = true, manifestFile = BASELINE_MANIFEST_FILE, expectedManifest = FROZEN_BASELINE_MANIFEST, worktreeLabel = "baseline" } = {}) {
+  const manifest = await readManifest(manifestFile);
+  verifyFrozenManifest(manifest, expectedManifest);
   verifyNode(manifest);
   let commit;
   try {
@@ -90,7 +113,7 @@ export async function prepareBaselineArtifact({ root = resolve(dirname(fileURLTo
     commit = command("git", ["rev-parse", `${manifest.commit}^{commit}`], root);
   }
   if (commit !== manifest.commit) throw new Error(`BASELINE_COMMIT_MISMATCH:${commit}`);
-  const worktree = resolve(root, ".tmp", "premise-efficiency-lab", "v1", "frontier", "baseline", manifest.commit.slice(0, 12));
+  const worktree = resolve(root, ".tmp", "premise-efficiency-lab", "v1", "frontier", worktreeLabel, manifest.commit.slice(0, 12));
   if (!(await exists(join(worktree, ".git")))) {
     await mkdir(dirname(worktree), { recursive: true });
     command("git", ["worktree", "add", "--detach", worktree, manifest.commit], root);

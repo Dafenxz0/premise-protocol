@@ -1,0 +1,17 @@
+{
+  "commit": "56f380307f4eada9f5bb5223e0fe739f76f0a862",
+  "artifactDigest": "sha256:d8ef1c67d2390f541db166500f75d4e8fc35923bd8c58d4936021b402cd41be7",
+  "artifactDigestAlgorithm": "sha256(path\\0 + byteLength + \\0 + fileSha256Hex + newline)",
+  "artifactFileCount": 36,
+  "artifactExclude": ["**/tsconfig.tsbuildinfo"],
+  "artifactPaths": [
+    "packages/runtime-core/dist",
+    "packages/protocol-types/dist"
+  ],
+  "nodeVersion": "24",
+  "pnpmVersion": "10.13.1",
+  "typescriptVersion": "7.0.2",
+  "protocol": "premise/1.1",
+  "campaign": "frontier-cycle-2-pr25-champion",
+  "buildCommand": "pnpm build"
+}

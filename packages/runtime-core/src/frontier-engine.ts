@@ -16,6 +16,12 @@ export interface FrontierPrimitiveCounters {
   readonly frontierLookups: number;
   readonly frontierRootComparisons: number;
   readonly reachabilityQueries: number;
+  readonly reachabilityCacheLookups: number;
+  readonly reachabilityCacheHits: number;
+  readonly reachabilityCacheMisses: number;
+  readonly reachabilityCacheWrites: number;
+  readonly reachabilityCacheEvictions: number;
+  readonly reachabilityCacheEntriesCleared: number;
   readonly reachabilityNodesVisited: number;
   readonly reachabilityEdgesTraversed: number;
   readonly cacheLookups: number;
@@ -65,6 +71,7 @@ export interface FrontierImpact {
   readonly dirtyPropagations: number;
   readonly frontierCacheInvalidations: number;
   readonly frontierCacheEntriesPreserved: number;
+  readonly frontierComplete: boolean;
   readonly workBreakdown: FrontierWorkBreakdown;
 }
 
@@ -85,7 +92,8 @@ const STATUS_PRIORITY: Readonly<Record<FrontierStatus, number>> = Object.freeze(
 
 const COUNTER_KEYS = Object.freeze([
   "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
-  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityNodesVisited",
+  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityCacheLookups", "reachabilityCacheHits",
+  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
   "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheInvalidations", "cacheWrites",
   "cacheEntriesPreserved",
   "rootSetReads", "rootSetWrites"
@@ -98,6 +106,9 @@ const GRAPH_WORK_KEYS = Object.freeze([
 type CounterKey = typeof COUNTER_KEYS[number];
 type MutableCounters = { -readonly [Key in CounterKey]: number };
 type CounterBook = { [Phase in FrontierWorkPhase]: MutableCounters };
+
+const MAX_REACHABILITY_CACHE_ENTRIES = 65_536;
+const MAX_FRONTIER_ROOT_COMPARISONS = 5_000_000;
 
 function blankCounters(): MutableCounters {
   return Object.fromEntries(COUNTER_KEYS.map((key) => [key, 0])) as MutableCounters;
@@ -172,6 +183,7 @@ export class IncrementalFrontierEngine {
   private readonly dirtyNodesByRoot = new Map<string, Set<string>>();
   private readonly dirtyStates = new Map<string, DirtyState>();
   private readonly frontierCache = new Map<string, FrontierCacheEntry>();
+  private readonly reachabilityCache = new Map<string, boolean>();
   private generation = 0;
   private graphRevision = 0;
   private trusted = true;
@@ -181,6 +193,8 @@ export class IncrementalFrontierEngine {
   private lastTraversal = { nodesVisited: 0, edgesTraversed: 0, branchesSkippedAlreadyDirty: 0, dirtyPropagations: 0 };
   private readonly counters: CounterBook = blankCounterBook();
   private phase: FrontierWorkPhase = "initialization";
+  private frontierBudgetExceeded = false;
+  private frontierComparisonBudgetUsed = 0;
 
   constructor(nodes: readonly FrontierNode[] = []) {
     // Bulk-build the immutable initial graph. Calling setDependencies for
@@ -233,9 +247,14 @@ export class IncrementalFrontierEngine {
       for (const _ of values) this.count("graphEdgeTraversals");
       return [nodeId, new Set(values)] as const;
     }));
+    // Validate the complete dependency list before adding placeholders or
+    // touching reverse edges. A later invalid item must not leave an earlier
+    // unknown dependency behind after the call throws.
     for (const dependencyId of next) {
       assertId(dependencyId, "dependency id");
       if (dependencyId === id) throw new Error(`Dependency cycle at ${id}`);
+    }
+    for (const dependencyId of next) {
       this.count("graphNodeLookups");
       if (!this.dependencies.has(dependencyId)) this.dependencies.set(dependencyId, new Set());
     }
@@ -268,6 +287,7 @@ export class IncrementalFrontierEngine {
       throw error;
     }
     this.graphRevision += 1;
+    this.clearReachabilityCache();
     this.generation += 1;
     this.rebuildDirtyState();
     this.invalidateAllCaches();
@@ -282,6 +302,7 @@ export class IncrementalFrontierEngine {
     this.dependents.delete(id);
     this.directDirty.delete(id);
     this.graphRevision += 1;
+    this.clearReachabilityCache();
     this.generation += 1;
     this.rebuildDirtyState();
     this.invalidateAllCaches();
@@ -297,6 +318,7 @@ export class IncrementalFrontierEngine {
         this.count("graphNodeLookups");
         if (!this.dependencies.has(id)) throw new Error(`Unknown node: ${id}`);
       }
+      this.beginFrontierOperation();
       this.generation += 1;
       for (const id of direct) {
         this.count("dirtyStateReads");
@@ -312,6 +334,7 @@ export class IncrementalFrontierEngine {
         ...impact,
         frontierCacheInvalidations: cache.invalidations,
         frontierCacheEntriesPreserved: cache.preserved,
+        frontierComplete: this.trusted && !this.frontierBudgetExceeded,
         workBreakdown: this.workSince(before)
       });
     } finally {
@@ -360,6 +383,7 @@ export class IncrementalFrontierEngine {
       if (!this.dependencies.has(nodeId)) throw new Error(`Unknown node: ${nodeId}`);
       const affected = this.descendantClosure(nodeId);
       const closureTraversal = { ...this.lastTraversal };
+      const wasBudgetExceeded = this.frontierBudgetExceeded;
       this.directDirty.delete(nodeId);
       this.count("dirtyStateWrites");
       if (status !== "FRESH") {
@@ -367,8 +391,14 @@ export class IncrementalFrontierEngine {
         this.count("dirtyStateWrites");
       }
       this.generation += 1;
-      this.rebuildDirtyState();
-      const cache = this.invalidateTargets(affected);
+      if (wasBudgetExceeded) {
+        this.trusted = false;
+      } else {
+        this.rebuildDirtyState();
+        if (this.frontierBudgetExceeded) this.trusted = false;
+      }
+      const budgetExceeded = wasBudgetExceeded || this.frontierBudgetExceeded;
+      const cache = budgetExceeded ? this.invalidateAllCaches() : this.invalidateTargets(affected);
       return Object.freeze({
         generation: this.generation,
         affected: Object.freeze([...affected].sort()),
@@ -379,6 +409,7 @@ export class IncrementalFrontierEngine {
         dirtyPropagations: closureTraversal.dirtyPropagations,
         frontierCacheInvalidations: cache.invalidations,
         frontierCacheEntriesPreserved: cache.preserved,
+        frontierComplete: this.trusted && !this.frontierBudgetExceeded,
         workBreakdown: this.workSince(before)
       });
     } finally {
@@ -393,6 +424,7 @@ export class IncrementalFrontierEngine {
       assertId(nodeId);
       this.count("graphNodeLookups");
       if (!this.dependencies.has(nodeId)) throw new Error(`Unknown node: ${nodeId}`);
+      this.beginFrontierOperation();
       this.count("dirtyStateReads");
       const affected = [...(this.dirtyNodesByRoot.get(nodeId) ?? new Set([nodeId]))].sort();
       this.directDirty.delete(nodeId);
@@ -429,8 +461,10 @@ export class IncrementalFrontierEngine {
         branchesSkippedAlreadyDirty: impact.branchesSkippedAlreadyDirty,
         dirtyPropagations: impact.dirtyPropagations
       };
-      const cache = this.invalidateTargets(new Set(affected));
-      return Object.freeze({ ...impact, frontierCacheInvalidations: cache.invalidations, frontierCacheEntriesPreserved: cache.preserved, workBreakdown: this.workSince(before) });
+      const budgetExceeded = this.frontierBudgetExceeded;
+      if (budgetExceeded) this.trusted = false;
+      const cache = budgetExceeded ? this.invalidateAllCaches() : this.invalidateTargets(new Set(affected));
+      return Object.freeze({ ...impact, frontierCacheInvalidations: cache.invalidations, frontierCacheEntriesPreserved: cache.preserved, frontierComplete: this.trusted && !this.frontierBudgetExceeded, workBreakdown: this.workSince(before) });
     } finally {
       this.leavePhase(previousPhase);
     }
@@ -445,6 +479,8 @@ export class IncrementalFrontierEngine {
   restoreTrust(): void {
     this.trusted = true;
     this.generation += 1;
+    this.rebuildDirtyState();
+    if (this.frontierBudgetExceeded) this.trusted = false;
     this.invalidateAllCaches();
   }
 
@@ -458,11 +494,11 @@ export class IncrementalFrontierEngine {
       if (!this.dependencies.has(nodeId)) throw new Error(`Unknown node: ${nodeId}`);
       this.count("cacheLookups");
       const cached = this.frontierCache.get(nodeId);
-      if (cached?.graphRevision === this.graphRevision) {
+      if (!this.frontierBudgetExceeded && cached?.graphRevision === this.graphRevision) {
         return Object.freeze({ ...cached.result, cacheHit: true, impactGeneration: this.generation, nodesVisited: 0, edgesTraversed: 0, workBreakdown: this.workSince(before) });
       }
       const impactGeneration = this.generation;
-      if (!this.trusted) {
+      if (!this.trusted || this.frontierBudgetExceeded) {
         this.count("cacheWrites");
         const result = Object.freeze({
           status: "UNKNOWN" as const,
@@ -521,6 +557,10 @@ export class IncrementalFrontierEngine {
     frontierCacheInvalidations: number;
     frontierCacheEntriesPreserved: number;
     cachePreservationRate: number | null;
+    reachabilityCacheEntries: number;
+    reachabilityCacheLimit: number;
+    frontierBudgetExceeded: boolean;
+    frontierRootComparisonBudget: number;
     workBreakdown: FrontierWorkBreakdown;
   }> {
     const eligibleEntries = this.cacheInvalidations + this.cacheEntriesPreserved;
@@ -536,6 +576,10 @@ export class IncrementalFrontierEngine {
       frontierCacheInvalidations: this.cacheInvalidations,
       frontierCacheEntriesPreserved: this.cacheEntriesPreserved,
       cachePreservationRate: eligibleEntries === 0 ? null : this.cacheEntriesPreserved / eligibleEntries,
+      reachabilityCacheEntries: this.reachabilityCache.size,
+      reachabilityCacheLimit: MAX_REACHABILITY_CACHE_ENTRIES,
+      frontierBudgetExceeded: this.frontierBudgetExceeded,
+      frontierRootComparisonBudget: MAX_FRONTIER_ROOT_COMPARISONS,
       workBreakdown: this.workSince(blankCounterBook())
     });
   }
@@ -556,6 +600,10 @@ export class IncrementalFrontierEngine {
     this.counters[this.phase][key] += amount;
   }
 
+  private beginFrontierOperation(): void {
+    if (!this.frontierBudgetExceeded) this.frontierComparisonBudgetUsed = 0;
+  }
+
   private enterPhase(phase: FrontierWorkPhase): FrontierWorkPhase {
     const previous = this.phase;
     this.phase = phase;
@@ -571,7 +619,7 @@ export class IncrementalFrontierEngine {
     return result;
   }
 
-  private propagateDirty(seeds: readonly (readonly [string, FrontierStatus])[]): Omit<FrontierImpact, "generation" | "direct" | "frontierCacheInvalidations" | "frontierCacheEntriesPreserved" | "workBreakdown"> {
+  private propagateDirty(seeds: readonly (readonly [string, FrontierStatus])[]): Omit<FrontierImpact, "generation" | "direct" | "frontierCacheInvalidations" | "frontierCacheEntriesPreserved" | "frontierComplete" | "workBreakdown"> {
     let nodesVisited = 0;
     let edgesTraversed = 0;
     let branchesSkippedAlreadyDirty = 0;
@@ -579,6 +627,7 @@ export class IncrementalFrontierEngine {
     const affected = new Set<string>();
     const queue: Array<readonly [string, ReadonlyMap<string, FrontierStatus>]> = [];
     for (const [id, value] of seeds) {
+      if (this.frontierBudgetExceeded) break;
       affected.add(id);
       const roots = new Map([[id, value]]);
       this.count("dirtyStateReads");
@@ -593,11 +642,13 @@ export class IncrementalFrontierEngine {
       for (const known of this.dirtyNodesByRoot.get(id) ?? []) affected.add(known);
     }
     for (let index = 0; index < queue.length; index += 1) {
+      if (this.frontierBudgetExceeded) break;
       const [id, roots] = queue[index]!;
       nodesVisited += 1;
       this.count("graphNodeLookups");
       this.count("reverseIndexLookups");
       for (const dependent of [...(this.dependents.get(id) ?? [])].sort()) {
+        if (this.frontierBudgetExceeded) break;
         edgesTraversed += 1;
         this.count("graphEdgeTraversals");
         this.count("graphNodeLookups");
@@ -668,8 +719,14 @@ export class IncrementalFrontierEngine {
   }
 
   private addFrontierRoot(frontier: Set<string>, root: string): void {
+    if (this.frontierBudgetExceeded) return;
     for (const existing of [...frontier]) {
+      if (this.frontierComparisonBudgetUsed >= MAX_FRONTIER_ROOT_COMPARISONS) {
+        this.frontierBudgetExceeded = true;
+        return;
+      }
       this.count("frontierRootComparisons");
+      this.frontierComparisonBudgetUsed += 1;
       if (existing === root || this.reaches(existing, root)) return;
       if (this.reaches(root, existing)) frontier.delete(existing);
     }
@@ -683,6 +740,8 @@ export class IncrementalFrontierEngine {
   }
 
   private rebuildDirtyState(): void {
+    this.frontierBudgetExceeded = false;
+    this.frontierComparisonBudgetUsed = 0;
     this.activeDirtyRoots.clear();
     this.activeFrontiers.clear();
     this.dirtyNodesByRoot.clear();
@@ -718,17 +777,29 @@ export class IncrementalFrontierEngine {
     return this.lastCacheDelta;
   }
 
-  private invalidateAllCaches(): void {
+  private invalidateAllCaches(): { invalidations: number; preserved: number } {
     const invalidations = this.frontierCache.size;
     this.cacheInvalidations += invalidations;
     this.count("cacheEntriesScanned", invalidations);
     this.count("cacheInvalidations", invalidations);
     this.frontierCache.clear();
     this.lastCacheDelta = { invalidations, preserved: 0 };
+    return this.lastCacheDelta;
   }
 
   private reaches(start: string, target: string): boolean {
     this.count("reachabilityQueries");
+    this.count("reachabilityCacheLookups");
+    // JSON encodes the pair structurally. IDs are protocol data and may
+    // contain NULs or delimiter-looking text, so string concatenation is not
+    // a safe cache-key format.
+    const key = JSON.stringify([start, target]);
+    const cached = this.reachabilityCache.get(key);
+    if (cached !== undefined) {
+      this.count("reachabilityCacheHits");
+      return cached;
+    }
+    this.count("reachabilityCacheMisses");
     const seen = new Set<string>();
     const queue = [start];
     for (let index = 0; index < queue.length; index += 1) {
@@ -737,13 +808,36 @@ export class IncrementalFrontierEngine {
       this.count("reverseIndexLookups");
       for (const dependent of this.dependents.get(id) ?? []) {
         this.count("reachabilityEdgesTraversed");
-        if (dependent === target) return true;
+        if (dependent === target) {
+          this.rememberReachability(key, true);
+          return true;
+        }
         if (seen.has(dependent)) continue;
         seen.add(dependent);
         queue.push(dependent);
       }
     }
+    this.rememberReachability(key, false);
     return false;
+  }
+
+  private rememberReachability(key: string, value: boolean): void {
+    if (!this.reachabilityCache.has(key) && this.reachabilityCache.size >= MAX_REACHABILITY_CACHE_ENTRIES) {
+      const oldest = this.reachabilityCache.keys().next().value as string | undefined;
+      if (oldest !== undefined) {
+        this.reachabilityCache.delete(oldest);
+        this.count("reachabilityCacheEvictions");
+      }
+    }
+    this.reachabilityCache.set(key, value);
+    this.count("reachabilityCacheWrites");
+  }
+
+  private clearReachabilityCache(): void {
+    if (this.reachabilityCache.size > 0) {
+      this.count("reachabilityCacheEntriesCleared", this.reachabilityCache.size);
+      this.reachabilityCache.clear();
+    }
   }
 
   private removeReverseEdges(id: string): void {

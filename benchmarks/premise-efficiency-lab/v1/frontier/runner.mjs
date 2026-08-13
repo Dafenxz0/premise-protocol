@@ -18,7 +18,8 @@ const CYCLE_1_CAMPAIGNS = Object.freeze([
 
 const PRIMITIVE_COUNTER_KEYS = Object.freeze([
   "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
-  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityNodesVisited",
+  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityCacheLookups", "reachabilityCacheHits",
+  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
   "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheEntriesPreserved",
   "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
 ]);
@@ -258,9 +259,13 @@ export async function runFrontierCampaign({ profile: profileName = "smoke", camp
     return Object.freeze({ format: FRONTIER_CAMPAIGN_FORMAT, status: "INCONCLUSIVE", profile: profileName, seed, requestedCampaigns: campaigns, campaigns: Object.freeze(rows), reason: `expected ${CYCLE_1_CAMPAIGNS.length * 6} rows, got ${rows.length}` });
   }
   const unsupported = ["single-flight-stampede", "receipt-subsumption", "event-continuity", "long-horizon"].map((campaign) => ({ campaign, status: "OUT_OF_SCOPE", reason: "PR24 evidence cycle is frontier-only" }));
+  const referenceEquivalent = rows.every((row) => row.equivalent === true);
+  const baselineBehaviorEquivalent = rows.every((row) => row.baselineEquivalent === true);
+  const baselineArtifactVerified = baselineArtifact.artifactVerified === true;
+  const candidateAccountingReconciled = rows.every((row) => row.incremental.accountingReconciled === true);
   return Object.freeze({
     format: FRONTIER_CAMPAIGN_FORMAT,
-    status: "PASS",
+    status: referenceEquivalent && baselineArtifactVerified && candidateAccountingReconciled ? "PASS" : "FAIL",
     profile: profileName,
     seed,
     baseline: "c86a6ea",
@@ -275,10 +280,11 @@ export async function runFrontierCampaign({ profile: profileName = "smoke", camp
     campaigns: Object.freeze(rows),
     unsupported: Object.freeze(unsupported),
     claims: Object.freeze({
-      referenceEquivalent: rows.every((row) => row.equivalent === true),
-      baselineBehaviorEquivalent: rows.every((row) => row.baselineEquivalent === true),
-      baselineArtifactVerified: baselineArtifact.artifactVerified === true,
-      candidateAccountingReconciled: rows.every((row) => row.incremental.accountingReconciled === true),
+      referenceEquivalent,
+      baselineBehaviorEquivalent,
+      baselineArtifactVerified,
+      candidateAccountingReconciled,
+      baselineComparisonStatus: baselineBehaviorEquivalent ? "PASS" : "INCONCLUSIVE",
       physicalReductionClaim: false,
       safetyClaim: false,
       commercialClaim: false,
@@ -300,6 +306,7 @@ async function main() {
   await mkdir(root, { recursive: true });
   await writeFile(resolve(root, `${profile}.json`), `${JSON.stringify(result, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify({ status: result.status, profile, rows: result.campaigns?.length ?? 0, output: root }, null, 2)}\n`);
+  if (result.status !== "PASS") process.exitCode = 1;
 }
 
 if (process.argv[1]?.endsWith("runner.mjs")) await main();

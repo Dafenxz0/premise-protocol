@@ -834,6 +834,14 @@ export class PremiseRuntime<T = unknown> {
         this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
         this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
         this.operation("dirtyPropagations", impact.dirtyPropagations);
+        if (impact.frontierComplete !== true) {
+          // The incremental result may contain only a prefix of the closure
+          // after a resource budget is exhausted. Never persist that partial
+          // set as authoritative invalidation; fall back to the complete
+          // reverse-index traversal and keep the incremental engine unknown.
+          this.frontierEngine.markUnknown();
+          return this.dependentClosure(direct);
+        }
         return this.orderedIds(impact.affected);
       } catch {
         // A missing/corrupt incremental index must fail closed to the

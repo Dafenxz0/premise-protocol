@@ -7,11 +7,18 @@ It compared against a reconstructed champion and counted only the legacy
 `nodesVisited + edgesTraversed` fields. It must not be used as a current
 performance claim.
 
-PR24 reruns the same deterministic fixture against the actual compiled
-artifact at commit `c86a6eaeb80107e3aa41d1a6c76c0025ec2477e` and emits the new
-primitive counter contract. The current report deliberately exposes both
-quantities without dividing them: the old artifact has no physical primitive
-counters, so a physical-work reduction is **not certified** yet.
+PR24 reran the same deterministic fixture against the actual compiled
+artifact at commit `c86a6eaeb80107e3aa41d1a6c76c0025ec2477e` and emitted the
+new primitive counter contract. It was merged as commit
+`56f380307f4eada9f5bb5223e0fe739f76f0a862`. The baseline remains immutable;
+PR25 uses it as the champion and does not reuse the historical PR23
+denominator.
+
+For PR24, `status: PASS` means the frozen six-campaign validation rerun,
+candidate/reference equivalence and accounting gates passed. The report also
+publishes `baselineComparisonStatus`; it is `INCONCLUSIVE` for the known
+alternating-root baseline differences. That status blocks any candidate versus
+champion performance claim even though the integrity rerun itself is green.
 
 ## Immutable comparison
 
@@ -46,8 +53,7 @@ Its results remain useful only as a record of what was previously published.
 
 ## PR24 certification rerun - baseline and accounting
 
-Status: **IN PROGRESS** until the exact frozen large campaign is executed and
-reviewed.
+Status: **COMPLETE and MERGED**.
 
 The gate requires:
 
@@ -71,6 +77,63 @@ baseline is intentionally executed as-is:
 node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=large
 node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
 ```
+
+## PR25 - cached reachability under root explosion
+
+Status: **CANDIDATE IMPLEMENTED; SMOKE PASS; MEDIUM/FULL DIAGNOSTICS INCONCLUSIVE**.
+
+PR25 adds a graph-revision-scoped boolean reachability cache to the current
+frontier engine. The cache is invalidated on graph mutation, and cache reads,
+writes, hits and misses are counted as physical primitive work. The decision,
+frontier and affected closure remain unchanged.
+
+The smoke campaign ran 16 isolated candidate/champion pairs across nested
+diamonds, meshed DAGs, reconvergent DAGs and wide DAGs at 16, 32, 64 and 128
+dirty roots. All 16 pairs matched the champion and the independent oracle;
+candidate accounting reconciled in every case. The observed median physical
+work reduction was 56.8% for this smoke fixture only. It is not a commercial,
+safety or universal-scale claim.
+
+The immutable PR24 champion predates the six PR25 reachability-cache
+counters. The runner explicitly records those absent fields and defaults them
+to zero only for that known no-cache champion; any other missing counter makes
+the comparison inconclusive. This normalization is visible in every worker
+row and is not an unreported denominator change. Medium adds forward/reverse
+root order; full adds an interleaved order.
+
+The candidate bounds the reachability cache at 65,536 entries and caps each
+maintenance operation at 5,000,000 frontier-root comparisons. Exceeding that
+CPU budget returns `UNKNOWN`/`complete:false` and is reported as
+`INCONCLUSIVE`, never as a safe completion or optimization win.
+
+The executed diagnostics are recorded here so an incomplete campaign cannot be
+mistaken for a win:
+
+| Profile | Cases | Comparable | Candidate timeouts | Candidate incomplete | Champion timeouts | Champion not run | Status | Median physical reduction |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: |
+| smoke | 16 | 16 | 0 | 0 | 0 | 0 | PASS | 56.8% |
+| medium | 24 | 14 | 0 | 4 | 8 | 2 | INCONCLUSIVE | 14.7%* |
+| full | 48 | 17 | 21 | 8 | 2 | 29 | INCONCLUSIVE | 14.7%* |
+
+`*` The status columns are row counts and can overlap because a row may have an
+incomplete candidate and an unavailable champion. The medium/full percentages
+describe only comparable PASS rows; they are not campaign-wide or production
+claims. Full rows at 10,000/50,000 roots are candidate-first diagnostics and
+the champion is intentionally not run at that scale, even when the candidate
+completes; no pairwise reduction is inferred for those rows.
+
+```powershell
+pnpm benchmark:efficiency:v1:frontier:root-explosion:check
+node benchmarks/premise-efficiency-lab/v1/frontier/root-explosion.mjs --profile=medium
+node benchmarks/premise-efficiency-lab/v1/frontier/root-explosion.mjs --profile=full
+```
+
+The medium profile uses 100, 500 and 1,000 roots with forward/reverse order;
+the full profile uses 100, 1,000, 10,000 and 50,000 roots with forward,
+reverse and interleaved order. A champion timeout, OOM or incomplete row is
+`INCONCLUSIVE`; it never becomes an optimization win. The worker currently
+records RSS before and after each isolated process; peak-memory sampling
+remains a separate gate.
 
 ## Cycle 2 - receipts, reuse and single-flight
 

@@ -19,6 +19,8 @@ export class FullTraversalReference {
       }
     }
     this.directDirty = new Map();
+    this.lastReachabilityNodesVisited = 0;
+    this.lastReachabilityEdgesTraversed = 0;
   }
 
   markDirty(ids, status = "STALE") {
@@ -49,6 +51,8 @@ export class FullTraversalReference {
     const queue = [target];
     let nodesVisited = 0;
     let edgesTraversed = 0;
+    this.lastReachabilityNodesVisited = 0;
+    this.lastReachabilityEdgesTraversed = 0;
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       const id = queue[cursor];
       if (reachable.has(id)) continue;
@@ -60,23 +64,43 @@ export class FullTraversalReference {
       }
     }
     const roots = [...reachable].filter((id) => this.directDirty.has(id)).sort();
-    const frontier = roots.filter((candidate) => !roots.some((other) => other !== candidate && this.reaches(other, candidate)));
+    const frontier = roots.filter((candidate) => !roots.some((other) => {
+      if (other === candidate) return false;
+      return this.reaches(other, candidate);
+    }));
     const status = roots.reduce((current, id) => statusMax(current, this.directDirty.get(id)), "FRESH");
-    return Object.freeze({ status, frontier: Object.freeze(frontier), complete: true, nodesVisited, edgesTraversed, cacheHit: false });
+    return Object.freeze({
+      status,
+      frontier: Object.freeze(frontier),
+      complete: true,
+      nodesVisited: nodesVisited + this.lastReachabilityNodesVisited,
+      edgesTraversed: edgesTraversed + this.lastReachabilityEdgesTraversed,
+      cacheHit: false
+    });
   }
 
   reaches(start, target) {
     const seen = new Set();
     const queue = [start];
+    let nodesVisited = 0;
+    let edgesTraversed = 0;
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       const id = queue[cursor];
+      nodesVisited += 1;
       for (const dependent of this.dependents.get(id) ?? []) {
-        if (dependent === target) return true;
+        edgesTraversed += 1;
+        if (dependent === target) {
+          this.lastReachabilityNodesVisited += nodesVisited;
+          this.lastReachabilityEdgesTraversed += edgesTraversed;
+          return true;
+        }
         if (seen.has(dependent)) continue;
         seen.add(dependent);
         queue.push(dependent);
       }
     }
+    this.lastReachabilityNodesVisited += nodesVisited;
+    this.lastReachabilityEdgesTraversed += edgesTraversed;
     return false;
   }
 }

@@ -12,7 +12,8 @@ function chain() {
 
 const PRIMITIVE_COUNTER_KEYS = Object.freeze([
   "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
-  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityNodesVisited",
+  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityCacheLookups", "reachabilityCacheHits",
+  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
   "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheEntriesPreserved",
   "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
 ]);
@@ -97,10 +98,19 @@ test("invalid roots dominate stale roots and unknown nodes are rejected", () => 
 });
 
 test("graph changes invalidate frontier cache and cycles fail closed at construction time", () => {
-  const engine = chain();
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "B", dependsOn: ["A"] },
+    { id: "C", dependsOn: ["A"] },
+    { id: "T", dependsOn: ["B", "C"] }
+  ]);
+  engine.markDirty(["B", "C"]);
   engine.frontier("T");
+  assert.ok(engine.stats().reachabilityCacheEntries > 0);
   engine.addNode("U", ["T"]);
   assert.equal(engine.frontier("U").cacheHit, false);
+  engine.setDependencies("T", ["B"]);
+  assert.equal(engine.stats().reachabilityCacheEntries, 0);
   assert.throws(() => engine.setDependencies("A", ["U"]), /Dependency cycle/);
 });
 
@@ -193,6 +203,209 @@ function referenceFrontier(nodes, target, direct) {
     frontier
   };
 }
+
+function assertFrontierEquivalent(nodes, target, direct, engine, label) {
+  const expected = referenceFrontier(nodes, target, direct);
+  engine.markDirty(direct);
+  const actual = engine.frontier(target);
+  assert.equal(actual.status, expected.status, `${label} status`);
+  assert.deepEqual(actual.frontier, expected.frontier, `${label} frontier`);
+  assert.equal(actual.complete, true, `${label} complete`);
+  return actual;
+}
+
+function serialNestedDiamonds(depth) {
+  const nodes = [{ id: "root" }];
+  const stages = [];
+  let previous = "root";
+  for (let index = 0; index < depth; index += 1) {
+    const left = `d${index}-left`;
+    const right = `d${index}-right`;
+    const join = `d${index}-join`;
+    nodes.push(
+      { id: left, dependsOn: [previous] },
+      { id: right, dependsOn: [previous] },
+      { id: join, dependsOn: [left, right] }
+    );
+    stages.push({ left, right, join });
+    previous = join;
+  }
+  nodes.push({ id: "T", dependsOn: [previous] });
+  return { nodes, stages };
+}
+
+function parallelNestedDiamonds(count) {
+  const nodes = [];
+  const roots = [];
+  const joins = [];
+  for (let index = 0; index < count; index += 1) {
+    const source = `p${index}-source`;
+    const left = `p${index}-left`;
+    const right = `p${index}-right`;
+    const join = `p${index}-join`;
+    nodes.push(
+      { id: source },
+      { id: left, dependsOn: [source] },
+      { id: right, dependsOn: [source] },
+      { id: join, dependsOn: [left, right] }
+    );
+    roots.push(left, right);
+    joins.push(join);
+  }
+  nodes.push({ id: "T", dependsOn: joins });
+  return { nodes, roots };
+}
+
+test("PR25 differential: reconvergent root sets match reachability antichains", () => {
+  const nodes = [
+    { id: "source-a" },
+    { id: "a-left", dependsOn: ["source-a"] },
+    { id: "a-right", dependsOn: ["source-a"] },
+    { id: "source-b" },
+    { id: "b-left", dependsOn: ["source-b"] },
+    { id: "b-right", dependsOn: ["source-b"] },
+    { id: "join-a", dependsOn: ["a-left", "a-right"] },
+    { id: "join-b", dependsOn: ["b-left", "b-right"] },
+    { id: "T", dependsOn: ["join-a", "join-b"] }
+  ];
+  const cases = [
+    {
+      direct: ["a-left", "a-right", "b-left", "b-right"],
+      expected: ["a-left", "a-right", "b-left", "b-right"]
+    },
+    { direct: ["source-a", "source-b"], expected: ["source-a", "source-b"] },
+    {
+      direct: ["source-a", "b-left", "b-right"],
+      expected: ["b-left", "b-right", "source-a"]
+    },
+    {
+      direct: ["a-left", "a-right", "source-b"],
+      expected: ["a-left", "a-right", "source-b"]
+    }
+  ];
+
+  for (const [index, { direct, expected }] of cases.entries()) {
+    const engine = new IncrementalFrontierEngine(nodes);
+    const actual = assertFrontierEquivalent(nodes, "T", direct, engine, `reconvergent-${index}`);
+    assert.deepEqual(actual.frontier, expected, `reconvergent-${index} expected roots`);
+  }
+});
+
+test("reachability cache keys remain unambiguous for IDs containing NUL", () => {
+  const nodes = [
+    { id: "a" },
+    { id: "b\u0000c", dependsOn: ["a"] },
+    { id: "a\u0000b" },
+    { id: "c" },
+    { id: "T", dependsOn: ["b\u0000c", "a\u0000b", "c"] }
+  ];
+  const engine = new IncrementalFrontierEngine(nodes);
+  engine.markDirty(["a", "b\u0000c", "a\u0000b", "c"]);
+  assert.deepEqual(engine.frontier("T").frontier, ["a", "a\u0000b", "c"]);
+});
+
+test("rejected dependency updates are atomic and do not leave placeholders", () => {
+  const engine = chain();
+  engine.frontier("T");
+  const before = engine.stats();
+  assert.throws(() => engine.setDependencies("A", ["orphan", "A"]), /Dependency cycle/);
+  const after = engine.stats();
+  assert.equal(after.nodeCount, before.nodeCount);
+  assert.equal(after.graphRevision, before.graphRevision);
+  assert.equal(after.generation, before.generation);
+  assert.equal(engine.frontier("T").cacheHit, true);
+  assert.throws(() => engine.frontier("orphan"), /Unknown node/);
+});
+
+test("incomplete frontier recovery remains fail-closed until trust is restored", () => {
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "T", dependsOn: ["A"] },
+    { id: "X" }
+  ]);
+  engine.markDirty(["A"]);
+  engine.frontier("T");
+  engine.frontier("X");
+  // White-box the overflow state to exercise recovery without adding a
+  // multi-second 5M-comparison fixture to every unit-test run.
+  engine.frontierBudgetExceeded = true;
+  assert.equal(engine.frontier("X").complete, false);
+  const impact = engine.resolve("A");
+  assert.equal(impact.frontierComplete, false);
+  assert.equal(engine.frontier("X").complete, false);
+  engine.restoreTrust();
+  const recovered = engine.frontier("X");
+  assert.equal(recovered.status, "FRESH");
+  assert.equal(recovered.complete, true);
+  assert.equal(recovered.cacheHit, false);
+});
+
+test("untrusted impact is never reported as complete", () => {
+  const engine = chain();
+  engine.markUnknown();
+  const impact = engine.resolve("A");
+  assert.equal(impact.frontierComplete, false);
+  assert.equal(engine.frontier("T").complete, false);
+});
+
+test("PR25 differential: nested-diamond root sets use transitive reachability", () => {
+  const { nodes, stages } = serialNestedDiamonds(8);
+  const cases = [
+    {
+      direct: stages.flatMap(({ left, right }) => [left, right]),
+      expected: [stages[0].left, stages[0].right]
+    },
+    {
+      direct: [stages[2].left, stages[2].right, stages[5].left],
+      expected: [stages[2].left, stages[2].right]
+    },
+    { direct: [stages[1].left, stages[4].right], expected: [stages[1].left] },
+    {
+      direct: [stages[6].left, stages[6].right],
+      expected: [stages[6].left, stages[6].right]
+    }
+  ];
+
+  for (const [index, { direct, expected }] of cases.entries()) {
+    const engine = new IncrementalFrontierEngine(nodes);
+    const actual = assertFrontierEquivalent(nodes, "T", direct, engine, `nested-diamond-${index}`);
+    assert.deepEqual(actual.frontier, expected, `nested-diamond-${index} expected roots`);
+  }
+});
+
+test("PR25 differential: 128 reconvergent roots are deterministic across input order", () => {
+  const { nodes, roots } = parallelNestedDiamonds(64);
+  const expected = referenceFrontier(nodes, "T", roots);
+  assert.equal(roots.length, 128);
+  assert.equal(expected.frontier.length, 128);
+
+  const orders = [
+    roots,
+    [...roots].reverse(),
+    roots.filter((_, index) => index % 2 === 0).concat(roots.filter((_, index) => index % 2 === 1).reverse())
+  ];
+  for (const [index, order] of orders.entries()) {
+    const engine = new IncrementalFrontierEngine(nodes);
+    const actual = assertFrontierEquivalent(nodes, "T", order, engine, `128-roots-batch-${index}`);
+    assert.deepEqual(actual.frontier, expected.frontier, `128-roots-batch-${index} order`);
+  }
+
+  const engine = new IncrementalFrontierEngine(nodes);
+  const seen = [];
+  for (const root of orders[2]) {
+    seen.push(root);
+    assertFrontierEquivalent(nodes, "T", seen, engine, `128-roots-incremental-${seen.length}`);
+  }
+});
+
+test("reachability cache remains bounded under a large incomparable root set", () => {
+  const { nodes, roots } = parallelNestedDiamonds(256);
+  const engine = new IncrementalFrontierEngine(nodes);
+  engine.markDirty(roots);
+  const stats = engine.stats();
+  assert.ok(stats.reachabilityCacheEntries <= stats.reachabilityCacheLimit);
+  assert.ok(stats.workBreakdown.maintenance.reachabilityCacheEvictions > 0);
+});
 
 test("incremental affected closure is differentially equivalent to a reference traversal", () => {
   let state = 0x9e3779b9;

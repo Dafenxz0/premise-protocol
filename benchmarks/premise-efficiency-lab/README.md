@@ -170,3 +170,27 @@ cache preservation, antichain maintenance and deep-graph bootstrap. Receipts,
 event continuity, single-flight and compaction are separate cycles. Generated
 reports stay under `.tmp/` and do not support claims about tokens, dollars,
 external reads or commercial savings.
+
+### PR25 root-explosion stress
+
+PR25 adds a graph-revision-scoped reachability cache and a separate stress
+runner. It compares the current candidate with the frozen PR24 champion in
+isolated processes across nested-diamond, meshed, reconvergent and wide DAGs.
+The runner checks exact affected-closure/frontier equivalence, independent
+oracle equivalence for small cases, and physical counter reconciliation.
+
+```powershell
+pnpm benchmark:efficiency:v1:frontier:root-explosion:check
+node benchmarks/premise-efficiency-lab/v1/frontier/root-explosion.mjs --profile=medium
+```
+
+The stress report treats champion timeouts and missing accounting as
+`INCONCLUSIVE`, never as a candidate win. Its RSS field is process-level
+before/after resident memory, not a peak-memory claim. Generated reports stay
+under `.tmp/`.
+
+The current execution status is intentionally conservative: root-explosion
+smoke is `PASS` (16/16 comparable rows); medium is `INCONCLUSIVE` (14/24
+comparable rows); and full is `INCONCLUSIVE` (17/48 comparable rows). The
+medium/full comparable-subset reductions are descriptive only and do not
+replace the champion or support a production-scale claim.

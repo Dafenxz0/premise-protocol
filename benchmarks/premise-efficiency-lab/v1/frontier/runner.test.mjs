@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runFrontierCampaign } from "./runner.mjs";
+import { FROZEN_BASELINE_MANIFEST, verifyFrozenManifest } from "./baseline-artifact.mjs";
 
 test("frontier smoke campaign is differential-equivalent and reports locality", async () => {
   const result = await runFrontierCampaign({ profile: "smoke", seed: 7 });
@@ -14,6 +15,12 @@ test("frontier smoke campaign is differential-equivalent and reports locality", 
   assert.ok(result.campaigns.some((row) => row.incremental.cacheHits > 0));
   assert.ok(result.campaigns.some((row) => row.incremental.frontierCacheEntriesPreserved > 0));
   assert.equal(result.claims.commercialClaim, false);
+  assert.equal(result.claims.baselineComparisonStatus, "INCONCLUSIVE");
+});
+
+test("baseline manifest identity is independently frozen", () => {
+  assert.equal(verifyFrozenManifest(FROZEN_BASELINE_MANIFEST), true);
+  assert.throws(() => verifyFrozenManifest({ ...FROZEN_BASELINE_MANIFEST, artifactDigest: "sha256:tampered" }), /BASELINE_MANIFEST_NOT_FROZEN:artifactDigest/u);
 });
 
 test("diagnostic scale never silently truncates", async () => {

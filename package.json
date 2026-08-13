@@ -65,6 +65,8 @@
     "benchmark:efficiency:v1:campaign": "pnpm build && node benchmarks/premise-efficiency-lab/v1/campaign.mjs --tasks=24",
     "benchmark:efficiency:v1:sealed": "pnpm build && node benchmarks/premise-efficiency-lab/v1/isolation/sealed-campaign.mjs",
     "benchmark:efficiency:v1:frontier": "pnpm build && node benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=smoke",
+    "benchmark:efficiency:v1:frontier:root-explosion": "pnpm build && node benchmarks/premise-efficiency-lab/v1/frontier/root-explosion.mjs --profile=smoke",
+    "benchmark:efficiency:v1:frontier:root-explosion:check": "pnpm build && node --test benchmarks/premise-efficiency-lab/v1/frontier/root-explosion.test.mjs && node benchmarks/premise-efficiency-lab/v1/frontier/root-explosion.mjs --profile=smoke",
     "benchmark:efficiency:v1:frontier:check": "pnpm build && node --test benchmarks/premise-efficiency-lab/v1/frontier/runner.test.mjs && node benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=smoke && node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/smoke.json --output=.tmp/premise-efficiency-lab/v1/frontier/smoke",
     "benchmark:efficiency:v1:frontier:report": "node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs",
     "ga:gate": "node scripts/ga-gate.mjs",

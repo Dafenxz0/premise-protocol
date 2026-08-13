@@ -18,7 +18,7 @@ jobs:
           version: 10.13.1
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.19.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -30,6 +30,7 @@ jobs:
       - run: pnpm benchmark:efficiency:check
       - run: pnpm benchmark:efficiency:self-check
       - run: pnpm benchmark:efficiency:scale
+      - run: pnpm benchmark:efficiency:v1:frontier:root-explosion:check
       - run: pnpm benchmark:real-world
       - run: pnpm benchmark:context-corpus
       - run: pnpm benchmark:compare
