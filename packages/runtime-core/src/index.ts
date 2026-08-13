@@ -28,6 +28,7 @@ import { RuntimeReceiptCache } from "./receipt-cache.js";
 import { verifyRuntimeCheckpointRecovery } from "./checkpoint.js";
 import type { RuntimeCheckpointTailEntry, RuntimeIdempotencyRecord, RuntimeOperationalCheckpoint } from "./checkpoint.js";
 import type { RuntimeJournal, RuntimeJournalEventEntry } from "./journal.js";
+import { planRuntimeStreamBurst, type RuntimeStreamBurstCapabilities } from "./stream-burst.js";
 export * from "./premise-policy.js";
 export * from "./premise-guard.js";
 export * from "./instrumentation.js";
@@ -35,6 +36,7 @@ export * from "./frontier-engine.js";
 export * from "./receipt-cache.js";
 export * from "./journal.js";
 export * from "./checkpoint.js";
+export * from "./stream-burst.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
@@ -201,6 +203,23 @@ export interface RuntimeStreamRepairResult {
   readonly applied: readonly number[];
   readonly duplicates: readonly number[];
 }
+
+export type RuntimeStreamBurstApplyResult =
+  | {
+      readonly status: "APPLIED" | "REPAIRED";
+      readonly coalesced: boolean;
+      readonly applied: readonly number[];
+      readonly duplicates: readonly number[];
+      readonly skippedSequences: readonly number[];
+    }
+  | {
+      readonly status: "REPAIR_REQUIRED";
+      readonly coalesced: false;
+      readonly reason: RuntimeStreamRepairReason;
+      readonly applied: readonly number[];
+      readonly duplicates: readonly number[];
+      readonly skippedSequences: readonly number[];
+    };
 
 function cloneJson<T>(value: T): T {
   const serialized = JSON.stringify(value);
@@ -973,6 +992,55 @@ export class PremiseRuntime<T = unknown> {
       toSequence: last.sequence,
       applied: Object.freeze(applied),
       duplicates: Object.freeze(duplicates)
+    });
+  }
+
+  /**
+   * Apply a connector burst. Coalescing is opt-in through capabilities and
+   * can only discard events before an authoritative snapshot; otherwise the
+   * ordered events take the ordinary fail-closed path.
+   */
+  applyStreamBurst(events: readonly V2StreamEvent[], options: RuntimeStreamBurstCapabilities): RuntimeStreamBurstApplyResult {
+    const plan = planRuntimeStreamBurst(events, options);
+    if (plan.status === "COALESCED") {
+      const tail = plan.events[plan.events.length - 1]!;
+      const repaired = this.repairStreamFromSnapshot({
+        specVersion: "premise/2",
+        tenantId: plan.tenantId,
+        streamId: plan.streamId,
+        events: plan.events,
+        headSequence: tail.sequence
+      });
+      return Object.freeze({
+        status: repaired.status,
+        coalesced: true,
+        applied: repaired.applied,
+        duplicates: repaired.duplicates,
+        skippedSequences: plan.skippedSequences
+      });
+    }
+    const applied: number[] = [];
+    const duplicates: number[] = [];
+    for (const event of plan.events) {
+      const result = this.applyStreamEvent(event);
+      if (result.status === "REPAIR_REQUIRED") {
+        return Object.freeze({
+          status: "REPAIR_REQUIRED",
+          coalesced: false,
+          reason: result.reason,
+          applied: Object.freeze(applied),
+          duplicates: Object.freeze(duplicates),
+          skippedSequences: Object.freeze([])
+        });
+      }
+      (result.status === "APPLIED" ? applied : duplicates).push(result.sequence);
+    }
+    return Object.freeze({
+      status: "APPLIED",
+      coalesced: false,
+      applied: Object.freeze(applied),
+      duplicates: Object.freeze(duplicates),
+      skippedSequences: Object.freeze([])
     });
   }
 
