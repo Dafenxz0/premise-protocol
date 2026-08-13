@@ -61,8 +61,8 @@ export async function artifactDigest(root, { relativeRoots = ["packages/runtime-
   return { digest: `sha256:${hash.digest("hex")}`, files: files.length, fileManifest: Object.freeze(fileManifest) };
 }
 
-async function readManifest() {
-  return JSON.parse(await readFile(BASELINE_MANIFEST_FILE, "utf8"));
+async function readManifest(manifestFile = BASELINE_MANIFEST_FILE) {
+  return JSON.parse(await readFile(manifestFile, "utf8"));
 }
 
 function verifyNode(manifest) {
@@ -78,8 +78,8 @@ function verifyToolchain(root, manifest) {
   if (manifest.typescriptVersion !== undefined && typescriptVersion !== `Version ${manifest.typescriptVersion}`) throw new Error(`BASELINE_TYPESCRIPT_VERSION_MISMATCH:${typescriptVersion}`);
 }
 
-export async function prepareBaselineArtifact({ root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../"), fetchMissing = true } = {}) {
-  const manifest = await readManifest();
+export async function prepareBaselineArtifact({ root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../"), fetchMissing = true, manifestFile = BASELINE_MANIFEST_FILE } = {}) {
+  const manifest = await readManifest(manifestFile);
   verifyNode(manifest);
   let commit;
   try {

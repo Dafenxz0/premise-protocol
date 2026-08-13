@@ -268,8 +268,20 @@ test("repeated dirty roots skip already covered branches and preserve unrelated 
   const repeated = engine.markDirty(["A"]);
   assert.ok(repeated.branchesSkippedAlreadyDirty >= 2);
   assert.equal(repeated.nodesVisited, 0);
+  assert.deepEqual(repeated.affected, ["A", "B", "T"]);
+  assert.equal(repeated.frontierCacheInvalidations, 0);
+  assert.equal(repeated.frontierCacheEntriesPreserved, 0);
   assert.equal(engine.frontier("T").status, "STALE");
   assert.equal(engine.frontier("X").cacheHit, true);
+});
+
+test("affected closure cache remains bounded under many independent roots", () => {
+  const engine = new IncrementalFrontierEngine(Array.from({ length: 300 }, (_, index) => ({ id: `R${index}` })));
+  for (let index = 0; index < 300; index += 1) engine.markDirty([`R${index}`]);
+  const stats = engine.stats();
+  assert.ok(stats.affectedClosureCacheEntries <= 256);
+  assert.ok(stats.affectedClosureCacheNodes >= stats.affectedClosureCacheEntries);
+  assert.ok(stats.affectedClosureCacheEvictions > 0);
 });
 
 test("a severity upgrade propagates through the covered closure", () => {
