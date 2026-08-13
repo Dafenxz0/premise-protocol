@@ -66,8 +66,8 @@ export async function runAdapterConformance<T = unknown>(
   if (observation !== undefined) {
     let revalidation: AdapterRevalidation | undefined;
     try {
-      revalidation = await adapter.revalidate({ tenantId: options.tenantId, record: observation.value, evidence: observation.evidence[0]! });
-      if (!["UNCHANGED", "CHANGED", "MISSING", "UNKNOWN"].includes(revalidation.result)) throw new Error("invalid revalidation result");
+      revalidation = await adapter.revalidate({ tenantId: options.tenantId, resource: options.resource, record: observation.value, evidence: observation.evidence[0]!, expectedVersion: observation.version });
+      if (!["UNCHANGED", "CHANGED", "MISSING", "UNKNOWN", "PRECONDITION_FAILED"].includes(revalidation.result)) throw new Error("invalid revalidation result");
       if (!Number.isFinite(Date.parse(revalidation.checkedAt))) throw new Error("revalidation checkedAt must be an ISO timestamp");
       results.push(pass("revalidation"));
     } catch (error) {
@@ -76,7 +76,7 @@ export async function runAdapterConformance<T = unknown>(
     if (options.expectConditionalAction === true) {
       try {
         if (typeof adapter.conditionalAction !== "function") throw new Error("conditionalAction is not implemented");
-        const action = await adapter.conditionalAction({ tenantId: options.tenantId, resource: options.resource, expectedVersion: observation.version.token, action: { type: "conformance-noop" } });
+        const action = await adapter.conditionalAction({ tenantId: options.tenantId, resource: options.resource, expectedVersion: observation.version, action: { type: "conformance-noop" } });
         if (typeof action.accepted !== "boolean") throw new Error("conditional action result must include accepted");
         results.push(pass("conditional-action"));
       } catch (error) {
