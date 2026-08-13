@@ -58,6 +58,93 @@ function scopeFactory(evidence, record) {
   };
 }
 
+function probeScope(versionToken) {
+  return {
+    tenantId: "tenant:horizon",
+    resourceId: SOURCE,
+    incarnationId: "inc:horizon-probe",
+    versionToken,
+    scopes: ["read:source"],
+    queryDigest: "query:horizon-probe",
+    validatorId: "horizon-validator",
+    authorizationContextDigest: "auth:horizon",
+    policyDigest: "policy:horizon",
+    changeSetDigest: null,
+    causalFrontier: []
+  };
+}
+
+function runFrontierProbe(IncrementalFrontierEngine, rootCount) {
+  const nodes = [];
+  for (let index = 0; index < rootCount; index += 1) {
+    nodes.push({ id: `probe:root:${index}`, dependsOn: [] });
+    nodes.push({ id: `probe:leaf:${index}`, dependsOn: [`probe:root:${index}`] });
+  }
+  const engine = new IncrementalFrontierEngine(nodes);
+  let errors = 0;
+  for (let index = 0; index < rootCount; index += 1) {
+    try {
+      engine.markDirty([`probe:root:${index}`], "STALE");
+      engine.resolve(`probe:root:${index}`);
+    } catch {
+      errors += 1;
+    }
+  }
+  const beforeCleanup = engine.stats();
+  for (let index = 0; index < rootCount; index += 1) {
+    try { engine.frontier(`probe:leaf:${index}`); } catch { errors += 1; }
+  }
+  const afterLeafQueries = engine.stats();
+  for (let index = 0; index < rootCount; index += 1) {
+    try { engine.frontier(`probe:root:${index}`); } catch { errors += 1; }
+  }
+  const afterCleanup = engine.stats();
+  return Object.freeze({
+    rootCount,
+    errors,
+    beforeCleanup: {
+      tombstonedRootCount: beforeCleanup.tombstonedRootCount,
+      tombstonedRootEntries: beforeCleanup.tombstonedRootEntries,
+      cacheEntries: beforeCleanup.cacheEntries,
+      trusted: beforeCleanup.trusted
+    },
+    afterLeafQueries: {
+      tombstonedRootCount: afterLeafQueries.tombstonedRootCount,
+      tombstonedRootEntries: afterLeafQueries.tombstonedRootEntries,
+      cacheEntries: afterLeafQueries.cacheEntries,
+      trusted: afterLeafQueries.trusted
+    },
+    afterCleanup: {
+      tombstonedRootCount: afterCleanup.tombstonedRootCount,
+      tombstonedRootEntries: afterCleanup.tombstonedRootEntries,
+      cacheEntries: afterCleanup.cacheEntries,
+      trusted: afterCleanup.trusted
+    }
+  });
+}
+
+function runCacheProbe(RuntimeReceiptCache, RuntimeNegativeCache, count) {
+  const receiptCache = new RuntimeReceiptCache({ maxEntries: 128 });
+  const negativeCache = new RuntimeNegativeCache();
+  for (let index = 0; index < count; index += 1) {
+    const scope = probeScope(`probe:${index}`);
+    receiptCache.put({
+      scope,
+      state: "FRESH",
+      valid: true,
+      observedAt: AT,
+      expiresAt: "2026-08-13T00:01:00.000Z",
+      value: { index }
+    });
+    negativeCache.put(scope, "event-gap", "2026-08-13T00:01:00.000Z");
+  }
+  return Object.freeze({
+    receiptEntries: receiptCache.stats().entries,
+    receiptEvictions: receiptCache.stats().evictions,
+    negativeCacheEntries: negativeCache.stats().entries
+  });
+}
+
 function parsePositiveList(value, fallback) {
   const list = value === undefined ? fallback : value.split(",").map((item) => Number(item));
   if (list.length === 0 || list.some((item) => !Number.isSafeInteger(item) || item < 1)) throw new RangeError("horizons must be positive integers");
@@ -116,15 +203,27 @@ async function runHorizon(module, { steps, worldSize }) {
   const samples = [];
   let runtimeErrors = 0;
   let frontierErrors = 0;
+  let frontierComplete = true;
+  let runtimeFrontierComplete = true;
   for (let step = 1; step <= steps; step += 1) {
     const versionToken = `v${step + 1}`;
     try {
       runtime.signalSourceChanged(SOURCE, { scheme: "horizon.source", token: versionToken }, `signal:${step}`);
       runtime.check(["memory:source", `memory:node:${worldSize - 1}`]);
-      runtime.frontier(`memory:node:${worldSize - 1}`);
+    } catch {
+      runtimeErrors += 1;
+    }
+    try {
+      const runtimeFrontier = runtime.frontier(`memory:node:${worldSize - 1}`);
+      runtimeFrontierComplete &&= runtimeFrontier.complete === true;
       frontier.markDirty(["memory:source"], "STALE");
-      frontier.frontier(`memory:node:${worldSize - 1}`);
+      const directFrontier = frontier.frontier(`memory:node:${worldSize - 1}`);
+      frontierComplete &&= directFrontier.complete === true;
       frontier.resolve("memory:source");
+    } catch {
+      frontierErrors += 1;
+    }
+    try {
       if (step % 29 === 0) {
         runtime.replace("memory:source", { value: "source" }, envelope("memory:source", [], versionToken), `replace:${step}`);
       } else {
@@ -174,7 +273,17 @@ async function runHorizon(module, { steps, worldSize }) {
     }
   }
   collectGarbage();
+  let history = runtime.history();
+  const eventTypeCounts = {};
+  for (const event of history) eventTypeCounts[event.type] = (eventTypeCounts[event.type] ?? 0) + 1;
+  const eventBoundary = {
+    first: history.slice(0, 3).map(({ type }) => type),
+    last: history.slice(-3).map(({ type }) => type)
+  };
+  history = null;
   const frontierStats = frontier.stats();
+  const frontierProbe = runFrontierProbe(IncrementalFrontierEngine, worldSize);
+  const cacheProbe = runCacheProbe(RuntimeReceiptCache, RuntimeNegativeCache, steps);
   const observed = {
     horizonSteps: steps,
     activeRecords: runtime.list().length,
@@ -185,6 +294,15 @@ async function runHorizon(module, { steps, worldSize }) {
     receiptEntries: receiptCache.stats().entries,
     negativeCacheEntries: negativeCache.stats().entries,
     initialEventCount,
+    eventTypeCounts,
+    eventBoundary,
+    runtimeFrontierComplete,
+    frontierComplete,
+    frontierCacheEntries: frontierStats.cacheEntries,
+    frontierCacheInvalidations: frontierStats.frontierCacheInvalidations,
+    frontierCacheEntriesPreserved: frontierStats.frontierCacheEntriesPreserved,
+    frontierCacheProbe: frontierProbe,
+    cacheProbe,
     frontier: {
       tombstonedRootCount: frontierStats.tombstonedRootCount,
       tombstonedRootEntries: frontierStats.tombstonedRootEntries,
@@ -228,8 +346,11 @@ export async function runLongHorizonBenchmark({ horizons = [1000, 10000, 100000]
       independentInvariantOracle: deterministic,
       activeStatePreserved: rows.every(({ observed }) => observed.activeRecords === worldSize),
       noRuntimeErrors: rows.every(({ observed }) => observed.runtimeErrors === 0),
-      frontierTrusted: rows.every(({ observed }) => observed.frontier.trusted === true),
-      boundedReceiptCache: rows.every(({ observed }) => observed.receiptEntries <= 1),
+      frontierTrusted: rows.every(({ observed }) => observed.frontier.trusted === true && observed.runtimeFrontierComplete && observed.frontierComplete),
+      boundedReceiptCache: rows.every(({ observed }) => observed.receiptEntries <= 1 && observed.cacheProbe.receiptEntries <= 128),
+      cacheEvictionsReconciled: rows.every(({ observed, steps }) => observed.cacheProbe.receiptEvictions === Math.max(0, steps - 128)),
+      negativeCacheGrowthMeasured: rows.every(({ observed, steps }) => observed.cacheProbe.negativeCacheEntries === steps),
+      tombstoneCleanupMeasured: rows.every(({ observed, worldSize: size }) => observed.frontierCacheProbe.afterCleanup.tombstonedRootCount === 0 && observed.frontierCacheProbe.rootCount === size),
       compactionNotClaimed: true
     })
   });
