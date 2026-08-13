@@ -144,32 +144,112 @@ export class RuntimeReceiptCache<T = unknown> {
 
 /** Negative facts are never returned as fresh evidence and expire separately. */
 export class RuntimeNegativeCache {
-  private readonly entries = new Map<string, { reason: string; expiresAt: string }>();
+  private readonly entries = new Map<string, { tenantId: string; reason: string; expiresAt: string }>();
+  private readonly tenantCounts = new Map<string, number>();
+  private readonly maxEntries: number;
+  private readonly maxEntriesPerTenant: number | undefined;
+  private hits = 0;
+  private misses = 0;
+  private expirations = 0;
+  private evictions = 0;
+  private peakEntries = 0;
+
+  constructor(options: { maxEntries?: number; maxEntriesPerTenant?: number } = {}) {
+    const maxEntries = options.maxEntries ?? 1024;
+    if (!Number.isSafeInteger(maxEntries) || maxEntries < 1) throw new RangeError("maxEntries must be a positive integer");
+    if (options.maxEntriesPerTenant !== undefined
+      && (!Number.isSafeInteger(options.maxEntriesPerTenant) || options.maxEntriesPerTenant < 1)) {
+      throw new RangeError("maxEntriesPerTenant must be a positive integer");
+    }
+    this.maxEntries = maxEntries;
+    this.maxEntriesPerTenant = options.maxEntriesPerTenant;
+  }
+
+  private delete(key: string, reason: "expiration" | "eviction" | "replace"): boolean {
+    const entry = this.entries.get(key);
+    if (entry === undefined) return false;
+    this.entries.delete(key);
+    const tenantCount = this.tenantCounts.get(entry.tenantId) ?? 0;
+    if (tenantCount <= 1) this.tenantCounts.delete(entry.tenantId);
+    else this.tenantCounts.set(entry.tenantId, tenantCount - 1);
+    if (reason === "expiration") this.expirations += 1;
+    if (reason === "eviction") this.evictions += 1;
+    return true;
+  }
+
+  private evictOldest(predicate?: (entry: { tenantId: string; reason: string; expiresAt: string }) => boolean): void {
+    for (const [key, entry] of this.entries) {
+      if (predicate === undefined || predicate(entry)) {
+        this.delete(key, "eviction");
+        return;
+      }
+    }
+  }
+
+  private enforceBounds(tenantId: string): void {
+    while (this.entries.size > this.maxEntries) this.evictOldest();
+    if (this.maxEntriesPerTenant === undefined) return;
+    while ((this.tenantCounts.get(tenantId) ?? 0) > this.maxEntriesPerTenant) {
+      this.evictOldest((entry) => entry.tenantId === tenantId);
+    }
+  }
 
   put(scope: PremiseReceiptSharingScope, reason: string, expiresAt: string): string {
     if (typeof reason !== "string" || reason.length === 0) throw new TypeError("negative-cache reason must be non-empty");
     assertTimestamp(expiresAt, "expiresAt");
     const key = premiseReceiptSharingKey(scope);
-    this.entries.set(key, { reason, expiresAt });
+    this.delete(key, "replace");
+    this.entries.set(key, { tenantId: scope.tenantId, reason, expiresAt });
+    this.tenantCounts.set(scope.tenantId, (this.tenantCounts.get(scope.tenantId) ?? 0) + 1);
+    this.peakEntries = Math.max(this.peakEntries, this.entries.size);
+    this.enforceBounds(scope.tenantId);
     return key;
   }
 
   get(scope: PremiseReceiptSharingScope, now: string): { status: "NEGATIVE" | "MISS"; reason?: string } {
     assertTimestamp(now, "now");
-    const key = premiseReceiptSharingKey(scope);
+    let key: string;
+    try {
+      key = premiseReceiptSharingKey(scope);
+    } catch {
+      this.misses += 1;
+      return Object.freeze({ status: "MISS" });
+    }
     const entry = this.entries.get(key);
-    if (entry === undefined) return { status: "MISS" };
-    if (!sameOrBefore(now, entry.expiresAt)) {
-      this.entries.delete(key);
+    if (entry === undefined) {
+      this.misses += 1;
       return { status: "MISS" };
     }
+    if (!sameOrBefore(now, entry.expiresAt)) {
+      this.delete(key, "expiration");
+      this.misses += 1;
+      return { status: "MISS" };
+    }
+    this.hits += 1;
     return Object.freeze({ status: "NEGATIVE", reason: entry.reason });
   }
 
-  clear(): void { this.entries.clear(); }
+  clear(): void {
+    this.entries.clear();
+    this.tenantCounts.clear();
+  }
 
-  stats(): Readonly<{ entries: number }> {
-    return Object.freeze({ entries: this.entries.size });
+  stats(): Readonly<{
+    hits: number;
+    misses: number;
+    expirations: number;
+    evictions: number;
+    entries: number;
+    peakEntries: number;
+  }> {
+    return Object.freeze({
+      hits: this.hits,
+      misses: this.misses,
+      expirations: this.expirations,
+      evictions: this.evictions,
+      entries: this.entries.size,
+      peakEntries: this.peakEntries
+    });
   }
 }
 
