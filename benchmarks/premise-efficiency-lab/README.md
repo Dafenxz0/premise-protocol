@@ -1,6 +1,19 @@
-# PREMiSE Efficiency Lab v0
+# PREMiSE Efficiency Lab
 
-Efficiency Lab models how much work PREMiSE policies would perform to preserve
+The repository contains two explicitly different layers:
+
+- **v0 calibration**: the historical deterministic policy model described
+  below; it is preserved for comparison and does not execute `runtime-core`.
+- **v1 physical lab**: the implementation path that executes the real runtime,
+  records physical operations and applies the frozen contracts in
+  [the v1 preregistration](./EFFICIENCY-LAB-V1-PREREGISTRATION.md).
+
+Efficiency Lab v1 is the current implementation target. It must not report a
+modelled operation as if it came from the production runtime.
+
+## Historical v0 model
+
+The v0 runner models how much work PREMiSE policies would perform to preserve
 the existing safety and coherence decisions. It is deterministic policy
 calibration, not execution of the production runtime, a new protocol version,
 or a production-scale claim.
@@ -27,6 +40,39 @@ WA_validate = validations performed / minimum required validations
 The v0 runner also reports a declared logical latency model. It is useful for
 comparing identical candidate work, but it is not wall-clock provider latency.
 Real latency, provider cost and LLM tokens require a separate external campaign.
+
+## v1 physical lab
+
+The v1 runner executes the built `@premise/runtime-core` artifact with a
+deterministic mutable source adapter. It records the runtime's physical
+counter stream, keeps an independent `IndependentSmart` comparator, generates
+four adversarial fixture families, and uses a certified minimum-work oracle.
+The first campaign is deliberately labelled `in-process-calibration` until
+the candidate/oracle child-process boundary and sealed holdout pass their own
+gates; it must not be used for a commercial claim.
+
+The local process-boundary smoke can be run separately:
+
+```powershell
+pnpm benchmark:efficiency:v1:sealed
+```
+
+It reports `sealed/local` only: the candidate is a child process and the
+mutation broker stays in the parent, but this is not an external holdout, an
+OS sandbox, or a commercial result.
+
+Run the v1 checks with:
+
+```powershell
+pnpm build
+node --test benchmarks/premise-efficiency-lab/v1/**/*.test.mjs
+node benchmarks/premise-efficiency-lab/v1/self-check.mjs
+node benchmarks/premise-efficiency-lab/v1/campaign.mjs --tasks=24
+```
+
+The campaign writes only under `.tmp/premise-efficiency-lab/v1/` when an
+output path is supplied or the CLI is used. Its blind report is not a
+holdout result until physical process isolation is certified.
 
 ## Scope
 

@@ -4,7 +4,7 @@ import { generateGraph, TOPOLOGIES } from "./generators/graphs.mjs";
 import { affectedSet, summarizeImpact } from "./oracle/affected-set.mjs";
 import { runCampaign } from "./runner.mjs";
 import { createMutationEvents, normalizeMutationEvents, replayMutationEvents } from "./generators/events.mjs";
-import { anonymizeCandidates, assertNoOracle, evaluateBlind } from "./referee/blind-evaluator.mjs";
+import { anonymizeCandidates, assertNoOracle, evaluateBlind, evaluateSafetyGates } from "./referee/blind-evaluator.mjs";
 import { referenceDecision } from "./oracle/reference-policy.mjs";
 import { aggregateCandidateResults } from "./harness/metrics.mjs";
 
@@ -82,6 +82,39 @@ test("unknown work stays unknown and cannot enter the blind ranking", () => {
     { blindId: "arm-b", unsafeActions: 0, toctouEscapes: 0, crossTenantReuse: 0, workPerSafeCompletion: null }
   ]);
   assert.deepEqual(result, { status: "INCONCLUSIVE", reason: "missing efficiency metric", ranking: [] });
+});
+
+test("v1 blind referee applies hard safety gates before efficiency ranking", () => {
+  const base = {
+    unsafeActions: 0,
+    toctouEscapes: 0,
+    crossTenantReuse: 0,
+    referenceEquivalent: "PASS",
+    affectedRecall: 1,
+    staleReceiptReuse: 0,
+    unknownPromotedFresh: 0,
+    invalidReceiptAccepted: 0,
+    authorizationScopeViolations: 0,
+    incarnationViolations: 0,
+    replayViolations: 0,
+    falseBlocks: 0,
+    safeCompletion: 10,
+    workPerSafeCompletion: 2
+  };
+  const anonymized = anonymizeCandidates([
+    { id: "candidate-safe", ...base },
+    { id: "candidate-unsafe", ...base, unsafeActions: 1, workPerSafeCompletion: 0.1 }
+  ], { seed: "v1-gates" });
+  const result = evaluateBlind(anonymized.publicCandidates, {
+    enforceSafetyGates: true,
+    referenceFalseBlockCeiling: 0,
+    referenceSafeCompletionFloor: 1
+  });
+  assert.equal(result.status, "COMPLETE");
+  assert.equal(result.eligibleCount, 1);
+  assert.equal(result.ranking.length, 1);
+  assert.equal(evaluateSafetyGates(anonymized.publicCandidates[0], { referenceSafeCompletionFloor: 1 }).eligible, true);
+  assert.equal(evaluateSafetyGates(anonymized.publicCandidates[1], { referenceSafeCompletionFloor: 1 }).eligible, false);
 });
 
 test("reference policy fails closed and requests revalidation for stale evidence", () => {
