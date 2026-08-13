@@ -184,11 +184,15 @@ compaction is implemented or safe.
 
 ## PR31 - safe state compaction
 
-Status: **PENDING; NOT IMPLEMENTED**.
+Status: **NO-GO; EVALUATION GATE ONLY; NOT IMPLEMENTED**.
 
-Before any implementation, PR31 must preserve ABA/incarnation semantics,
-receipt replay and invalidation fences, causal evidence, idempotency replay,
-snapshot/restore behavior and the full audit proof required by the runtime.
+PR31 now provides an executable fail-closed gate, but deliberately does not
+delete or rewrite runtime state. A future implementation can be accepted only
+after independent deterministic evidence proves semantic equivalence,
+event continuity, dependency closure, scope/incarnation separation,
+action-replay safety, crash atomicity and audit retention. A performance result
+or a declaration alone cannot change this verdict. See
+[`v1/compaction/PR31-COMPACTION-SAFETY.md`](./v1/compaction/PR31-COMPACTION-SAFETY.md).
 
 ## Reproducibility
 
