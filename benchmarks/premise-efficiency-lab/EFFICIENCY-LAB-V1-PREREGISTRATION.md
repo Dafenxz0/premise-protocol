@@ -19,6 +19,18 @@ The primary hypothesis is:
 This is an algorithmic hypothesis. It is not a production availability,
 provider-cost, LLM or commercial claim.
 
+The more specific preregistered comparison is:
+
+```text
+For workloads where relevant_change << total_graph,
+PREMiSE incremental must require substantially less graph work than the
+full/reference traversal while producing identical normative decisions,
+coherence, frontier, guard decision and action outcome.
+```
+
+The computation model and the distinction between query work and maintenance
+work are frozen in `ORACLE-COMPUTATION-MODEL.md`.
+
 ## Frozen dimensions
 
 Before any candidate is evaluated against a holdout, the campaign freezes:
@@ -35,6 +47,19 @@ Before any candidate is evaluated against a holdout, the campaign freezes:
 - ranking rules;
 - exclusion rules;
 - artifact paths and retention policy.
+
+The frozen ranking comparator is, after eligibility gates:
+
+1. `workPerSafeCompletion`;
+2. `WA_external`;
+3. `WA_graph`;
+4. `WA_validate`;
+5. `WA_write`;
+6. physical operation count;
+7. latency;
+8. deterministic `blindId`.
+
+Changing this order creates a new preregistration.
 
 Changing one of these after seeing holdout output creates a new campaign and
 requires a new manifest. It cannot be reported as a continuation of the old
@@ -112,6 +137,10 @@ WA = actual physical work / certified minimum work
 If the denominator is zero, unavailable or not certified, the result is
 `UNKNOWN` or `UNBOUNDED` according to the metric contract. It is never
 replaced with an invented one-operation minimum.
+
+Reports also expose `WA_query`, `WA_maintenance` and `WA_total`. A maintained
+index is not free: its construction and update operations belong to
+maintenance work.
 
 ## Campaign acceptance
 

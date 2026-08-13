@@ -14,6 +14,8 @@ export const RUNTIME_COUNTER_FIELDS = Object.freeze([
   "dirtyPropagations",
   "invalidationPropagations",
   "branchesSkippedAlreadyDirty",
+  "frontierCacheInvalidations",
+  "frontierCacheEntriesPreserved",
   "receiptLookups",
   "receiptHits",
   "receiptMisses",

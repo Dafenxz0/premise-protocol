@@ -11,6 +11,29 @@ export const DEFAULT_CANDIDATE_ID = "runtime-core";
 export const DEFAULT_TENANT_ID = "tenant:efficiency-lab";
 export const DEFAULT_NOW = "2026-08-13T00:00:00.000Z";
 
+const WORK_FIELDS = Object.freeze([
+  "nodesVisited", "edgesTraversed", "frontierNodesVisited", "frontierRecomputes",
+  "frontierIncrementalUpdates", "indexLookups", "reverseIndexLookups",
+  "dirtyPropagations", "invalidationPropagations", "branchesSkippedAlreadyDirty",
+  "frontierCacheInvalidations", "frontierCacheEntriesPreserved", "receiptLookups",
+  "receiptHits", "receiptMisses", "receiptSubsumptionHits", "staleReceiptRejections",
+  "negativeCacheHits", "negativeCacheMisses", "cacheHits", "cacheMisses", "cacheEvictions",
+  "sourceReads", "conditionalReads", "authoritativeReads", "recordReads", "recordBatchReads",
+  "eventContinuityChecks", "eventRepairs", "writeIntents", "CASAttempts", "CASConflicts",
+  "CASSuccesses", "idempotentReplays", "fenceRejections", "singleFlightLeaders",
+  "singleFlightJoins", "singleFlightSplits", "leaseAcquisitions", "leaseExpirations",
+  "batchCount", "batchItems", "parallelBatches", "graphCompactions", "observationsCompacted",
+  "auditNodesRetained"
+]);
+
+function workValue(counters) {
+  return WORK_FIELDS.reduce((sum, field) => sum + (typeof counters?.[field] === "number" ? counters[field] : 0), 0);
+}
+
+function workDelta(before, after) {
+  return Math.max(0, workValue(after) - workValue(before));
+}
+
 const DEFAULT_NODES = Object.freeze([
   Object.freeze({ id: "memory:root" }),
   Object.freeze({ id: "memory:leaf", dependsOn: ["memory:root"] })
@@ -338,6 +361,7 @@ export async function runPhysicalTask(options = {}) {
     }
   }
 
+  const beforeMutationCounters = recorder.snapshot();
   const changes = mutationInputs(options, descriptors, adapter).map((input) => adapter.mutate(input.sourceUri, input));
   let affected = [];
   if (changes.length > 0 && options.deliverEvents !== false) {
@@ -349,6 +373,7 @@ export async function runPhysicalTask(options = {}) {
       frontier(runtime, targets, useFrontier);
     }
   }
+  const afterMutationCounters = recorder.snapshot();
 
   const revalidate = options.revalidate !== false;
   const defaultRevalidationIds = affected
@@ -371,15 +396,48 @@ export async function runPhysicalTask(options = {}) {
     ? await attemptAction(runtime, adapter, targets[0], options)
     : undefined;
 
+  let normative;
+  if (options.includeNormative === true && targets.length === 1) {
+    const targetId = targets[0];
+    const targetDecisions = recorder.decisions().filter((event) => event.memoryId === targetId);
+    const decision = targetDecisions.at(-1)?.decision ?? "UNKNOWN";
+    const frontierResult = runtime.frontier(targetId);
+    const coherence = frontierResult.status === "STALE" || frontierResult.status === "UNKNOWN"
+      ? frontierResult.status
+      : decision === "REJECT" ? "INVALID" : "FRESH";
+    const guardDecision = action === undefined
+      ? "NONE"
+      : action.accepted ? "ALLOW"
+        : action.reason === "VERSION_MISMATCH" ? "REVALIDATE" : "REJECT";
+    normative = Object.freeze({
+      decision,
+      coherence,
+      frontier: Object.freeze({
+        status: frontierResult.status,
+        roots: Object.freeze([...frontierResult.frontier]),
+        complete: frontierResult.complete
+      }),
+      guardDecision,
+      actionOutcome: Object.freeze({ accepted: action?.accepted ?? false, reason: action?.reason ?? null })
+    });
+  }
+
+  const finalCounters = recorder.snapshot();
+  const maintenanceWork = workDelta(beforeMutationCounters, afterMutationCounters);
+  const queryWork = workDelta(afterMutationCounters, finalCounters);
+  const totalWork = maintenanceWork + queryWork;
+
   return Object.freeze({
     format: PHYSICAL_TRACE_FORMAT,
     counterSchema: PHYSICAL_COUNTER_SCHEMA,
     taskId: options.taskId ?? DEFAULT_TASK_ID,
     candidateId: options.candidateId ?? DEFAULT_CANDIDATE_ID,
     commit: options.commit ?? "UNKNOWN",
-    counters: recorder.snapshot(),
+    counters: finalCounters,
     decisions: recorder.decisions(),
     ...(action === undefined ? {} : { action: cloneJson(action) }),
+    ...(normative === undefined ? {} : { normative }),
+    workBreakdown: Object.freeze({ query: queryWork, maintenance: maintenanceWork, total: totalWork }),
     status: "COMPLETE"
   });
 }

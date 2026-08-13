@@ -104,11 +104,17 @@ test("incremental frontier uses the real runtime path and preserves invalidation
   assert.deepEqual(runtime.signalSourceChanged("github://example/repo/main", { scheme: "github.commit", token: "c3" }), [
     "memory:frontier-root", "memory:frontier-child"
   ]);
-  assert.deepEqual(runtime.frontier("memory:frontier-child").frontier, ["memory:frontier-root"]);
+  const frontier = runtime.frontier("memory:frontier-child");
+  assert.deepEqual(frontier.frontier, ["memory:frontier-root"]);
+  assert.equal(frontier.nodesVisited, 1);
+  assert.equal(frontier.edgesTraversed, 0);
   const counters = recorder.snapshot();
   assert.equal(counters.frontierIncrementalUpdates, 1);
   assert.equal(counters.frontierRecomputes, 1);
-  assert.ok(counters.frontierNodesVisited >= 2);
+  // The maintained frontier index answers this query with one lookup instead
+  // of walking the child -> root ancestor chain.
+  assert.equal(counters.frontierNodesVisited, 1);
+  assert.ok(counters.edgesTraversed >= 1);
 });
 
 test("single-flight coalesces concurrent revalidation calls across runtime invocations", async () => {

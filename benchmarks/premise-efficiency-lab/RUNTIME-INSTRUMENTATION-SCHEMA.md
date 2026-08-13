@@ -14,10 +14,20 @@ Each task produces one deterministic JSON object:
   "candidateId": "blind-only",
   "commit": "sha256:...",
   "counters": {},
+  "workBreakdown": {
+    "query": 0,
+    "maintenance": 0,
+    "total": 0
+  },
   "decisions": [],
   "status": "COMPLETE"
 }
 ```
+
+`workBreakdown.query` covers work after the current mutation has been
+processed; `workBreakdown.maintenance` covers index and invalidation work
+caused by that mutation; `total` is their sum. These are physical operation
+counts, not provider costs.
 
 `candidateId` in candidate-visible traces is an opaque assignment. The
 private mapping is kept by the referee and is never passed to the candidate.
@@ -35,6 +45,8 @@ edgesTraversed
 frontierNodesVisited
 frontierRecomputes
 frontierIncrementalUpdates
+frontierCacheInvalidations
+frontierCacheEntriesPreserved
 indexLookups
 reverseIndexLookups
 dirtyPropagations
@@ -126,6 +138,11 @@ volume counter, not a safety result.
 - An event signal is counted separately from a source read.
 - Reordered, duplicate and gapped event handling counts continuity work.
 - Local cache operations count as protocol work, not external reads.
+- Cache invalidation is targeted when a dependency impact set is known;
+  `frontierCacheInvalidations` counts entries removed and
+  `frontierCacheEntriesPreserved` counts eligible entries retained.
+- Maintenance counters are charged to the mutation that caused them and are
+  not hidden inside query work.
 - A zero-count event is omitted; absent implementation support is represented
   as `UNKNOWN` by the report layer rather than fabricated as physical work.
 - Counter collection must be deterministic and disabled without changing

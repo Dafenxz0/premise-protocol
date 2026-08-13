@@ -2,8 +2,9 @@ import { createHash, createHmac } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { anonymizeCandidates, evaluateBlind } from "../referee/blind-evaluator.mjs";
+import { anonymizeCandidates, compareReferenceResult, evaluateBlind } from "../referee/blind-evaluator.mjs";
 import { createIndependentSmart } from "./baselines/independent-smart.mjs";
+import { referenceForTask } from "./reference/scenario-reference.mjs";
 import { runPhysicalTask } from "./runtime/runner.mjs";
 
 export const CAMPAIGN_FORMAT = "premise-efficiency-lab/campaign/v1";
@@ -249,6 +250,7 @@ function addCounters(left, right) {
 
 function recordFromTrace(candidate, task, trace, extra = {}) {
   const counters = { ...baseCounters(), ...(trace?.counters ?? {}), ...(extra.counters ?? {}) };
+  const workBreakdown = trace?.workBreakdown ?? extra.workBreakdown;
   const action = trace?.action ?? extra.action;
   const accepted = Boolean(action?.accepted);
   const detectedAffected = Boolean(
@@ -256,7 +258,7 @@ function recordFromTrace(candidate, task, trace, extra = {}) {
     action?.reason === "VERSION_MISMATCH" ||
     trace?.decisions?.some((event) => event.memoryId === task.publicTask.targetId && ["REVALIDATE", "REJECT"].includes(event.decision))
   );
-  counters.totalWork = counters.sourceReads + counters.recordReads + counters.CASAttempts + counters.eventContinuityChecks
+  counters.totalWork = workBreakdown?.total ?? counters.sourceReads + counters.recordReads + counters.CASAttempts + counters.eventContinuityChecks
     + counters.nodesVisited + counters.edgesTraversed + Math.max(counters.CASAttempts, counters.writeIntents);
   return {
     candidate,
@@ -264,6 +266,12 @@ function recordFromTrace(candidate, task, trace, extra = {}) {
     accepted,
     detectedAffected,
     counters,
+    workBreakdown: workBreakdown === undefined ? undefined : {
+      query: workBreakdown.query,
+      maintenance: workBreakdown.maintenance,
+      total: workBreakdown.total
+    },
+    normative: trace?.normative ?? extra.normative,
     safeCompletion: 0,
     unsafe: 0,
     falseBlock: 0,
@@ -273,7 +281,7 @@ function recordFromTrace(candidate, task, trace, extra = {}) {
 }
 
 async function runPremiseTask(task) {
-  const trace = await runPhysicalTask({ ...task.privateSpec, candidateId: "blind-candidate", commit: "runtime-core" });
+  const trace = await runPhysicalTask({ ...task.privateSpec, candidateId: "blind-candidate", commit: "runtime-core", includeNormative: true });
   return recordFromTrace("premise", task, trace);
 }
 
@@ -339,7 +347,7 @@ async function runIndependentSmartTask(task, baseline) {
   });
 }
 
-function classify(records, tasks) {
+function classify(candidate, records, tasks) {
   const byId = new Map(tasks.map((task) => [task.publicTask.taskId, task]));
   const aggregate = {
     completed: records.length,
@@ -350,6 +358,7 @@ function classify(records, tasks) {
     affectedRecallHits: 0,
     ...baseCounters()
   };
+  const referenceChecks = [];
   for (const record of records) {
     const task = byId.get(record.taskId);
     const affected = task.privateSpec.affectsTarget;
@@ -359,19 +368,35 @@ function classify(records, tasks) {
     record.falseBlock = falseBlock ? 1 : 0;
     record.toctou = unsafe && !task.privateSpec.deliverEvents ? 1 : 0;
     record.safeCompletion = record.accepted && !unsafe ? 1 : 0;
+    const reference = referenceForTask(task.privateSpec);
+    record.referenceEquivalence = compareReferenceResult(reference, record.normative);
+    referenceChecks.push(record.referenceEquivalence);
     aggregate.safeCompletions += record.safeCompletion;
     aggregate.unsafeActions += record.unsafe;
     aggregate.falseBlocks += record.falseBlock;
     aggregate.toctouEscapes += record.toctou;
     aggregate.affectedRecallHits += affected && record.detectedAffected ? 1 : 0;
     addCounters(aggregate, record.counters);
+    aggregate.queryWork = (aggregate.queryWork ?? 0) + (record.workBreakdown?.query ?? record.counters.totalWork);
+    aggregate.maintenanceWork = (aggregate.maintenanceWork ?? 0) + (record.workBreakdown?.maintenance ?? 0);
   }
   aggregate.affectedRecall = tasks.filter((task) => task.privateSpec.affectsTarget).length === 0
     ? 1
     : aggregate.affectedRecallHits / tasks.filter((task) => task.privateSpec.affectsTarget).length;
   aggregate.safeCompletion = aggregate.safeCompletions;
   aggregate.safeCompletionRate = aggregate.completed === 0 ? null : aggregate.safeCompletions / aggregate.completed;
-  aggregate.referenceEquivalent = aggregate.unsafeActions === 0 && aggregate.falseBlocks === 0 ? "PASS" : "FAIL";
+  const referenceStatus = referenceChecks.length === 0 ? "UNKNOWN"
+    : referenceChecks.some((check) => check.status === "FAIL") ? "FAIL"
+      : referenceChecks.some((check) => check.status === "UNKNOWN") ? "UNKNOWN" : "PASS";
+  aggregate.referenceEquivalent = candidate === "premise" ? referenceStatus : "UNKNOWN";
+  aggregate.referenceEquivalence = {
+    status: aggregate.referenceEquivalent,
+    decision: referenceChecks.every((check) => check.fields.decision === "PASS") ? "PASS" : referenceChecks.some((check) => check.fields.decision === "FAIL") ? "FAIL" : "UNKNOWN",
+    coherence: referenceChecks.every((check) => check.fields.coherence === "PASS") ? "PASS" : referenceChecks.some((check) => check.fields.coherence === "FAIL") ? "FAIL" : "UNKNOWN",
+    frontier: referenceChecks.every((check) => check.fields.frontier === "PASS") ? "PASS" : referenceChecks.some((check) => check.fields.frontier === "FAIL") ? "FAIL" : "UNKNOWN",
+    guard: referenceChecks.every((check) => check.fields.guard === "PASS") ? "PASS" : referenceChecks.some((check) => check.fields.guard === "FAIL") ? "FAIL" : "UNKNOWN",
+    actionOutcome: referenceChecks.every((check) => check.fields.actionOutcome === "PASS") ? "PASS" : referenceChecks.some((check) => check.fields.actionOutcome === "FAIL") ? "FAIL" : "UNKNOWN"
+  };
   // These dimensions are deliberately not inferred from this calibration
   // workload. An absent experiment is UNKNOWN, never a fabricated zero.
   aggregate.staleReceiptReuse = "UNKNOWN";
@@ -381,7 +406,21 @@ function classify(records, tasks) {
   aggregate.authorizationScopeViolations = "UNKNOWN";
   aggregate.incarnationViolations = "UNKNOWN";
   aggregate.replayViolations = "UNKNOWN";
+  aggregate.queryWork = aggregate.queryWork ?? 0;
+  aggregate.maintenanceWork = aggregate.maintenanceWork ?? 0;
+  aggregate.totalWork = aggregate.queryWork + aggregate.maintenanceWork;
   aggregate.workPerSafeCompletion = aggregate.safeCompletions > 0 ? aggregate.totalWork / aggregate.safeCompletions : null;
+  // No legal-plan denominator is executed by the in-process calibration.
+  // Keep the three amplification metrics explicit but UNKNOWN.
+  aggregate.WA_query = "UNKNOWN";
+  aggregate.WA_maintenance = "UNKNOWN";
+  aggregate.WA_total = "UNKNOWN";
+  aggregate.WA_external = "UNKNOWN";
+  aggregate.WA_graph = "UNKNOWN";
+  aggregate.WA_validate = "UNKNOWN";
+  aggregate.WA_write = "UNKNOWN";
+  aggregate.physicalOperations = aggregate.totalWork;
+  aggregate.latency = "UNKNOWN";
   aggregate.work = {
     graph: aggregate.nodesVisited + aggregate.edgesTraversed,
     external: aggregate.sourceReads + Math.max(aggregate.CASAttempts, aggregate.writeIntents),
@@ -392,14 +431,14 @@ function classify(records, tasks) {
 }
 
 function examineCandidate(candidate, records, tasks) {
-  return classify(records, tasks);
+  return classify(candidate, records, tasks);
 }
 
 function table(examined) {
-  const rows = Object.entries(examined).map(([id, result]) => `| ${id} | ${result.safeCompletionRate === null ? "UNKNOWN" : `${(result.safeCompletionRate * 100).toFixed(1)}%`} | ${result.unsafeActions} | ${result.falseBlocks} | ${result.sourceReads} | ${result.CASAttempts} | ${result.workPerSafeCompletion === null ? "UNKNOWN" : result.workPerSafeCompletion.toFixed(2)} |`);
+  const rows = Object.entries(examined).map(([id, result]) => `| ${id} | ${result.safeCompletionRate === null ? "UNKNOWN" : `${(result.safeCompletionRate * 100).toFixed(1)}%`} | ${result.unsafeActions} | ${result.falseBlocks} | ${result.sourceReads} | ${result.CASAttempts} | ${result.queryWork} | ${result.maintenanceWork} | ${result.workPerSafeCompletion === null ? "UNKNOWN" : result.workPerSafeCompletion.toFixed(2)} |`);
   return [
-    "| Candidate | Safe completions | Unsafe actions | False blocks | Source reads | CAS attempts | Work / safe completion |",
-    "|---|---:|---:|---:|---:|---:|---:|",
+    "| Candidate | Safe completions | Unsafe actions | False blocks | Source reads | CAS attempts | Query work | Maintenance work | Work / safe completion |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ...rows
   ].join("\n");
 }
@@ -425,6 +464,7 @@ export async function runEfficiencyCampaign(options = {}) {
   const blinded = anonymizeCandidates(blindInput, { seed: `v1:${seed}` });
   const blindEvaluation = evaluateBlind(blinded.publicCandidates, {
     enforceSafetyGates: true,
+    rankingMode: "v1",
     referenceFalseBlockCeiling: 0,
     referenceSafeCompletionFloor: safeCompletionFloor
   });

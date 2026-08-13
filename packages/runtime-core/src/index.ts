@@ -716,6 +716,28 @@ export class PremiseRuntime<T = unknown> {
     const stored = { envelope: this.withValidation(record.envelope, report, status), content: record.content };
     const event = this.emit("MemoryRevalidated", record.envelope.memoryId, { result: report.result, status, ...(report.version ? { version: report.version } : {}), ...(report.reason ? { reason: report.reason } : {}) }, eventId ?? `revalidate:${record.envelope.memoryId}:${report.checkedAt}`, false);
     this.persistRecordIfCurrent(record, stored, event);
+    if (this.frontierEngine !== undefined) {
+      try {
+        const impact = report.result === "UNCHANGED"
+          ? this.frontierEngine.resolve(record.envelope.memoryId)
+          : report.result === "CHANGED" || report.result === "MISSING"
+            ? this.frontierEngine.markDirty([record.envelope.memoryId], "INVALID")
+            : undefined;
+        if (impact !== undefined) {
+          this.operation("frontierIncrementalUpdates");
+          this.operation("nodesVisited", impact.nodesVisited);
+          this.operation("edgesTraversed", impact.edgesTraversed);
+          this.operation("dirtyPropagations", impact.dirtyPropagations);
+          this.operation("branchesSkippedAlreadyDirty", impact.branchesSkippedAlreadyDirty);
+          this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
+          this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
+        } else if (report.result === "UNKNOWN") {
+          this.frontierEngine.markUnknown();
+        }
+      } catch {
+        this.frontierEngine.markUnknown();
+      }
+    }
     this.syncStoreRevision();
     this.emitDecision({
       memoryId: record.envelope.memoryId,
@@ -797,6 +819,8 @@ export class PremiseRuntime<T = unknown> {
         this.operation("indexLookups", impact.nodesVisited);
         this.operation("reverseIndexLookups", impact.nodesVisited);
         this.operation("branchesSkippedAlreadyDirty", impact.branchesSkippedAlreadyDirty);
+        this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
+        this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
         this.operation("dirtyPropagations", impact.dirtyPropagations);
         return this.orderedIds(impact.affected);
       } catch {

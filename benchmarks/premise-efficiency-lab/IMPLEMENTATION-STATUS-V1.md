@@ -14,6 +14,14 @@ conservative than a roadmap.
   the authoritative traversal when the index is incomplete or untrusted.
 - The incremental affected closure is differentially checked against a
   reference traversal over deterministic DAGs.
+- The frontier differential suite now exercises 10,000 deterministic
+  randomized DAG cases and compares affected closure, frontier and status
+  against an independent traversal.
+- Reference equivalence is field-level (`decision`, `coherence`, `frontier`,
+  `guard`, `actionOutcome`) rather than an unsafe/false-block approximation.
+- Frontier dirty state is maintained incrementally with severity-aware roots,
+  targeted cache invalidation, preservation counters and explicit query versus
+  maintenance work breakdowns.
 - The minimum-work oracle distinguishes `EXACT`,
   `CERTIFIED_LOWER_BOUND`, `UNKNOWN` and `UNBOUNDED`.
 - Hard safety gates are applied before the blind efficiency ranking.

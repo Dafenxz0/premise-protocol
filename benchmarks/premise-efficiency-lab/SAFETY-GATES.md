@@ -41,6 +41,22 @@ A candidate is `INELIGIBLE` if:
 - the minimum-work certificate is absent where the report claims WA;
 - a counter is negative, non-integer or double-counted by the trace checker.
 
+## Reference equivalence
+
+`referenceEquivalent` is not shorthand for `unsafeActions == 0`. The
+independent reference and the candidate must match all five fields:
+
+```text
+decision
+coherence
+frontier
+guardDecision
+actionOutcome
+```
+
+The report includes a per-field object. A single mismatch makes the candidate
+ineligible, even when the final action happens to be the same.
+
 ## Ranking
 
 Only eligible candidates are ordered by:
@@ -51,7 +67,10 @@ Only eligible candidates are ordered by:
 4. `WA_validate`;
 5. `WA_write`;
 6. physical operation count;
-7. latency as a secondary diagnostic.
+7. latency;
+8. deterministic `blindId` tie-break.
+
+This order is normative and is duplicated in the blind referee contract tests.
 
 Blocking every action is not a valid optimization. A candidate with no safe
 completion is never eligible, even if its work is zero.

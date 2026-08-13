@@ -24,6 +24,21 @@ export interface FrontierImpact {
   readonly edgesTraversed: number;
   readonly branchesSkippedAlreadyDirty: number;
   readonly dirtyPropagations: number;
+  readonly frontierCacheInvalidations: number;
+  readonly frontierCacheEntriesPreserved: number;
+}
+
+interface DirtyState {
+  readonly generation: number;
+  readonly graphRevision: number;
+  readonly status: FrontierStatus;
+  readonly causalRoots: readonly string[];
+  readonly frontier: readonly string[];
+}
+
+interface FrontierCacheEntry {
+  readonly graphRevision: number;
+  readonly result: FrontierResult;
 }
 
 const STATUS_PRIORITY: Readonly<Record<FrontierStatus, number>> = Object.freeze({ FRESH: 0, STALE: 1, UNKNOWN: 2, INVALID: 3 });
@@ -41,27 +56,33 @@ function assertId(id: string, name = "node id"): void {
 }
 
 /**
- * Incremental dependency frontier with conservative cache invalidation.
+ * Incremental dependency frontier with targeted invalidation.
  *
- * `A -> B` means that B depends on A. The engine keeps direct dirty roots
- * separate from propagated dirty nodes so a large derived closure can still
- * be represented by its minimal causal roots.
+ * `A -> B` means that B depends on A. Dirty roots are propagated once into
+ * maintained per-node state. Frontier queries then read that state instead
+ * of walking all ancestors. The state is conservative: an unknown graph or
+ * a failed update is never promoted to fresh evidence.
  */
 export class IncrementalFrontierEngine {
   private readonly dependencies = new Map<string, Set<string>>();
   private readonly dependents = new Map<string, Set<string>>();
   private readonly directDirty = new Map<string, FrontierStatus>();
-  private readonly dirtyGeneration = new Map<string, number>();
-  private readonly frontierCache = new Map<string, { graphRevision: number; generation: number; result: FrontierResult }>();
+  private readonly activeDirtyRoots = new Map<string, Map<string, FrontierStatus>>();
+  private readonly activeFrontiers = new Map<string, Set<string>>();
+  private readonly dirtyNodesByRoot = new Map<string, Set<string>>();
+  private readonly dirtyStates = new Map<string, DirtyState>();
+  private readonly frontierCache = new Map<string, FrontierCacheEntry>();
   private generation = 0;
   private graphRevision = 0;
   private trusted = true;
+  private cacheInvalidations = 0;
+  private cacheEntriesPreserved = 0;
+  private lastCacheDelta = { invalidations: 0, preserved: 0 };
   private lastTraversal = { nodesVisited: 0, edgesTraversed: 0, branchesSkippedAlreadyDirty: 0, dirtyPropagations: 0 };
 
   constructor(nodes: readonly FrontierNode[] = []) {
     for (const node of nodes) this.setDependencies(node.id, node.dependsOn ?? []);
-    this.generation = 0;
-    this.frontierCache.clear();
+    this.rebuildDirtyState();
   }
 
   addNode(id: string, dependsOn: readonly string[] = []): void {
@@ -98,7 +119,8 @@ export class IncrementalFrontierEngine {
     }
     this.graphRevision += 1;
     this.generation += 1;
-    this.frontierCache.clear();
+    this.rebuildDirtyState();
+    this.invalidateAllCaches();
   }
 
   removeNode(id: string): void {
@@ -109,10 +131,10 @@ export class IncrementalFrontierEngine {
     this.dependencies.delete(id);
     this.dependents.delete(id);
     this.directDirty.delete(id);
-    this.dirtyGeneration.delete(id);
     this.graphRevision += 1;
     this.generation += 1;
-    this.frontierCache.clear();
+    this.rebuildDirtyState();
+    this.invalidateAllCaches();
   }
 
   markDirty(nodeIds: readonly string[], status: Exclude<FrontierStatus, "FRESH"> = "STALE"): FrontierImpact {
@@ -126,44 +148,74 @@ export class IncrementalFrontierEngine {
       const previous = this.directDirty.get(id);
       this.directDirty.set(id, previous === undefined ? status : statusMax(previous, status));
     }
-    const affected = this.orderedClosure(direct);
-    for (const id of affected) this.dirtyGeneration.set(id, this.generation);
-    this.frontierCache.clear();
+    const impact = this.propagateDirty(direct.map((id) => [id, this.directDirty.get(id)!] as const));
+    const cache = this.invalidateTargets(new Set(impact.affected));
     return Object.freeze({
       generation: this.generation,
-      affected: Object.freeze(affected),
       direct: Object.freeze(direct),
-      ...this.lastTraversal
+      ...impact,
+      frontierCacheInvalidations: cache.invalidations,
+      frontierCacheEntriesPreserved: cache.preserved
     });
   }
 
-  resolve(nodeId: string): void {
+  resolve(nodeId: string): FrontierImpact {
     assertId(nodeId);
     if (!this.dependencies.has(nodeId)) throw new Error(`Unknown node: ${nodeId}`);
+    const affected = [...(this.dirtyNodesByRoot.get(nodeId) ?? new Set([nodeId]))].sort();
     this.directDirty.delete(nodeId);
+    this.dirtyNodesByRoot.delete(nodeId);
+    for (const id of affected) {
+      const roots = this.activeDirtyRoots.get(id);
+      if (roots === undefined) continue;
+      roots.delete(nodeId);
+      if (roots.size === 0) {
+        this.activeDirtyRoots.delete(id);
+        this.activeFrontiers.delete(id);
+        this.dirtyStates.delete(id);
+      } else {
+        this.activeFrontiers.set(id, this.computeFrontier(roots.keys()));
+        this.updateDirtyState(id);
+      }
+    }
     this.generation += 1;
-    this.dirtyGeneration.set(nodeId, this.generation);
-    this.frontierCache.clear();
+    const impact = Object.freeze({
+      generation: this.generation,
+      affected: Object.freeze(affected),
+      direct: Object.freeze([nodeId]),
+      nodesVisited: affected.length,
+      edgesTraversed: 0,
+      branchesSkippedAlreadyDirty: 0,
+      dirtyPropagations: affected.length
+    });
+    this.lastTraversal = {
+      nodesVisited: impact.nodesVisited,
+      edgesTraversed: impact.edgesTraversed,
+      branchesSkippedAlreadyDirty: impact.branchesSkippedAlreadyDirty,
+      dirtyPropagations: impact.dirtyPropagations
+    };
+    const cache = this.invalidateTargets(new Set(affected));
+    return Object.freeze({ ...impact, frontierCacheInvalidations: cache.invalidations, frontierCacheEntriesPreserved: cache.preserved });
   }
 
   markUnknown(): void {
     this.trusted = false;
     this.generation += 1;
-    this.frontierCache.clear();
+    this.invalidateAllCaches();
   }
 
   restoreTrust(): void {
     this.trusted = true;
     this.generation += 1;
-    this.frontierCache.clear();
+    this.invalidateAllCaches();
   }
 
   frontier(nodeId: string): FrontierResult {
     assertId(nodeId);
     if (!this.dependencies.has(nodeId)) throw new Error(`Unknown node: ${nodeId}`);
     const cached = this.frontierCache.get(nodeId);
-    if (cached?.graphRevision === this.graphRevision && cached.generation === this.generation) {
-      return Object.freeze({ ...cached.result, cacheHit: true });
+    if (cached?.graphRevision === this.graphRevision) {
+      return Object.freeze({ ...cached.result, cacheHit: true, impactGeneration: this.generation, nodesVisited: 0, edgesTraversed: 0 });
     }
     const impactGeneration = this.generation;
     if (!this.trusted) {
@@ -178,36 +230,21 @@ export class IncrementalFrontierEngine {
         edgesTraversed: 0
       }));
     }
-    const reachable = new Set<string>();
-    let status: FrontierStatus = "FRESH";
-    const visiting = new Set<string>();
-    let nodesVisited = 0;
-    let edgesTraversed = 0;
-    const visit = (id: string): void => {
-      if (visiting.has(id)) throw new Error(`Dependency cycle at ${id}`);
-      if (reachable.has(id)) return;
-      visiting.add(id);
-      reachable.add(id);
-      nodesVisited += 1;
-      for (const dependencyId of this.dependencies.get(id) ?? []) {
-        edgesTraversed += 1;
-        visit(dependencyId);
-      }
-      visiting.delete(id);
-    };
-    visit(nodeId);
-    const relevantDirty = [...reachable].filter((id) => this.directDirty.has(id));
-    for (const id of relevantDirty) status = statusMax(status, this.directDirty.get(id)!);
-    const frontier = this.compress(relevantDirty);
+    const roots = this.activeDirtyRoots.get(nodeId);
+    const status = roots === undefined
+      ? "FRESH"
+      : [...roots.values()].reduce<FrontierStatus>((current, value) => statusMax(current, value), "FRESH");
     const result = Object.freeze({
       status,
-      frontier: Object.freeze(frontier),
+      frontier: Object.freeze([...(this.activeFrontiers.get(nodeId) ?? [])].sort()),
       complete: true,
       cacheHit: false,
       graphRevision: this.graphRevision,
       impactGeneration,
-      nodesVisited,
-      edgesTraversed
+      // The maintained index is a single lookup; the mutation paid for its
+      // propagation separately. This is the O(F) query path.
+      nodesVisited: 1,
+      edgesTraversed: 0
     });
     return this.cache(nodeId, result);
   }
@@ -216,49 +253,174 @@ export class IncrementalFrontierEngine {
     return this.frontier(nodeId).status;
   }
 
-  stats(): Readonly<{ graphRevision: number; generation: number; nodeCount: number; directDirtyCount: number; trusted: boolean; cacheEntries: number }> {
+  stats(): Readonly<{
+    graphRevision: number;
+    generation: number;
+    nodeCount: number;
+    directDirtyCount: number;
+    activeDirtyNodeCount: number;
+    activeDirtyRootCount: number;
+    trusted: boolean;
+    cacheEntries: number;
+    frontierCacheInvalidations: number;
+    frontierCacheEntriesPreserved: number;
+    cachePreservationRate: number | null;
+  }> {
+    const eligibleEntries = this.cacheInvalidations + this.cacheEntriesPreserved;
     return Object.freeze({
       graphRevision: this.graphRevision,
       generation: this.generation,
       nodeCount: this.dependencies.size,
       directDirtyCount: this.directDirty.size,
+      activeDirtyNodeCount: this.activeDirtyRoots.size,
+      activeDirtyRootCount: [...this.activeDirtyRoots.values()].reduce((sum, roots) => sum + roots.size, 0),
       trusted: this.trusted,
-      cacheEntries: this.frontierCache.size
+      cacheEntries: this.frontierCache.size,
+      frontierCacheInvalidations: this.cacheInvalidations,
+      frontierCacheEntriesPreserved: this.cacheEntriesPreserved,
+      cachePreservationRate: eligibleEntries === 0 ? null : this.cacheEntriesPreserved / eligibleEntries
     });
   }
 
   private cache(nodeId: string, result: FrontierResult): FrontierResult {
-    this.frontierCache.set(nodeId, { graphRevision: this.graphRevision, generation: this.generation, result });
+    this.frontierCache.set(nodeId, { graphRevision: this.graphRevision, result });
     return result;
   }
 
-  private orderedClosure(seeds: readonly string[]): string[] {
+  private propagateDirty(seeds: readonly (readonly [string, FrontierStatus])[]): Omit<FrontierImpact, "generation" | "direct" | "frontierCacheInvalidations" | "frontierCacheEntriesPreserved"> {
     let nodesVisited = 0;
     let edgesTraversed = 0;
     let branchesSkippedAlreadyDirty = 0;
     let dirtyPropagations = 0;
-    const seen = new Set<string>();
-    const queue = [...seeds];
-    for (const id of seeds) seen.add(id);
+    const affected = new Set<string>();
+    const queue: Array<readonly [string, ReadonlyMap<string, FrontierStatus>]> = [];
+    for (const [id, value] of seeds) {
+      affected.add(id);
+      const roots = new Map([[id, value]]);
+      if (this.mergeDirtyState(id, roots)) {
+        queue.push([id, this.activeDirtyRoots.get(id)!]);
+      } else {
+        // The complete affected set is already indexed by root. Reporting
+        // the skipped downstream branches does not require walking them.
+        branchesSkippedAlreadyDirty += Math.max(0, (this.dirtyNodesByRoot.get(id)?.size ?? 1) - 1);
+      }
+      for (const known of this.dirtyNodesByRoot.get(id) ?? []) affected.add(known);
+    }
     for (let index = 0; index < queue.length; index += 1) {
-      const id = queue[index]!;
+      const [id, roots] = queue[index]!;
       nodesVisited += 1;
       for (const dependent of [...(this.dependents.get(id) ?? [])].sort()) {
         edgesTraversed += 1;
-        if (seen.has(dependent)) continue;
-        if (this.dirtyGeneration.has(dependent)) branchesSkippedAlreadyDirty += 1;
-        seen.add(dependent);
-        queue.push(dependent);
+        for (const affectedRoot of roots.keys()) affected.add(dependent);
+        const changed = this.mergeDirtyState(dependent, roots);
+        if (!changed) {
+          // The dependent already contains every incoming root at an equal or
+          // stronger severity for this graph revision. No branch traversal is
+          // needed for this generation.
+          branchesSkippedAlreadyDirty += 1;
+          continue;
+        }
         dirtyPropagations += 1;
+        queue.push([dependent, this.activeDirtyRoots.get(dependent)!]);
       }
     }
+    for (const roots of this.dirtyNodesByRoot.values()) for (const id of roots) affected.add(id);
     this.lastTraversal = { nodesVisited, edgesTraversed, branchesSkippedAlreadyDirty, dirtyPropagations };
-    return queue;
+    return Object.freeze({
+      affected: Object.freeze([...affected].sort()),
+      nodesVisited,
+      edgesTraversed,
+      branchesSkippedAlreadyDirty,
+      dirtyPropagations
+    });
   }
 
-  private compress(ids: readonly string[]): string[] {
-    const uniqueIds = unique(ids).sort();
-    return uniqueIds.filter((candidate) => !uniqueIds.some((other) => other !== candidate && this.reaches(other, candidate)));
+  private mergeDirtyState(nodeId: string, incoming: ReadonlyMap<string, FrontierStatus>): boolean {
+    const roots = this.activeDirtyRoots.get(nodeId) ?? new Map<string, FrontierStatus>();
+    let changed = false;
+    for (const [root, status] of incoming) {
+      const previous = roots.get(root);
+      if (previous !== undefined && STATUS_PRIORITY[previous] >= STATUS_PRIORITY[status]) continue;
+      roots.set(root, status);
+      changed = true;
+      const nodes = this.dirtyNodesByRoot.get(root) ?? new Set<string>();
+      nodes.add(nodeId);
+      this.dirtyNodesByRoot.set(root, nodes);
+    }
+    if (!changed) return false;
+    this.activeDirtyRoots.set(nodeId, roots);
+    const frontier = this.activeFrontiers.get(nodeId) ?? new Set<string>();
+    for (const root of incoming.keys()) this.addFrontierRoot(frontier, root);
+    this.activeFrontiers.set(nodeId, frontier);
+    this.updateDirtyState(nodeId);
+    return true;
+  }
+
+  private updateDirtyState(nodeId: string): void {
+    const roots = this.activeDirtyRoots.get(nodeId);
+    if (roots === undefined) return;
+    const status = [...roots.values()].reduce<FrontierStatus>((current, value) => statusMax(current, value), "FRESH");
+    this.dirtyStates.set(nodeId, Object.freeze({
+      generation: this.generation,
+      graphRevision: this.graphRevision,
+      status,
+      causalRoots: Object.freeze([...roots.keys()].sort()),
+      frontier: Object.freeze([...(this.activeFrontiers.get(nodeId) ?? [])].sort())
+    }));
+  }
+
+  private addFrontierRoot(frontier: Set<string>, root: string): void {
+    for (const existing of [...frontier]) {
+      if (existing === root || this.reaches(existing, root)) return;
+      if (this.reaches(root, existing)) frontier.delete(existing);
+    }
+    frontier.add(root);
+  }
+
+  private computeFrontier(roots: Iterable<string>): Set<string> {
+    const result = new Set<string>();
+    for (const root of roots) this.addFrontierRoot(result, root);
+    return result;
+  }
+
+  private rebuildDirtyState(): void {
+    this.activeDirtyRoots.clear();
+    this.activeFrontiers.clear();
+    this.dirtyNodesByRoot.clear();
+    this.dirtyStates.clear();
+    if (this.directDirty.size > 0) {
+      this.propagateDirty([...this.directDirty.entries()]);
+    } else {
+      this.lastTraversal = { nodesVisited: 0, edgesTraversed: 0, branchesSkippedAlreadyDirty: 0, dirtyPropagations: 0 };
+    }
+  }
+
+  private invalidateTargets(targets: ReadonlySet<string>): { invalidations: number; preserved: number } {
+    let invalidations = 0;
+    let preserved = 0;
+    if (this.frontierCache.size === 0) {
+      this.lastCacheDelta = { invalidations, preserved };
+      return this.lastCacheDelta;
+    }
+    for (const nodeId of [...this.frontierCache.keys()]) {
+      if (targets.has(nodeId)) {
+        this.frontierCache.delete(nodeId);
+        this.cacheInvalidations += 1;
+        invalidations += 1;
+      } else {
+        this.cacheEntriesPreserved += 1;
+        preserved += 1;
+      }
+    }
+    this.lastCacheDelta = { invalidations, preserved };
+    return this.lastCacheDelta;
+  }
+
+  private invalidateAllCaches(): void {
+    const invalidations = this.frontierCache.size;
+    this.cacheInvalidations += invalidations;
+    this.frontierCache.clear();
+    this.lastCacheDelta = { invalidations, preserved: 0 };
   }
 
   private reaches(start: string, target: string): boolean {
