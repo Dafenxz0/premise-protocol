@@ -123,6 +123,27 @@ export interface V2Event {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
+export type V2StreamEventKind = "SNAPSHOT" | "DELTA";
+export type V2StreamCapability = "ORDERED_EVENTS" | "AUTHORITATIVE_SNAPSHOT" | "DELTA_EVENTS" | "DUPLICATE_SAFE";
+
+/** Additive envelope for an ordered source stream; V2Event remains compatible. */
+export interface V2StreamEvent extends V2Event {
+  readonly streamId: string;
+  readonly sequence: number;
+  readonly kind: V2StreamEventKind;
+  readonly cursor?: string;
+  readonly sourceVersion?: VersionReference;
+}
+
+export interface V2EventStreamPage {
+  readonly specVersion: SpecVersionV2;
+  readonly tenantId: string;
+  readonly streamId: string;
+  readonly events: readonly V2StreamEvent[];
+  readonly headSequence: number;
+  readonly nextCursor?: string;
+}
+
 export interface V2ValidationIssue {
   readonly path: string;
   readonly message: string;
@@ -166,6 +187,8 @@ const eventsWithMemory = new Set<V2EventType>([
   "ConflictResolved",
   "MemoryMigrated"
 ]);
+const streamEventKinds = new Set<V2StreamEventKind>(["SNAPSHOT", "DELTA"]);
+const streamCapabilities = new Set<V2StreamCapability>(["ORDERED_EVENTS", "AUTHORITATIVE_SNAPSHOT", "DELTA_EVENTS", "DUPLICATE_SAFE"]);
 
 type AnyRecord = Record<string, unknown>;
 
@@ -475,6 +498,71 @@ export function parseV2Event(input: unknown): V2Event {
   const issues = validateV2Event(input);
   if (issues.length > 0) throw new V2EnvelopeValidationError(issues);
   return input as V2Event;
+}
+
+export function validateV2StreamEvent(input: unknown): V2ValidationIssue[] {
+  const issues: V2ValidationIssue[] = [];
+  if (!isRecord(input)) return [{ path: "$", message: "must be an object" }];
+  rejectUnknown(input, "$", new Set(["specVersion", "tenantId", "eventId", "operationId", "idempotencyKey", "requestDigest", "type", "occurredAt", "memoryId", "payload", "streamId", "sequence", "kind", "cursor", "sourceVersion"]), issues);
+  const base: AnyRecord = { ...input };
+  delete base.streamId;
+  delete base.sequence;
+  delete base.kind;
+  delete base.cursor;
+  delete base.sourceVersion;
+  issues.push(...validateV2Event(base));
+  if (!isNonEmptyString(input.streamId)) add(issues, "$.streamId", "must be a non-empty string");
+  if (!Number.isSafeInteger(input.sequence) || (input.sequence as number) < 0) add(issues, "$.sequence", "must be a non-negative safe integer");
+  if (typeof input.kind !== "string" || !streamEventKinds.has(input.kind as V2StreamEventKind)) add(issues, "$.kind", "must be SNAPSHOT or DELTA");
+  if (has(input, "cursor") && !isNonEmptyString(input.cursor)) add(issues, "$.cursor", "must be a non-empty string when present");
+  if (has(input, "sourceVersion")) validateVersion(input.sourceVersion, "$.sourceVersion", issues);
+  return issues;
+}
+
+export function isV2StreamEvent(input: unknown): input is V2StreamEvent {
+  return validateV2StreamEvent(input).length === 0;
+}
+
+export function parseV2StreamEvent(input: unknown): V2StreamEvent {
+  const issues = validateV2StreamEvent(input);
+  if (issues.length > 0) throw new V2EnvelopeValidationError(issues);
+  return input as V2StreamEvent;
+}
+
+export function validateV2EventStreamPage(input: unknown): V2ValidationIssue[] {
+  const issues: V2ValidationIssue[] = [];
+  if (!isRecord(input)) return [{ path: "$", message: "must be an object" }];
+  rejectUnknown(input, "$", new Set(["specVersion", "tenantId", "streamId", "events", "headSequence", "nextCursor"]), issues);
+  if (input.specVersion !== SPEC_VERSION_V2) add(issues, "$.specVersion", `must equal ${SPEC_VERSION_V2}`);
+  if (!isTenantId(input.tenantId)) add(issues, "$.tenantId", "must be a non-empty tenant id without surrounding whitespace");
+  if (!isNonEmptyString(input.streamId)) add(issues, "$.streamId", "must be a non-empty string");
+  if (!Array.isArray(input.events)) add(issues, "$.events", "must be an array");
+  else input.events.forEach((event, index) => {
+    const eventIssues = validateV2StreamEvent(event);
+    for (const issue of eventIssues) issues.push({ path: `$.events[${index}]${issue.path === "$" ? "" : issue.path.slice(1)}`, message: issue.message });
+    if (isRecord(event) && event.streamId !== input.streamId) add(issues, `$.events[${index}].streamId`, "must match page.streamId");
+    if (isRecord(event) && event.tenantId !== input.tenantId) add(issues, `$.events[${index}].tenantId`, "must match page.tenantId");
+  });
+  if (!Number.isSafeInteger(input.headSequence) || (input.headSequence as number) < 0) add(issues, "$.headSequence", "must be a non-negative safe integer");
+  if (has(input, "nextCursor") && !isNonEmptyString(input.nextCursor)) add(issues, "$.nextCursor", "must be a non-empty string when present");
+  if (Array.isArray(input.events) && Number.isSafeInteger(input.headSequence) && input.events.some((event) => isRecord(event) && Number.isSafeInteger(event.sequence) && (event.sequence as number) > (input.headSequence as number))) {
+    add(issues, "$.headSequence", "must be at least the greatest event sequence");
+  }
+  return issues;
+}
+
+export function isV2EventStreamPage(input: unknown): input is V2EventStreamPage {
+  return validateV2EventStreamPage(input).length === 0;
+}
+
+export function parseV2EventStreamPage(input: unknown): V2EventStreamPage {
+  const issues = validateV2EventStreamPage(input);
+  if (issues.length > 0) throw new V2EnvelopeValidationError(issues);
+  return input as V2EventStreamPage;
+}
+
+export function isV2StreamCapability(value: unknown): value is V2StreamCapability {
+  return typeof value === "string" && streamCapabilities.has(value as V2StreamCapability);
 }
 
 export interface V1MigrationOptions {
