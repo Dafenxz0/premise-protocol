@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { runAdapterConformance } from "../dist/index.js";
 
 const adapter = {
-  capabilities: () => ({ contract: "premise-adapter/1", adapterId: "fixture", features: ["OBSERVE", "REVALIDATE", "CONDITIONAL_ACTION"] }),
+  capabilities: () => ({ contract: "premise-adapter/2", adapterId: "fixture", features: ["OBSERVE", "REVALIDATE", "CONDITIONAL_ACTION"] }),
   observe: async ({ tenantId, resource }) => ({ tenantId, resource, value: { resource }, version: { scheme: "fixture", token: "v1" }, observedAt: "2026-08-14T00:00:00Z", evidence: [{ evidenceId: "e1", sourceUri: resource, observedAt: "2026-08-14T00:00:00Z", version: { scheme: "fixture", token: "v1" }, validator: { id: "fixture", operation: "read" } }] }),
   revalidate: async () => ({ result: "UNCHANGED", checkedAt: "2026-08-14T00:00:00Z" }),
   conditionalAction: async () => ({ accepted: true })

@@ -8,7 +8,7 @@ export type PremiseAdapterFeature =
   | "AUTHORITATIVE_SNAPSHOT";
 
 export interface PremiseAdapterCapabilities {
-  readonly contract: "premise-adapter/1";
+  readonly contract: "premise-adapter/2";
   readonly adapterId: string;
   readonly features: readonly PremiseAdapterFeature[];
   readonly streamCapabilities?: readonly V2StreamCapability[];
@@ -80,7 +80,7 @@ export function assertAdapterCapabilities(
   required: readonly PremiseAdapterFeature[] = ["OBSERVE", "REVALIDATE"]
 ): PremiseAdapterCapabilities {
   const capabilities = adapter.capabilities();
-  if (capabilities.contract !== "premise-adapter/1") throw new TypeError("Unsupported PREMiSE adapter contract");
+  if (capabilities.contract !== "premise-adapter/2") throw new TypeError("Unsupported PREMiSE adapter contract");
   nonEmpty(capabilities.adapterId, "adapterId");
   const features = new Set(capabilities.features);
   const missing = required.filter((feature) => !features.has(feature));
