@@ -72,6 +72,8 @@
     "benchmark:efficiency:v1:receipts:medium": "pnpm build && node benchmarks/premise-efficiency-lab/v1/receipts/reuse.mjs --profile=medium",
     "benchmark:efficiency:v1:events": "pnpm build && node --test benchmarks/premise-efficiency-lab/v1/events/continuity.test.mjs && node benchmarks/premise-efficiency-lab/v1/events/continuity.mjs",
     "benchmark:efficiency:v1:long-horizon": "pnpm build && node --expose-gc benchmarks/premise-efficiency-lab/v1/horizon/runner.mjs --horizons=1000,10000,100000 --world-size=8",
+    "benchmark:efficiency:v1:bounded": "pnpm --filter @premise/runtime-core build && node benchmarks/premise-efficiency-lab/v1/horizon/bounded-campaign.mjs",
+    "benchmark:efficiency:v1:bounded:test": "pnpm --filter @premise/runtime-core build && node --test benchmarks/premise-efficiency-lab/v1/horizon/bounded-campaign.test.mjs",
     "benchmark:efficiency:v1:frontier:report": "node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs",
     "ga:gate": "node scripts/ga-gate.mjs",
     "ga:gate:strict": "node scripts/ga-gate.mjs --strict",
