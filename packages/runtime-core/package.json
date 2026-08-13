@@ -15,6 +15,6 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node test/runtime.test.mjs && node test/premise-guard.test.mjs && node test/instrumentation.test.mjs && node test/frontier-engine.test.mjs && node test/receipt-cache.test.mjs && node test/receipt-reuse.test.mjs && node test/journal.test.mjs && node test/checkpoint.test.mjs && node test/compaction.test.mjs && node test/stream-runtime.test.mjs"
+    "test": "pnpm build && node test/runtime.test.mjs && node test/premise-guard.test.mjs && node test/instrumentation.test.mjs && node test/frontier-engine.test.mjs && node test/receipt-cache.test.mjs && node test/receipt-reuse.test.mjs && node test/journal.test.mjs && node test/checkpoint.test.mjs && node test/compaction.test.mjs && node test/stream-runtime.test.mjs && node test/stream-burst.test.mjs"
   }
 }
