@@ -64,6 +64,19 @@ test("incremental frontier keeps a causal root instead of the full dirty closure
   assert.equal(engine.frontier("T").status, "FRESH");
 });
 
+test("resolving A after marking A and B leaves T stale with frontier B", () => {
+  const engine = chain();
+  engine.markDirty(["A", "B"]);
+  assert.equal(engine.frontier("T").status, "STALE");
+  assert.deepEqual(engine.frontier("T").frontier, ["A"]);
+
+  engine.resolve("A");
+  const result = engine.frontier("T");
+  assert.equal(result.status, "STALE");
+  assert.deepEqual(result.frontier, ["B"]);
+  assert.equal(result.complete, true);
+});
+
 test("diamond frontiers preserve incomparable blockers and compress dominated roots", () => {
   const engine = new IncrementalFrontierEngine([
     { id: "A" },
@@ -77,6 +90,39 @@ test("diamond frontiers preserve incomparable blockers and compress dominated ro
   assert.deepEqual(engine.frontier("T").frontier, ["A"]);
 });
 
+test("independent branches do not become UNKNOWN when one root resolves", () => {
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "B" },
+    { id: "T", dependsOn: ["A", "B"] }
+  ]);
+  engine.markDirty(["A", "B"]);
+  assert.deepEqual(engine.frontier("T").frontier, ["A", "B"]);
+
+  engine.resolve("A");
+  const result = engine.frontier("T");
+  assert.equal(result.status, "STALE");
+  assert.deepEqual(result.frontier, ["B"]);
+  assert.equal(result.complete, true);
+});
+
+test("resolving a non-root node is a safe no-op", () => {
+  const engine = chain();
+  engine.markDirty(["A"]);
+  const before = engine.frontier("B");
+  const generation = engine.stats().generation;
+
+  const impact = engine.resolve("B");
+  assert.deepEqual(impact.affected, []);
+  assert.equal(impact.generation, generation);
+
+  const after = engine.frontier("B");
+  assert.equal(after.status, "STALE");
+  assert.deepEqual(after.frontier, before.frontier);
+  assert.equal(after.complete, true);
+  assert.equal(engine.frontier("T").status, "STALE");
+});
+
 test("unknown index state is incomplete and cannot become fresh by cache reuse", () => {
   const engine = chain();
   engine.markUnknown();
@@ -85,7 +131,99 @@ test("unknown index state is incomplete and cannot become fresh by cache reuse",
   assert.equal(unknown.complete, false);
   assert.deepEqual(unknown.frontier, []);
   engine.restoreTrust();
+  const stillUnknown = engine.frontier("T");
+  assert.equal(stillUnknown.status, "UNKNOWN");
+  assert.equal(stillUnknown.complete, false);
+
+  engine.restoreStates([
+    { id: "A", status: "FRESH" },
+    { id: "B", status: "FRESH" },
+    { id: "T", status: "FRESH" }
+  ]);
   assert.equal(engine.frontier("T").status, "FRESH");
+  assert.equal(engine.frontier("T").complete, true);
+});
+
+test("restoreStates validates a complete snapshot linearly and rejects malformed input", () => {
+  const engine = chain();
+  const snapshot = [
+    { id: "T", status: "FRESH" },
+    { id: "B", status: "FRESH" },
+    { id: "A", status: "STALE" }
+  ];
+
+  assert.throws(
+    () => engine.restoreStates([...snapshot, { id: "A", status: "STALE" }]),
+    /Duplicate/
+  );
+  assert.throws(
+    () => engine.restoreStates(snapshot.map(({ id }) => ({ id, status: "BROKEN" }))),
+    /frontier status/
+  );
+  assert.throws(() => engine.restoreStates(snapshot.slice(0, 2)), /Incomplete frontier state/);
+
+  engine.restoreStates([...snapshot].reverse());
+  const restored = engine.frontier("T");
+  assert.equal(restored.status, "STALE");
+  assert.deepEqual(restored.frontier, ["A"]);
+  assert.equal(restored.complete, true);
+});
+
+test("replaceStatus(FRESH) is an authoritative replacement for one root", () => {
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "B" },
+    { id: "T", dependsOn: ["A", "B"] }
+  ]);
+  engine.markDirty(["A"], "INVALID");
+  engine.markDirty(["B"], "STALE");
+  assert.equal(engine.frontier("T").status, "INVALID");
+  assert.deepEqual(engine.frontier("T").frontier, ["A", "B"]);
+
+  // FRESH replaces A's authoritative state without clearing B's cause.
+  engine.replaceStatus("A", "FRESH");
+  const result = engine.frontier("T");
+  assert.equal(result.status, "STALE");
+  assert.deepEqual(result.frontier, ["B"]);
+  assert.equal(result.complete, true);
+});
+
+test("reactivating a tombstoned root replaces stale severity on compacted and unqueried branches", () => {
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "B", dependsOn: ["A"] },
+    { id: "T", dependsOn: ["B"] },
+    { id: "X", dependsOn: ["A"] }
+  ]);
+  engine.markDirty(["A"], "INVALID");
+  engine.resolve("A");
+  // Compact only T. X still carries the lazy tombstone.
+  assert.equal(engine.frontier("T").status, "FRESH");
+
+  engine.markDirty(["A"], "STALE");
+  assert.equal(engine.frontier("T").status, "STALE");
+  assert.equal(engine.frontier("X").status, "STALE");
+  assert.deepEqual(engine.frontier("T").frontier, ["A"]);
+  assert.deepEqual(engine.frontier("X").frontier, ["A"]);
+});
+
+test("frontier budget exhaustion never reports a cached complete result", () => {
+  const rootCount = 200;
+  const nodes = [
+    ...Array.from({ length: rootCount }, (_, index) => ({ id: `r${index}` })),
+    ...Array.from({ length: rootCount }, (_, index) => ({
+      id: `j${index}`,
+      dependsOn: Array.from({ length: rootCount }, (_, root) => `r${root}`)
+    }))
+  ];
+  const engine = new IncrementalFrontierEngine(nodes);
+  const impact = engine.markDirty(Array.from({ length: rootCount }, (_, index) => `r${index}`));
+  assert.equal(impact.frontierComplete, false);
+  assert.equal(engine.stats().frontierBudgetExceeded, true);
+  const result = engine.frontier("j0");
+  assert.equal(result.status, "UNKNOWN");
+  assert.equal(result.complete, false);
+  assert.equal(result.cacheHit, false);
 });
 
 test("invalid roots dominate stale roots and unknown nodes are rejected", () => {

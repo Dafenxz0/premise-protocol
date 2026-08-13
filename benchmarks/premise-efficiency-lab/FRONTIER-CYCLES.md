@@ -72,6 +72,29 @@ node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs
 node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
 ```
 
+## PR26 - incremental frontier repair
+
+Status: **IMPLEMENTED LOCALLY; CANDIDATE EVIDENCE PASS**.
+
+PR26 evaluates lazy root removal and query-paid tombstone cleanup. It is
+compared to an independent full traversal, not promoted to a champion by a
+modelled closure size. The acceptance evidence is in
+[`v1/frontier/PR26-INCREMENTAL-RESOLVE.md`](./v1/frontier/PR26-INCREMENTAL-RESOLVE.md).
+
+```powershell
+pnpm benchmark:efficiency:v1:frontier:resolve
+```
+
+The campaign covers chain, fan-out and reconvergent graphs, resolving one of
+two active roots, resolving a derived/non-root node, reactivating a resolved
+root, complete snapshot validation and an UNKNOWN root. It reports
+`resolveMaintenanceWork`, total physical work, tombstone entries and the
+eager closure only as a diagnostic. It has no performance percentage claim.
+
+The budget is a safety bound. If root-state or reachability work exceeds it,
+the engine invalidates its trust and returns an incomplete UNKNOWN result.
+That outcome is a safety failure/inconclusive run, never a win.
+
 ## Cycle 2 - receipts, reuse and single-flight
 
 Status: **NOT RUN in PR24**.

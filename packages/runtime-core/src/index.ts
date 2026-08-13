@@ -834,6 +834,14 @@ export class PremiseRuntime<T = unknown> {
         this.operation("frontierCacheInvalidations", impact.frontierCacheInvalidations);
         this.operation("frontierCacheEntriesPreserved", impact.frontierCacheEntriesPreserved);
         this.operation("dirtyPropagations", impact.dirtyPropagations);
+        if (impact.frontierComplete !== true) {
+          // The incremental engine may have stopped at a safety budget. Its
+          // affected list is intentionally not authoritative in that case;
+          // fail closed and use the complete dependency closure before any
+          // MemoryStaled event is persisted.
+          this.frontierEngine.markUnknown();
+          return this.dependentClosure(direct);
+        }
         return this.orderedIds(impact.affected);
       } catch {
         // A missing/corrupt incremental index must fail closed to the
