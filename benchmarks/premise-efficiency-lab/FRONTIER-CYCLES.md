@@ -78,21 +78,25 @@ node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs
 node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
 ```
 
-## PR25 - cached reachability under root explosion
+## PR25 - causal antichain under root explosion
 
-Status: **CANDIDATE IMPLEMENTED; SMOKE PASS; MEDIUM/FULL DIAGNOSTICS INCONCLUSIVE**.
+Status: **CANDIDATE IMPLEMENTED; SMOKE PASS; MEDIUM INCONCLUSIVE; FULL PENDING CLEAN PROVENANCE RERUN**.
 
-PR25 adds a graph-revision-scoped boolean reachability cache to the current
-frontier engine. The cache is invalidated on graph mutation, and cache reads,
-writes, hits and misses are counted as physical primitive work. The decision,
-frontier and affected closure remain unchanged.
+PR25 adds a graph-revision-scoped boolean reachability fallback and a causal
+antichain reducer to the current frontier engine. Once propagation has
+materialized direct-root ancestry, Candidate C uses that exact relation instead
+of repeating BFS for every antichain comparison. The cache is invalidated on
+graph mutation, and cache reads, writes, hits and misses remain counted as
+physical primitive work. Root-set work, fallback reachability work and the
+active-root-state limit are also counted; the decision, frontier and affected
+closure remain unchanged.
 
 The smoke campaign ran 16 isolated candidate/champion pairs across nested
 diamonds, meshed DAGs, reconvergent DAGs and wide DAGs at 16, 32, 64 and 128
 dirty roots. All 16 pairs matched the champion and the independent oracle;
-candidate accounting reconciled in every case. The observed median physical
-work reduction was 56.8% for this smoke fixture only. It is not a commercial,
-safety or universal-scale claim.
+candidate accounting reconciled in every case. Candidate C's observed median
+physical-work reduction was 96.58% for this smoke fixture only. It is not a
+commercial, safety or universal-scale claim.
 
 The immutable PR24 champion predates the six PR25 reachability-cache
 counters. The runner explicitly records those absent fields and defaults them
@@ -101,24 +105,25 @@ the comparison inconclusive. This normalization is visible in every worker
 row and is not an unreported denominator change. Medium adds forward/reverse
 root order; full adds an interleaved order.
 
-The candidate bounds the reachability cache at 65,536 entries and caps each
-maintenance operation at 5,000,000 frontier-root comparisons. Exceeding that
-CPU budget returns `UNKNOWN`/`complete:false` and is reported as
-`INCONCLUSIVE`, never as a safe completion or optimization win.
+The candidate bounds the reachability cache at 65,536 entries, caps each
+maintenance operation at 5,000,000 frontier-root relation checks, fallback
+reachability work units and active causal-root entries. Exceeding any budget returns
+`UNKNOWN`/`complete:false` and is reported as `INCONCLUSIVE`, never as a safe
+completion or optimization win.
 
 The executed diagnostics are recorded here so an incomplete campaign cannot be
 mistaken for a win:
 
 | Profile | Cases | Comparable | Candidate timeouts | Candidate incomplete | Champion timeouts | Champion not run | Status | Median physical reduction |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: |
-| smoke | 16 | 16 | 0 | 0 | 0 | 0 | PASS | 56.8% |
-| medium | 24 | 14 | 0 | 4 | 8 | 2 | INCONCLUSIVE | 14.7%* |
-| full | 48 | 17 | 21 | 8 | 2 | 29 | INCONCLUSIVE | 14.7%* |
+| smoke | 16 | 16 | 0 | 0 | 0 | 0 | PASS | 96.6% |
+| medium | 24 | 14 | 2 | 0 | 8 | 2 | INCONCLUSIVE | 94.8%* |
+| full | pending clean rerun | — | — | — | — | — | PENDING | — |
 
 `*` The status columns are row counts and can overlap because a row may have an
-incomplete candidate and an unavailable champion. The medium/full percentages
-describe only comparable PASS rows; they are not campaign-wide or production
-claims. Full rows at 10,000/50,000 roots are candidate-first diagnostics and
+incomplete candidate and an unavailable champion. The medium percentage
+describes only comparable PASS rows; it is not a campaign-wide or production
+claim. Full rows at 10,000/50,000 roots are candidate-first diagnostics and
 the champion is intentionally not run at that scale, even when the candidate
 completes; no pairwise reduction is inferred for those rows.
 

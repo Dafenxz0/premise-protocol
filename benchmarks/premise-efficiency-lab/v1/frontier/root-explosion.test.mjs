@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareResults, rootExplosionPlan } from "./root-explosion.mjs";
+import { compareResults, optimizationGate, rootExplosionPlan } from "./root-explosion.mjs";
 
 test("root-explosion plan is frozen and covers the four adversarial topologies", () => {
   const plan = rootExplosionPlan("smoke");
@@ -11,7 +11,7 @@ test("root-explosion plan is frozen and covers the four adversarial topologies",
 });
 
 test("champion timeout is inconclusive, never a false candidate win", () => {
-  const candidate = { status: "PASS", accountingReconciled: true, counterContract: { complete: true, normalized: true }, physicalWork: 10 };
+  const candidate = { status: "PASS", accountingReconciled: true, reachabilityCacheAccountingReconciled: true, counterContract: { complete: true, normalized: true }, physicalWork: 10 };
   const champion = { status: "TIMEOUT" };
   assert.deepEqual(compareResults(candidate, champion), {
     status: "INCONCLUSIVE",
@@ -40,6 +40,7 @@ test("two incomplete results cannot be certified as an equivalent PASS", () => {
   const candidate = {
     status: "PASS",
     accountingReconciled: true,
+    reachabilityCacheAccountingReconciled: true,
     counterContract: { complete: true, normalized: true },
     affectedCount: 0,
     affectedDigest: "a",
@@ -66,8 +67,8 @@ test("resource errors are represented as inconclusive rather than a win", () => 
 });
 
 test("equivalent behavior is required before reporting physical reduction", () => {
-  const candidate = { status: "PASS", accountingReconciled: true, counterContract: { complete: true, normalized: true }, affectedCount: 1, affectedDigest: "a", frontierCount: 1, frontierDigest: "f", decision: { status: "STALE", complete: true }, physicalWork: 25 };
-  const champion = { status: "PASS", accountingReconciled: true, counterContract: { complete: true, normalized: true }, affectedCount: 1, affectedDigest: "a", frontierCount: 1, frontierDigest: "f", decision: { status: "STALE", complete: true }, physicalWork: 100 };
+  const candidate = { status: "PASS", accountingReconciled: true, reachabilityCacheAccountingReconciled: true, counterContract: { complete: true, normalized: true }, affectedCount: 1, affectedDigest: "a", frontierCount: 1, frontierDigest: "f", decision: { status: "STALE", complete: true }, physicalWork: 25 };
+  const champion = { status: "PASS", accountingReconciled: true, reachabilityCacheAccountingReconciled: true, counterContract: { complete: true, normalized: true }, affectedCount: 1, affectedDigest: "a", frontierCount: 1, frontierDigest: "f", decision: { status: "STALE", complete: true }, physicalWork: 100 };
   const result = compareResults(candidate, champion);
   assert.equal(result.status, "PASS");
   assert.equal(result.equivalent, true);
@@ -78,4 +79,10 @@ test("behavior mismatch is a hard failure", () => {
   const candidate = { status: "PASS", accountingReconciled: true, counterContract: { complete: true, normalized: true }, affectedCount: 1, affectedDigest: "a", frontierCount: 1, frontierDigest: "candidate", decision: { status: "STALE", complete: true }, physicalWork: 25 };
   const champion = { status: "PASS", accountingReconciled: true, counterContract: { complete: true, normalized: true }, affectedCount: 1, affectedDigest: "a", frontierCount: 1, frontierDigest: "champion", decision: { status: "STALE", complete: true }, physicalWork: 100 };
   assert.equal(compareResults(candidate, champion).status, "FAIL");
+});
+
+test("optimization gate is inconclusive when any row is not comparable", () => {
+  assert.equal(optimizationGate({ totalCases: 2, comparableCases: 1, inconclusiveCases: 1, medianPhysicalReduction: 0.9 }), "INCONCLUSIVE");
+  assert.equal(optimizationGate({ totalCases: 2, comparableCases: 2, inconclusiveCases: 0, medianPhysicalReduction: -0.1 }), "FAIL");
+  assert.equal(optimizationGate({ totalCases: 2, comparableCases: 2, inconclusiveCases: 0, medianPhysicalReduction: 0.1 }), "PASS");
 });

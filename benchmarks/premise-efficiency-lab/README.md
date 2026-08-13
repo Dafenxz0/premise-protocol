@@ -173,11 +173,12 @@ external reads or commercial savings.
 
 ### PR25 root-explosion stress
 
-PR25 adds a graph-revision-scoped reachability cache and a separate stress
-runner. It compares the current candidate with the frozen PR24 champion in
-isolated processes across nested-diamond, meshed, reconvergent and wide DAGs.
-The runner checks exact affected-closure/frontier equivalence, independent
-oracle equivalence for small cases, and physical counter reconciliation.
+PR25 adds a bounded causal-antichain reducer, a graph-revision-scoped
+reachability fallback and a separate stress runner. It compares the current
+candidate with the frozen PR24 champion in isolated processes across
+nested-diamond, meshed, reconvergent and wide DAGs. The runner checks exact
+affected-closure/frontier equivalence, independent oracle equivalence for small
+cases, active-root-state limits and physical counter reconciliation.
 
 ```powershell
 pnpm benchmark:efficiency:v1:frontier:root-explosion:check
@@ -191,6 +192,7 @@ under `.tmp/`.
 
 The current execution status is intentionally conservative: root-explosion
 smoke is `PASS` (16/16 comparable rows); medium is `INCONCLUSIVE` (14/24
-comparable rows); and full is `INCONCLUSIVE` (17/48 comparable rows). The
+comparable rows, 94.8% reduction in that subset); and full is pending a clean,
+provenance-verified rerun after the final Candidate C accounting changes. The
 medium/full comparable-subset reductions are descriptive only and do not
 replace the champion or support a production-scale claim.

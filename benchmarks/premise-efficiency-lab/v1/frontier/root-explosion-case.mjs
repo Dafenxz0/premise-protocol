@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { artifactDigest } from "./baseline-artifact.mjs";
 import { generateGraph } from "./graphs.mjs";
 import { FullTraversalReference } from "./reference.mjs";
 import { loadBaselineEngine } from "./baseline-artifact.mjs";
@@ -7,13 +8,13 @@ import { IncrementalFrontierEngine } from "../../../../packages/runtime-core/dis
 const PRIMITIVE_COUNTER_KEYS = Object.freeze([
   "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
   "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityCacheLookups",
-  "reachabilityCacheHits", "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared",
+  "reachabilityCacheHits", "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheWriteSkips", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared",
   "reachabilityNodesVisited", "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned",
   "cacheEntriesPreserved", "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
 ]);
 const ZERO_DEFAULT_COUNTER_KEYS = Object.freeze([
   "reachabilityCacheLookups", "reachabilityCacheHits", "reachabilityCacheMisses",
-  "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared"
+  "reachabilityCacheWrites", "reachabilityCacheWriteSkips", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared"
 ]);
 const EXPECTED_CHAMPION_MANIFEST = Object.freeze({
   commit: "56f380307f4eada9f5bb5223e0fe739f76f0a862",
@@ -100,6 +101,17 @@ function accountingReconciled(breakdowns, implementation) {
     const phaseWork = (phase) => PRIMITIVE_COUNTER_KEYS.reduce((total, key) => total + (phase?.[key] ?? 0), 0);
     const phaseGraphWork = (phase) => ["graphNodeLookups", "graphEdgeTraversals", "reachabilityNodesVisited", "reachabilityEdgesTraversed"]
       .reduce((total, key) => total + (phase?.[key] ?? 0), 0);
+    const reachabilityAccounting = (phase) => {
+      const knownNoCache = implementation === "champion" && phase?.reachabilityCacheLookups === undefined;
+      if (knownNoCache) return true;
+      const queries = phase?.reachabilityQueries ?? 0;
+      const lookups = phase?.reachabilityCacheLookups ?? 0;
+      const hits = phase?.reachabilityCacheHits ?? 0;
+      const misses = phase?.reachabilityCacheMisses ?? 0;
+      const writes = phase?.reachabilityCacheWrites ?? 0;
+      const writeSkips = phase?.reachabilityCacheWriteSkips ?? 0;
+      return queries === lookups && lookups === hits + misses && misses === writes + writeSkips;
+    };
     const initializationWork = phaseWork(phases[0]);
     const maintenanceWork = phaseWork(phases[1]);
     const queryWork = phaseWork(phases[2]);
@@ -115,6 +127,7 @@ function accountingReconciled(breakdowns, implementation) {
     ];
     return breakdown.reconciled === true
       && phases.every(validPhase)
+      && phases.every(reachabilityAccounting)
       && summaryFields.every((value) => Number.isSafeInteger(value) && value >= 0)
       && breakdown.initializationWork === initializationWork
       && breakdown.maintenanceWork === maintenanceWork
@@ -158,6 +171,16 @@ function runEngine(Engine, nodes, roots, target, implementation) {
     + counters.reachabilityNodesVisited
     + counters.reachabilityEdgesTraversed;
   const accounting = accountingReconciled(breakdowns, implementation);
+  const allCounterPhases = [stats?.workBreakdown?.initialization, stats?.workBreakdown?.maintenance, stats?.workBreakdown?.query];
+  const allReachabilityCounters = Object.fromEntries(PRIMITIVE_COUNTER_KEYS.map((key) => [key, allCounterPhases.reduce((total, phase) => total + (phase?.[key] ?? 0), 0)]));
+  const fallbackReachabilityCacheAccounting = stats?.reachabilityCacheEntries !== undefined
+    && stats.reachabilityCacheEntries === allReachabilityCounters.reachabilityCacheWrites
+      - allReachabilityCounters.reachabilityCacheEvictions
+      - allReachabilityCounters.reachabilityCacheEntriesCleared
+    && allReachabilityCounters.reachabilityQueries === allReachabilityCounters.reachabilityCacheLookups
+    && allReachabilityCounters.reachabilityCacheLookups === allReachabilityCounters.reachabilityCacheHits + allReachabilityCounters.reachabilityCacheMisses
+    && allReachabilityCounters.reachabilityCacheMisses === allReachabilityCounters.reachabilityCacheWrites + allReachabilityCounters.reachabilityCacheWriteSkips;
+  const knownBaselineNoCache = implementation === "champion" && stats?.reachabilityCacheEntries === undefined;
   const complete = result.complete === true
     && (implementation === "champion" || impact.frontierComplete === true);
   return Object.freeze({
@@ -174,6 +197,7 @@ function runEngine(Engine, nodes, roots, target, implementation) {
     graphWork,
     accountingReconciled: accounting,
     counterContract,
+    reachabilityCacheAccountingReconciled: stats?.reachabilityCacheAccountingReconciled ?? (knownBaselineNoCache || fallbackReachabilityCacheAccounting),
     reachabilityCache: {
       entries: stats?.reachabilityCacheEntries ?? null,
       limit: stats?.reachabilityCacheLimit ?? null
@@ -201,6 +225,15 @@ if (!["nested-diamond", "meshed", "reconvergent", "wide"].includes(topology)) th
 const { nodes, roots } = fixture(topology, rootCount, seed);
 const orderedRoots = orderRoots(roots, rootOrder);
 const target = nodes.at(-1).id;
+let candidateArtifact = null;
+if (implementation === "candidate") {
+  const expectedDigest = process.env.PREMiSE_CANDIDATE_ARTIFACT_DIGEST;
+  const expectedCommit = process.env.PREMiSE_CANDIDATE_COMMIT;
+  if (expectedDigest === undefined || expectedCommit === undefined) throw new Error("CANDIDATE_PROVENANCE_MISSING");
+  const actual = await artifactDigest(process.cwd());
+  if (actual.digest !== expectedDigest) throw new Error(`CANDIDATE_ARTIFACT_DIGEST_MISMATCH:${actual.digest}`);
+  candidateArtifact = { commit: expectedCommit, artifactDigest: actual.digest, artifactFiles: actual.files };
+}
 const Engine = implementation === "candidate"
   ? IncrementalFrontierEngine
   : (await loadBaselineEngine({
@@ -242,6 +275,7 @@ process.stdout.write(`${JSON.stringify({
   rootOrder,
   nodeCount: nodes.length,
   implementation,
+  candidateArtifact,
   target,
   ...output
 })}\n`);

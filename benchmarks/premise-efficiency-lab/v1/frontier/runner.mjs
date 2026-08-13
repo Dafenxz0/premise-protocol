@@ -19,7 +19,7 @@ const CYCLE_1_CAMPAIGNS = Object.freeze([
 const PRIMITIVE_COUNTER_KEYS = Object.freeze([
   "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
   "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityCacheLookups", "reachabilityCacheHits",
-  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
+  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheWriteSkips", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
   "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheEntriesPreserved",
   "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
 ]);
@@ -93,7 +93,12 @@ function physicalDelta(result, fallbackLegacyWork = 0) {
   const validPhase = (phase) => PRIMITIVE_COUNTER_KEYS.every((key) => Number.isSafeInteger(phase[key]) && phase[key] >= 0)
     && phase.cacheEntriesScanned === phase.cacheInvalidations + phase.cacheEntriesPreserved;
   const phases = [breakdown.initialization, breakdown.maintenance, breakdown.query];
+  const reachabilityPhaseReconciled = (phase) =>
+    phase.reachabilityQueries === phase.reachabilityCacheLookups
+      && phase.reachabilityCacheLookups === phase.reachabilityCacheHits + phase.reachabilityCacheMisses
+      && phase.reachabilityCacheMisses === phase.reachabilityCacheWrites + phase.reachabilityCacheWriteSkips;
   const phasesReconciled = phases.every(validPhase)
+    && phases.every(reachabilityPhaseReconciled)
     && breakdown.initializationWork === phaseWork(breakdown.initialization)
     && breakdown.maintenanceWork === phaseWork(breakdown.maintenance)
     && breakdown.queryWork === phaseWork(breakdown.query)

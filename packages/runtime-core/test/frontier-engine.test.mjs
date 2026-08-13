@@ -13,7 +13,7 @@ function chain() {
 const PRIMITIVE_COUNTER_KEYS = Object.freeze([
   "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
   "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityCacheLookups", "reachabilityCacheHits",
-  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
+  "reachabilityCacheMisses", "reachabilityCacheWrites", "reachabilityCacheWriteSkips", "reachabilityCacheEvictions", "reachabilityCacheEntriesCleared", "reachabilityNodesVisited",
   "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheEntriesPreserved",
   "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
 ]);
@@ -86,7 +86,33 @@ test("unknown index state is incomplete and cannot become fresh by cache reuse",
   assert.equal(unknown.complete, false);
   assert.deepEqual(unknown.frontier, []);
   engine.restoreTrust();
+  assert.equal(engine.frontier("T").status, "UNKNOWN");
+  assert.equal(engine.frontier("T").complete, false);
+  engine.restoreStates([
+    { id: "A", status: "FRESH" },
+    { id: "B", status: "FRESH" },
+    { id: "T", status: "FRESH" }
+  ]);
   assert.equal(engine.frontier("T").status, "FRESH");
+  assert.equal(engine.frontier("T").complete, true);
+});
+
+test("runtime status validation rejects invalid or incomplete recovery input", () => {
+  const engine = chain();
+  assert.throws(() => engine.markDirty(["A"], "FRESH"), /cannot be FRESH/);
+  assert.throws(() => engine.markDirty(["A"], "BROKEN"), /must be FRESH/);
+  assert.throws(() => engine.replaceStatus("A", "BROKEN"), /must be FRESH/);
+  assert.throws(() => engine.restoreStates([{ id: "A", status: "FRESH" }]), /Incomplete frontier state snapshot/);
+  assert.equal(engine.frontier("T").status, "FRESH");
+});
+
+test("resolving an UNKNOWN root cannot promote descendants to FRESH", () => {
+  const engine = chain();
+  engine.markDirty(["A"], "UNKNOWN");
+  const impact = engine.resolve("A");
+  assert.equal(impact.frontierComplete, false);
+  assert.equal(engine.frontier("T").status, "UNKNOWN");
+  assert.equal(engine.frontier("T").complete, false);
 });
 
 test("invalid roots dominate stale roots and unknown nodes are rejected", () => {
@@ -97,7 +123,7 @@ test("invalid roots dominate stale roots and unknown nodes are rejected", () => 
   assert.throws(() => engine.markDirty(["missing"]), /Unknown node/);
 });
 
-test("graph changes invalidate frontier cache and cycles fail closed at construction time", () => {
+test("graph changes invalidate frontier cache and causal state", () => {
   const engine = new IncrementalFrontierEngine([
     { id: "A" },
     { id: "B", dependsOn: ["A"] },
@@ -106,12 +132,25 @@ test("graph changes invalidate frontier cache and cycles fail closed at construc
   ]);
   engine.markDirty(["B", "C"]);
   engine.frontier("T");
-  assert.ok(engine.stats().reachabilityCacheEntries > 0);
+  assert.equal(engine.stats().reachabilityCacheEntries, 0);
+  assert.ok(engine.stats().activeRootStateEntries > 0);
   engine.addNode("U", ["T"]);
   assert.equal(engine.frontier("U").cacheHit, false);
   engine.setDependencies("T", ["B"]);
   assert.equal(engine.stats().reachabilityCacheEntries, 0);
   assert.throws(() => engine.setDependencies("A", ["U"]), /Dependency cycle/);
+});
+
+test("reachability cache accounting is a closed physical ledger", () => {
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "B", dependsOn: ["A"] },
+    { id: "T", dependsOn: ["B"] }
+  ]);
+  engine.markDirty(["A"]);
+  assert.equal(engine.frontier("T").complete, true);
+  assert.equal(engine.stats().reachabilityCacheAccountingReconciled, true);
+  assertWorkInvariants(engine.stats().workBreakdown, "reachability cache");
 });
 
 test("constructs and propagates a deep graph without recursive bootstrap", () => {
@@ -291,7 +330,7 @@ test("PR25 differential: reconvergent root sets match reachability antichains", 
   }
 });
 
-test("reachability cache keys remain unambiguous for IDs containing NUL", () => {
+test("causal antichain IDs remain unambiguous when they contain NUL", () => {
   const nodes = [
     { id: "a" },
     { id: "b\u0000c", dependsOn: ["a"] },
@@ -302,6 +341,7 @@ test("reachability cache keys remain unambiguous for IDs containing NUL", () => 
   const engine = new IncrementalFrontierEngine(nodes);
   engine.markDirty(["a", "b\u0000c", "a\u0000b", "c"]);
   assert.deepEqual(engine.frontier("T").frontier, ["a", "a\u0000b", "c"]);
+  assert.equal(engine.stats().workBreakdown.maintenance.reachabilityQueries, 0);
 });
 
 test("rejected dependency updates are atomic and do not leave placeholders", () => {
@@ -398,13 +438,21 @@ test("PR25 differential: 128 reconvergent roots are deterministic across input o
   }
 });
 
-test("reachability cache remains bounded under a large incomparable root set", () => {
+test("causal root state remains bounded under a large incomparable root set", () => {
   const { nodes, roots } = parallelNestedDiamonds(256);
   const engine = new IncrementalFrontierEngine(nodes);
   engine.markDirty(roots);
   const stats = engine.stats();
-  assert.ok(stats.reachabilityCacheEntries <= stats.reachabilityCacheLimit);
-  assert.ok(stats.workBreakdown.maintenance.reachabilityCacheEvictions > 0);
+  assert.ok(stats.activeRootStateEntries <= stats.activeRootStateEntryLimit);
+  assert.equal(stats.workBreakdown.maintenance.reachabilityQueries, 0);
+});
+
+test("active root state budget fails closed before unbounded growth", () => {
+  const engine = chain();
+  engine.activeRootStateEntries = engine.stats().activeRootStateEntryLimit;
+  const impact = engine.markDirty(["A"]);
+  assert.equal(impact.frontierComplete, false);
+  assert.equal(engine.frontier("T").complete, false);
 });
 
 test("incremental affected closure is differentially equivalent to a reference traversal", () => {

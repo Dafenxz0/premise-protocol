@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import { artifactDigest } from "./baseline-artifact.mjs";
 
 export const ROOT_EXPLOSION_FORMAT = "premise-efficiency-lab/frontier-root-explosion/v1";
 const CASE_FILE = fileURLToPath(new URL("./root-explosion-case.mjs", import.meta.url));
@@ -50,25 +52,45 @@ function terminateWorker(child) {
   }
 }
 
-function runCase({ topology, roots, order, implementation, seed, timeoutMs }) {
+async function candidateProvenance() {
+  const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: resolve("."), encoding: "utf8" }).trim();
+  const status = execFileSync("git", ["status", "--porcelain=v1", "--untracked-files=all"], { cwd: resolve("."), encoding: "utf8" }).trim();
+  if (status !== "") throw new Error("CANDIDATE_WORKTREE_DIRTY");
+  const artifact = await artifactDigest(resolve("."));
+  return Object.freeze({ commit, artifactDigest: artifact.digest, artifactFiles: artifact.files });
+}
+
+function runCase({ topology, roots, order, implementation, seed, timeoutMs, provenance }) {
   return new Promise((resolveCase) => {
     const child = spawn(process.execPath, ["--stack-size=65500", CASE_FILE, `--topology=${topology}`, `--roots=${roots}`, `--order=${order}`, `--implementation=${implementation}`, `--seed=${seed}`], {
-      cwd: resolve("."),
-      stdio: ["ignore", "pipe", "pipe"]
+    cwd: resolve("."),
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        PREMiSE_CANDIDATE_COMMIT: provenance.commit,
+        PREMiSE_CANDIDATE_ARTIFACT_DIGEST: provenance.artifactDigest
+      }
     });
     const stdout = [];
     const stderr = [];
     let settled = false;
+    let timedOut = false;
+    let teardownTimer;
     const finish = (value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      if (teardownTimer !== undefined) clearTimeout(teardownTimer);
       resolveCase(Object.freeze(value));
     };
     child.stdout.on("data", (chunk) => stdout.push(String(chunk)));
     child.stderr.on("data", (chunk) => stderr.push(String(chunk)));
     child.on("error", (error) => finish(compactError("ERROR", error, stderr.join(""))));
     child.on("close", (code, signal) => {
+      if (timedOut) {
+        finish(compactError("TIMEOUT", `${implementation} ${topology} order=${order} roots=${roots} exceeded ${timeoutMs}ms`, stderr.join("")));
+        return;
+      }
       const lines = stdout.join("").split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
       const last = lines.at(-1);
       if (code !== 0) {
@@ -87,8 +109,14 @@ function runCase({ topology, roots, order, implementation, seed, timeoutMs }) {
       }
     });
     const timer = setTimeout(() => {
+      timedOut = true;
       terminateWorker(child);
-      finish(compactError("TIMEOUT", `${implementation} ${topology} order=${order} roots=${roots} exceeded ${timeoutMs}ms`, stderr.join("")));
+      // A timeout is not a teardown barrier. Wait until the child process has
+      // actually closed before the next case starts, otherwise two workers
+      // can overlap and contaminate CPU/RSS measurements.
+      teardownTimer = setTimeout(() => {
+        finish(compactError("TIMEOUT", `${implementation} ${topology} order=${order} roots=${roots} exceeded ${timeoutMs}ms; teardown deadline elapsed`, stderr.join("")));
+      }, 5_000);
     }, timeoutMs);
   });
 }
@@ -110,11 +138,11 @@ export function compareResults(candidate, champion) {
   if (candidate.status === "TIMEOUT") return Object.freeze({ status: "INCONCLUSIVE", reason: "candidate timed out", equivalent: null });
   if (candidate.status === "INCONCLUSIVE") return Object.freeze({ status: "INCONCLUSIVE", reason: candidate.reason ?? "candidate incomplete", equivalent: null });
   if (candidate.status !== "PASS") return Object.freeze({ status: "FAIL", reason: "candidate did not complete", equivalent: false });
-  if (candidate.accountingReconciled !== true) return Object.freeze({ status: "FAIL", reason: "candidate accounting did not reconcile", equivalent: false });
+  if (candidate.accountingReconciled !== true || candidate.reachabilityCacheAccountingReconciled !== true) return Object.freeze({ status: "FAIL", reason: "candidate physical accounting did not reconcile", equivalent: false });
   if (candidate.counterContract?.complete !== true || candidate.counterContract?.normalized !== true) return Object.freeze({ status: "FAIL", reason: "candidate counter contract is incomplete", equivalent: false });
   if (champion.status === "TIMEOUT") return Object.freeze({ status: "INCONCLUSIVE", reason: "champion timed out", equivalent: null });
   if (champion.status !== "PASS") return Object.freeze({ status: "INCONCLUSIVE", reason: "champion did not complete", equivalent: null });
-  if (champion.accountingReconciled !== true) return Object.freeze({ status: "INCONCLUSIVE", reason: "champion accounting did not reconcile", equivalent: null });
+  if (champion.accountingReconciled !== true || champion.reachabilityCacheAccountingReconciled !== true) return Object.freeze({ status: "INCONCLUSIVE", reason: "champion physical accounting did not reconcile", equivalent: null });
   if (champion.counterContract?.normalized !== true || (champion.counterContract?.complete !== true && champion.counterContract?.knownBaselineNoCache !== true)) return Object.freeze({ status: "INCONCLUSIVE", reason: "champion counter contract is incomplete", equivalent: null });
   const equivalent = sameBehavior(candidate, champion);
   const physicalReduction = equivalent && champion.physicalWork > 0
@@ -160,7 +188,13 @@ function markdown(result) {
   return `${lines.join("\n")}\n`;
 }
 
+export function optimizationGate({ totalCases, comparableCases, inconclusiveCases, medianPhysicalReduction }) {
+  if (totalCases === 0 || inconclusiveCases > 0 || comparableCases !== totalCases) return "INCONCLUSIVE";
+  return medianPhysicalReduction !== null && medianPhysicalReduction > 0 ? "PASS" : "FAIL";
+}
+
 export async function runRootExplosion({ profile = "smoke", seed = 20260813, output = ".tmp/premise-efficiency-lab/v1/frontier/root-explosion" } = {}) {
+  const provenance = await candidateProvenance();
   const cases = [];
   for (const planned of rootExplosionPlan(profile)) {
     // Large/diagnostic runs are candidate-first so a bounded candidate can
@@ -169,13 +203,13 @@ export async function runRootExplosion({ profile = "smoke", seed = 20260813, out
     const candidateFirst = profile === "full" ? true : cases.length % 2 === 0;
     const firstImplementation = candidateFirst ? "candidate" : "champion";
     const secondImplementation = candidateFirst ? "champion" : "candidate";
-    const first = await runCase({ ...planned, implementation: firstImplementation, seed });
+    const first = await runCase({ ...planned, implementation: firstImplementation, seed, provenance });
     const candidateIncomplete = firstImplementation === "candidate"
       && (first.status !== "PASS" || first.decision?.complete !== true || first.accountingReconciled !== true);
     const diagnosticScale = profile === "full" && planned.roots >= 10_000;
     const second = candidateIncomplete || diagnosticScale
       ? Object.freeze({ status: "NOT_RUN", reason: candidateIncomplete ? "candidate incomplete; champion comparison unavailable" : "diagnostic scale is candidate-only unless separately budgeted" })
-      : await runCase({ ...planned, implementation: secondImplementation, seed });
+      : await runCase({ ...planned, implementation: secondImplementation, seed, provenance });
     const candidate = candidateFirst ? first : second;
     const champion = candidateFirst ? second : first;
     const comparison = compareResults(candidate, champion);
@@ -203,17 +237,21 @@ export async function runRootExplosion({ profile = "smoke", seed = 20260813, out
   const candidateWork = cases.map(({ candidate }) => candidate.physicalWork);
   const medianPhysicalReduction = median(cases.map(({ comparison }) => comparison.physicalReduction));
   const comparableCases = cases.filter(({ comparison }) => comparison.equivalent === true).length;
-  const optimizationGate = comparableCases > 0 && medianPhysicalReduction !== null && medianPhysicalReduction > 0
-    ? "PASS"
-    : inconclusive.length > 0 ? "INCONCLUSIVE" : "FAIL";
+  const optimizationStatus = optimizationGate({
+    totalCases: cases.length,
+    comparableCases,
+    inconclusiveCases: inconclusive.length,
+    medianPhysicalReduction
+  });
   const status = candidateFailures.length > 0 || accountingFailures.length > 0 || referenceFailures.length > 0 || comparisonFailures.length > 0
     ? "FAIL"
     : candidateTimeouts.length > 0 || candidateInconclusive.length > 0 || inconclusive.length > 0 ? "INCONCLUSIVE"
-      : optimizationGate === "PASS" ? "PASS" : "FAIL";
+      : optimizationStatus === "PASS" ? "PASS" : "FAIL";
   const result = Object.freeze({
     format: ROOT_EXPLOSION_FORMAT,
     status,
     profile,
+    candidate: provenance,
     seed,
     cases: Object.freeze(cases),
     summary: Object.freeze({
@@ -229,7 +267,7 @@ export async function runRootExplosion({ profile = "smoke", seed = 20260813, out
       candidateMedianPhysicalWork: median(candidateWork),
       comparableCases,
       medianPhysicalReduction,
-      optimizationGate
+      optimizationGate: optimizationStatus
     }),
     claims: Object.freeze({
       exactCandidateReferenceForSmallCases: cases.some(({ roots }) => roots <= 128)
