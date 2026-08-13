@@ -72,9 +72,20 @@ node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs
 node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
 ```
 
+## PR25 - antichain and reachability optimization
+
+Status: **INCONCLUSIVE; NOT A CHAMPION**.
+
+PR25 tested a candidate antichain optimization against a real compiled
+champion artifact. The smoke profile was comparable and reduced primitive
+work, but the medium and full profiles contained timeouts/incomplete rows.
+Those rows are not treated as zero work, and the candidate was not promoted
+to production or used as the next baseline. The draft PR remains evidence of
+the failed/inconclusive gate rather than a performance claim.
+
 ## PR26 - incremental frontier repair
 
-Status: **IMPLEMENTED LOCALLY; CANDIDATE EVIDENCE PASS**.
+Status: **MERGED; CANDIDATE EVIDENCE PASS**.
 
 PR26 evaluates lazy root removal and query-paid tombstone cleanup. It is
 compared to an independent full traversal, not promoted to a champion by a
@@ -94,6 +105,34 @@ eager closure only as a diagnostic. It has no performance percentage claim.
 The budget is a safety bound. If root-state or reachability work exceeds it,
 the engine invalidates its trust and returns an incomplete UNKNOWN result.
 That outcome is a safety failure/inconclusive run, never a win.
+
+## PR27 - dirty propagation locality
+
+Status: **IMPLEMENTED LOCALLY; CANDIDATE EVIDENCE PASS; PR PENDING**.
+
+PR27 targets the repeated-signal path: an equal or weaker dirty signal for a
+root already represented at the same severity reuses an indexed affected
+closure instead of propagating and scanning unrelated frontier cache entries.
+Severity upgrades, new roots, reactivation and graph changes still take the
+fully instrumented maintenance path.
+
+The benchmark compares the candidate with the exact compiled PR26 artifact
+recorded in `v1/frontier/pr27-baseline-manifest.json`; the full traversal is a
+semantic oracle only. It covers repeated roots, alternating roots, unrelated
+cache entries, severity escalation, reactivation, dominated roots, UNKNOWN
+resolve and budget exhaustion. Every row must pass reference equivalence and
+the 17-counter reconciliation before a reduction is shown.
+
+```powershell
+pnpm benchmark:efficiency:v1:frontier:propagation
+node benchmarks/premise-efficiency-lab/v1/frontier/propagation.mjs --profile=medium
+```
+
+The latest smoke and medium runs pass the targeted gate. They show the
+expected locality pattern (large savings when redundant signals would scan
+many cached targets, smaller savings on repeated graph propagation, and no
+performance claim for tokens, provider cost or external requests). The
+generated report is the source of exact numbers.
 
 ## Cycle 2 - receipts, reuse and single-flight
 
