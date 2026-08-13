@@ -28,6 +28,7 @@ export * from "./instrumentation.js";
 export * from "./frontier-engine.js";
 export * from "./receipt-cache.js";
 export * from "./journal.js";
+export * from "./checkpoint.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
