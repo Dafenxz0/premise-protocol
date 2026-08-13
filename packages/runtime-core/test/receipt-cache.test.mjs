@@ -43,6 +43,28 @@ test("negative cache never presents a negative fact as fresh evidence", () => {
   cache.put(scope(), "EVENT_GAP", "2026-08-13T00:01:00Z");
   assert.deepEqual(cache.get(scope(), "2026-08-13T00:00:30Z"), { status: "NEGATIVE", reason: "EVENT_GAP" });
   assert.deepEqual(cache.get(scope(), "2026-08-13T00:02:00Z"), { status: "MISS" });
+  assert.deepEqual(cache.stats(), { hits: 1, misses: 1, expirations: 1, evictions: 0, entries: 0, peakEntries: 1 });
+});
+
+test("negative cache remains bounded and evicts only negative entries", () => {
+  const cache = new RuntimeNegativeCache({ maxEntries: 2, maxEntriesPerTenant: 2 });
+  cache.put(scope({ resourceId: "doc:1" }), "EVENT_GAP", "2026-08-13T00:10:00Z");
+  cache.put(scope({ resourceId: "doc:2" }), "EVENT_GAP", "2026-08-13T00:10:00Z");
+  cache.put(scope({ resourceId: "doc:3" }), "EVENT_GAP", "2026-08-13T00:10:00Z");
+  assert.equal(cache.get(scope({ resourceId: "doc:1" }), "2026-08-13T00:00:00Z").status, "MISS");
+  assert.equal(cache.get(scope({ resourceId: "doc:2" }), "2026-08-13T00:00:00Z").status, "NEGATIVE");
+  assert.equal(cache.get(scope({ resourceId: "doc:3" }), "2026-08-13T00:00:00Z").status, "NEGATIVE");
+  assert.deepEqual(cache.stats(), { hits: 2, misses: 1, expirations: 0, evictions: 1, entries: 2, peakEntries: 3 });
+});
+
+test("negative cache applies tenant bounds independently", () => {
+  const cache = new RuntimeNegativeCache({ maxEntries: 4, maxEntriesPerTenant: 1 });
+  cache.put(scope({ resourceId: "doc:a1" }), "EVENT_GAP", "2026-08-13T00:10:00Z");
+  cache.put(scope({ resourceId: "doc:a2" }), "EVENT_GAP", "2026-08-13T00:10:00Z");
+  cache.put(scope({ tenantId: "tenant:b", resourceId: "doc:b1" }), "EVENT_GAP", "2026-08-13T00:10:00Z");
+  assert.equal(cache.get(scope({ resourceId: "doc:a1" }), "2026-08-13T00:00:00Z").status, "MISS");
+  assert.equal(cache.get(scope({ resourceId: "doc:a2" }), "2026-08-13T00:00:00Z").status, "NEGATIVE");
+  assert.equal(cache.get(scope({ tenantId: "tenant:b", resourceId: "doc:b1" }), "2026-08-13T00:00:00Z").status, "NEGATIVE");
 });
 
 test("fingerprints bind incarnation and semantic aspect", () => {
