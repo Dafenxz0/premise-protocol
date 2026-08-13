@@ -167,20 +167,33 @@ Evidence and limits are documented in
 
 ## PR30 - long horizon coherence measurement
 
-Status: **EVIDENCE PASS; MERGE PENDING; COMPACTION REQUIRED FOR EVALUATION**.
+Status: **MERGED; EVIDENCE CORRECTION REQUIRED FOR STRONGER CLAIMS; COMPACTION REQUIRED FOR EVALUATION**.
 
 The current runtime was exercised for 1,000, 10,000 and 100,000 steps over an
-8-record dependency chain. The independent oracle passed every row, active
-records and frontier state stayed bounded, the configured receipt cache stayed
-at 128 entries in its unique-scope probe, and there were no runtime/frontier
-errors. Historical event and decision state grew linearly: 3,015/3,024 at
-1,000 steps, 30,015/30,244 at 10,000 and 300,015/302,434 at 100,000. The
-auxiliary unique negative-cache probe grew to exactly the number of unique
-scopes, so no global bound is claimed for that cache. This is measurement
-evidence, not a performance or production-memory claim.
+8-record dependency chain. The corrected campaign (tracked separately from
+PR30) validates raw snapshots and decision traces in an isolated process. The
+independent oracle passed every row, active records and frontier state stayed
+bounded, the configured receipt cache stayed at 128 entries in its
+unique-scope probe, and there were no runtime/frontier errors. Historical event
+and decision state grew linearly: 3,015/3,024 at 1,000 steps, 30,015/30,244 at
+10,000 and 300,015/302,434 at 100,000. The auxiliary unique negative-cache
+probe grew to exactly the number of unique scopes, so no global bound is
+claimed for that cache. This is measurement evidence, not a performance or
+production-memory claim.
 
 The result requires a separate compaction evaluation. It does not mean that
 compaction is implemented or safe.
+
+## PR32 - long-horizon evidence integrity correction
+
+Status: **EVIDENCE CORRECTION; NO STRONGER PERFORMANCE OR COMMERCIAL CLAIM**.
+
+The correction removes oracle expectations and internal labels from the public
+report, validates the raw runtime snapshot and decision trace in a separate
+process, adds tamper tests, fails the CLI on `INCONCLUSIVE`, and records a
+result digest plus execution metadata. The corrected evidence still measures
+the current in-memory runtime; it does not add compaction or turn a local
+campaign into a production-memory guarantee.
 
 ## PR31 - safe state compaction
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -161,11 +162,35 @@ function parseArgs() {
 }
 
 function oracle(input) {
-  return JSON.parse(execFileSync(process.execPath, [ORACLE_ENTRY], {
-    cwd: ROOT,
-    input: JSON.stringify(input),
-    encoding: "utf8"
-  }));
+  const serialized = JSON.stringify(input);
+  const evidenceDigest = `sha256:${createHash("sha256").update(serialized, "utf8").digest("hex")}`;
+  try {
+    const result = JSON.parse(execFileSync(process.execPath, [ORACLE_ENTRY], {
+      cwd: ROOT,
+      input: serialized,
+      encoding: "utf8"
+    }));
+    return Object.freeze({ pass: result.pass === true, evidenceDigest });
+  } catch {
+    return Object.freeze({ pass: false, evidenceDigest });
+  }
+}
+
+function gitMetadata() {
+  const runGit = (args, fallback) => {
+    try {
+      return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return fallback;
+    }
+  };
+  return Object.freeze({
+    commit: runGit(["rev-parse", "HEAD"], "unknown"),
+    dirty: runGit(["status", "--porcelain", "--untracked-files=no"], "unknown") !== "",
+    node: process.version,
+    platform: process.platform,
+    arch: process.arch
+  });
 }
 
 async function runHorizon(module, { steps, worldSize }) {
@@ -273,22 +298,24 @@ async function runHorizon(module, { steps, worldSize }) {
     }
   }
   collectGarbage();
-  let history = runtime.history();
+  const heapBeforeSnapshot = heapSample();
+  let snapshot = runtime.store.snapshot(AT);
+  const heapAfterSnapshot = heapSample();
   const eventTypeCounts = {};
-  for (const event of history) eventTypeCounts[event.type] = (eventTypeCounts[event.type] ?? 0) + 1;
+  for (const event of snapshot.events) eventTypeCounts[event.type] = (eventTypeCounts[event.type] ?? 0) + 1;
   const eventBoundary = {
-    first: history.slice(0, 3).map(({ type }) => type),
-    last: history.slice(-3).map(({ type }) => type)
+    first: snapshot.events.slice(0, 3).map(({ type }) => type),
+    last: snapshot.events.slice(-3).map(({ type }) => type)
   };
-  history = null;
   const frontierStats = frontier.stats();
   const frontierProbe = runFrontierProbe(IncrementalFrontierEngine, worldSize);
   const cacheProbe = runCacheProbe(RuntimeReceiptCache, RuntimeNegativeCache, steps);
+  const decisions = instrumentation.decisions();
   const observed = {
     horizonSteps: steps,
     activeRecords: runtime.list().length,
-    eventCount: runtime.eventCount(),
-    decisionEvents: instrumentation.decisions().length,
+    eventCount: snapshot.events.length,
+    decisionEvents: decisions.length,
     runtimeErrors,
     frontierErrors,
     receiptEntries: receiptCache.stats().entries,
@@ -311,14 +338,17 @@ async function runHorizon(module, { steps, worldSize }) {
       trusted: frontierStats.trusted
     }
   };
-  const oracleResult = oracle({ steps, worldSize, observed });
+  const oracleResult = oracle({ steps, worldSize, observed, snapshot, decisions });
+  snapshot = null;
+  collectGarbage();
   const historyPerActiveRecord = observed.eventCount / observed.activeRecords;
   return Object.freeze({
     steps,
     worldSize,
     observed: Object.freeze(observed),
     samples: Object.freeze(samples),
-    oracle: Object.freeze(oracleResult),
+    oracle: oracleResult,
+    snapshotHeap: Object.freeze({ before: heapBeforeSnapshot, after: heapAfterSnapshot }),
     historyPerActiveRecord: Number(historyPerActiveRecord.toFixed(3)),
     compactionEvaluation: historyPerActiveRecord > 100 ? "REQUIRED_REVIEW" : "NOT_TRIGGERED"
   });
@@ -328,8 +358,9 @@ export async function runLongHorizonBenchmark({ horizons = [1000, 10000, 100000]
   const module = await import(pathToFileURL(RUNTIME_ENTRY).href);
   const rows = [];
   for (const steps of horizons) rows.push(await runHorizon(module, { steps, worldSize }));
-  const deterministic = rows.every(({ oracle: result }) => result.pass);
-  const result = Object.freeze({
+  const deterministic = rows.every(({ oracle: result }) => result.pass === true);
+  const metadata = gitMetadata();
+  const unsignedResult = {
     format: FORMAT,
     status: deterministic ? "PASS" : "INCONCLUSIVE",
     claims: Object.freeze({
@@ -341,6 +372,10 @@ export async function runLongHorizonBenchmark({ horizons = [1000, 10000, 100000]
       commercialClaim: false
     }),
     gcAvailable: typeof globalThis.gc === "function",
+    metadata: Object.freeze({
+      ...metadata,
+      config: Object.freeze({ horizons: [...horizons], worldSize })
+    }),
     rows: Object.freeze(rows),
     gates: Object.freeze({
       independentInvariantOracle: deterministic,
@@ -353,13 +388,24 @@ export async function runLongHorizonBenchmark({ horizons = [1000, 10000, 100000]
       tombstoneCleanupMeasured: rows.every(({ observed, worldSize: size }) => observed.frontierCacheProbe.afterCleanup.tombstonedRootCount === 0 && observed.frontierCacheProbe.rootCount === size),
       compactionNotClaimed: true
     })
-  });
+  };
+  const artifactDigest = `sha256:${createHash("sha256").update(JSON.stringify(unsignedResult), "utf8").digest("hex")}`;
+  const result = Object.freeze({ ...unsignedResult, artifactDigest });
   await mkdir(OUTPUT_DIRECTORY, { recursive: true });
   await writeFile(resolve(OUTPUT_DIRECTORY, "long-horizon.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
+  await writeFile(resolve(OUTPUT_DIRECTORY, "manifest.json"), `${JSON.stringify({
+    format: `${FORMAT}/manifest`,
+    resultFile: "long-horizon.json",
+    resultDigest: artifactDigest,
+    oracleEvidenceDigests: rows.map(({ steps, oracle: oracleResult }) => ({ steps, digest: oracleResult.evidenceDigest })),
+    metadata: result.metadata
+  }, null, 2)}\n`, "utf8");
   return result;
 }
 
 if (process.argv[1] && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1])) {
   const { horizons, worldSize } = parseArgs();
-  process.stdout.write(`${JSON.stringify(await runLongHorizonBenchmark({ horizons, worldSize }), null, 2)}\n`);
+  const result = await runLongHorizonBenchmark({ horizons, worldSize });
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (result.status !== "PASS") process.exitCode = 1;
 }
