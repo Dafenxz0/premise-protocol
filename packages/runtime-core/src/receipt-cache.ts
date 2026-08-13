@@ -50,6 +50,14 @@ function clone<T>(value: T): T {
   return JSON.parse(serialized) as T;
 }
 
+function cloneScope(scope: PremiseReceiptSharingScope): PremiseReceiptSharingScope {
+  return Object.freeze({
+    ...scope,
+    scopes: Object.freeze([...scope.scopes]),
+    causalFrontier: Object.freeze([...scope.causalFrontier])
+  });
+}
+
 function assertTimestamp(value: string, name: string): void {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new TypeError(`${name} must be an ISO timestamp`);
 }
@@ -87,7 +95,7 @@ export class RuntimeReceiptCache<T = unknown> {
     if (!sameOrBefore(receipt.observedAt, receipt.expiresAt)) throw new RangeError("receipt expiry must be after observation");
     const key = premiseReceiptSharingKey(receipt.scope);
     if (this.entries.has(key)) this.entries.delete(key);
-    this.entries.set(key, Object.freeze({ ...receipt, value: clone(receipt.value) }));
+    this.entries.set(key, Object.freeze({ ...receipt, scope: cloneScope(receipt.scope), value: clone(receipt.value) }));
     while (this.entries.size > this.maxEntries) {
       const oldest = this.entries.keys().next().value as string | undefined;
       if (oldest === undefined) break;

@@ -1,0 +1,17 @@
+{
+  "commit": "49f89f5ad8304d5fac5c7b78a109e6df761762a6",
+  "artifactDigest": "sha256:526fb01aa6df7550de9e03284f0723b6ba17669e54fbf6f848fcf52787dce0c6",
+  "artifactDigestAlgorithm": "sha256(path\\0 + byteLength + \\0 + fileSha256Hex + newline)",
+  "artifactFileCount": 36,
+  "artifactExclude": ["**/tsconfig.tsbuildinfo"],
+  "artifactPaths": [
+    "packages/runtime-core/dist",
+    "packages/protocol-types/dist"
+  ],
+  "nodeVersion": "24",
+  "pnpmVersion": "10.13.1",
+  "typescriptVersion": "7.0.2",
+  "protocol": "premise/2",
+  "campaign": "receipt-reuse-pr28",
+  "buildCommand": "pnpm build"
+}

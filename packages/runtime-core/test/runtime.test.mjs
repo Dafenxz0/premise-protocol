@@ -17,6 +17,20 @@ const envelope = (memoryId, dependsOn = [], status = "FRESH", tenantId = "tenant
   signatures: []
 });
 
+const sharingScope = (evidence, record) => ({
+  tenantId: record.envelope.tenantId,
+  resourceId: evidence.sourceUri,
+  incarnationId: `inc:${evidence.evidenceId}`,
+  versionToken: `${evidence.version.scheme}:${evidence.version.token}`,
+  scopes: ["read:source"],
+  queryDigest: "query:runtime-test",
+  validatorId: evidence.validator.id,
+  authorizationContextDigest: "auth:test",
+  policyDigest: "policy:runtime-test",
+  changeSetDigest: null,
+  causalFrontier: []
+});
+
 const { privateKey, publicKey } = generateKeyPairSync("ed25519");
 const signedEnvelope = (memoryId) => {
   const unsigned = envelope(memoryId);
@@ -156,7 +170,7 @@ assert.equal(unsafeApplyCalls, 0, "legacy apply must never produce an effect wit
 const sharedEvidence = { ...envelope("memory:shared-a").evidence[0], evidenceId: "evidence:shared" };
 const sharedA = { ...envelope("memory:shared-a"), evidence: [sharedEvidence] };
 const sharedB = { ...envelope("memory:shared-b"), evidence: [sharedEvidence] };
-const shared = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at });
+const shared = new PremiseRuntime({ tenantId: "tenant:acme", now: () => at, receiptScope: sharingScope });
 shared.register({ envelope: sharedA, content: { value: "a" } });
 shared.register({ envelope: sharedB, content: { value: "b" } });
 let sharedCalls = 0;
@@ -201,7 +215,7 @@ assert.deepEqual(entered, ["github://acme/repo/concurrent-b", "github://acme/rep
 assert.deepEqual(concurrentReports.map((item) => item.memoryId), ["memory:concurrent-b", "memory:concurrent-a", "memory:concurrent-b"]);
 
 const dedupStore = new CountingStore();
-const dedup = new PremiseRuntime({ store: dedupStore, tenantId: "tenant:acme", now: () => at });
+const dedup = new PremiseRuntime({ store: dedupStore, tenantId: "tenant:acme", now: () => at, receiptScope: sharingScope });
 const dedupEvidence = { ...envelope("memory:batch-dedup-a").evidence[0], evidenceId: "evidence:batch-dedup" };
 dedup.register({ envelope: { ...envelope("memory:batch-dedup-a"), evidence: [dedupEvidence] }, content: { value: "a" } });
 dedup.register({ envelope: { ...envelope("memory:batch-dedup-b"), evidence: [dedupEvidence] }, content: { value: "b" } });

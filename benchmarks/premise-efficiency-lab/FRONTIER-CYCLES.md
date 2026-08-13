@@ -134,13 +134,22 @@ many cached targets, smaller savings on repeated graph propagation, and no
 performance claim for tokens, provider cost or external requests). The
 generated report is the source of exact numbers.
 
-## Cycle 2 - receipts, reuse and single-flight
+## PR28 - Cycle 2: receipts, reuse and single-flight
 
-Status: **NOT RUN in PR24**.
+Status: **CANDIDATE EVIDENCE PASS; EXACT REUSE ONLY**.
 
-The plan reserves this work for a separate champion comparison. Existing
-receipt and single-flight tests remain gates, but their results must not be
-presented as a Cycle 2 optimization result.
+PR28 compares the candidate runtime with the compiled Champion N+1 artifact
+from `main` at `49f89f5`. The physical unit is validator invocations. The
+candidate reuses only completed `UNCHANGED/FRESH` receipts with a complete
+scope; no provider request, token, latency, RAM or cost claim is made.
+
+The smoke and medium profiles pass semantic equivalence, authorization
+isolation, source invalidation, expiry, failure and TOCTOU gates. The medium
+profile uses 1,000 records and reports its full counters in
+[`v1/receipts/PR28-RECEIPT-REUSE.md`](./v1/receipts/PR28-RECEIPT-REUSE.md).
+
+Partial/subsumption reuse is deliberately **not implemented**. It requires a
+separate proof and adversarial campaign before it can enter a champion.
 
 ## Cycle 3 - events, long horizon and compaction
 

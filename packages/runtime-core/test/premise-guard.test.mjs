@@ -141,6 +141,7 @@ test("a complete multi-resource frontier shares one validation without dropping 
   ];
   const key = premiseReceiptSharingFrontierKey(resources);
   assert.equal(key, premiseReceiptSharingFrontierKey([...resources].reverse()));
+  assert.equal(key, premiseReceiptSharingFrontierKey(resources.map((item) => ({ ...item, scopes: ["/checkout", "/checkout"], causalFrontier: ["event-a", "event-a"] }))));
   assert.notEqual(key, premiseReceiptSharingFrontierKey([{ ...resources[0], versionToken: "config-v3" }, resources[1]]));
   assert.notEqual(key, premiseReceiptSharingFrontierKey([{ ...resources[0], authorizationContextDigest: "sha256:auth-b" }, resources[1]]));
   const flight = new PremiseSingleFlight();
