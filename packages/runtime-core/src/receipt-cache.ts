@@ -208,7 +208,13 @@ export class RuntimeNegativeCache {
 
   get(scope: PremiseReceiptSharingScope, now: string): { status: "NEGATIVE" | "MISS"; reason?: string } {
     assertTimestamp(now, "now");
-    const key = premiseReceiptSharingKey(scope);
+    let key: string;
+    try {
+      key = premiseReceiptSharingKey(scope);
+    } catch {
+      this.misses += 1;
+      return Object.freeze({ status: "MISS" });
+    }
     const entry = this.entries.get(key);
     if (entry === undefined) {
       this.misses += 1;

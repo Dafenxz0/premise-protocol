@@ -67,6 +67,26 @@ test("negative cache applies tenant bounds independently", () => {
   assert.equal(cache.get(scope({ tenantId: "tenant:b", resourceId: "doc:b1" }), "2026-08-13T00:00:00Z").status, "NEGATIVE");
 });
 
+test("negative cache replacement is not an eviction and clear preserves accounting", () => {
+  const cache = new RuntimeNegativeCache({ maxEntries: 1 });
+  cache.put(scope(), "FIRST", "2026-08-13T00:10:00Z");
+  cache.put(scope(), "SECOND", "2026-08-13T00:20:00Z");
+  assert.deepEqual(cache.get(scope(), "2026-08-13T00:00:00Z"), { status: "NEGATIVE", reason: "SECOND" });
+  assert.equal(cache.stats().evictions, 0);
+  cache.clear();
+  assert.equal(cache.stats().entries, 0);
+  assert.equal(cache.stats().hits, 1);
+});
+
+test("negative cache rejects invalid bounds and treats an invalid lookup as a miss", () => {
+  assert.throws(() => new RuntimeNegativeCache({ maxEntries: 0 }), RangeError);
+  assert.throws(() => new RuntimeNegativeCache({ maxEntries: 1.5 }), RangeError);
+  assert.throws(() => new RuntimeNegativeCache({ maxEntriesPerTenant: 0 }), RangeError);
+  const cache = new RuntimeNegativeCache();
+  assert.deepEqual(cache.get({ tenantId: "" }, "2026-08-13T00:00:00Z"), { status: "MISS" });
+  assert.equal(cache.stats().misses, 1);
+});
+
 test("fingerprints bind incarnation and semantic aspect", () => {
   const first = semanticFingerprint({ resourceId: "doc:1", incarnationId: "inc:1", aspect: "ci", digest: "green" });
   const second = semanticFingerprint({ resourceId: "doc:1", incarnationId: "inc:2", aspect: "ci", digest: "green" });
