@@ -57,6 +57,12 @@ importers:
         specifier: workspace:*
         version: link:../reference-ts
 
+  packages/adapter-sdk:
+    dependencies:
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
+
   packages/conformance:
     dependencies:
       '@premise/protocol-types':
