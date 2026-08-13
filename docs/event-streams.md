@@ -19,4 +19,4 @@ const continuity = assessOrderedEventContinuity(page.events, {
 });
 ```
 
-The current wave is contract-only. `PremiseRuntime.applyEvent`, SQLite, PostgreSQL, HTTP, and SDK paths still accept legacy `V2Event` and do not claim stream continuity or snapshot repair. The next wave integrates this envelope into an apply/repair state machine and must explicitly handle gaps, reordered deliveries, same-sequence conflicts, duplicate pages, and authoritative snapshots.
+PR40 established the wire contract. The runtime now exposes additive `PremiseRuntime.applyStreamEvent`, which validates continuity and fails closed on gaps, reordering, conflicts, and deltas before a snapshot. The compatibility store, SQLite/PostgreSQL adapters, HTTP, and SDK paths still accept legacy `V2Event`; authoritative snapshot repair is the next increment and is not claimed by this contract alone.

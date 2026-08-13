@@ -9,6 +9,8 @@ import {
   type MemoryEnvelopeV2,
   type V2SignatureVerificationOptions,
   type V2Event,
+  parseV2StreamEvent,
+  type V2StreamEvent,
   type V2MemoryStatus,
   type VersionReference
 } from "@premise/protocol-types";
@@ -181,6 +183,13 @@ export interface RuntimeActionResult<T = unknown> {
   readonly observedVersion?: string;
   readonly result?: T;
 }
+
+export type RuntimeStreamRepairReason = "GAP" | "REORDERED" | "CONFLICT" | "DELTA_BEFORE_SNAPSHOT";
+
+export type RuntimeStreamApplyResult =
+  | { readonly status: "APPLIED"; readonly streamId: string; readonly sequence: number }
+  | { readonly status: "DUPLICATE"; readonly streamId: string; readonly sequence: number }
+  | { readonly status: "REPAIR_REQUIRED"; readonly streamId: string; readonly sequence: number; readonly reason: "GAP" | "REORDERED" | "CONFLICT" | "DELTA_BEFORE_SNAPSHOT" };
 
 function cloneJson<T>(value: T): T {
   const serialized = JSON.stringify(value);
@@ -471,6 +480,7 @@ export class PremiseRuntime<T = unknown> {
   private receiptGeneration = 0;
   private frontierEngine: IncrementalFrontierEngine | undefined;
   private readonly validationFlights = new Map<string, Promise<RuntimeValidationReport>>();
+  private readonly streamStates = new Map<string, { nextSequence: number; seen: Map<number, string>; hasSnapshot: boolean }>();
   private validationInvocation = 0;
   private sequence = 0;
   /**
@@ -854,6 +864,62 @@ export class PremiseRuntime<T = unknown> {
     this.store.appendEvent(parsed);
     this.auditEvent(parsed);
     return true;
+  }
+
+  /**
+   * Consume an ordered connector stream without sorting away delivery hazards.
+   * Stream metadata is transport state and is intentionally stripped before
+   * the legacy V2Event is handed to the compatibility store.
+   */
+  applyStreamEvent(event: V2StreamEvent): RuntimeStreamApplyResult {
+    const parsed = parseV2StreamEvent(event);
+    this.assertTenant(parsed.tenantId);
+    const state = this.streamStates.get(parsed.streamId) ?? { nextSequence: 0, seen: new Map<number, string>(), hasSnapshot: false };
+    const fingerprint = digestFor({
+      eventId: parsed.eventId,
+      requestDigest: parsed.requestDigest,
+      type: parsed.type,
+      occurredAt: parsed.occurredAt,
+      memoryId: parsed.memoryId ?? null,
+      payload: parsed.payload,
+      sourceVersion: parsed.sourceVersion ?? null,
+      cursor: parsed.cursor ?? null,
+      kind: parsed.kind
+    });
+    const prior = state.seen.get(parsed.sequence);
+    if (prior !== undefined) {
+      if (prior === fingerprint) return Object.freeze({ status: "DUPLICATE", streamId: parsed.streamId, sequence: parsed.sequence });
+      return this.streamRepairRequired(parsed, state, "CONFLICT");
+    }
+    if (parsed.sequence < state.nextSequence) return this.streamRepairRequired(parsed, state, "REORDERED");
+    if (parsed.sequence > state.nextSequence) return this.streamRepairRequired(parsed, state, "GAP");
+    if (!state.hasSnapshot && parsed.kind !== "SNAPSHOT") return this.streamRepairRequired(parsed, state, "DELTA_BEFORE_SNAPSHOT");
+    const { streamId: _streamId, sequence: _sequence, kind: _kind, cursor: _cursor, sourceVersion: _sourceVersion, ...legacy } = parsed;
+    const accepted = this.applyEvent(legacy);
+    if (!accepted) {
+      const existing = this.eventFor(legacy.idempotencyKey);
+      if (existing === undefined || digestFor(existing) !== digestFor(legacy)) {
+        return this.streamRepairRequired(parsed, state, "CONFLICT");
+      }
+    }
+    state.seen.set(parsed.sequence, fingerprint);
+    state.nextSequence = parsed.sequence + 1;
+    state.hasSnapshot ||= parsed.kind === "SNAPSHOT";
+    this.streamStates.set(parsed.streamId, state);
+    return Object.freeze({ status: accepted ? "APPLIED" : "DUPLICATE", streamId: parsed.streamId, sequence: parsed.sequence });
+  }
+
+  private streamRepairRequired(event: V2StreamEvent, state: { nextSequence: number; seen: Map<number, string>; hasSnapshot: boolean }, reason: RuntimeStreamRepairReason): RuntimeStreamApplyResult {
+    state.seen.clear();
+    state.nextSequence = event.sequence;
+    state.hasSnapshot = false;
+    this.streamStates.set(event.streamId, state);
+    this.receiptCache?.clear();
+    this.receiptGeneration += 1;
+    this.frontierEngine?.markUnknown();
+    this.operation("eventContinuityChecks");
+    this.operation("eventRepairs");
+    return Object.freeze({ status: "REPAIR_REQUIRED", streamId: event.streamId, sequence: event.sequence, reason });
   }
 
   snapshot(): RuntimeSnapshot<T> {
