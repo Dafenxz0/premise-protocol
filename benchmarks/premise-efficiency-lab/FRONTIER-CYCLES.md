@@ -80,7 +80,7 @@ node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premi
 
 ## PR25 - causal antichain under root explosion
 
-Status: **CANDIDATE IMPLEMENTED; SMOKE PASS; MEDIUM INCONCLUSIVE; FULL PENDING CLEAN PROVENANCE RERUN**.
+Status: **CANDIDATE IMPLEMENTED; SMOKE PASS; MEDIUM/FULL INCONCLUSIVE**.
 
 PR25 adds a graph-revision-scoped boolean reachability fallback and a causal
 antichain reducer to the current frontier engine. Once propagation has
@@ -118,7 +118,7 @@ mistaken for a win:
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: |
 | smoke | 16 | 16 | 0 | 0 | 0 | 0 | PASS | 96.6% |
 | medium | 24 | 14 | 2 | 0 | 8 | 2 | INCONCLUSIVE | 94.8%* |
-| full | pending clean rerun | — | — | — | — | — | PENDING | — |
+| full | 48 | 17 | 16 | 10 | 5 | 26 | INCONCLUSIVE | 94.8%* |
 
 `*` The status columns are row counts and can overlap because a row may have an
 incomplete candidate and an unavailable champion. The medium percentage

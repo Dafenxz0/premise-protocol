@@ -81,11 +81,17 @@ small fixture. This is a fixture-local result, not a universal-scale claim.
 The strict medium diagnostic completed 24 rows, of which 14 were comparable.
 Two candidate rows timed out, eight champion rows timed out and two rows were
 not run after a candidate timeout; ten rows were therefore `INCONCLUSIVE`. The
-94.84% median reduction describes only the 14 comparable rows. Full must be
-rerun from a clean, provenance-verified candidate artifact after this commit;
-its previous pre-provenance output is not evidence for this revision. No
-medium/full result replaces the champion or supports a production-scale
-performance claim.
+94.84% median reduction describes only the 14 comparable rows. No medium/full
+result replaces the champion or supports a production-scale performance claim.
+
+The clean full diagnostic completed all 48 planned rows with the candidate
+artifact at commit `9a52f05924a168eb39eb5940fd3483257e37dfd6` and digest
+`sha256:e22a0e6eed3b92e43837a88b9721d6b8bde0e661dfd0df80f3d2dfd1c1a62229`.
+Seventeen rows were comparable, 16 candidate rows timed out, 10 candidate
+rows became incomplete at the explicit budgets, 5 champion rows timed out and
+26 champion rows were not run; 31 rows were `INCONCLUSIVE`. The
+comparable-subset median reduction was 94.84%. The full campaign therefore
+remains `INCONCLUSIVE` and Candidate C is not promoted to champion.
 
 ## Acceptance gates
 
