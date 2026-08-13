@@ -21,6 +21,8 @@ import {
 import { IncrementalFrontierEngine, type FrontierResult } from "./frontier-engine.js";
 import { premiseReceiptSharingKey, type PremiseReceiptSharingScope } from "./premise-policy.js";
 import { RuntimeReceiptCache } from "./receipt-cache.js";
+import { verifyRuntimeCheckpointRecovery } from "./checkpoint.js";
+import type { RuntimeCheckpointTailEntry, RuntimeIdempotencyRecord, RuntimeOperationalCheckpoint } from "./checkpoint.js";
 import type { RuntimeJournal, RuntimeJournalEventEntry } from "./journal.js";
 export * from "./premise-policy.js";
 export * from "./premise-guard.js";
@@ -232,9 +234,55 @@ function sourceChangePayload(change: RuntimeSourceChange): Readonly<Record<strin
   };
 }
 
+function eventIdempotencyRecord(event: V2Event): RuntimeIdempotencyRecord {
+  return {
+    idempotencyKey: event.idempotencyKey,
+    tenantId: event.tenantId,
+    eventId: event.eventId,
+    operationId: event.operationId,
+    requestDigest: event.requestDigest,
+    type: event.type,
+    occurredAt: event.occurredAt,
+    ...(event.memoryId === undefined ? {} : { memoryId: event.memoryId })
+  };
+}
+
+function sameEventIdentity(left: RuntimeIdempotencyRecord, right: RuntimeIdempotencyRecord): boolean {
+  return left.tenantId === right.tenantId
+    && left.idempotencyKey === right.idempotencyKey
+    && left.eventId === right.eventId
+    && left.operationId === right.operationId
+    && left.requestDigest === right.requestDigest
+    && left.type === right.type
+    && left.occurredAt === right.occurredAt
+    && left.memoryId === right.memoryId;
+}
+
+function checkedIdempotencyState(value: unknown): readonly RuntimeIdempotencyRecord[] {
+  if (!Array.isArray(value)) throw new TypeError("checkpoint.idempotencyState must be an array of compact event metadata");
+  return Object.freeze(value.map((item) => {
+    if (item === null || typeof item !== "object") throw new TypeError("checkpoint idempotency metadata must be an object");
+    const candidate = item as Partial<RuntimeIdempotencyRecord>;
+    const required = ["idempotencyKey", "tenantId", "eventId", "operationId", "requestDigest", "type", "occurredAt"] as const;
+    for (const field of required) if (typeof candidate[field] !== "string" || candidate[field]!.length === 0) throw new TypeError(`checkpoint idempotency metadata requires ${field}`);
+    if (candidate.memoryId !== undefined && (typeof candidate.memoryId !== "string" || candidate.memoryId.length === 0)) throw new TypeError("checkpoint idempotency memoryId is invalid");
+    return Object.freeze({
+      idempotencyKey: candidate.idempotencyKey!,
+      tenantId: candidate.tenantId!,
+      eventId: candidate.eventId!,
+      operationId: candidate.operationId!,
+      requestDigest: candidate.requestDigest!,
+      type: candidate.type!,
+      occurredAt: candidate.occurredAt!,
+      ...(candidate.memoryId === undefined ? {} : { memoryId: candidate.memoryId })
+    });
+  }));
+}
+
 export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
   private readonly records = new Map<string, RuntimeRecord<T>>();
   private readonly events = new Map<string, V2Event>();
+  private readonly idempotency = new Map<string, RuntimeIdempotencyRecord>();
   private _revision = 0;
 
   get revision(): number {
@@ -278,20 +326,42 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
 
   getEvent(idempotencyKey: string): V2Event | undefined {
     const event = this.events.get(idempotencyKey);
-    return event === undefined ? undefined : cloneJson(event);
+    if (event !== undefined) return cloneJson(event);
+    const metadata = this.idempotency.get(idempotencyKey);
+    if (metadata === undefined) return undefined;
+    return {
+      specVersion: SPEC_VERSION_V2,
+      tenantId: metadata.tenantId,
+      eventId: metadata.eventId,
+      operationId: metadata.operationId,
+      idempotencyKey: metadata.idempotencyKey,
+      requestDigest: metadata.requestDigest as `sha256:${string}`,
+      type: metadata.type,
+      occurredAt: metadata.occurredAt,
+      ...(metadata.memoryId === undefined ? {} : { memoryId: metadata.memoryId }),
+      payload: {}
+    };
   }
 
   appendEvent(event: V2Event): void {
-    const existing = this.events.get(event.idempotencyKey);
-    if (existing !== undefined) {
-      if (existing.eventId !== event.eventId || existing.requestDigest !== event.requestDigest) throw new Error(`Conflicting idempotency key: ${event.idempotencyKey}`);
+    const parsed = parseV2Event(event);
+    const incoming = eventIdempotencyRecord(parsed);
+    const existingMetadata = this.idempotency.get(parsed.idempotencyKey);
+    if (existingMetadata !== undefined) {
+      if (!sameEventIdentity(existingMetadata, incoming)) throw new Error(`Conflicting idempotency key: ${event.idempotencyKey}`);
       return;
     }
-    this.events.set(event.idempotencyKey, cloneJson(parseV2Event(event)));
+    const existing = this.events.get(parsed.idempotencyKey);
+    if (existing !== undefined) {
+      if (existing.eventId !== parsed.eventId || existing.requestDigest !== parsed.requestDigest) throw new Error(`Conflicting idempotency key: ${event.idempotencyKey}`);
+      return;
+    }
+    this.idempotency.set(parsed.idempotencyKey, incoming);
+    this.events.set(parsed.idempotencyKey, cloneJson(parsed));
   }
 
   hasEvent(idempotencyKey: string): boolean {
-    return this.events.has(idempotencyKey);
+    return this.idempotency.has(idempotencyKey);
   }
 
   countEvents(): number {
@@ -330,7 +400,49 @@ export class InMemoryRuntimeStore<T> implements RuntimeStore<T> {
     this.records.clear();
     for (const [memoryId, record] of nextRecords) this.records.set(memoryId, record);
     this.events.clear();
+    this.idempotency.clear();
+    for (const [idempotencyKey, event] of nextEvents) {
+      this.events.set(idempotencyKey, event);
+      this.idempotency.set(idempotencyKey, eventIdempotencyRecord(event));
+    }
+    this._revision += nextRecords.size;
+  }
+
+  /**
+   * Atomically replaces operational records and the retained event tail from
+   * a trusted checkpoint. The journal is intentionally not touched here.
+   */
+  compactOperational(
+    checkpoint: RuntimeOperationalCheckpoint<T>,
+    tail: readonly RuntimeCheckpointTailEntry[],
+    options: { readonly failBeforeCommit?: boolean } = {}
+  ): void {
+    const recovery = verifyRuntimeCheckpointRecovery(checkpoint, tail);
+    if (recovery.status !== "READY") throw new Error(`Cannot compact runtime state: ${recovery.reason}`);
+    const nextRecords = new Map<string, RuntimeRecord<T>>();
+    for (const record of checkpoint.activeRecords) {
+      const envelope = parseMemoryEnvelopeV2(record.envelope);
+      nextRecords.set(envelope.memoryId, cloneJson({ envelope, content: record.content }));
+    }
+    const nextEvents = new Map<string, V2Event>();
+    const nextIdempotency = new Map<string, RuntimeIdempotencyRecord>();
+    for (const metadata of checkedIdempotencyState(checkpoint.idempotencyState)) nextIdempotency.set(metadata.idempotencyKey, metadata);
+    for (const entry of tail) {
+      if (entry.event === undefined) throw new Error("Cannot compact runtime state: tail event is missing");
+      const event = parseV2Event(entry.event);
+      const metadata = eventIdempotencyRecord(event);
+      const previous = nextIdempotency.get(event.idempotencyKey);
+      if (previous !== undefined && !sameEventIdentity(previous, metadata)) throw new Error(`Cannot compact runtime state: conflicting idempotency key ${event.idempotencyKey}`);
+      nextIdempotency.set(event.idempotencyKey, metadata);
+      nextEvents.set(event.idempotencyKey, cloneJson(event));
+    }
+    if (options.failBeforeCommit === true) throw new Error("Injected compaction crash before commit");
+    this.records.clear();
+    for (const [memoryId, record] of nextRecords) this.records.set(memoryId, record);
+    this.events.clear();
     for (const [idempotencyKey, event] of nextEvents) this.events.set(idempotencyKey, event);
+    this.idempotency.clear();
+    for (const [idempotencyKey, metadata] of nextIdempotency) this.idempotency.set(idempotencyKey, metadata);
     this._revision += nextRecords.size;
   }
 }
