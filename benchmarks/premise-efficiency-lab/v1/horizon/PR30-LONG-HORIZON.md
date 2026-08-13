@@ -40,13 +40,14 @@ oracle-evidence digests, commit, Node version, platform and configuration.
 ## Clean evidence run
 
 Node 24 with `--expose-gc`, `world-size=8`, and the three default horizons
-produced:
+produced the following representative values. Heap samples are approximate
+because V8 allocation and process state vary slightly between runs:
 
 | Horizon | Active records | Retained events | Decision events | Receipt entries | Runtime heap at end | Heap after snapshot clone |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,000 | 8 | 3,015 | 3,024 | 1 | 8.9 MiB | 12.4 MiB |
-| 10,000 | 8 | 30,015 | 30,244 | 1 | 30.6 MiB | 65.8 MiB |
-| 100,000 | 8 | 300,015 | 302,434 | 1 | 251.4 MiB | 460.1 MiB |
+| 1,000 | 8 | 3,015 | 3,024 | 1 | ~8.9 MiB | ~12.4 MiB |
+| 10,000 | 8 | 30,015 | 30,244 | 1 | ~30.7 MiB | ~65.8 MiB |
+| 100,000 | 8 | 300,015 | 302,434 | 1 | ~251.3 MiB | ~454.8 MiB |
 
 All independent-oracle rows passed, with zero runtime/frontier errors and a
 trusted frontier. The event and decision arrays are retained live state in the
