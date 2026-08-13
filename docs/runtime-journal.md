@@ -18,6 +18,6 @@ Runtime checkpoints are separate, digest-bound objects. They contain the active 
 
 ## Current boundary
 
-This wave is intentionally additive. Existing stores still retain their compatibility event index because `RuntimeStore` and the SQLite/PostgreSQL adapters expose it today. PR38 will add the durable checkpoint-plus-tail compaction path and prove that releasing old operational objects does not delete the audit journal. Until that gate passes, a journal-enabled runtime must be described as “audit sidecar plus compatibility store”, not as fully compacted production persistence.
+This wave is intentionally additive. `InMemoryRuntimeStore.compactOperational` now proves the checkpoint-plus-tail commit protocol: it prepares and validates the complete replacement before swapping state, retains compact idempotency metadata, and never touches the audit journal. Existing SQLite/PostgreSQL stores still retain their compatibility event index because their durable compaction path has not yet been implemented. A journal-enabled production deployment must therefore still be described as an audit sidecar plus compatibility store, not as fully compacted distributed persistence.
 
 The journal is diagnostic/audit infrastructure. A journal write failure is isolated from the safety decision already committed to the runtime store; deployments that require a complete audit trail must monitor and fail the operation at the orchestration boundary when the journal is unavailable.

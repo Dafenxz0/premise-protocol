@@ -12,7 +12,7 @@ This index distinguishes implementation status from measured evidence. A benchma
 | Exact receipt reuse | Efficiency Lab PR28 | Measured | Exact compatible receipts can be reused under their scope |
 | Event continuity | Efficiency Lab PR29 | Contract evidence | Helpers and vectors exist; end-to-end runtime integration is a next wave |
 | Long horizon | Efficiency Lab PR30–33 | Measured with limits | Heap and snapshot behavior were observed; operational history is not yet separated from audit history |
-| Safe compaction | Efficiency Lab PR31 | **NO-GO** | Seven invariants still require a durable journal/checkpoint design |
+| Safe compaction | PR31 no-go; PR38 in-memory gate | **PARTIAL** | The in-memory checkpoint-plus-tail swap passes crash/idempotency tests; durable SQLite/PostgreSQL compaction remains unproven |
 | Root-explosion experiment | PR25 | **INCONCLUSIVE** | The campaign did not establish a mergeable production claim |
 | External provider / independent holdout | Scientific campaign | Not run or incomplete | No commercial claim should be derived from it |
 
