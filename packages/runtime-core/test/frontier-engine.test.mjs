@@ -10,6 +10,48 @@ function chain() {
   ]);
 }
 
+const PRIMITIVE_COUNTER_KEYS = Object.freeze([
+  "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
+  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityNodesVisited",
+  "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheEntriesPreserved",
+  "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
+]);
+const GRAPH_COUNTER_KEYS = Object.freeze([
+  "graphNodeLookups", "graphEdgeTraversals", "reachabilityNodesVisited", "reachabilityEdgesTraversed"
+]);
+const WORK_PHASES = Object.freeze(["initialization", "maintenance", "query"]);
+
+function sumCounters(counters, keys = PRIMITIVE_COUNTER_KEYS) {
+  return keys.reduce((sum, key) => sum + counters[key], 0);
+}
+
+function assertWorkInvariants(work, label) {
+  for (const phase of WORK_PHASES) {
+    const counters = work[phase];
+    for (const key of PRIMITIVE_COUNTER_KEYS) {
+      assert.ok(Number.isSafeInteger(counters[key]) && counters[key] >= 0, `${label}.${phase}.${key} must be non-negative`);
+    }
+    assert.equal(
+      counters.cacheEntriesScanned,
+      counters.cacheInvalidations + counters.cacheEntriesPreserved,
+      `${label}.${phase} cache accounting`
+    );
+    assert.equal(work[`${phase}Work`], sumCounters(counters), `${label}.${phase} primitive work`);
+    assert.equal(work[`${phase}GraphWork`], sumCounters(counters, GRAPH_COUNTER_KEYS), `${label}.${phase} graph work`);
+  }
+  for (const key of [
+    "initializationWork", "maintenanceWork", "queryWork", "totalWork", "initializationGraphWork",
+    "maintenanceGraphWork", "queryGraphWork", "graphWork", "primitiveWork"
+  ]) {
+    assert.ok(Number.isSafeInteger(work[key]) && work[key] >= 0, `${label}.${key} must be non-negative`);
+  }
+  assert.equal(work.totalWork, work.maintenanceWork + work.queryWork, `${label}.totalWork`);
+  assert.equal(work.primitiveWork, work.maintenanceWork + work.queryWork, `${label}.primitiveWork`);
+  assert.equal(work.totalWork, work.primitiveWork, `${label}.total/primitive work`);
+  assert.equal(work.graphWork, work.maintenanceGraphWork + work.queryGraphWork, `${label}.graphWork`);
+  assert.equal(work.reconciled, true, `${label}.reconciled`);
+}
+
 test("incremental frontier keeps a causal root instead of the full dirty closure", () => {
   const engine = chain();
   const impact = engine.markDirty(["A"]);
@@ -176,4 +218,92 @@ test("incremental affected closure is differentially equivalent to a reference t
     assert.deepEqual(actual.frontier, expected.frontier, `frontier round ${round}`);
     assert.equal(actual.complete, true, `complete round ${round}`);
   }
+});
+
+test("frontier work remains reconciled across initialization, maintenance, and query phases", () => {
+  const engine = new IncrementalFrontierEngine([
+    { id: "A" },
+    { id: "B", dependsOn: ["A"] },
+    { id: "T", dependsOn: ["B"] },
+    { id: "X" }
+  ]);
+
+  const initialized = engine.stats().workBreakdown;
+  assertWorkInvariants(initialized, "initialization");
+  assert.ok(initialized.initializationWork > 0);
+  assert.equal(initialized.maintenanceWork, 0);
+  assert.equal(initialized.queryWork, 0);
+
+  const firstQuery = engine.frontier("T");
+  const unrelatedQuery = engine.frontier("X");
+  for (const [index, result] of [firstQuery, unrelatedQuery].entries()) {
+    assertWorkInvariants(result.workBreakdown, `query-${index}`);
+    assert.equal(result.workBreakdown.initializationWork, 0);
+    assert.equal(result.workBreakdown.maintenanceWork, 0);
+    assert.ok(result.workBreakdown.queryWork > 0);
+  }
+
+  const impact = engine.markDirty(["A"]);
+  assertWorkInvariants(impact.workBreakdown, "maintenance");
+  assert.equal(impact.workBreakdown.initializationWork, 0);
+  assert.ok(impact.workBreakdown.maintenanceWork > 0);
+  assert.equal(impact.workBreakdown.queryWork, 0);
+  assert.equal(impact.workBreakdown.maintenance.cacheEntriesScanned, 2);
+  assert.equal(
+    impact.workBreakdown.maintenance.cacheEntriesScanned,
+    impact.frontierCacheInvalidations + impact.frontierCacheEntriesPreserved
+  );
+  assert.equal(impact.frontierCacheInvalidations, 1);
+  assert.equal(impact.frontierCacheEntriesPreserved, 1);
+
+  const cacheMiss = engine.frontier("T");
+  const cacheHit = engine.frontier("X");
+  assert.equal(cacheMiss.cacheHit, false);
+  assert.equal(cacheHit.cacheHit, true);
+  assertWorkInvariants(cacheMiss.workBreakdown, "query-miss");
+  assertWorkInvariants(cacheHit.workBreakdown, "query-hit");
+
+  const cumulative = engine.stats().workBreakdown;
+  assertWorkInvariants(cumulative, "cumulative");
+  assert.ok(cumulative.initializationWork > 0);
+  assert.ok(cumulative.maintenanceWork > 0);
+  assert.ok(cumulative.queryWork > 0);
+});
+
+test("affected closure is exact and rejected cycle updates preserve trusted cache state", () => {
+  const nodes = [
+    { id: "A" },
+    { id: "B", dependsOn: ["A"] },
+    { id: "T", dependsOn: ["B"] },
+    { id: "X" }
+  ];
+  const engine = new IncrementalFrontierEngine(nodes);
+  engine.frontier("T");
+  engine.frontier("X");
+
+  const impact = engine.markDirty(["A"]);
+  assert.deepEqual(impact.affected, [...referenceClosure(nodes, ["A"])].sort());
+  assertWorkInvariants(impact.workBreakdown, "closure-maintenance");
+
+  const stale = engine.frontier("T");
+  assert.equal(stale.cacheHit, false);
+  assert.equal(stale.status, "STALE");
+  assert.deepEqual(stale.frontier, ["A"]);
+  const beforeCycle = engine.stats();
+  const cachedBeforeCycle = engine.frontier("T");
+  assert.equal(cachedBeforeCycle.cacheHit, true);
+
+  assert.throws(() => engine.setDependencies("A", ["T"]), /Dependency cycle/);
+
+  const afterCycle = engine.stats();
+  assert.equal(afterCycle.graphRevision, beforeCycle.graphRevision);
+  assert.equal(afterCycle.generation, beforeCycle.generation);
+  assert.equal(afterCycle.nodeCount, beforeCycle.nodeCount);
+  assert.equal(afterCycle.cacheEntries, beforeCycle.cacheEntries);
+  assertWorkInvariants(afterCycle.workBreakdown, "rejected-cycle");
+
+  const cachedAfterCycle = engine.frontier("T");
+  assert.equal(cachedAfterCycle.cacheHit, true);
+  assert.deepEqual(cachedAfterCycle.frontier, cachedBeforeCycle.frontier);
+  assert.equal(engine.frontier("X").cacheHit, true);
 });

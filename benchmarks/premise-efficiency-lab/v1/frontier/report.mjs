@@ -1,67 +1,82 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-function round(value, digits = 2) {
-  return Number(value.toFixed(digits));
-}
+const COUNTERS = Object.freeze([
+  "graphNodeLookups", "graphEdgeTraversals", "reverseIndexLookups", "dirtyStateReads", "dirtyStateWrites",
+  "frontierLookups", "frontierRootComparisons", "reachabilityQueries", "reachabilityNodesVisited",
+  "reachabilityEdgesTraversed", "cacheLookups", "cacheEntriesScanned", "cacheEntriesPreserved",
+  "cacheInvalidations", "cacheWrites", "rootSetReads", "rootSetWrites"
+]);
 
 function sum(rows, selector) {
-  return rows.reduce((total, row) => total + selector(row), 0);
+  return rows.reduce((total, row) => total + (selector(row) ?? 0), 0);
+}
+
+function counterTotals(rows) {
+  return Object.fromEntries(COUNTERS.map((key) => [key, sum(rows, (row) => row.incremental.primitiveCounters?.[key])]));
 }
 
 function aggregate(rows) {
-  const candidate = sum(rows, (row) => row.incremental.graphWork);
-  const champion = sum(rows, (row) => row.champion.graphWork);
+  const candidateLegacy = sum(rows, (row) => row.incremental.graphWork);
+  const candidatePhysical = sum(rows, (row) => row.incremental.physicalWork);
+  const candidateGraph = sum(rows, (row) => row.incremental.physicalGraphWork);
+  const baselineLegacy = sum(rows, (row) => row.baseline.graphWork);
   const reference = sum(rows, (row) => row.reference.graphWork);
   return {
     rows: rows.length,
-    candidate,
-    champion,
+    candidateLegacy,
+    candidatePhysical,
+    candidateGraph,
+    baselineLegacy,
     reference,
-    reduction: champion === 0 ? null : 1 - candidate / champion,
-    oracleReduction: reference === 0 ? null : 1 - candidate / reference,
+    physicalReduction: null,
+    oracleReduction: null,
     cacheHits: sum(rows, (row) => row.incremental.cacheHits),
     cacheMisses: sum(rows, (row) => row.incremental.cacheMisses),
     equivalent: rows.every((row) => row.equivalent === true),
+    baselineEquivalent: rows.every((row) => row.baselineEquivalent === true),
+    accountingReconciled: rows.every((row) => row.incremental.accountingReconciled === true),
+    counters: counterTotals(rows),
     topologies: [...new Set(rows.map((row) => row.topology))].sort()
   };
 }
 
-function percent(value) {
-  return value === null ? "—" : `${round(value * 100, 1)}%`;
-}
-
 function markdown(result, groups) {
   const lines = [
-    "# PREMiSE Efficiency Lab — frontier report",
+    "# PREMiSE Efficiency Lab - frontier evidence report",
     "",
-    `- Profile: **${result.profile}**` ,
-    `- Baseline: **${result.baseline}** (immutable Champion)` ,
-    `- Rows: **${result.campaigns.length}**` ,
-    `- Reference equivalence: **${result.claims.referenceEquivalent ? "PASS" : "FAIL"}**` ,
-    `- Commercial/safety claim: **not claimed by this report**` ,
+    `- Profile: **${result.profile}**`,
+    `- Rows: **${result.campaigns.length}**`,
+    `- Baseline commit: **${result.baselineArtifact.commit}**`,
+    `- Baseline artifact: **${result.baselineArtifact.artifactDigest}** (${result.baselineArtifact.artifactFiles} files)`,
+    `- Baseline artifact verification: **${result.claims.baselineArtifactVerified ? "PASS" : "FAIL"}**`,
+    `- Candidate/reference equivalence: **${result.claims.referenceEquivalent ? "PASS" : "FAIL"}**`,
+    `- Candidate accounting reconciliation: **${result.claims.candidateAccountingReconciled ? "PASS" : "FAIL"}**`,
+    `- Baseline behavior equivalence: **${result.claims.baselineBehaviorEquivalent ? "PASS" : "OBSERVED DIFFERENCES"}**`,
     "",
-    "The primary number is physical graph work (`nodesVisited + edgesTraversed`). It is not a token, provider-cost or safety result.",
+    "This is an evidence and instrumentation report, not a performance claim. The candidate reports physical primitive work; the historical baseline reports only its legacy graph counters. Those quantities are intentionally not divided into a reduction percentage until both implementations expose the same counter contract.",
     "",
-    "## Champion comparison",
+    "## Campaign comparison",
     "",
-    "| Campaign | Candidate work | Champion work | Reduction vs Champion | Full reference work | Exact equivalence |",
-    "| --- | ---: | ---: | ---: | ---: | :---: |"
+    "| Campaign | Candidate physical work | Candidate graph work | Baseline legacy graph work | Full reference graph work | Exact candidate equivalence | Baseline behavior | Accounting |",
+    "| --- | ---: | ---: | ---: | ---: | :---: | :---: | :---: |"
   ];
   for (const [campaign, summary] of groups) {
-    lines.push(`| ${campaign} | ${summary.candidate.toLocaleString("en-US")} | ${summary.champion.toLocaleString("en-US")} | ${percent(summary.reduction)} | ${summary.reference.toLocaleString("en-US")} | ${summary.equivalent ? "PASS" : "FAIL"} |`);
+    lines.push(`| ${campaign} | ${summary.candidatePhysical.toLocaleString("en-US")} | ${summary.candidateGraph.toLocaleString("en-US")} | ${summary.baselineLegacy.toLocaleString("en-US")} | ${summary.reference.toLocaleString("en-US")} | ${summary.equivalent ? "PASS" : "FAIL"} | ${summary.baselineEquivalent ? "PASS" : "DIFFERENCES"} | ${summary.accountingReconciled ? "PASS" : "FAIL"} |`);
   }
   lines.push(
     "",
-    "## Interpretation",
+    "## How to read the numbers",
     "",
-    "A reduction means fewer counted graph operations than the immediately preceding Champion for the same deterministic workload. The full reference is a correctness oracle and intentionally recomputes the relevant closure; it is not a production competitor.",
+    "Physical work is the sum of the explicitly counted primitive operations for maintenance and query phases. Graph work is the subset covering graph lookups, graph edges and reachability traversal. Cache scans, state accesses and root comparisons remain visible in the physical total but are not silently relabeled as graph traversal.",
     "",
-    "The report does not claim fewer external reads, tokens, dollars, unsafe actions or commercial savings. Those require the separate runtime/LLM campaigns and their own gates.",
+    "The baseline is the actual compiled artifact from the manifest commit. It is not the reconstructed reference implementation. Its legacy counters are retained for historical context, but no physical-work reduction is claimed against them because the old artifact does not emit the new primitive counters.",
     "",
-    "## Out of scope",
+    "The full reference is a correctness oracle, not a production competitor. This report makes no claims about external reads, tokens, provider cost, unsafe actions or commercial savings.",
     "",
-    "Receipts, event continuity, single-flight and long-horizon compaction remain outside PR23 cycle 1. They must not be inferred from these rows."
+    "## Out of scope for this PR",
+    "",
+    "Antichain optimization, incremental root removal, event continuity, receipts, single-flight changes, long-horizon compaction and any protocol semantic change remain blocked until this evidence contract is merged and the next candidate passes the same gates."
   );
   return `${lines.join("\n")}\n`;
 }
@@ -85,8 +100,8 @@ async function main() {
   const report = markdown(result, new Map(Object.entries(summaries)));
   await mkdir(output, { recursive: true });
   await writeFile(resolve(output, "report.md"), report);
-  await writeFile(resolve(output, "summary.json"), `${JSON.stringify({ format: "premise-efficiency-lab/frontier-summary/v1", profile: result.profile, baseline: result.baseline, claims: result.claims, campaigns: summaries }, null, 2)}\n`);
-  process.stdout.write(JSON.stringify({ status: "PASS", profile: result.profile, campaigns: Object.keys(summaries), report: resolve(output, "report.md") }, null, 2) + "\n");
+  await writeFile(resolve(output, "summary.json"), `${JSON.stringify({ format: "premise-efficiency-lab/frontier-summary/v2", profile: result.profile, baseline: result.baseline, baselineArtifact: result.baselineArtifact, claims: result.claims, campaigns: summaries }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ status: "PASS", profile: result.profile, campaigns: Object.keys(summaries), report: resolve(output, "report.md") }, null, 2)}\n`);
 }
 
 if (process.argv[1]?.endsWith("report.mjs")) await main();

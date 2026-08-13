@@ -1,12 +1,26 @@
 # Efficiency Lab frontier cycles
 
+## Evidence status
+
+The Cycle 1 table below is a **historical PR23 report and is SUPERSEDED**.
+It compared against a reconstructed champion and counted only the legacy
+`nodesVisited + edgesTraversed` fields. It must not be used as a current
+performance claim.
+
+PR24 reruns the same deterministic fixture against the actual compiled
+artifact at commit `c86a6eaeb80107e3aa41d1a6c76c0025ec2477e` and emits the new
+primitive counter contract. The current report deliberately exposes both
+quantities without dividing them: the old artifact has no physical primitive
+counters, so a physical-work reduction is **not certified** yet.
+
 ## Immutable comparison
 
-All rows compare the candidate with the immediately preceding Champion from
-`c86a6ea` and with an independent full-traversal reference. The candidate is
-eligible only when the frontier, status and closure match the reference.
+All current rows compare the candidate and the actual baseline with an
+independent full-traversal reference. The candidate is eligible only when the
+frontier, status and closure match the reference. A mismatch from the actual
+historical artifact is retained as an observed baseline difference.
 
-The measured unit is physical graph work:
+The historical measured unit was physical graph work:
 
 ```text
 nodesVisited + edgesTraversed
@@ -14,9 +28,9 @@ nodesVisited + edgesTraversed
 
 It is not a token, provider-cost or external-request measurement.
 
-## Cycle 1 — frontier and dirty propagation
+## Historical Cycle 1 (PR23) - frontier and dirty propagation
 
-Status: **PASS** on the deterministic large campaign.
+Status: **SUPERSEDED**. The table is preserved for provenance only.
 
 | Campaign | Candidate work | Champion work | Reduction | Equivalence |
 | --- | ---: | ---: | ---: | :---: |
@@ -27,50 +41,57 @@ Status: **PASS** on the deterministic large campaign.
 | multi-target-overlap | 243,505 | 4,716,904 | 94.8% | PASS |
 | memory-pressure | 145,114 | 4,553,369 | 96.8% | PASS |
 
-Campaign configuration:
+The historical campaign used 10,000-node graphs, six topologies and 36 rows.
+Its results remain useful only as a record of what was previously published.
 
-- 10,000-node graphs;
-- chain, star, diamond, nested-diamond, wide and meshed topologies;
-- 36 rows total, fixed seed and deterministic ordering;
-- independent closure/frontier/status comparison on every row;
-- no safety, commercial, token or provider-cost claim.
+## PR24 certification rerun - baseline and accounting
 
-### Accepted changes
+Status: **IN PROGRESS** until the exact frozen large campaign is executed and
+reviewed.
 
-1. Bulk initial graph construction with one iterative cycle validation pass,
-   removing the accidental O(V²) bootstrap and recursive stack limit.
-2. Iterative cycle validation for graph mutation.
-3. One-pass restoration of persisted non-fresh states.
-4. Replacement-state synchronization so a fresh replacement removes only its
-   own old cause and preserves incomparable causes.
-5. Correct affected-closure accounting for a new mutation, without adding
-   historical dirty roots from unrelated earlier mutations.
-6. Nested-diamond fixtures and generated physical-work tables.
+The gate requires:
 
-The runtime tests include a 10,000-node chain, persisted INVALID restoration,
-fresh replacement repair, the 10,000-case randomized differential suite and
-the existing safety/guard tests.
+- baseline artifact digest verified from the manifest;
+- 36 rows from the same six campaigns and six topologies;
+- candidate/reference equivalence on every row;
+- independent reconciliation of every primitive counter and cache scan;
+- no performance percentage when the baseline counter contract is absent;
+- no safety or commercial claim.
 
-## Cycle 2 — receipts, reuse and single-flight
+The smoke command is:
 
-Status: **NOT RUN in PR #23**.
+```powershell
+pnpm benchmark:efficiency:v1:frontier:check
+```
+
+The large command must use the larger Node stack because the historical
+baseline is intentionally executed as-is:
+
+```powershell
+node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=large
+node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
+```
+
+## Cycle 2 - receipts, reuse and single-flight
+
+Status: **NOT RUN in PR24**.
 
 The plan reserves this work for a separate champion comparison. Existing
 receipt and single-flight tests remain gates, but their results must not be
 presented as a Cycle 2 optimization result.
 
-## Cycle 3 — events, long horizon and compaction
+## Cycle 3 - events, long horizon and compaction
 
-Status: **NOT RUN in PR #23**.
+Status: **NOT RUN in PR24**.
 
 Event continuity, long-horizon maintenance and compaction remain separate
-experiments. No result from Cycle 1 implies anything about them.
+experiments. No result from the evidence rerun implies anything about them.
 
 ## Reproducibility
 
 ```powershell
 pnpm benchmark:efficiency:v1:frontier:check
-node benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=large
+node --stack-size=65500 benchmarks/premise-efficiency-lab/v1/frontier/runner.mjs --profile=large
 node benchmarks/premise-efficiency-lab/v1/frontier/report.mjs --input=.tmp/premise-efficiency-lab/v1/frontier/large.json --output=.tmp/premise-efficiency-lab/v1/frontier/large
 ```
 
