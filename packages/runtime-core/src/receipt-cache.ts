@@ -167,6 +167,10 @@ export class RuntimeNegativeCache {
   }
 
   clear(): void { this.entries.clear(); }
+
+  stats(): Readonly<{ entries: number }> {
+    return Object.freeze({ entries: this.entries.size });
+  }
 }
 
 export function semanticFingerprint(input: { resourceId: string; incarnationId: string; aspect: string; digest: string }): string {
