@@ -48,6 +48,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/protocol-types
 
+  packages/adapter-http:
+    dependencies:
+      '@premise/adapter-sdk':
+        specifier: workspace:*
+        version: link:../adapter-sdk
+      '@premise/protocol-types':
+        specifier: workspace:*
+        version: link:../protocol-types
+
   packages/adapter-openai:
     dependencies:
       '@premise/protocol-types':

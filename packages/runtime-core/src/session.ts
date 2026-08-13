@@ -1,4 +1,4 @@
-import type { EvidenceReference } from "@premise/protocol-types";
+import type { EvidenceReference, VersionReference } from "@premise/protocol-types";
 import type {
   RuntimeActionCommitResult,
   RuntimeActionResult,
@@ -28,7 +28,7 @@ export interface PremiseSessionAdapter<T = unknown> {
   conditionalAction?(input: {
     readonly premise: PremiseSessionPremise<T>;
     readonly action: unknown;
-    readonly expectedVersion: string;
+    readonly expectedVersion: VersionReference;
   }): Promise<RuntimeActionCommitResult<T>> | RuntimeActionCommitResult<T>;
 }
 
@@ -42,7 +42,7 @@ export interface PremiseSessionAction<T = unknown> {
   readonly premise: PremiseSessionPremise<T>;
   readonly action: unknown;
   /** Optional explicit version; otherwise the single evidence version is used. */
-  readonly expectedVersion?: string;
+  readonly expectedVersion?: VersionReference;
 }
 
 function required(value: string, name: string): string {
@@ -55,9 +55,9 @@ function copyRecord<T>(record: RuntimeRecord<T>, tenant: string): RuntimeRecord<
   return record;
 }
 
-function evidenceVersion(record: RuntimeRecord<unknown>): string {
-  const versions = record.envelope.evidence.map((item) => item.version?.token).filter((token): token is string => typeof token === "string");
-  if (versions.length === 0 || versions.some((version) => version !== versions[0])) throw new Error("Action requires one consistent evidence version");
+function evidenceVersion(record: RuntimeRecord<unknown>): VersionReference {
+  const versions = record.envelope.evidence.map((item) => item.version).filter((version): version is VersionReference => version !== undefined);
+  if (versions.length === 0 || versions.some((version) => version.scheme !== versions[0]!.scheme || version.token !== versions[0]!.token)) throw new Error("Action requires one consistent evidence version");
   return versions[0]!;
 }
 
@@ -117,9 +117,11 @@ export class PremiseSession<T = unknown> {
     if (current === undefined) throw new Error(`Premise is not registered in this session: ${input.premise.memoryId}`);
     const expectedVersion = input.expectedVersion ?? evidenceVersion(current);
     return this.runtime.revalidateAndAct(input.premise.memoryId, {
-      expectedVersion,
+      expectedVersion: expectedVersion.token,
       action: input.action,
-      commit: (record, version) => this.adapter.conditionalAction!({ premise: { memoryId: record.envelope.memoryId, record }, action: input.action, expectedVersion: version })
+      commit: (record, version) => version !== expectedVersion.token
+        ? { accepted: false, reason: "VERSION_MISMATCH", observedVersion: version }
+        : this.adapter.conditionalAction!({ premise: { memoryId: record.envelope.memoryId, record }, action: input.action, expectedVersion: { scheme: expectedVersion.scheme, token: version } })
     });
   }
 }

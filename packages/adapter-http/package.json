@@ -1,0 +1,21 @@
+{
+  "name": "@premise/adapter-http",
+  "version": "0.1.0-rc.1",
+  "description": "Generic PREMiSE HTTP adapter with conditional version checks.",
+  "type": "module",
+  "dependencies": {
+    "@premise/adapter-sdk": "workspace:*",
+    "@premise/protocol-types": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node test/http.test.mjs"
+  }
+}

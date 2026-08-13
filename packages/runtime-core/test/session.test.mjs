@@ -22,7 +22,7 @@ function adapter() {
     observe: (resource) => ({ envelope: envelope(`memory:${resource.replaceAll("/", ":")}`), content: { resource } }),
     derive: ({ from }) => ({ envelope: envelope("memory:claim", "FRESH", from.map((item) => item.memoryId)), content: { claim: "ready" } }),
     revalidate: async (evidence, record) => ({ memoryId: record.envelope.memoryId, result: "UNCHANGED", status: "FRESH", checkedAt: at, sourceUri: evidence.sourceUri, version: evidence.version }),
-    conditionalAction: ({ expectedVersion }) => ({ accepted: expectedVersion === "v1", result: "merged" })
+    conditionalAction: ({ expectedVersion }) => ({ accepted: expectedVersion.token === "v1", result: "merged" })
   };
 }
 
