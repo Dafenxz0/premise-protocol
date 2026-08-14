@@ -1,8 +1,11 @@
 import { pathToFileURL } from "node:url";
+import { FencedSingleFlightCoordinator } from "../../../packages/runtime-core/dist/fenced-single-flight.js";
+import { premiseValidationScopeKey } from "../../../packages/runtime-core/dist/validation-scope.js";
 
 export const WORKER_COUNT = 100;
 export const DEFAULT_SEED = "premise-next-storm-20260814";
 const VERSION_SCHEME = "storm";
+const VALIDATOR_ID = "storm.deterministic-fixture.v1";
 
 const METRIC_NAMES = [
   "physicalValidations",
@@ -28,10 +31,6 @@ function requiredString(value, name) {
   return value;
 }
 
-function cloneVersion(version) {
-  return { scheme: version.scheme, token: version.token };
-}
-
 function sameVersion(left, right) {
   return left?.scheme === right?.scheme && left?.token === right?.token;
 }
@@ -40,22 +39,30 @@ function version(label, incarnation) {
   return { scheme: VERSION_SCHEME, token: `${label}@${incarnation}` };
 }
 
-function requestKey(request) {
-  return JSON.stringify([
-    request.tenantId,
-    request.resource,
-    request.expectedVersion.scheme,
-    request.expectedVersion.token,
-    request.authorizationScope
-  ]);
+function expectedVersion(scope) {
+  return { scheme: scope.versionScheme, token: scope.versionToken };
 }
 
-function fenceScope(request) {
-  return JSON.stringify([request.tenantId, request.resource, request.authorizationScope]);
+function scopeFor({ tenantId, resource, label = "A", incarnation = 1, authorizationScope = "scope:write", suffix }) {
+  const versionReference = version(label, incarnation);
+  return {
+    tenantId,
+    resourceId: resource,
+    incarnationId: `${label}:${incarnation}`,
+    versionScheme: versionReference.scheme,
+    versionToken: versionReference.token,
+    validatorId: VALIDATOR_ID,
+    authorizationContextDigest: `auth:${authorizationScope}`,
+    policyDigest: "policy:storm:v1",
+    queryDigest: `query:${suffix ?? resource}`,
+    scopes: [authorizationScope],
+    changeSetDigest: null,
+    causalFrontier: [`frontier:${label}@${incarnation}`]
+  };
 }
 
-function unknown(fencingToken, reason) {
-  return { result: "UNKNOWN", fencingToken, reason };
+function request(scope, extras = {}) {
+  return { scope, ...extras };
 }
 
 function deferred() {
@@ -82,21 +89,46 @@ class VirtualClock {
   }
 }
 
-class InMemoryWorld {
+class DeterministicTimers {
+  #pending = new Set();
+
+  setTimeout(callback, delayMs) {
+    const entry = { callback, delayMs };
+    this.#pending.add(entry);
+    return entry;
+  }
+
+  clearTimeout(entry) {
+    this.#pending.delete(entry);
+  }
+
+  fireNext() {
+    const entry = this.#pending.values().next().value;
+    if (entry === undefined) throw new Error("expected a pending deterministic timer");
+    this.#pending.delete(entry);
+    entry.callback();
+  }
+}
+
+class PremiseFixtureSource {
   constructor(clock, metrics) {
     this.clock = clock;
     this.metrics = metrics;
     this.states = new Map();
     this.gates = new Map();
+    this.highestFenceByResource = new Map();
   }
 
   #stateKey(tenantId, resource) {
     return JSON.stringify([tenantId, resource]);
   }
 
+  #resourceKey(tenantId, resource) {
+    return this.#stateKey(tenantId, resource);
+  }
+
   seed({ tenantId, resource, label = "A", incarnation = 1, readScopes = ["scope:read", "scope:write"], actionScopes = ["scope:write"] }) {
-    const key = this.#stateKey(tenantId, resource);
-    this.states.set(key, {
+    this.states.set(this.#stateKey(tenantId, resource), {
       tenantId,
       resource,
       label,
@@ -123,15 +155,15 @@ class InMemoryWorld {
     return {
       tenantId: state.tenantId,
       resource: state.resource,
-      version: cloneVersion(state.version),
+      version: { ...state.version },
       value: { ...state.value },
       readScopes: new Set(state.readScopes),
       actionScopes: new Set(state.actionScopes)
     };
   }
 
-  blockNext(request, predicate = () => true) {
-    const key = requestKey(request);
+  blockNext(scope, predicate = () => true) {
+    const key = premiseValidationScopeKey(scope);
     const gate = deferred();
     const entries = this.gates.get(key) ?? [];
     entries.push({ gate, predicate });
@@ -140,11 +172,16 @@ class InMemoryWorld {
   }
 
   async validate(input) {
+    if (input.scope === undefined) throw new Error("fixture requires complete PremiseValidationScope");
     this.metrics.physicalValidations += 1;
-    this.metrics.physicalValidationKeys.add(requestKey(input));
+    this.metrics.physicalValidationKeys.add(premiseValidationScopeKey(input.scope));
+    this.highestFenceByResource.set(
+      this.#resourceKey(input.tenantId, input.resource),
+      Math.max(this.highestFenceByResource.get(this.#resourceKey(input.tenantId, input.resource)) ?? 0, input.fencingToken)
+    );
     this.clock.advance(5);
 
-    const key = requestKey(input);
+    const key = premiseValidationScopeKey(input.scope);
     const entries = this.gates.get(key) ?? [];
     const gateIndex = entries.findIndex((entry) => entry.predicate(input));
     if (gateIndex >= 0) {
@@ -154,9 +191,8 @@ class InMemoryWorld {
     }
 
     const state = this.snapshot(input.tenantId, input.resource);
-    if (state === undefined || !state.readScopes.has(input.authorizationScope)) {
-      return unknown(input.fencingToken, "SOURCE_UNKNOWN");
-    }
+    const allowed = state !== undefined && input.scope.scopes.every((scope) => state.readScopes.has(scope));
+    if (!allowed) return { result: "UNKNOWN", fencingToken: input.fencingToken, reason: "SOURCE_UNKNOWN" };
 
     return {
       result: sameVersion(state.version, input.expectedVersion) ? "UNCHANGED" : "CHANGED",
@@ -166,165 +202,45 @@ class InMemoryWorld {
     };
   }
 
-  canAct(request) {
-    const state = this.states.get(this.#stateKey(request.tenantId, request.resource));
-    return state !== undefined && state.actionScopes.has(request.authorizationScope);
-  }
-}
-
-class StormCoordinator {
-  constructor(world, clock, metrics) {
-    this.world = world;
-    this.clock = clock;
-    this.metrics = metrics;
-    this.flights = new Map();
-    this.liveFlights = new Set();
-    this.latestFence = new Map();
-    this.cancelledFences = new Set();
-    this.nextFencingToken = 0;
+  canAct(scope) {
+    const state = this.states.get(this.#stateKey(scope.tenantId, scope.resourceId));
+    return state !== undefined && scope.scopes.includes("scope:write") && state.actionScopes.has("scope:write");
   }
 
-  #normalize(input) {
-    if (input === undefined || input === null) throw new TypeError("validation request is required");
-    const tenantId = requiredString(input.tenantId, "tenantId");
-    const resource = requiredString(input.resource, "resource");
-    const authorizationScope = requiredString(input.authorizationScope, "authorizationScope");
-    const scheme = requiredString(input.expectedVersion?.scheme, "expectedVersion.scheme");
-    const token = requiredString(input.expectedVersion?.token, "expectedVersion.token");
-    return { tenantId, resource, authorizationScope, expectedVersion: { scheme, token } };
-  }
-
-  validate(input) {
-    const request = this.#normalize(input);
-    const key = requestKey(request);
-    const scope = fenceScope(request);
-    this.clock.advance(1);
-
-    const existing = this.flights.get(key);
-    if (existing !== undefined && existing.active && this.latestFence.get(scope) === existing.fencingToken) {
-      this.metrics.joins += 1;
-      if (existing.tenantId !== request.tenantId) this.metrics.crossTenantShares += 1;
-      if (existing.authorizationScope !== request.authorizationScope) this.metrics.crossScopeShares += 1;
-      existing.joiners += 1;
-      return existing.promise;
-    }
-
-    const fencingToken = ++this.nextFencingToken;
-    this.latestFence.set(scope, fencingToken);
-    let settle;
-    const promise = new Promise((resolve) => { settle = resolve; });
-    const flight = {
-      key,
-      scope,
-      tenantId: request.tenantId,
-      resource: request.resource,
-      authorizationScope: request.authorizationScope,
-      expectedVersion: request.expectedVersion,
-      fencingToken,
-      active: true,
-      settled: false,
-      joiners: 0,
-      settle,
-      promise,
-      cancelReason: undefined
-    };
-    this.flights.set(key, flight);
-    this.liveFlights.add(flight);
-
-    const operation = Promise.resolve().then(() => this.world.validate({
-      ...request,
-      fencingToken
-    }));
-    void operation.then((outcome) => {
-      if (!flight.active || this.latestFence.get(scope) !== fencingToken || this.cancelledFences.has(`${scope}:${fencingToken}`) || outcome.fencingToken !== fencingToken) {
-        this.#settle(flight, unknown(fencingToken, flight.cancelReason ?? "FENCED"));
-        return;
-      }
-      this.#settle(flight, outcome);
-    }, () => {
-      this.#settle(flight, unknown(fencingToken, flight.cancelReason ?? "SOURCE_UNKNOWN"));
-    }).finally(() => {
-      this.liveFlights.delete(flight);
-      if (this.flights.get(key) === flight) this.flights.delete(key);
-    });
-
-    return promise;
-  }
-
-  #settle(flight, outcome) {
-    if (flight.settled) return;
-    flight.settled = true;
-    flight.settle(outcome);
-  }
-
-  #cancel(flight, reason) {
-    if (!flight.active) return false;
-    flight.active = false;
-    flight.cancelReason = reason;
-    this.cancelledFences.add(`${flight.scope}:${flight.fencingToken}`);
-    this.latestFence.set(flight.scope, ++this.nextFencingToken);
-    this.#settle(flight, unknown(flight.fencingToken, reason));
-    if (this.flights.get(flight.key) === flight) this.flights.delete(flight.key);
-    return true;
-  }
-
-  expire(request, reason = "LEASE_EXPIRED") {
-    const normalized = this.#normalize(request);
-    const flight = this.flights.get(requestKey(normalized));
-    if (flight === undefined) return false;
-    this.clock.advance(1);
-    if (reason === "LEASE_EXPIRED") this.metrics.leaseExpiries += 1;
-    if (reason === "TIMEOUT" || reason === "LEADER_CRASH") this.metrics.timeoutSignals += 1;
-    return this.#cancel(flight, reason);
-  }
-
-  invalidate({ tenantId, resource, reason = "EVENT" }) {
-    requiredString(tenantId, "tenantId");
-    requiredString(resource, "resource");
-    this.clock.advance(1);
-    this.metrics.eventSignals += 1;
-    for (const flight of [...this.liveFlights]) {
-      if (flight.tenantId === tenantId && flight.resource === resource) this.#cancel(flight, reason);
-    }
-  }
-
-  isFenceCurrent(request, fencingToken) {
-    const normalized = this.#normalize(request);
-    const scope = fenceScope(normalized);
-    return this.latestFence.get(scope) === fencingToken && !this.cancelledFences.has(`${scope}:${fencingToken}`);
+  highestFence(tenantId, resource) {
+    return this.highestFenceByResource.get(this.#resourceKey(tenantId, resource)) ?? 0;
   }
 }
 
 class SideEffectGate {
-  constructor(world, coordinator, clock, metrics) {
-    this.world = world;
-    this.coordinator = coordinator;
+  constructor(source, clock, metrics) {
+    this.source = source;
     this.clock = clock;
     this.metrics = metrics;
   }
 
-  attempt({ request, outcome }) {
+  attempt({ request: validationRequest, outcome }) {
     this.metrics.sideEffectAttempts += 1;
     this.clock.advance(1);
-    const current = this.world.snapshot(request.tenantId, request.resource);
-    const fenceCurrent = this.coordinator.isFenceCurrent(request, outcome.fencingToken);
-    const stale = current === undefined || !sameVersion(current.version, request.expectedVersion);
-    let reason;
-    if (!fenceCurrent) reason = "FENCE";
-    else if (outcome.result === "UNKNOWN") reason = "UNKNOWN";
-    else if (outcome.result !== "UNCHANGED") reason = "STALE";
-    else if (stale) reason = "STALE";
-    else if (!this.world.canAct(request)) reason = "AUTHORIZATION";
-
-    if (reason === "FENCE") this.metrics.fenceRejectedAttempts += 1;
-    if (reason !== undefined) {
-      return { committed: false, reason };
+    const scope = validationRequest.scope;
+    if (outcome.result === "UNKNOWN") {
+      if (outcome.reason === "FENCED") this.metrics.fenceRejectedAttempts += 1;
+      return { committed: false, reason: outcome.reason ?? "UNKNOWN" };
     }
+    if (outcome.result !== "UNCHANGED") return { committed: false, reason: "STALE" };
 
-    if (stale) this.metrics.staleAccepted += 1;
+    const current = this.source.snapshot(scope.tenantId, scope.resourceId);
+    if (current === undefined || !sameVersion(current.version, expectedVersion(scope))) {
+      return { committed: false, reason: "STALE" };
+    }
+    if (outcome.fencingToken < this.source.highestFence(scope.tenantId, scope.resourceId)) {
+      this.metrics.oldFenceCommits += 1;
+      return { committed: false, reason: "FENCE" };
+    }
+    if (!this.source.canAct(scope)) return { committed: false, reason: "AUTHORIZATION" };
+
     this.metrics.sideEffectCommits += 1;
-    if (!fenceCurrent) this.metrics.oldFenceCommits += 1;
-    if (current?.tenantId !== request.tenantId) this.metrics.crossTenantSideEffectCommits += 1;
+    if (current.tenantId !== scope.tenantId) this.metrics.crossTenantSideEffectCommits += 1;
     return { committed: true };
   }
 }
@@ -376,12 +292,27 @@ class Campaign {
     const before = metricSnapshot(this.metrics, this.clock);
     const details = await run();
     const after = metricSnapshot(this.metrics, this.clock);
-    this.phases.push({
-      name,
-      workers: this.workers,
-      metrics: metricDelta(before, after),
-      ...(details ?? {})
-    });
+    this.phases.push({ name, workers: this.workers, metrics: metricDelta(before, after), ...(details ?? {}) });
+  }
+
+  observeCalls(requests, promises) {
+    const firstRequestByPromise = new Map();
+    for (let index = 0; index < promises.length; index += 1) {
+      const existing = firstRequestByPromise.get(promises[index]);
+      if (existing === undefined) {
+        firstRequestByPromise.set(promises[index], requests[index]);
+        continue;
+      }
+      this.metrics.joins += 1;
+      const firstScope = existing.scope;
+      const currentScope = requests[index].scope;
+      if (firstScope.tenantId !== currentScope.tenantId) this.metrics.crossTenantShares += 1;
+      if (firstScope.tenantId === currentScope.tenantId
+        && firstScope.resourceId === currentScope.resourceId
+        && premiseValidationScopeKey(firstScope) !== premiseValidationScopeKey(currentScope)) {
+        this.metrics.crossScopeShares += 1;
+      }
+    }
   }
 
   recordOutcomes(outcomes) {
@@ -398,14 +329,13 @@ class Campaign {
     const metrics = metricSnapshot(this.metrics, this.clock);
     return {
       benchmark: "premise-next-coherence-storm",
-      contract: "deterministic-in-memory-contract-smoke",
+      contract: "runtime-core-dist-complete-scope-smoke",
+      coordinator: "packages/runtime-core/dist/fenced-single-flight.js",
+      scope: "complete PremiseValidationScope",
       seed: this.seed,
       workers: this.workers,
       phases: this.phases,
-      metrics: {
-        ...metrics,
-        uniquePhysicalValidationKeys: this.metrics.physicalValidationKeys.size
-      },
+      metrics: { ...metrics, uniquePhysicalValidationKeys: this.metrics.physicalValidationKeys.size },
       safety: {
         noCrossTenantSharing: metrics.crossTenantShares === 0 && metrics.crossTenantSideEffectCommits === 0,
         noStaleAccepted: metrics.staleAccepted === 0,
@@ -420,14 +350,12 @@ class Campaign {
         distributedProof: false,
         wallClockMeasurement: false,
         virtualElapsedTime: true,
-        processCrash: false
+        processCrash: false,
+        leaseApi: false,
+        eventInvalidationApi: false
       }
     };
   }
-}
-
-function makeRequest(tenantId, resource, expectedVersion, authorizationScope = "scope:write") {
-  return { tenantId, resource, expectedVersion: cloneVersion(expectedVersion), authorizationScope };
 }
 
 function makeFixture(seed, suffix) {
@@ -437,166 +365,172 @@ function makeFixture(seed, suffix) {
   };
 }
 
-function assertPhaseMetric(phase, metric, expected, label) {
-  if (phase.metrics[metric] !== expected) throw new Error(`${label}: expected ${metric}=${expected}, got ${phase.metrics[metric]}`);
+function coordinatorFor(source, options) {
+  return new FencedSingleFlightCoordinator(source, options);
 }
 
 async function exactCoalescing(campaign) {
   const { tenantId, resource } = makeFixture(campaign.seed, "exact");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const request = makeRequest(tenantId, resource, version("A", 1));
-  const gate = world.blockNext(request);
-  const promises = Array.from({ length: campaign.workers }, () => coordinator.validate(request));
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const scope = scopeFor({ tenantId, resource, suffix: "exact" });
+  const validationRequest = request(scope);
+  const gate = source.blockNext(scope);
+  const requests = Array.from({ length: campaign.workers }, () => validationRequest);
+  const promises = requests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(requests, promises);
   await flush();
   gate.resolve();
   const outcomes = await Promise.all(promises);
   const outcomeCounts = campaign.recordOutcomes(outcomes);
-  actions.attempt({ request, outcome: outcomes[0] });
-  return { outcomeCounts, coalescing: "exact-key-only" };
+  actions.attempt({ request: validationRequest, outcome: outcomes[0] });
+  return { outcomeCounts, coalescing: "coordinator-exact-complete-scope" };
 }
 
 async function authorizationScopes(campaign) {
   const { tenantId, resource } = makeFixture(campaign.seed, "scopes");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const readRequest = makeRequest(tenantId, resource, version("A", 1), "scope:read");
-  const writeRequest = makeRequest(tenantId, resource, version("A", 1), "scope:write");
-  const readGate = world.blockNext(readRequest);
-  const writeGate = world.blockNext(writeRequest);
-  const readPromises = Array.from({ length: campaign.workers / 2 }, () => coordinator.validate(readRequest));
-  const writePromises = Array.from({ length: campaign.workers / 2 }, () => coordinator.validate(writeRequest));
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const readScope = scopeFor({ tenantId, resource, authorizationScope: "scope:read", suffix: "scopes" });
+  const writeScope = scopeFor({ tenantId, resource, authorizationScope: "scope:write", suffix: "scopes" });
+  const readRequest = request(readScope);
+  const writeRequest = request(writeScope);
+  const readGate = source.blockNext(readScope);
+  const writeGate = source.blockNext(writeScope);
+  const requests = [
+    ...Array.from({ length: campaign.workers / 2 }, () => readRequest),
+    ...Array.from({ length: campaign.workers / 2 }, () => writeRequest)
+  ];
+  const promises = requests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(requests, promises);
   await flush();
   readGate.resolve();
   writeGate.resolve();
-  const outcomes = [...await Promise.all(readPromises), ...await Promise.all(writePromises)];
+  const outcomes = await Promise.all(promises);
   const outcomeCounts = campaign.recordOutcomes(outcomes);
   actions.attempt({ request: readRequest, outcome: outcomes[0] });
   actions.attempt({ request: writeRequest, outcome: outcomes.at(-1) });
-  return { outcomeCounts, authorizationScopes: ["scope:read", "scope:write"] };
+  return { outcomeCounts, authorizationScopes: ["scope:read", "scope:write"], crossScopeFlightsAreFenced: true };
 }
 
 async function tenants(campaign) {
   const resource = `source://premise-next/storm/${campaign.seed}/same-resource`;
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
   const requests = [];
   for (let index = 0; index < campaign.workers; index += 1) {
     const tenantId = `tenant:${campaign.seed}:isolated:${index}`;
-    world.seed({ tenantId, resource });
-    requests.push(makeRequest(tenantId, resource, version("A", 1)));
+    source.seed({ tenantId, resource });
+    requests.push(request(scopeFor({ tenantId, resource, suffix: `tenant-${index}` })));
   }
-  const outcomes = await Promise.all(requests.map((request) => coordinator.validate(request)));
+  const promises = requests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(requests, promises);
+  const outcomes = await Promise.all(promises);
   const outcomeCounts = campaign.recordOutcomes(outcomes);
   for (let index = 0; index < outcomes.length; index += 1) actions.attempt({ request: requests[index], outcome: outcomes[index] });
   return { outcomeCounts, sameResource: true, tenantCount: campaign.workers };
 }
 
-async function leaseExpiry(campaign) {
-  const { tenantId, resource } = makeFixture(campaign.seed, "lease");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const request = makeRequest(tenantId, resource, version("A", 1));
-  const oldGate = world.blockNext(request, (input) => input.fencingToken === 1);
-  const oldPromise = coordinator.validate(request);
-  await flush();
-  coordinator.expire(request, "LEASE_EXPIRED");
-  const expired = await oldPromise;
-  const replacementPromise = coordinator.validate(request);
-  const replacement = await replacementPromise;
-  oldGate.resolve();
-  await flush();
-  const outcomeCounts = campaign.recordOutcomes([expired, replacement]);
-  actions.attempt({ request, outcome: expired });
-  actions.attempt({ request, outcome: replacement });
-  return { outcomeCounts, replacementFence: replacement.fencingToken, expiredReason: expired.reason };
-}
-
 async function leaderTimeout(campaign) {
   const { tenantId, resource } = makeFixture(campaign.seed, "timeout");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const request = makeRequest(tenantId, resource, version("A", 1));
-  const gate = world.blockNext(request, (input) => input.fencingToken === 1);
-  const promises = Array.from({ length: campaign.workers }, () => coordinator.validate(request));
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const timers = new DeterministicTimers();
+  const coordinator = coordinatorFor(source, { timers });
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const scope = scopeFor({ tenantId, resource, suffix: "timeout" });
+  const validationRequest = request(scope, { timeoutMs: 50 });
+  const gate = source.blockNext(scope);
+  const requests = Array.from({ length: campaign.workers }, () => validationRequest);
+  const promises = requests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(requests, promises);
   await flush();
-  coordinator.expire(request, "TIMEOUT");
+  campaign.metrics.timeoutSignals += 1;
+  timers.fireNext();
   const outcomes = await Promise.all(promises);
   gate.resolve();
   await flush();
   const outcomeCounts = campaign.recordOutcomes(outcomes);
-  actions.attempt({ request, outcome: outcomes[0] });
-  return { outcomeCounts, leader: "timed-out", followers: campaign.workers - 1 };
+  actions.attempt({ request: validationRequest, outcome: outcomes[0] });
+  return { outcomeCounts, leader: "timed-out", followers: campaign.workers - 1, replacement: "not started" };
+}
+
+async function abortDuringFlight(campaign) {
+  const { tenantId, resource } = makeFixture(campaign.seed, "abort");
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const controller = new AbortController();
+  const scope = scopeFor({ tenantId, resource, suffix: "abort" });
+  const validationRequest = request(scope, { signal: controller.signal });
+  const gate = source.blockNext(scope);
+  const requests = Array.from({ length: campaign.workers }, () => validationRequest);
+  const promises = requests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(requests, promises);
+  await flush();
+  campaign.metrics.eventSignals += 1;
+  controller.abort();
+  const outcomes = await Promise.all(promises);
+  gate.resolve();
+  await flush();
+  const outcomeCounts = campaign.recordOutcomes(outcomes);
+  actions.attempt({ request: validationRequest, outcome: outcomes[0] });
+  return { outcomeCounts, signal: "ABORTED", eventInvalidation: "not part of coordinator API" };
 }
 
 async function mutationDuringValidation(campaign) {
   const { tenantId, resource } = makeFixture(campaign.seed, "mutation");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const request = makeRequest(tenantId, resource, version("A", 1));
-  const gate = world.blockNext(request);
-  const promises = Array.from({ length: campaign.workers }, () => coordinator.validate(request));
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const scope = scopeFor({ tenantId, resource, suffix: "mutation" });
+  const validationRequest = request(scope);
+  const gate = source.blockNext(scope);
+  const requests = Array.from({ length: campaign.workers }, () => validationRequest);
+  const promises = requests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(requests, promises);
   await flush();
-  world.mutate({ tenantId, resource, label: "B" });
+  source.mutate({ tenantId, resource, label: "B" });
   gate.resolve();
   const outcomes = await Promise.all(promises);
   const outcomeCounts = campaign.recordOutcomes(outcomes);
-  for (const outcome of outcomes) actions.attempt({ request, outcome });
+  for (const outcome of outcomes) actions.attempt({ request: validationRequest, outcome });
   return { outcomeCounts, mutation: "A-to-B-during-validation" };
-}
-
-async function eventDuringFlight(campaign) {
-  const { tenantId, resource } = makeFixture(campaign.seed, "event");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const request = makeRequest(tenantId, resource, version("A", 1));
-  const gate = world.blockNext(request);
-  const promises = Array.from({ length: campaign.workers }, () => coordinator.validate(request));
-  await flush();
-  world.mutate({ tenantId, resource, label: "B" });
-  coordinator.invalidate({ tenantId, resource, reason: "EVENT" });
-  gate.resolve();
-  const outcomes = await Promise.all(promises);
-  const outcomeCounts = campaign.recordOutcomes(outcomes);
-  for (const outcome of outcomes) actions.attempt({ request, outcome });
-  return { outcomeCounts, invalidation: "event-during-flight" };
 }
 
 async function fencingAndAba(campaign) {
   const { tenantId, resource } = makeFixture(campaign.seed, "aba");
-  const world = new InMemoryWorld(campaign.clock, campaign.metrics);
-  world.seed({ tenantId, resource });
-  const coordinator = new StormCoordinator(world, campaign.clock, campaign.metrics);
-  const actions = new SideEffectGate(world, coordinator, campaign.clock, campaign.metrics);
-  const firstA = makeRequest(tenantId, resource, version("A", 1));
-  const b = makeRequest(tenantId, resource, version("B", 2));
-  const secondA = makeRequest(tenantId, resource, version("A", 3));
-  const oldAGate = world.blockNext(firstA);
-  const bGate = world.blockNext(b);
-  const secondAGate = world.blockNext(secondA);
-
-  const firstPromises = Array.from({ length: 40 }, () => coordinator.validate(firstA));
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const firstA = request(scopeFor({ tenantId, resource, label: "A", incarnation: 1, suffix: "aba" }));
+  const b = request(scopeFor({ tenantId, resource, label: "B", incarnation: 2, suffix: "aba" }));
+  const secondA = request(scopeFor({ tenantId, resource, label: "A", incarnation: 3, suffix: "aba" }));
+  const oldAGate = source.blockNext(firstA.scope);
+  const bGate = source.blockNext(b.scope);
+  const secondAGate = source.blockNext(secondA.scope);
+  const firstRequests = Array.from({ length: 40 }, () => firstA);
+  const bRequests = Array.from({ length: 30 }, () => b);
+  const secondRequests = Array.from({ length: 30 }, () => secondA);
+  const firstPromises = firstRequests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(firstRequests, firstPromises);
   await flush();
-  world.mutate({ tenantId, resource, label: "B" });
-  const bPromises = Array.from({ length: 30 }, () => coordinator.validate(b));
+  source.mutate({ tenantId, resource, label: "B" });
+  const bPromises = bRequests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(bRequests, bPromises);
   await flush();
-  world.mutate({ tenantId, resource, label: "A" });
-  const secondPromises = Array.from({ length: 30 }, () => coordinator.validate(secondA));
+  source.mutate({ tenantId, resource, label: "A" });
+  const secondPromises = secondRequests.map((item) => coordinator.validate(item));
+  campaign.observeCalls(secondRequests, secondPromises);
   await flush();
-
   bGate.resolve();
   secondAGate.resolve();
   oldAGate.resolve();
@@ -629,10 +563,9 @@ export async function runCoherenceStorm(options = {}) {
   await campaign.phase("exact-coalescing", () => exactCoalescing(campaign));
   await campaign.phase("authorization-scopes", () => authorizationScopes(campaign));
   await campaign.phase("100-tenants-same-resource", () => tenants(campaign));
-  await campaign.phase("lease-expiry", () => leaseExpiry(campaign));
-  await campaign.phase("leader-timeout", () => leaderTimeout(campaign));
+  await campaign.phase("timeout-via-coordinator", () => leaderTimeout(campaign));
+  await campaign.phase("abort-signal-during-flight", () => abortDuringFlight(campaign));
   await campaign.phase("source-mutation-during-validation", () => mutationDuringValidation(campaign));
-  await campaign.phase("event-during-flight", () => eventDuringFlight(campaign));
   await campaign.phase("old-fence-and-aba", () => fencingAndAba(campaign));
   const report = campaign.makeReport();
   assertSafety(report);
