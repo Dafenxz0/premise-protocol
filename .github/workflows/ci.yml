@@ -28,6 +28,7 @@ jobs:
       - run: pnpm conformance:v2
       - run: pnpm conformance:next
       - run: pnpm example:quickstart
+      - run: pnpm example:quickstart:test
       - run: node --test benchmarks/premise-next/storm/runner.test.mjs
       - run: pnpm benchmark:next:distributed-failures
       - run: pnpm benchmark:efficiency:v1:bounded:test
