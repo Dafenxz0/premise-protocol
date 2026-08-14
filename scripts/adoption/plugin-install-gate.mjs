@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +10,9 @@ const sourcePlugin = join(root, "plugins", "premise-codex");
 const artifactRoot = join(root, ".tmp", "adoption", "plugin-install-gate");
 const installedPlugin = join(artifactRoot, "copied-plugin", "premise-codex");
 const serverPath = join(installedPlugin, "mcp", "server.mjs");
+const packageRequire = createRequire(join(root, "packages", "mcp-server", "package.json"));
+const { Client } = packageRequire("@modelcontextprotocol/client");
+const { StdioClientTransport } = packageRequire("@modelcontextprotocol/client/stdio");
 
 async function filesUnder(directory, current = directory) {
   const entries = await readdir(current, { withFileTypes: true });
@@ -22,72 +25,6 @@ async function filesUnder(directory, current = directory) {
   return files.sort();
 }
 
-function frame(value) {
-  const body = Buffer.from(JSON.stringify(value), "utf8");
-  return Buffer.concat([Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, "ascii"), body]);
-}
-
-function readFrame(stream, timeoutMs = 5_000) {
-  let buffer = Buffer.alloc(0);
-  let timer;
-  const onData = (chunk) => {
-    buffer = Buffer.concat([buffer, chunk]);
-    const separator = buffer.indexOf(Buffer.from("\r\n\r\n"));
-    if (separator < 0) return;
-    const header = buffer.subarray(0, separator).toString("ascii");
-    const line = header.split("\r\n").find((value) => /^content-length:/iu.test(value));
-    const length = line === undefined ? NaN : Number.parseInt(line.split(":", 2)[1].trim(), 10);
-    const start = separator + 4;
-    if (!Number.isSafeInteger(length) || buffer.length < start + length) return;
-    cleanup();
-    resolvePromise(JSON.parse(buffer.subarray(start, start + length).toString("utf8")));
-  };
-  const onExit = (code, signal) => {
-    cleanup();
-    rejectPromise(new Error(`MCP process exited before response (code=${code}, signal=${signal ?? "none"})`));
-  };
-  let resolvePromise;
-  let rejectPromise;
-  const promise = new Promise((resolveValue, rejectValue) => {
-    resolvePromise = resolveValue;
-    rejectPromise = rejectValue;
-  });
-  function cleanup() {
-    stream.off("data", onData);
-    stream.off("error", onError);
-    stream.off("close", onClose);
-    if (timer !== undefined) clearTimeout(timer);
-  }
-  function onError(error) {
-    cleanup();
-    rejectPromise(error);
-  }
-  function onClose() {
-    cleanup();
-    rejectPromise(new Error("MCP stdout closed before response"));
-  }
-  stream.on("data", onData);
-  stream.once("error", onError);
-  stream.once("close", onClose);
-  timer = setTimeout(() => {
-    cleanup();
-    rejectPromise(new Error("Timed out waiting for MCP response"));
-  }, timeoutMs);
-  return promise;
-}
-
-async function request(child, id, method, params) {
-  child.stdin.write(frame({ jsonrpc: "2.0", id, method, ...(params === undefined ? {} : { params }) }));
-  const response = await readFrame(child.stdout);
-  assert.equal(response.id, id, `unexpected MCP response id for ${method}`);
-  assert.equal(response.error, undefined, JSON.stringify(response));
-  return response.result;
-}
-
-function notify(child, method, params) {
-  child.stdin.write(frame({ jsonrpc: "2.0", method, ...(params === undefined ? {} : { params }) }));
-}
-
 function parseToolText(result) {
   assert.ok(Array.isArray(result?.content));
   assert.equal(result.content[0]?.type, "text");
@@ -96,44 +33,27 @@ function parseToolText(result) {
 
 async function launchCopiedServer(environment) {
   const remoteMode = environment.PREMISE_MODE === "REMOTE" || environment.PREMISE_BASE_URL !== undefined;
-  const childEnvironment = { ...process.env };
-  for (const [key, value] of Object.entries(environment)) {
-    if (value === undefined) delete childEnvironment[key];
-    else childEnvironment[key] = value;
-  }
-  const child = spawn(process.execPath, ["mcp/server.mjs"], {
+  const childEnvironment = Object.fromEntries(Object.entries(environment).filter(([, value]) => value !== undefined));
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ["mcp/server.mjs"],
     cwd: installedPlugin,
     env: childEnvironment,
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true
+    stderr: "pipe"
   });
+  const client = new Client({ name: "premise-standalone-gate", version: "1.0.0" });
   let stderr = "";
-  child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+  transport.stderr?.on("data", (chunk) => { stderr += chunk.toString(); });
   try {
-    const initialize = await request(child, 1, "initialize", {
-      protocolVersion: "2025-06-18",
-      capabilities: {},
-      clientInfo: { name: "premise-standalone-gate", version: "1.0.0" }
-    });
-    assert.equal(initialize.serverInfo.name, "premise");
-    notify(child, "notifications/initialized");
-    const listed = await request(child, 2, "tools/list");
+    await client.connect(transport);
+    const listed = await client.listTools();
     assert.deepEqual(listed.tools.map((tool) => tool.name).sort(), ["check", "explain", "guard", "observe"]);
-    const observed = parseToolText(await request(child, 3, "tools/call", {
-      name: "observe",
-      arguments: { memoryId: remoteMode ? "remote:1" : "local:premise" }
-    }));
-    const checked = parseToolText(await request(child, 4, "tools/call", {
-      name: "check",
-      arguments: { memoryId: remoteMode ? "remote:1" : "local:premise" }
-    }));
-    const guarded = parseToolText(await request(child, 5, "tools/call", {
+    const memoryId = remoteMode ? "remote:1" : "selftest:premise";
+    const observed = parseToolText(await client.callTool({ name: "observe", arguments: { memoryId } }));
+    const checked = parseToolText(await client.callTool({ name: "check", arguments: { memoryId } }));
+    const guarded = parseToolText(await client.callTool({
       name: "guard",
-      arguments: {
-        memoryId: remoteMode ? "remote:1" : "local:premise",
-        action: "publish release",
-        risk: "HIGH"
-      }
+      arguments: { memoryId, action: "publish release", risk: "HIGH" }
     }));
     assert.equal(observed.status, "FRESH");
     assert.equal(checked.result, "UNCHANGED");
@@ -141,9 +61,7 @@ async function launchCopiedServer(environment) {
     assert.equal(guarded.executesSideEffect, false);
     return { status: "PASS", tools: listed.tools.map((tool) => tool.name).sort(), observed, checked, guarded };
   } finally {
-    child.stdin.end();
-    if (!child.killed) child.kill();
-    await new Promise((resolvePromise) => child.once("close", resolvePromise));
+    await client.close();
     if (stderr.trim().length > 0) throw new Error(`standalone MCP stderr: ${stderr.trim()}`);
   }
 }
@@ -202,8 +120,7 @@ assert.equal(copiedFiles.some((file) => /(?:^|\/)packages(?:\/|$)|(?:^|\/)node_m
 const wiringText = await Promise.all([".mcp.json", "mcp/server.mjs"].map((file) => readFile(join(installedPlugin, ...file.split("/")), "utf8")));
 assert.equal(wiringText.some((text) => /workspace:|packages\/mcp-server|packages\\mcp-server/u.test(text)), false);
 
-const local = await launchCopiedServer({
-  PREMISE_MODE: undefined,
+const selftest = await launchCopiedServer({
   PREMISE_BASE_URL: undefined,
   PREMISE_TENANT: undefined,
   PREMISE_TOKEN: undefined
@@ -221,7 +138,7 @@ const report = {
   status: "PASS",
   copiedPlugin: "plugins/premise-codex",
   launchedFrom: "copied-plugin-only",
-  local,
+  selftest,
   remote,
   noMonorepoResolution: true,
   registryPublication: "NOT_RUN"

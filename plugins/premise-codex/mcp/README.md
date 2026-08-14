@@ -2,14 +2,16 @@
 
 `server.mjs` is intentionally dependency-free and is distributed inside the
 plugin. It does not resolve `packages/`, `workspace:` dependencies, or a
-monorepo-relative path.
+monorepo-relative path. It speaks the standard MCP newline-delimited stdio
+transport; clients should launch it through the official MCP stdio transport.
 
-The default is zero-config `LOCAL` mode. It exposes the deterministic
-`local:premise` sample memory so the plugin can be installed and inspected
-without a deployment or credential:
+The default is zero-config `SELFTEST` mode. It exposes the deterministic
+`selftest:premise` sample memory so the plugin can be installed and inspected
+without a deployment or credential. `SELFTEST` is not local coherence and must
+not be used as a source of truth:
 
 ```text
-PREMISE_MODE=LOCAL
+PREMISE_MODE=SELFTEST
 ```
 
 To point the same tools at a PREMiSE HTTP deployment, use:

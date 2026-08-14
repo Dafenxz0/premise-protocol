@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "description": "PREMiSE workflow guidance and minimal coherence tools for Codex agents.",
   "author": {
-    "name": "Local developer"
+    "name": "Dafenxz0",
+    "url": "https://github.com/Dafenxz0"
   },
+  "homepage": "https://github.com/Dafenxz0/premise-protocol",
+  "repository": "https://github.com/Dafenxz0/premise-protocol",
   "skills": "./skills/",
   "interface": {
     "displayName": "Premise Codex",
     "shortDescription": "Keep agent actions grounded in fresh evidence.",
     "longDescription": "PREMiSE teaches agents to record source versions, revalidate mutable evidence, and guard consequential actions without pretending to be a database or truth oracle.",
-    "developerName": "Local developer",
+    "developerName": "Dafenxz0",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": "Use PREMiSE to keep mutable evidence fresh before a guarded action."

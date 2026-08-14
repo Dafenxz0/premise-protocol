@@ -90,36 +90,38 @@ try {
   await new Promise((resolvePromise, reject) => httpServer.close((error) => error ? reject(error) : resolvePromise()));
 }
 
-const localEnv = { ...process.env };
-delete localEnv.PREMISE_MODE;
-delete localEnv.PREMISE_BASE_URL;
-delete localEnv.PREMISE_TENANT;
-delete localEnv.PREMISE_TOKEN;
-assert.doesNotThrow(() => createConfiguredClient(localEnv));
+const selftestEnv = { ...process.env };
+delete selftestEnv.PREMISE_MODE;
+delete selftestEnv.PREMISE_BASE_URL;
+delete selftestEnv.PREMISE_TENANT;
+delete selftestEnv.PREMISE_TOKEN;
+assert.doesNotThrow(() => createConfiguredClient(selftestEnv));
 assert.throws(() => createConfiguredClient({ PREMISE_MODE: "REMOTE" }), /PREMISE_BASE_URL is required/u);
+assert.throws(() => createConfiguredClient({ PREMISE_MODE: "LOCAL" }), /PREMISE_MODE must be SELFTEST or REMOTE/u);
 
-const localTransport = new StdioClientTransport({
+const selftestTransport = new StdioClientTransport({
   command: process.execPath,
   args: [serverPath],
-  env: localEnv
+  env: selftestEnv
 });
-const localClient = new Client({ name: "premise-mcp-local-test", version: "1.0.0" });
+const selftestClient = new Client({ name: "premise-mcp-selftest", version: "1.0.0" });
 try {
-  await localClient.connect(localTransport);
-  const listed = await localClient.listTools();
+  await selftestClient.connect(selftestTransport);
+  const listed = await selftestClient.listTools();
   assert.deepEqual(listed.tools.map((tool) => tool.name).sort(), ["check", "explain", "guard", "observe"]);
-  const observed = await localClient.callTool({ name: "observe", arguments: { memoryId: "local:premise" } });
-  assert.match(observed.content[0].text, /"tenantId": "local"/u);
-  const checked = await localClient.callTool({ name: "check", arguments: { memoryId: "local:premise" } });
+  const observed = await selftestClient.callTool({ name: "observe", arguments: { memoryId: "selftest:premise" } });
+  assert.match(observed.content[0].text, /"tenantId": "selftest"/u);
+  assert.match(observed.content[0].text, /selftest:\/\/premise/u);
+  const checked = await selftestClient.callTool({ name: "check", arguments: { memoryId: "selftest:premise" } });
   assert.match(checked.content[0].text, /"status": "FRESH"/u);
-  const guarded = await localClient.callTool({
+  const guarded = await selftestClient.callTool({
     name: "guard",
-    arguments: { memoryId: "local:premise", action: "publish release", risk: "HIGH" }
+    arguments: { memoryId: "selftest:premise", action: "publish release", risk: "HIGH" }
   });
   assert.match(guarded.content[0].text, /"decision": "ALLOW"/u);
   assert.match(guarded.content[0].text, /"executesSideEffect": false/u);
 } finally {
-  await localClient.close();
+  await selftestClient.close();
 }
 
 console.log("mcp server tests passed");

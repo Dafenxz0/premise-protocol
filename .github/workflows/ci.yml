@@ -69,6 +69,8 @@ jobs:
         run: pnpm adoption:plugin-install-gate
       - name: Isolated Codex/Luna experiment contract
         run: pnpm adoption:codex-luna:contract
+      - name: Isolated Codex/Luna credential sentinel regression
+        run: pnpm adoption:codex-luna:security-test
       - name: Local real-world certification
         run: pnpm adoption:certification:test
       - name: Certification report

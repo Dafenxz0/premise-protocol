@@ -100,6 +100,7 @@
     "adoption:static-boundary-check": "node benchmarks/adoption-reality/static-public-boundary-check/checker.mjs --self-check",
     "adoption:plugin-install-gate": "node scripts/adoption/plugin-install-gate.mjs",
     "adoption:codex-luna:contract": "node benchmarks/adoption-reality/codex-luna-experiment/runner.mjs --contract-only",
+    "adoption:codex-luna:security-test": "node --test benchmarks/adoption-reality/codex-luna-experiment/isolation.test.mjs",
     "adoption:codex-luna": "node benchmarks/adoption-reality/codex-luna-experiment/runner.mjs --run",
     "adoption:certification": "node benchmarks/adoption-reality/runner.mjs",
     "adoption:certification:test": "node --test benchmarks/adoption-reality/runner.test.mjs",

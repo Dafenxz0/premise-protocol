@@ -10,8 +10,8 @@
  */
 
 const SERVER_VERSION = "0.1.0-rc.1";
-const LOCAL_MEMORY_ID = "local:premise";
-const LOCAL_TIMESTAMP = "2026-08-15T00:00:00.000Z";
+const SELFTEST_MEMORY_ID = "selftest:premise";
+const SELFTEST_TIMESTAMP = "2026-08-15T00:00:00.000Z";
 
 const MEMORY_SCHEMA = {
   type: "object",
@@ -56,42 +56,42 @@ const TOOLS = [
   }
 ];
 
-function localRecord() {
+function selftestRecord() {
   return {
     envelope: {
       specVersion: "premise/2",
-      tenantId: "local",
-      memoryId: LOCAL_MEMORY_ID,
+      tenantId: "selftest",
+      memoryId: SELFTEST_MEMORY_ID,
       evidence: [{
-        evidenceId: "evidence:local:premise",
-        sourceUri: "local://premise",
-        observedAt: LOCAL_TIMESTAMP,
-        version: { scheme: "local", token: "v1" }
+        evidenceId: "evidence:selftest:premise",
+        sourceUri: "selftest://premise",
+        observedAt: SELFTEST_TIMESTAMP,
+        version: { scheme: "selftest", token: "v1" }
       }],
-      confidence: { score: null, method: "local-mcp", assessedAt: LOCAL_TIMESTAMP },
+      confidence: { score: null, method: "selftest-mcp", assessedAt: SELFTEST_TIMESTAMP },
       conflicts: [],
-      temporal: { asOf: LOCAL_TIMESTAMP },
-      validity: { status: "FRESH", checkedAt: LOCAL_TIMESTAMP, policy: "VERSIONED" },
+      temporal: { asOf: SELFTEST_TIMESTAMP },
+      validity: { status: "FRESH", checkedAt: SELFTEST_TIMESTAMP, policy: "VERSIONED" },
       dependsOn: [],
       signatures: []
     },
     content: {
-      mode: "LOCAL",
-      message: "PREMiSE MCP is running in zero-config local mode."
+      mode: "SELFTEST",
+      message: "PREMiSE MCP is running in deterministic self-test mode; it is not a local coherence store."
     }
   };
 }
 
-function validation(memoryId) {
+function selftestValidation(memoryId) {
   return {
     memoryId,
     result: "UNCHANGED",
     status: "FRESH",
-    checkedAt: LOCAL_TIMESTAMP,
-    sourceUri: "local://premise",
-    version: { scheme: "local", token: "v1" },
-    evidenceId: "evidence:local:premise",
-    reason: "local deterministic source is unchanged"
+    checkedAt: SELFTEST_TIMESTAMP,
+    sourceUri: "selftest://premise",
+    version: { scheme: "selftest", token: "v1" },
+    evidenceId: "evidence:selftest:premise",
+    reason: "deterministic self-test source is unchanged"
   };
 }
 
@@ -162,22 +162,22 @@ function configuredClient(environment) {
   const baseUrl = environment.PREMISE_BASE_URL?.trim();
   const configuredMode = environment.PREMISE_MODE?.trim();
   const mode = (configuredMode === undefined || configuredMode.length === 0
-    ? (baseUrl ? "REMOTE" : "LOCAL")
+    ? (baseUrl ? "REMOTE" : "SELFTEST")
     : configuredMode).toUpperCase();
-  if (mode === "LOCAL") {
+  if (mode === "SELFTEST") {
     return {
       getMemory: async (memoryId) => {
-        if (memoryId !== LOCAL_MEMORY_ID) throw new Error(`Unknown local memory: ${memoryId}`);
-        return localRecord();
+        if (memoryId !== SELFTEST_MEMORY_ID) throw new Error(`Unknown self-test memory: ${memoryId}`);
+        return selftestRecord();
       },
       revalidate: async (memoryId) => {
-        if (memoryId !== LOCAL_MEMORY_ID) throw new Error(`Unknown local memory: ${memoryId}`);
-        return validation(memoryId);
+        if (memoryId !== SELFTEST_MEMORY_ID) throw new Error(`Unknown self-test memory: ${memoryId}`);
+        return selftestValidation(memoryId);
       }
     };
   }
   if (mode === "REMOTE") return remoteClient(environment);
-  throw new Error("PREMISE_MODE must be LOCAL or REMOTE");
+  throw new Error("PREMISE_MODE must be SELFTEST or REMOTE");
 }
 
 async function callTool(name, args, client) {
@@ -233,9 +233,7 @@ async function callTool(name, args, client) {
 }
 
 function send(message) {
-  const body = Buffer.from(JSON.stringify(message), "utf8");
-  process.stdout.write(`Content-Length: ${body.length}\r\n\r\n`);
-  process.stdout.write(body);
+  process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
 function errorResponse(id, code, message) {
@@ -243,24 +241,17 @@ function errorResponse(id, code, message) {
 }
 
 function startTransport(client) {
-  let buffer = Buffer.alloc(0);
+  let buffer = "";
+  const decoder = new TextDecoder();
   process.stdin.on("data", (chunk) => {
-    buffer = Buffer.concat([buffer, chunk]);
+    buffer += decoder.decode(chunk, { stream: true });
     for (;;) {
-      const separator = buffer.indexOf(Buffer.from("\r\n\r\n"));
-      if (separator < 0) return;
-      const header = buffer.subarray(0, separator).toString("ascii");
-      const lengthHeader = header.split("\r\n").find((line) => /^content-length:/iu.test(line));
-      const length = lengthHeader === undefined ? NaN : Number.parseInt(lengthHeader.split(":", 2)[1].trim(), 10);
-      if (!Number.isSafeInteger(length) || length < 0) {
-        errorResponse(null, -32600, "Invalid Content-Length");
-        process.exitCode = 1;
-        return;
-      }
-      const start = separator + 4;
-      if (buffer.length < start + length) return;
-      const payload = buffer.subarray(start, start + length).toString("utf8");
-      buffer = buffer.subarray(start + length);
+      const newline = buffer.indexOf("\n");
+      if (newline < 0) return;
+      let payload = buffer.slice(0, newline);
+      buffer = buffer.slice(newline + 1);
+      if (payload.endsWith("\r")) payload = payload.slice(0, -1);
+      if (payload.length === 0) continue;
       let message;
       try {
         message = JSON.parse(payload);
@@ -269,6 +260,13 @@ function startTransport(client) {
         continue;
       }
       void handleMessage(message, client);
+    }
+  });
+  process.stdin.on("end", () => {
+    const payload = decoder.decode();
+    if (payload.length > 0) {
+      buffer += payload;
+      if (buffer.trim().length > 0) errorResponse(null, -32700, "MCP message must end with a newline");
     }
   });
   process.stdin.resume();

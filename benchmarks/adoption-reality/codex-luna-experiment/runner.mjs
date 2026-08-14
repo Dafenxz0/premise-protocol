@@ -29,6 +29,7 @@ function args() {
     contractOnly: values.includes("--contract-only"),
     prepareOnly: values.includes("--prepare-only"),
     evaluateOnly: values.includes("--evaluate-only"),
+    securitySelfCheck: values.includes("--security-self-check"),
     run: values.includes("--run")
   };
 }
@@ -46,11 +47,13 @@ async function filesUnder(directory, current = directory, ignoredDirectories = n
   return files.sort();
 }
 
-function run(command, commandArgs, cwd, environment = {}) {
+function run(command, commandArgs, cwd, environment = process.env) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(command, commandArgs, {
       cwd,
-      env: { ...process.env, ...environment },
+      // An explicit environment is authoritative. Do not merge process.env
+      // here: the isolated agent environment has already been scrubbed.
+      env: environment,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true
     });
@@ -196,6 +199,21 @@ function commandFromEnvironment() {
   return parsed;
 }
 
+function scrubbedAgentEnvironment() {
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/(?:KEY|TOKEN|SECRET|PASSWORD|AUTH|CREDENTIAL)/iu.test(key))
+  );
+  delete environment.PREMISE_LUNA_COMMAND;
+  delete environment.PREMISE_CODEX_COMMAND;
+  return {
+    ...environment,
+    PREMISE_EXPERIMENT_ROOT: runRoot,
+    PREMISE_EXPERIMENT_INPUT: inputRoot,
+    PREMISE_EXPERIMENT_NETWORK: "disabled",
+    PREMISE_EXPERIMENT_CREDENTIALS: "disabled"
+  };
+}
+
 async function launchAgent() {
   const command = commandFromEnvironment();
   if (command === undefined) return { status: "NOT_RUN", success: false, agentLaunched: false, reason: "set PREMISE_LUNA_COMMAND or PREMISE_CODEX_COMMAND to launch an external runner" };
@@ -205,17 +223,7 @@ async function launchAgent() {
   const placeholder = commandArgs.indexOf("{prompt}");
   if (placeholder >= 0) commandArgs[placeholder] = prompt;
   else commandArgs.push(prompt);
-  const childEnvironment = { ...process.env };
-  for (const key of Object.keys(childEnvironment)) if (/(?:KEY|TOKEN|SECRET|PASSWORD|AUTH|CREDENTIAL)/iu.test(key)) delete childEnvironment[key];
-  delete childEnvironment.PREMISE_LUNA_COMMAND;
-  delete childEnvironment.PREMISE_CODEX_COMMAND;
-  const result = await run(executable, commandArgs, runRoot, {
-    ...childEnvironment,
-    PREMISE_EXPERIMENT_ROOT: runRoot,
-    PREMISE_EXPERIMENT_INPUT: inputRoot,
-    PREMISE_EXPERIMENT_NETWORK: "disabled",
-    PREMISE_EXPERIMENT_CREDENTIALS: "disabled"
-  });
+  const result = await run(executable, commandArgs, runRoot, scrubbedAgentEnvironment());
   let evaluation = result.code === 0
     ? { ...(await evaluateCandidate()), agentLaunched: true, credentialsUsed: false }
     : { status: "FAIL", success: false, errors: [`agent exited with code ${result.code}`], agentLaunched: true, credentialsUsed: false };
@@ -233,31 +241,47 @@ async function launchAgent() {
 }
 
 const options = args();
-let preparation;
-if (!options.evaluateOnly) preparation = await prepareInput({ includeTarball: options.run || options.prepareOnly });
-if (options.contractOnly) {
-  const manifest = JSON.parse(await readFile(join(inputRoot, "manifest.json"), "utf8"));
-  assert.equal(manifest.publicOnly, true);
-  assert.equal(manifest.network, false);
-  assert.equal(manifest.credentials, false);
-  assert.ok(manifest.allowedFiles.every((file) => !/(?:^|\/)(?:packages|node_modules)(?:\/|$)/u.test(file)));
-  const report = { format: "premise-isolated-codex-experiment/1", status: "PASS", agentLaunched: false, input: preparation };
-  await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+if (options.securitySelfCheck) {
+  const sentinel = "premise-sentinel-do-not-forward-7f44e8";
+  process.env.PREMISE_SENTINEL_SECRET = sentinel;
+  await mkdir(runRoot, { recursive: true });
+  const result = await run(process.execPath, ["-e", "process.exit(process.env.PREMISE_SENTINEL_SECRET === undefined ? 0 : 73)"], runRoot, scrubbedAgentEnvironment());
+  const report = {
+    format: "premise-isolated-codex-credential-self-check/1",
+    status: result.code === 0 ? "PASS" : "FAIL",
+    success: result.code === 0,
+    credentialExposed: result.code === 73,
+    exitCode: result.code
+  };
   console.log(JSON.stringify(report, null, 2));
-} else if (options.prepareOnly) {
-  const report = { format: "premise-isolated-codex-experiment/1", status: "READY", agentLaunched: false, input: preparation };
-  await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
-  console.log(JSON.stringify(report, null, 2));
-} else if (options.evaluateOnly) {
-  const evaluation = await evaluateCandidate();
-  const report = { format: "premise-isolated-codex-experiment/1", ...evaluation, inputRoot: "input", candidateRoot: "candidate" };
-  await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
-  console.log(JSON.stringify(report, null, 2));
-  if (!evaluation.success) process.exitCode = 1;
+  if (!report.success) process.exitCode = 1;
 } else {
-  const runResult = await launchAgent();
-  const report = { format: "premise-isolated-codex-experiment/1", ...runResult, inputRoot: "input", candidateRoot: "candidate", packageArtifact: preparation.packageArtifact };
-  await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
-  console.log(JSON.stringify(report, null, 2));
-  if (runResult.status === "FAIL") process.exitCode = 1;
+  let preparation;
+  if (!options.evaluateOnly) preparation = await prepareInput({ includeTarball: options.run || options.prepareOnly });
+  if (options.contractOnly) {
+    const manifest = JSON.parse(await readFile(join(inputRoot, "manifest.json"), "utf8"));
+    assert.equal(manifest.publicOnly, true);
+    assert.equal(manifest.network, false);
+    assert.equal(manifest.credentials, false);
+    assert.ok(manifest.allowedFiles.every((file) => !/(?:^|\/)(?:packages|node_modules)(?:\/|$)/u.test(file)));
+    const report = { format: "premise-isolated-codex-experiment/1", status: "PASS", agentLaunched: false, input: preparation };
+    await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+    console.log(JSON.stringify(report, null, 2));
+  } else if (options.prepareOnly) {
+    const report = { format: "premise-isolated-codex-experiment/1", status: "READY", agentLaunched: false, input: preparation };
+    await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+    console.log(JSON.stringify(report, null, 2));
+  } else if (options.evaluateOnly) {
+    const evaluation = await evaluateCandidate();
+    const report = { format: "premise-isolated-codex-experiment/1", ...evaluation, inputRoot: "input", candidateRoot: "candidate" };
+    await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+    console.log(JSON.stringify(report, null, 2));
+    if (!evaluation.success) process.exitCode = 1;
+  } else {
+    const runResult = await launchAgent();
+    const report = { format: "premise-isolated-codex-experiment/1", ...runResult, inputRoot: "input", candidateRoot: "candidate", packageArtifact: preparation.packageArtifact };
+    await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
+    console.log(JSON.stringify(report, null, 2));
+    if (runResult.status === "FAIL") process.exitCode = 1;
+  }
 }

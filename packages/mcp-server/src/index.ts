@@ -22,49 +22,49 @@ export interface PremiseMcpClient {
   revalidate(memoryId: string): Promise<RevalidationReport>;
 }
 
-const LOCAL_TIMESTAMP = "2026-08-15T00:00:00.000Z";
-const LOCAL_MEMORY_ID = "local:premise";
-const LOCAL_RECORD: MemoryRecord<unknown> = {
+const SELFTEST_TIMESTAMP = "2026-08-15T00:00:00.000Z";
+const SELFTEST_MEMORY_ID = "selftest:premise";
+const SELFTEST_RECORD: MemoryRecord<unknown> = {
   envelope: {
     specVersion: "premise/2",
-    tenantId: "local",
-    memoryId: LOCAL_MEMORY_ID,
+    tenantId: "selftest",
+    memoryId: SELFTEST_MEMORY_ID,
     evidence: [{
-      evidenceId: "evidence:local:premise",
-      sourceUri: "local://premise",
-      observedAt: LOCAL_TIMESTAMP,
-      version: { scheme: "local", token: "v1" }
+      evidenceId: "evidence:selftest:premise",
+      sourceUri: "selftest://premise",
+      observedAt: SELFTEST_TIMESTAMP,
+      version: { scheme: "selftest", token: "v1" }
     }],
-    confidence: { score: null, method: "local-mcp", assessedAt: LOCAL_TIMESTAMP },
+    confidence: { score: null, method: "selftest-mcp", assessedAt: SELFTEST_TIMESTAMP },
     conflicts: [],
-    temporal: { asOf: LOCAL_TIMESTAMP },
-    validity: { status: "FRESH", checkedAt: LOCAL_TIMESTAMP, policy: "VERSIONED" },
+    temporal: { asOf: SELFTEST_TIMESTAMP },
+    validity: { status: "FRESH", checkedAt: SELFTEST_TIMESTAMP, policy: "VERSIONED" },
     dependsOn: [],
     signatures: []
   },
   content: {
-    mode: "LOCAL",
-    message: "PREMiSE MCP is running in zero-config local mode."
+    mode: "SELFTEST",
+    message: "PREMiSE MCP is running in deterministic self-test mode; it is not a local coherence store."
   }
 };
 
-class LocalPremiseClient implements PremiseMcpClient {
+class SelftestPremiseClient implements PremiseMcpClient {
   async getMemory<TContent = unknown>(memoryId: string): Promise<MemoryRecord<TContent>> {
-    if (memoryId !== LOCAL_MEMORY_ID) throw new Error(`Unknown local memory: ${memoryId}`);
-    return LOCAL_RECORD as MemoryRecord<TContent>;
+    if (memoryId !== SELFTEST_MEMORY_ID) throw new Error(`Unknown self-test memory: ${memoryId}`);
+    return SELFTEST_RECORD as MemoryRecord<TContent>;
   }
 
   async revalidate(memoryId: string): Promise<RevalidationReport> {
-    if (memoryId !== LOCAL_MEMORY_ID) throw new Error(`Unknown local memory: ${memoryId}`);
+    if (memoryId !== SELFTEST_MEMORY_ID) throw new Error(`Unknown self-test memory: ${memoryId}`);
     return {
       memoryId,
       result: "UNCHANGED",
       status: "FRESH",
-      checkedAt: LOCAL_TIMESTAMP,
-      sourceUri: "local://premise",
-      version: { scheme: "local", token: "v1" },
-      evidenceId: "evidence:local:premise",
-      reason: "local deterministic source is unchanged"
+      checkedAt: SELFTEST_TIMESTAMP,
+      sourceUri: "selftest://premise",
+      version: { scheme: "selftest", token: "v1" },
+      evidenceId: "evidence:selftest:premise",
+      reason: "deterministic self-test source is unchanged"
     };
   }
 }
@@ -193,11 +193,11 @@ export function createConfiguredClient(env: NodeJS.ProcessEnv = process.env): Pr
   const baseUrl = env.PREMISE_BASE_URL?.trim();
   const configuredMode = env.PREMISE_MODE?.trim();
   const mode = (configuredMode === undefined || configuredMode.length === 0
-    ? (baseUrl === undefined || baseUrl.length === 0 ? "LOCAL" : "REMOTE")
+    ? (baseUrl === undefined || baseUrl.length === 0 ? "SELFTEST" : "REMOTE")
     : configuredMode).toUpperCase();
 
-  if (mode === "LOCAL") return new LocalPremiseClient();
-  if (mode !== "REMOTE") throw new Error("PREMISE_MODE must be LOCAL or REMOTE");
+  if (mode === "SELFTEST") return new SelftestPremiseClient();
+  if (mode !== "REMOTE") throw new Error("PREMISE_MODE must be SELFTEST or REMOTE");
   if (baseUrl === undefined || baseUrl.length === 0) {
     throw new Error("PREMISE_BASE_URL is required in REMOTE mode");
   }

@@ -53,7 +53,8 @@ truth authority.
 7. The static Public-Boundary Check rejects private imports and records
    deterministic integration metrics without launching an agent.
 8. The standalone plugin gate copies the plugin outside the monorepo and
-   launches its MCP in zero-config LOCAL mode and configured REMOTE mode.
+   launches its MCP through the official MCP `StdioClientTransport` in
+   zero-config SELFTEST mode and configured REMOTE mode.
 9. The isolated Codex/Luna experiment is a separate opt-in process run; its
    absent or unavailable runner is reported as NOT_RUN, never PASS.
 10. CI validates the package gate, certification, standalone plugin, and the
