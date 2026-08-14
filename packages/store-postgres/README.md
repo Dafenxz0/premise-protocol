@@ -30,6 +30,37 @@ const store = new PostgresRuntimeStore({
 await store.migrate();
 ```
 
+## Leases de validación distribuidas
+
+`PostgresValidationLeaseStore` es la primera implementación durable del contrato
+de leases de PREMiSE. Usa una operación `INSERT ... ON CONFLICT` atómica, token
+de fencing monotónico, contexto de tenant por transacción y RLS forzado. La API
+es asíncrona porque cruza una frontera de red y devuelve las mismas decisiones
+(`ACQUIRED`, `HELD`, `UPDATED`, `RELEASED`, `VALID` o `REJECTED`) que el contrato
+de `@premise/runtime-core`.
+
+```ts
+import { PostgresValidationLeaseStore } from "@premise/store-postgres";
+
+const leases = new PostgresValidationLeaseStore(adapter, {
+  tableName: "premise_validation_leases"
+});
+await leases.initialize();
+const result = await leases.acquire({
+  tenantId: "tenant:acme",
+  resourceId: "github:org/repo#main",
+  owner: "agent:one",
+  leaseId: "run:123",
+  expiresAt: Date.now() + 30_000
+}, Date.now());
+```
+
+El adaptador requiere que `transaction` fije todas las queries al mismo
+cliente cuando se usa un pool. La operación no comparte leases entre tenants,
+y la renovación, liberación y validación comparan owner, lease id y fencing
+token. La prueba real se ejecuta solo con `POSTGRES_URL` y el driver `pg`; sin
+esas credenciales queda explícitamente como `skipped`.
+
 `transaction` debe fijar todas las queries en el mismo cliente. Es importante con `Pool`: el fallback `BEGIN`/`COMMIT` del paquete solo es correcto cuando el `query` inyectado ya representa una sesión fijada, no un pool que elige una conexión distinta por llamada.
 
 ## Migraciones y aislamiento
