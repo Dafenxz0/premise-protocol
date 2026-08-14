@@ -107,13 +107,13 @@ The protocol keeps the important state small and explicit:
 
 ## What is measured
 
-The numbers below are deliberately labelled as deterministic contract evidence. They are useful for checking invariants in this repository; they are not a distributed capacity result, a provider-cost study or a promise that every connector behaves identically.
+The table below is a snapshot of the deterministic local coherence-storm runner with the default seed `premise-next-storm-20260814`. Reproduce it with [`node benchmarks/premise-next/storm/runner.mjs`](benchmarks/premise-next/storm/README.md). These numbers are useful for checking invariants in this repository; they are not a distributed capacity result, a provider-cost study or a promise that every connector behaves identically.
 
-| Check | Current result | What it proves |
+| Check | Latest recorded result | What it proves |
 | --- | ---: | --- |
 | Coherence storm | 100 logical workers | The coordination path is exercised under concurrent contention |
 | Physical validations | 111 | The fixed storm seed and phase mix produce bounded/coalesced work in the tested runtime |
-| Joined validations | 591 | Compatible followers can share validation work under the tested scopes |
+| Joined validations | 689 | Compatible followers can share validation work under the tested scopes |
 | Stale actions accepted | 0 | The tested guard did not allow a stale action through |
 | Cross-tenant joins | 0 | The tested sharing scope kept tenants isolated |
 | Old-fence commits | 0 | The tested fencing path rejected superseded commits |

@@ -2,7 +2,7 @@
 
 This is a deterministic contract smoke for the real
 `FencedSingleFlightCoordinator` loaded from `packages/runtime-core/dist`. It
-reuses 100 logical workers through seven isolated phases and uses one
+reuses 100 logical workers through eight isolated phases and uses one
 deterministic in-memory source fixture. The same worker count is deliberate:
 the benchmark tests runtime decisions under a storm; it is not a claim that a
 machine ran 100 distributed processes.
