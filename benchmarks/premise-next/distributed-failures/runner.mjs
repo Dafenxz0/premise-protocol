@@ -31,12 +31,16 @@ function scope(prefix, name, overrides = {}) {
   return {
     tenantId: `tenant:${key}`,
     resourceId: `resource:${key}`,
+    incarnationId: `incarnation:${key}`,
     versionScheme: "premise.next.version",
     versionToken: `version:${key}:A`,
+    validatorId: `validator:${key}`,
     authorizationContextDigest: `auth:${key}:read`,
     policyDigest: `policy:${key}`,
     queryDigest: `query:${key}`,
-    frontierDigest: `frontier:${key}`,
+    scopes: ["scope:read"],
+    changeSetDigest: null,
+    causalFrontier: [`frontier:${key}`],
     ...overrides
   };
 }
