@@ -56,6 +56,18 @@ def _timestamp(value: Any, name: str) -> float:
 def _canonical(value: Any) -> str:
     """Canonical JSON for the finite JSON values accepted by the vectors."""
 
+    def validate(item: Any) -> None:
+        if isinstance(item, float) and (not math.isfinite(item) or (item == 0 and math.copysign(1.0, item) < 0)):
+            raise ValueError("non-finite or negative-zero numbers are not portable JSON")
+        if isinstance(item, Mapping):
+            for child in item.values():
+                validate(child)
+        elif isinstance(item, list):
+            for child in item:
+                validate(child)
+
+    validate(value)
+
     return json.dumps(
         value,
         sort_keys=True,
@@ -133,6 +145,16 @@ def check_negative_premise(
     try:
         requested = _negative_scope(scope)
         current_time = _timestamp(now, "now")
+        if not isinstance(observation, Mapping):
+            raise ValueError("authoritative observation is required")
+        if "entityPresent" not in observation and "frontierDigest" not in observation and "incarnationId" not in observation:
+            raise ValueError("authoritative signal is required")
+        if "entityPresent" in observation and not isinstance(observation.get("entityPresent"), bool):
+            raise ValueError("entityPresent must be boolean")
+        if "frontierDigest" in observation:
+            _required_text(observation.get("frontierDigest"), "frontierDigest")
+        if "incarnationId" in observation:
+            _required_text(observation.get("incarnationId"), "incarnationId")
     except (TypeError, ValueError):
         return _negative_result("UNKNOWN", "INVALID_SCOPE")
 
@@ -152,10 +174,12 @@ def check_negative_premise(
 
     if stored != requested:
         return _negative_result("UNKNOWN", "NOT_FOUND")
+    if current_time < observed_at:
+        return _negative_result("UNKNOWN", "INVALID_SCOPE")
     if current_time >= expires_at:
         return _negative_result("UNKNOWN", "EXPIRED")
 
-    current = observation if isinstance(observation, Mapping) else {}
+    current = observation
     # Presence of a JSON key is significant: null is not the same as an
     # omitted observation in the wire contract.
     if "incarnationId" in current and current.get("incarnationId") != stored["incarnationId"]:
@@ -178,9 +202,13 @@ def _valid_predicate(value: Any) -> bool:
     if not isinstance(value, Mapping) or value.get("operator") not in _PREDICATE_OPERATORS:
         return False
     operator = value["operator"]
+    if operator != "exists" and "value" not in value:
+        return False
     if operator == "in" and (not isinstance(value.get("value"), list) or not value["value"]):
         return False
     if operator == "exists" and "value" in value and not isinstance(value.get("value"), bool):
+        return False
+    if operator in {"gt", "gte", "lt", "lte"} and (isinstance(value.get("value"), bool) or not isinstance(value.get("value"), (int, float, str))):
         return False
     try:
         if "value" in value:
@@ -190,26 +218,13 @@ def _valid_predicate(value: Any) -> bool:
     return True
 
 
-def _object_is(left: Any, right: Any) -> bool:
-    """The JSON-relevant part of JavaScript Object.is."""
-
+def _same_value(left: Any, right: Any) -> bool:
     if left is _MISSING or right is _MISSING:
-        return left is right
-    if left is None or right is None:
-        return left is None and right is None
-    if isinstance(left, bool) or isinstance(right, bool):
-        return isinstance(left, bool) and isinstance(right, bool) and left == right
-    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-        if isinstance(left, float) and math.isnan(left) or isinstance(right, float) and math.isnan(right):
-            return False
-        if left == 0 and right == 0:
-            return math.copysign(1.0, float(left)) == math.copysign(1.0, float(right))
-        return left == right
-    if isinstance(left, str) or isinstance(right, str):
-        return isinstance(left, str) and isinstance(right, str) and left == right
-    # Object.is compares object identity, not structural equality.  Separate
-    # JSON values parsed from a vector are therefore never the same object.
-    return left is right
+        return False
+    try:
+        return _canonical(left) == _canonical(right)
+    except (TypeError, ValueError):
+        return False
 
 
 def evaluate_predicate(value: Any, predicate: Any, *, value_present: bool = True) -> bool | str:
@@ -222,12 +237,18 @@ def evaluate_predicate(value: Any, predicate: Any, *, value_present: bool = True
     expected = predicate.get("value", _MISSING)
     if operator == "exists":
         return (candidate is not _MISSING and candidate is not None) == predicate.get("value", True)
+    if candidate is _MISSING:
+        return "UNKNOWN"
+    try:
+        _canonical(candidate)
+    except (TypeError, ValueError):
+        return "UNKNOWN"
     if operator == "eq":
-        return _object_is(candidate, expected)
+        return _same_value(candidate, expected)
     if operator == "neq":
-        return not _object_is(candidate, expected)
+        return not _same_value(candidate, expected)
     if operator == "in":
-        return any(_object_is(item, candidate) for item in expected)
+        return any(_same_value(item, candidate) for item in expected)
 
     numeric = isinstance(candidate, (int, float)) and not isinstance(candidate, bool)
     expected_numeric = isinstance(expected, (int, float)) and not isinstance(expected, bool)
@@ -321,6 +342,8 @@ _RECEIPT_LIST_FIELDS = ("queryParts", "scopes", "causalFrontier")
 def _string_set(value: Any, name: str) -> set[str]:
     if not isinstance(value, list) or any(not _non_empty(item) for item in value):
         raise ValueError(f"{name} must contain non-empty strings")
+    if value != sorted(set(value)):
+        raise ValueError(f"{name} must be sorted and duplicate-free")
     return set(value)
 
 
@@ -354,7 +377,9 @@ def _receipt_scope_reason(candidate: JsonObject, required: JsonObject, requireme
         return "QUERY_INSUFFICIENT"
     if not _covers(_string_set(candidate["scopes"], "candidate.scopes"), _string_set(requirement["requiredScopes"], "requiredScopes")):
         return "SCOPE_INSUFFICIENT"
-    if not _covers(_string_set(candidate["causalFrontier"], "candidate.causalFrontier"), _string_set(requirement["requiredFrontier"], "requiredFrontier")):
+    if candidate["causalFrontier"] != required["causalFrontier"]:
+        return "FRONTIER_INSUFFICIENT"
+    if not _covers(set(required["causalFrontier"]), _string_set(requirement["requiredFrontier"], "requiredFrontier")):
         return "FRONTIER_INSUFFICIENT"
     return "MATCH"
 
@@ -368,12 +393,14 @@ def assess_receipt_subsumption(candidate: JsonObject, requirement: JsonObject) -
         _required_text(receipt.get("receiptId"), "receiptId")
         now = _timestamp(requested.get("now"), "now")
         expires_at = _timestamp(receipt.get("expiresAt"), "expiresAt")
-        _timestamp(receipt.get("observedAt"), "observedAt")
+        observed_at = _timestamp(receipt.get("observedAt"), "observedAt")
         candidate_scope = _receipt_scope(receipt.get("scope"))
         required_scope = _receipt_scope(requested.get("scope"))
         _string_set(requested.get("requiredQueryParts"), "requiredQueryParts")
         _string_set(requested.get("requiredScopes"), "requiredScopes")
         _string_set(requested.get("requiredFrontier"), "requiredFrontier")
+        if expires_at <= observed_at or observed_at > now:
+            return {"eligible": False, "reason": "INVALID"}
         if now >= expires_at:
             return {"eligible": False, "reason": "EXPIRED"}
         reason = _receipt_scope_reason(candidate_scope, required_scope, requested)

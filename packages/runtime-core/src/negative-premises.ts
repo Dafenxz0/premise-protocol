@@ -27,6 +27,12 @@ export interface NegativePremiseCheck {
   readonly reason: "ABSENT" | "NOT_FOUND" | "EXPIRED" | "FRONTIER_CHANGED" | "ENTITY_PRESENT" | "INCARNATION_CHANGED" | "INVALID_SCOPE";
 }
 
+export interface NegativePremiseObservation {
+  readonly entityPresent?: boolean;
+  readonly frontierDigest?: string;
+  readonly incarnationId?: string;
+}
+
 export interface NegativePremiseStats {
   readonly hits: number;
   readonly misses: number;
@@ -61,13 +67,30 @@ function assertScope(scope: NegativePremiseIdentity): void {
 }
 
 function canonical(value: unknown): string {
-  if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") return JSON.stringify(value);
+  if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("negative premise scope numbers must be finite");
+    return Object.is(value, -0) ? "-0" : JSON.stringify(value);
+  }
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (typeof value === "object" && value !== null) {
     const object = value as Record<string, unknown>;
     return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
   }
   throw new TypeError("negative premise scope must be JSON serializable");
+}
+
+function assertObservation(observation: NegativePremiseObservation | undefined): asserts observation is NegativePremiseObservation {
+  if (observation === undefined || observation === null || typeof observation !== "object") {
+    throw new TypeError("an authoritative negative-premise observation is required");
+  }
+  const value = observation as Record<string, unknown>;
+  if ("entityPresent" in value && typeof value.entityPresent !== "boolean") throw new TypeError("entityPresent must be boolean");
+  if ("frontierDigest" in value) required(value.frontierDigest, "frontierDigest");
+  if ("incarnationId" in value) required(value.incarnationId, "incarnationId");
+  if (!("entityPresent" in value) && !("frontierDigest" in value) && !("incarnationId" in value)) {
+    throw new TypeError("an authoritative negative-premise signal is required");
+  }
 }
 
 export function negativePremiseKey(scope: NegativePremiseIdentity): string {
@@ -134,11 +157,12 @@ export class NegativePremiseStore {
     return key;
   }
 
-  check(scope: NegativePremiseIdentity, now: string, observation: { readonly entityPresent?: boolean; readonly frontierDigest?: string; readonly incarnationId?: string } = {}): NegativePremiseCheck {
-    try { assertScope(scope); timestamp(now, "now"); } catch { this.misses += 1; return check("UNKNOWN", "INVALID_SCOPE"); }
+  check(scope: NegativePremiseIdentity, now: string, observation?: NegativePremiseObservation): NegativePremiseCheck {
+    try { assertScope(scope); timestamp(now, "now"); assertObservation(observation); } catch { this.misses += 1; return check("UNKNOWN", "INVALID_SCOPE"); }
     const key = negativePremiseKey(scope);
     const entry = this.entries.get(key);
     if (entry === undefined) { this.misses += 1; return check("UNKNOWN", "NOT_FOUND"); }
+    if (Date.parse(now) < Date.parse(entry.observedAt)) { this.misses += 1; return check("UNKNOWN", "INVALID_SCOPE"); }
     if (Date.parse(now) >= Date.parse(entry.expiresAt)) { this.remove(key); this.expirations += 1; this.misses += 1; return check("UNKNOWN", "EXPIRED"); }
     if (observation.incarnationId !== undefined && observation.incarnationId !== entry.incarnationId) {
       this.hits += 1;
@@ -162,7 +186,9 @@ export class NegativePremiseStore {
     required(scope.incarnationId, "incarnationId");
     let removed = 0;
     for (const [key, entry] of this.entries) {
-      if (entry.tenantId === scope.tenantId && entry.resource === scope.resource && entry.incarnationId === scope.incarnationId) {
+      // An appearance starts a new incarnation. Remove every prior absence for
+      // the resource so an A -> B -> A cycle cannot resurrect old knowledge.
+      if (entry.tenantId === scope.tenantId && entry.resource === scope.resource) {
         if (this.remove(key)) removed += 1;
       }
     }

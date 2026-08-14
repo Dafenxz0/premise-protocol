@@ -38,10 +38,34 @@ export interface ReceiptSubsumptionResult<T = unknown> {
 }
 
 function required(value: unknown, name: string): string { if (typeof value !== "string" || value.trim().length === 0) throw new TypeError(`${name} must be non-empty`); return value; }
-function set(values: readonly string[], name: string): Set<string> { if (!Array.isArray(values) || values.some((value) => typeof value !== "string" || value.trim().length === 0)) throw new TypeError(`${name} must contain non-empty strings`); return new Set(values); }
+function set(values: readonly string[], name: string): Set<string> {
+  if (!Array.isArray(values) || values.some((value) => typeof value !== "string" || value.trim().length === 0)) throw new TypeError(`${name} must contain non-empty strings`);
+  const result = new Set<string>();
+  let previous: string | undefined;
+  for (const value of values) {
+    if (previous !== undefined && previous >= value) throw new TypeError(`${name} must be sorted and duplicate-free`);
+    previous = value;
+    result.add(value);
+  }
+  return result;
+}
 function timestamp(value: unknown, name: string): number { const text = required(value, name); const parsed = Date.parse(text); if (Number.isNaN(parsed)) throw new TypeError(`${name} must be an ISO timestamp`); return parsed; }
 
 function covers(available: Set<string>, requiredValues: Set<string>): boolean { for (const value of requiredValues) if (!available.has(value)) return false; return true; }
+
+function validateScope(scope: ReceiptScope, name: string): void {
+  required(scope?.tenantId, `${name}.tenantId`);
+  required(scope?.resourceId, `${name}.resourceId`);
+  required(scope?.incarnationId, `${name}.incarnationId`);
+  required(scope?.versionToken, `${name}.versionToken`);
+  required(scope?.validatorId, `${name}.validatorId`);
+  required(scope?.authorizationContextDigest, `${name}.authorizationContextDigest`);
+  required(scope?.policyDigest, `${name}.policyDigest`);
+  required(scope?.queryFamily, `${name}.queryFamily`);
+  set(scope.queryParts, `${name}.queryParts`);
+  set(scope.scopes, `${name}.scopes`);
+  set(scope.causalFrontier, `${name}.causalFrontier`);
+}
 
 function scopeReason(candidate: ReceiptScope, requiredScope: ReceiptScope, requirement: ReceiptRequirement): ReceiptSubsumptionReason {
   if (candidate.tenantId !== requiredScope.tenantId) return "TENANT_MISMATCH";
@@ -54,16 +78,26 @@ function scopeReason(candidate: ReceiptScope, requiredScope: ReceiptScope, requi
   if (candidate.queryFamily !== requiredScope.queryFamily) return "QUERY_FAMILY_MISMATCH";
   if (!covers(set(candidate.queryParts, "candidate.queryParts"), set(requirement.requiredQueryParts, "requiredQueryParts"))) return "QUERY_INSUFFICIENT";
   if (!covers(set(candidate.scopes, "candidate.scopes"), set(requirement.requiredScopes, "requiredScopes"))) return "SCOPE_INSUFFICIENT";
-  if (!covers(set(candidate.causalFrontier, "candidate.causalFrontier"), set(requirement.requiredFrontier, "requiredFrontier"))) return "FRONTIER_INSUFFICIENT";
+  // Causal frontiers are not opaque sets: without a connector-supplied vector
+  // comparator, exact equality is the only portable safe compatibility rule.
+  if (candidate.causalFrontier.join("\u0000") !== requiredScope.causalFrontier.join("\u0000")) return "FRONTIER_INSUFFICIENT";
+  if (!covers(new Set(requiredScope.causalFrontier), set(requirement.requiredFrontier, "requiredFrontier"))) return "FRONTIER_INSUFFICIENT";
   return "MATCH";
 }
 
 export function assessReceiptSubsumption<T>(candidate: ReceiptCandidate<T>, requirement: ReceiptRequirement): ReceiptSubsumptionResult<T> {
   try {
     required(candidate.receiptId, "receiptId");
+    validateScope(candidate.scope, "candidate.scope");
+    validateScope(requirement.scope, "requirement.scope");
     const now = timestamp(requirement.now, "now");
-    if (now >= timestamp(candidate.expiresAt, "expiresAt")) return { eligible: false, reason: "EXPIRED" };
-    timestamp(candidate.observedAt, "observedAt");
+    const observedAt = timestamp(candidate.observedAt, "observedAt");
+    const expiresAt = timestamp(candidate.expiresAt, "expiresAt");
+    if (expiresAt <= observedAt || observedAt > now) return { eligible: false, reason: "INVALID" };
+    if (now >= expiresAt) return { eligible: false, reason: "EXPIRED" };
+    set(requirement.requiredQueryParts, "requiredQueryParts");
+    set(requirement.requiredScopes, "requiredScopes");
+    set(requirement.requiredFrontier, "requiredFrontier");
     const reason = scopeReason(candidate.scope, requirement.scope, requirement);
     return reason === "MATCH" ? { eligible: true, reason, receipt: candidate } : { eligible: false, reason };
   } catch {
@@ -75,6 +109,11 @@ export function selectSubsumingReceipt<T>(candidates: readonly ReceiptCandidate<
   const eligible = candidates
     .map((candidate) => assessReceiptSubsumption(candidate, requirement))
     .filter((result): result is ReceiptSubsumptionResult<T> & { readonly receipt: ReceiptCandidate<T> } => result.eligible && result.receipt !== undefined)
-    .sort((left, right) => left.receipt.receiptId.localeCompare(right.receipt.receiptId));
+    .sort((left, right) => {
+      const observed = Date.parse(right.receipt.observedAt) - Date.parse(left.receipt.observedAt);
+      if (observed !== 0) return observed;
+      const expiry = Date.parse(right.receipt.expiresAt) - Date.parse(left.receipt.expiresAt);
+      return expiry !== 0 ? expiry : left.receipt.receiptId.localeCompare(right.receipt.receiptId);
+    });
   return eligible[0] ?? { eligible: false, reason: "INVALID" };
 }

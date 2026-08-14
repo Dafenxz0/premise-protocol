@@ -24,5 +24,6 @@
     "authorizationContextDigest": "auth:a"
   },
   "now": "2026-01-01T00:30:00Z",
+  "observation": { "entityPresent": false, "frontierDigest": "frontier:1", "incarnationId": "inc:1" },
   "expected": { "state": "ABSENT", "decision": "USE", "reason": "ABSENT" }
 }

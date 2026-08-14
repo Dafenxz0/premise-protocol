@@ -26,9 +26,16 @@ function required(value: unknown, name: string): string {
 }
 
 function canonical(value: unknown): string {
-  if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") return JSON.stringify(value);
+  if (value === undefined) throw new TypeError("predicate values must be JSON serializable");
+  if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("predicate numbers must be finite");
+    return Object.is(value, -0) ? "-0" : JSON.stringify(value);
+  }
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (typeof value === "object" && value !== null) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new TypeError("predicate values must be plain JSON objects");
     const object = value as Record<string, unknown>;
     return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
   }
@@ -37,9 +44,20 @@ function canonical(value: unknown): string {
 
 function validPredicate(predicate: Predicate): void {
   if (predicate === undefined || typeof predicate !== "object" || !["eq", "neq", "gt", "gte", "lt", "lte", "in", "exists"].includes(predicate.operator)) throw new TypeError("unsupported predicate operator");
+  const hasValue = Object.prototype.hasOwnProperty.call(predicate, "value");
+  if (predicate.operator === "exists") {
+    if (hasValue && typeof predicate.value !== "boolean") throw new TypeError("exists predicate value must be boolean");
+    return;
+  }
+  if (!hasValue || predicate.value === undefined) throw new TypeError("predicate value is required");
   if (predicate.operator === "in" && (!Array.isArray(predicate.value) || predicate.value.length === 0)) throw new TypeError("in predicate requires a non-empty array");
-  if (predicate.operator === "exists" && predicate.value !== undefined && typeof predicate.value !== "boolean") throw new TypeError("exists predicate value must be boolean");
+  if (["gt", "gte", "lt", "lte"].includes(predicate.operator)
+    && typeof predicate.value !== "number" && typeof predicate.value !== "string") throw new TypeError("ordered predicate values must be numbers or strings");
   canonical(predicate.value);
+}
+
+function sameValue(left: unknown, right: unknown): boolean {
+  try { return canonical(left) === canonical(right); } catch { return false; }
 }
 
 export function predicateSemanticFingerprint(input: Omit<PredicateDependency, "specVersion" | "semanticFingerprint">): string {
@@ -65,12 +83,17 @@ export function createPredicateDependency(input: Omit<PredicateDependency, "spec
 
 export function evaluatePredicate(value: unknown, predicate: Predicate): PredicateEvaluation {
   try { validPredicate(predicate); } catch { return "UNKNOWN"; }
+  if (predicate.operator !== "exists") {
+    if (value === undefined) return "UNKNOWN";
+    try { canonical(value); } catch { return "UNKNOWN"; }
+  }
   switch (predicate.operator) {
     case "exists": return (value !== undefined && value !== null) === (predicate.value ?? true);
-    case "eq": return Object.is(value, predicate.value);
-    case "neq": return !Object.is(value, predicate.value);
-    case "in": return (predicate.value as readonly unknown[]).some((candidate) => Object.is(candidate, value));
+    case "eq": return sameValue(value, predicate.value);
+    case "neq": return !sameValue(value, predicate.value);
+    case "in": return (predicate.value as readonly unknown[]).some((candidate) => sameValue(candidate, value));
     case "gt": case "gte": case "lt": case "lte": {
+      if (typeof value === "number" && !Number.isFinite(value)) return "UNKNOWN";
       if ((typeof value !== "number" && typeof value !== "string") || (typeof predicate.value !== typeof value)) return "UNKNOWN";
       if (predicate.operator === "gt") return value > (predicate.value as typeof value);
       if (predicate.operator === "gte") return value >= (predicate.value as typeof value);
@@ -82,9 +105,14 @@ export function evaluatePredicate(value: unknown, predicate: Predicate): Predica
 
 /** Classifies a version change without assuming that every version change invalidates every claim. */
 export function classifyPredicateChange(dependency: PredicateDependency, previousValue: unknown, currentValue: unknown): PredicateChange {
-  if (dependency.semanticFingerprint !== predicateSemanticFingerprint(dependency)) return "UNKNOWN";
-  const previous = evaluatePredicate(previousValue, dependency.predicate);
-  if (previous !== true) return "UNKNOWN";
-  const current = evaluatePredicate(currentValue, dependency.predicate);
-  return current === true ? "PRESERVED" : current === false ? "INVALIDATED" : "UNKNOWN";
+  try {
+    if (dependency.specVersion !== PREDICATE_DEPENDENCY_SPEC_VERSION) return "UNKNOWN";
+    if (dependency.semanticFingerprint !== predicateSemanticFingerprint(dependency)) return "UNKNOWN";
+    const previous = evaluatePredicate(previousValue, dependency.predicate);
+    if (previous !== true) return "UNKNOWN";
+    const current = evaluatePredicate(currentValue, dependency.predicate);
+    return current === true ? "PRESERVED" : current === false ? "INVALIDATED" : "UNKNOWN";
+  } catch {
+    return "UNKNOWN";
+  }
 }
