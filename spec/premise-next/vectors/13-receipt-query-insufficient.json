@@ -14,7 +14,7 @@
       "policyDigest": "policy:write",
       "queryFamily": "inventory",
       "queryParts": ["sku"],
-      "scopes": ["/stock", "/sku"],
+      "scopes": ["/sku", "/stock"],
       "causalFrontier": ["event:1"]
     },
     "observedAt": "2026-01-01T00:00:00Z",

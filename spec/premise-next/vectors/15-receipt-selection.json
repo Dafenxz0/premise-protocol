@@ -14,8 +14,8 @@
         "authorizationContextDigest": "auth:a",
         "policyDigest": "policy:write",
         "queryFamily": "inventory",
-        "queryParts": ["stock", "sku"],
-        "scopes": ["/stock", "/sku"],
+        "queryParts": ["sku", "stock"],
+        "scopes": ["/sku", "/stock"],
         "causalFrontier": ["event:1", "event:2"]
       },
       "observedAt": "2026-01-01T00:00:00Z",
@@ -33,8 +33,8 @@
         "authorizationContextDigest": "auth:a",
         "policyDigest": "policy:write",
         "queryFamily": "inventory",
-        "queryParts": ["stock", "sku"],
-        "scopes": ["/stock", "/sku"],
+        "queryParts": ["sku", "stock"],
+        "scopes": ["/sku", "/stock"],
         "causalFrontier": ["event:1", "event:2"]
       },
       "observedAt": "2026-01-01T00:00:00Z",
@@ -54,7 +54,7 @@
       "queryFamily": "inventory",
       "queryParts": ["stock"],
       "scopes": ["/stock"],
-      "causalFrontier": ["event:1"]
+      "causalFrontier": ["event:1", "event:2"]
     },
     "requiredQueryParts": ["stock"],
     "requiredScopes": ["/stock"],

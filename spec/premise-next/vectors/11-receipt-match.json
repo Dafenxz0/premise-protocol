@@ -13,8 +13,8 @@
       "authorizationContextDigest": "auth:a",
       "policyDigest": "policy:write",
       "queryFamily": "inventory",
-      "queryParts": ["stock", "sku", "warehouse"],
-      "scopes": ["/stock", "/sku", "/warehouse"],
+      "queryParts": ["sku", "stock", "warehouse"],
+      "scopes": ["/sku", "/stock", "/warehouse"],
       "causalFrontier": ["event:1", "event:2"]
     },
     "observedAt": "2026-01-01T00:00:00Z",
@@ -33,7 +33,7 @@
       "queryFamily": "inventory",
       "queryParts": ["stock"],
       "scopes": ["/stock"],
-      "causalFrontier": ["event:1"]
+      "causalFrontier": ["event:1", "event:2"]
     },
     "requiredQueryParts": ["stock"],
     "requiredScopes": ["/stock"],

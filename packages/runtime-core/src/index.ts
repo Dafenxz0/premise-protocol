@@ -42,6 +42,9 @@ export * from "./explainability.js";
 export * from "./validation-lease.js";
 export * from "./fenced-single-flight.js";
 export * from "./guarded-tools.js";
+export * from "./negative-premises.js";
+export * from "./predicate-dependencies.js";
+export * from "./receipt-subsumption.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;
