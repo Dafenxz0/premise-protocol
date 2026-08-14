@@ -15,7 +15,7 @@ try {
 }
 
 const { Pool } = pg;
-const { PostgresRuntimeStore, PostgresSignatureReplayStore, PostgresValidationLeaseStore } = await import("../dist/index.js");
+const { PostgresRuntimeStore, PostgresSignatureReplayStore, PostgresValidationFlightStore, PostgresValidationLeaseStore } = await import("../dist/index.js");
 const pool = new Pool({ connectionString: url });
 const prefix = `premise_v2_ci_${process.pid}`;
 const at = new Date().toISOString();
@@ -84,6 +84,39 @@ try {
   assert.equal(replacement.lease.fencingToken > acquiredLease.fencingToken, true);
   const otherTenant = await leaseStore.acquire({ ...leaseContender, tenantId: "tenant:other" }, 1_000);
   assert.equal(otherTenant.kind, "ACQUIRED");
+  const flightStore = new PostgresValidationFlightStore(adapter, {
+    tableName: `${prefix}_validation_flights`,
+    defaultLeaseMs: 100,
+    completedRetentionMs: 100
+  });
+  await flightStore.initialize();
+  const flightScope = {
+    tenantId: "tenant:ci",
+    resourceId: "github:integration/repo#main",
+    versionScheme: "github.commit",
+    versionToken: "commit:ci",
+    authorizationContextDigest: "auth:ci",
+    policyDigest: "policy:ci",
+    queryDigest: "query:ci",
+    frontierDigest: "frontier:ci"
+  };
+  const [flightFirst, flightSecond] = await Promise.all([
+    flightStore.claim(flightScope, "agent:one", "flight:one", 1_000),
+    flightStore.claim(flightScope, "agent:two", "flight:two", 1_000)
+  ]);
+  assert.deepEqual([flightFirst.kind, flightSecond.kind].sort(), ["FOLLOWER", "LEADER"]);
+  const flightLeader = flightFirst.kind === "LEADER" ? flightFirst : flightSecond;
+  const flightLeaderIdentity = flightFirst.kind === "LEADER"
+    ? { owner: "agent:one", flightId: "flight:one" }
+    : { owner: "agent:two", flightId: "flight:two" };
+  assert.deepEqual(await flightStore.complete(flightScope, flightLeaderIdentity.owner, flightLeaderIdentity.flightId, flightLeader.fencingToken, { answer: 42 }, 1_050, 100), { kind: "COMPLETED" });
+  assert.deepEqual(await flightStore.claim(flightScope, "agent:three", "flight:three", 1_060), { kind: "COMPLETED", fencingToken: flightLeader.fencingToken, receipt: { answer: 42 } });
+  const takeover = await flightStore.claim(flightScope, "agent:four", "flight:four", 1_151);
+  assert.equal(takeover.kind, "LEADER");
+  assert.equal(takeover.fencingToken > flightLeader.fencingToken, true);
+  assert.deepEqual(await flightStore.complete(flightScope, flightLeaderIdentity.owner, flightLeaderIdentity.flightId, flightLeader.fencingToken, { answer: 41 }, 1_152, 100), { kind: "REJECTED", reason: "FENCED" });
+  assert.deepEqual(await flightStore.complete(flightScope, "agent:four", "flight:four", takeover.fencingToken, { answer: 42 }, 1_152, 100), { kind: "COMPLETED" });
+  assert.deepEqual(await flightStore.read(flightScope, 1_153), { kind: "COMPLETED", fencingToken: takeover.fencingToken, receipt: { answer: 42 } });
   const signatureReplay = new PostgresSignatureReplayStore(adapter, { tablePrefix: prefix, tenantId: "tenant:ci" });
   await signatureReplay.initialize();
   const signatureClaim = { key: "signature:integration", tenantId: "tenant:ci", signatureId: "sig:integration", keyId: "key:integration", signedAt: at, acceptedAt: at, expiresAt: new Date(Date.parse(at) + 60_000).toISOString() };
@@ -123,7 +156,7 @@ try {
 } finally {
   const client = await pool.connect();
   try {
-  await client.query(`DROP TABLE IF EXISTS "${prefix}_validation_leases", "${prefix}_signature_replays", "${prefix}_http_idempotency", "${prefix}_replay_checkpoints", "${prefix}_snapshots", "${prefix}_events", "${prefix}_records", "${prefix}_schema_migrations"`);
+  await client.query(`DROP TABLE IF EXISTS "${prefix}_validation_flights", "${prefix}_validation_leases", "${prefix}_signature_replays", "${prefix}_http_idempotency", "${prefix}_replay_checkpoints", "${prefix}_snapshots", "${prefix}_events", "${prefix}_records", "${prefix}_schema_migrations"`);
   } finally {
     client.release();
   }

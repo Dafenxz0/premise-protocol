@@ -63,6 +63,39 @@ esas credenciales queda explícitamente como `skipped`.
 
 `transaction` debe fijar todas las queries en el mismo cliente. Es importante con `Pool`: el fallback `BEGIN`/`COMMIT` del paquete solo es correcto cuando el `query` inyectado ya representa una sesión fijada, no un pool que elige una conexión distinta por llamada.
 
+## Vuelos de validación distribuidos
+
+`PostgresValidationFlightStore` coordina una validación completa para un mismo
+scope entre procesos. El primer proceso obtiene `LEADER`, los demás reciben
+`FOLLOWER`, y una finalización válida guarda un recibo que los siguientes
+participantes pueden reutilizar como `COMPLETED`. Si el lease caduca, el
+takeover incrementa el fencing token; el líder antiguo no puede completar la
+operación después de perderlo.
+
+El scope incluye tenant, recurso, versión, autorización, política, consulta y
+frontier causal. Su digest es la clave única de la fila, por lo que no se
+comparten resultados entre scopes distintos. La tabla usa RLS forzado y cada
+transacción fija el contexto del tenant.
+
+```ts
+import { PostgresValidationFlightStore } from "@premise/store-postgres";
+
+const flights = new PostgresValidationFlightStore(adapter, {
+  tableName: "premise_validation_flights"
+});
+await flights.initialize();
+
+const claim = await flights.claim(scope, "worker:one", "flight:123", Date.now());
+if (claim.kind === "LEADER") {
+  const receipt = await validateOnce(scope);
+  await flights.complete(scope, "worker:one", "flight:123", claim.fencingToken, receipt, Date.now());
+}
+```
+
+La API es asíncrona y requiere el mismo adaptador transaccional fijado que las
+leases. El adaptador implementa la coordinación durable y el fencing; todavía
+no constituye por sí solo una prueba de capacidad de producción a gran escala.
+
 ## Migraciones y aislamiento
 
 Las migraciones v2 están versionadas en [`migrations/`](./migrations):
