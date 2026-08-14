@@ -26,7 +26,8 @@ fencing.
 | Phase | What it exercises | Expected shape |
 | --- | --- | --- |
 | `exact-coalescing` | 100 callers with the same complete validation scope | 1 physical validation, 99 joins |
-| `authorization-scopes` | The same evidence requested with read and write scopes | 2 physical validations, no cross-scope join |
+| `authorization-scopes` | The same resource version requested with different query, authorization and policy scopes | 2 physical validations, no cross-scope join, both remain valid |
+| `version-supersession` | An A@incarnation-1 validation overlaps a B@incarnation-2 validation | old A is `UNKNOWN/FENCED`; current B is valid |
 | `100-tenants-same-resource` | 100 tenants address the same resource identifier | 100 isolated validations, no cross-tenant share |
 | `timeout-via-coordinator` | The real coordinator timeout fires while the source read is blocked | all 100 callers receive `UNKNOWN`; no implicit retry |
 | `abort-signal-during-flight` | The shared caller signal aborts while the source read is blocked | all 100 callers receive `UNKNOWN/ABORTED` |
@@ -39,6 +40,9 @@ fencing.
 - `joins`: callers receiving the exact same promise from the real coordinator,
   measured by promise identity in the benchmark (not a second coalescer).
 - `crossTenantShares` / `crossScopeShares`: forbidden joins; both must be zero.
+- `fencingTokens`: the resource-version generation tokens observed by each
+  contention phase. Different validation scopes for one version intentionally
+  share a token; a new version receives a new token.
 - `staleOutcomes` / `unknownOutcomes`: logical worker outcomes, including
   coalesced followers.
 - `sideEffectAttempts`: conditional action attempts made by the scenario;
@@ -48,7 +52,11 @@ fencing.
 - `elapsedMs`: deterministic virtual elapsed time used for comparing runs.
 
 The runner fails closed if any of the three public safety assertions fails:
-no cross-tenant sharing, no stale accepted, and no old-fence commit.
+no cross-tenant sharing, no stale accepted, and no old-fence commit. The
+`authorization-scopes` phase additionally asserts that different query,
+authorization and policy scopes do not fence one another. The
+`version-supersession` phase asserts the opposite boundary: a new incarnation
+and version fences the older in-flight validation.
 
 ## Deliberate smoke boundary
 

@@ -11,9 +11,14 @@ It does four things:
    scheme/token, validator, authorization, policy, query, scopes, change set
    and causal frontier. Legacy requests without that complete scope remain
    callable but are isolated rather than assigned a partial sharing key.
-2. Gives every new flight a monotonic fencing token. A result from an older
-   flight, or a source result that echoes the wrong token, becomes
-   `UNKNOWN/FENCED` and cannot be used.
+2. Assigns one monotonic fencing token to each resource-version generation.
+   Complete scopes with the same tenant, resource, incarnation and
+   version scheme/token keep that token even when their query, authorization
+   or policy differs; those dimensions select different work but do not prove
+   a resource change. A new incarnation or version advances the token. A
+   result from an older generation, or a source result that echoes the wrong
+   token, becomes `UNKNOWN/FENCED` and cannot be used. Legacy isolated calls
+   retain their conservative historical behavior.
 3. Keeps tenant scopes separate. A promise is never shared across tenants,
    even when the resource and expected version are identical.
 4. Converts timeout and abort into `UNKNOWN` without retrying the source.

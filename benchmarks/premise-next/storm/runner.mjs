@@ -43,7 +43,7 @@ function expectedVersion(scope) {
   return { scheme: scope.versionScheme, token: scope.versionToken };
 }
 
-function scopeFor({ tenantId, resource, label = "A", incarnation = 1, authorizationScope = "scope:write", suffix }) {
+function scopeFor({ tenantId, resource, label = "A", incarnation = 1, authorizationScope = "scope:write", policy = "policy:storm:v1", suffix }) {
   const versionReference = version(label, incarnation);
   return {
     tenantId,
@@ -53,7 +53,7 @@ function scopeFor({ tenantId, resource, label = "A", incarnation = 1, authorizat
     versionToken: versionReference.token,
     validatorId: VALIDATOR_ID,
     authorizationContextDigest: `auth:${authorizationScope}`,
-    policyDigest: "policy:storm:v1",
+    policyDigest: policy,
     queryDigest: `query:${suffix ?? resource}`,
     scopes: [authorizationScope],
     changeSetDigest: null,
@@ -395,8 +395,8 @@ async function authorizationScopes(campaign) {
   source.seed({ tenantId, resource });
   const coordinator = coordinatorFor(source);
   const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
-  const readScope = scopeFor({ tenantId, resource, authorizationScope: "scope:read", suffix: "scopes" });
-  const writeScope = scopeFor({ tenantId, resource, authorizationScope: "scope:write", suffix: "scopes" });
+  const readScope = scopeFor({ tenantId, resource, authorizationScope: "scope:read", policy: "policy:read", suffix: "scopes-read" });
+  const writeScope = scopeFor({ tenantId, resource, authorizationScope: "scope:write", policy: "policy:write", suffix: "scopes-write" });
   const readRequest = request(readScope);
   const writeRequest = request(writeScope);
   const readGate = source.blockNext(readScope);
@@ -414,7 +414,48 @@ async function authorizationScopes(campaign) {
   const outcomeCounts = campaign.recordOutcomes(outcomes);
   actions.attempt({ request: readRequest, outcome: outcomes[0] });
   actions.attempt({ request: writeRequest, outcome: outcomes.at(-1) });
-  return { outcomeCounts, authorizationScopes: ["scope:read", "scope:write"], crossScopeFlightsAreFenced: true };
+  return {
+    outcomeCounts,
+    authorizationScopes: ["scope:read", "scope:write"],
+    sharing: "distinct-complete-scopes",
+    supersession: "same-resource-version",
+    crossScopeFlightsAreFenced: false,
+    fencingTokens: [outcomes[0].fencingToken, outcomes.at(-1).fencingToken]
+  };
+}
+
+async function versionSupersession(campaign) {
+  const { tenantId, resource } = makeFixture(campaign.seed, "version");
+  const source = new PremiseFixtureSource(campaign.clock, campaign.metrics);
+  source.seed({ tenantId, resource });
+  const coordinator = coordinatorFor(source);
+  const actions = new SideEffectGate(source, campaign.clock, campaign.metrics);
+  const oldRequest = request(scopeFor({ tenantId, resource, label: "A", incarnation: 1, suffix: "version" }));
+  const newRequest = request(scopeFor({ tenantId, resource, label: "B", incarnation: 2, suffix: "version" }));
+  const oldGate = source.blockNext(oldRequest.scope);
+  const newGate = source.blockNext(newRequest.scope);
+  const oldPromises = Array.from({ length: campaign.workers / 2 }, () => coordinator.validate(oldRequest));
+  campaign.observeCalls(oldPromises.map(() => oldRequest), oldPromises);
+  await flush();
+  source.mutate({ tenantId, resource, label: "B" });
+  const newPromises = Array.from({ length: campaign.workers / 2 }, () => coordinator.validate(newRequest));
+  campaign.observeCalls(newPromises.map(() => newRequest), newPromises);
+  await flush();
+  oldGate.resolve();
+  newGate.resolve();
+  const oldOutcomes = await Promise.all(oldPromises);
+  const newOutcomes = await Promise.all(newPromises);
+  const outcomes = [...oldOutcomes, ...newOutcomes];
+  const outcomeCounts = campaign.recordOutcomes(outcomes);
+  actions.attempt({ request: oldRequest, outcome: oldOutcomes[0] });
+  actions.attempt({ request: newRequest, outcome: newOutcomes[0] });
+  return {
+    outcomeCounts,
+    supersession: "new-incarnation-and-version",
+    oldOutcome: oldOutcomes[0].reason ?? oldOutcomes[0].result,
+    currentOutcome: newOutcomes[0].result,
+    fencingTokens: [oldOutcomes[0].fencingToken, newOutcomes[0].fencingToken]
+  };
 }
 
 async function tenants(campaign) {
@@ -562,6 +603,7 @@ export async function runCoherenceStorm(options = {}) {
   const campaign = new Campaign(seed, workers);
   await campaign.phase("exact-coalescing", () => exactCoalescing(campaign));
   await campaign.phase("authorization-scopes", () => authorizationScopes(campaign));
+  await campaign.phase("version-supersession", () => versionSupersession(campaign));
   await campaign.phase("100-tenants-same-resource", () => tenants(campaign));
   await campaign.phase("timeout-via-coordinator", () => leaderTimeout(campaign));
   await campaign.phase("abort-signal-during-flight", () => abortDuringFlight(campaign));

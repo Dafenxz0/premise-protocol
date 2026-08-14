@@ -4,8 +4,10 @@ import {
   FencedSingleFlightCoordinator,
   RuntimeReceiptCache,
   canonicalPremiseValidationScope,
+  canonicalPremiseValidationSupersessionScope,
   premiseReceiptSharingKey,
-  premiseValidationScopeKey
+  premiseValidationScopeKey,
+  premiseValidationSupersessionKey
 } from "../dist/index.js";
 
 const at = "2026-08-14T10:00:00.000Z";
@@ -59,6 +61,30 @@ test("incarnation identity rejects ABA reuse of a version token", () => {
   const cache = new RuntimeReceiptCache({ maxEntries: 4 });
   cache.put({ scope: oldScope, state: "FRESH", valid: true, observedAt: at, expiresAt: "2026-08-14T10:01:00.000Z", value: "old" });
   assert.equal(cache.get(newScope, at).status, "MISS");
+});
+
+test("supersession identity excludes validation-only dimensions", () => {
+  const base = scope();
+  const queryAuthPolicy = scope({
+    validatorId: "validator:other",
+    authorizationContextDigest: "auth:writer",
+    policyDigest: "policy:strict",
+    queryDigest: "query:status",
+    scopes: ["write:merge"],
+    changeSetDigest: "changes:1",
+    causalFrontier: ["event:99"]
+  });
+
+  assert.equal(canonicalPremiseValidationSupersessionScope(base), canonicalPremiseValidationSupersessionScope(queryAuthPolicy));
+  assert.equal(premiseValidationSupersessionKey(base), premiseValidationSupersessionKey(queryAuthPolicy));
+  assert.notEqual(
+    premiseValidationSupersessionKey(base),
+    premiseValidationSupersessionKey(scope({ versionToken: "commit:b" }))
+  );
+  assert.notEqual(
+    premiseValidationSupersessionKey(base),
+    premiseValidationSupersessionKey(scope({ incarnationId: "incarnation:2" }))
+  );
 });
 
 test("fenced flights coalesce only complete identical scopes", async () => {
