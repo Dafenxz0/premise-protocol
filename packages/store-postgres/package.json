@@ -17,6 +17,6 @@
   "files": ["dist", "migrations", "README.md"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node test/store.test.mjs && node test/runtime.test.mjs && node test/validation-lease.test.mjs && node test/postgres.integration.test.mjs"
+    "test": "pnpm build && node test/store.test.mjs && node test/runtime.test.mjs && node test/validation-lease.test.mjs && node test/validation-flight.test.mjs && node test/postgres.integration.test.mjs"
   }
 }

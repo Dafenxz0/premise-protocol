@@ -1316,3 +1316,4 @@ export function openPostgresRuntimeStore<T = unknown>(client: PostgresAdapter, o
 
 export * from "./persistent.js";
 export * from "./validation-lease.js";
+export * from "./validation-flight.js";
