@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGuardedTool } from "../dist/index.js";
+import { BoundedGuardedToolIdempotencyStore, createGuardedTool } from "../dist/index.js";
 
 const resource = { tenantId: "tenant:acme", resource: "github://acme/repo/pull/42" };
 const v1 = { scheme: "github.commit", token: "a1" };
@@ -113,4 +113,32 @@ test("callback failures and forged phase values cannot open a mutation path", as
   assert.equal((await tool.revalidate(unknown)).ready, false);
   assert.equal((await tool.act({ ready: true, ...resource, version: v1 }, "forged", "idem:forged")).accepted, false);
   assert.equal(acts, 0);
+});
+
+test("bounded idempotency never evicts accepted side effects", async () => {
+  const store = new BoundedGuardedToolIdempotencyStore({ maxEntries: 1 });
+  const first = store.claim("tenant:acme\\u0000one", "fingerprint:one");
+  assert.deepEqual(first, { kind: "NEW" });
+  store.complete("tenant:acme\\u0000one", "fingerprint:one", { accepted: true, outcome: "APPLIED", tenantId: "tenant:acme", resource: "resource:one", result: "done" });
+  assert.deepEqual(store.claim("tenant:acme\\u0000one", "fingerprint:one"), {
+    kind: "COMPLETED", result: { accepted: true, outcome: "APPLIED", tenantId: "tenant:acme", resource: "resource:one", result: "done" }
+  });
+  assert.deepEqual(store.claim("tenant:acme\\u0000two", "fingerprint:two"), { kind: "FULL" });
+});
+
+test("GuardedTool reports retention exhaustion instead of forgetting replay history", async () => {
+  let acts = 0;
+  const tool = createGuardedTool({
+    idempotencyStore: new BoundedGuardedToolIdempotencyStore({ maxEntries: 1 }),
+    callbacks: freshCallbacks({ act: async (input) => { acts += 1; return { ...input, outcome: "APPLIED", result: acts }; } })
+  });
+  const ready = await tool.revalidate(await tool.check(resource));
+  assert.equal((await tool.act(ready, "one", "idem:one")).accepted, true);
+  assert.deepEqual(await tool.act(ready, "two", "idem:two"), {
+    accepted: false, outcome: "REJECTED", ...resource, expectedVersion: v1, reason: "IDEMPOTENCY_RETENTION_FULL"
+  });
+  assert.equal(acts, 1);
+  assert.deepEqual(await tool.act(ready, "one", "idem:one"), {
+    accepted: true, outcome: "APPLIED", ...resource, expectedVersion: v1, result: 1
+  });
 });
