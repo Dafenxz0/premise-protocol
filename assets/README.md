@@ -5,6 +5,7 @@ Estos recursos se usan en el README para explicar el proyecto sin obligar a cono
 | Archivo | Uso | Tipo |
 | --- | --- | --- |
 | `premise-logo.jpg` | Cabecera y presentación de la marca | Imagen de marca proporcionada |
+| `premise-readme-hero.png` | Banner principal del README; fuentes, validación y acción guardada | Asset generado para el proyecto |
 | `premise-overview.jpg` | Vista general del producto y su flujo | Imagen de overview proporcionada |
 | `premise-validity-architecture.png` | Ilustración detallada de dependencias, validación y bloqueo | Asset generado para el proyecto |
 
