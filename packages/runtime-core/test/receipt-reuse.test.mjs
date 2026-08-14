@@ -34,6 +34,7 @@ function scopeFactory(authorizationContextDigest = "auth:reader") {
     tenantId: record.envelope.tenantId,
     resourceId: item.sourceUri,
     incarnationId: `inc:${item.evidenceId}`,
+    versionScheme: item.version.scheme,
     versionToken: `${item.version.scheme}:${item.version.token}`,
     scopes: ["read:/head"],
     queryDigest: "query:headline",

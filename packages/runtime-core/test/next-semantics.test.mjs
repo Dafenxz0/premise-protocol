@@ -39,7 +39,7 @@ test("predicate dependency preserves a claim across irrelevant version changes",
   assert.equal(classifyPredicateChange({ ...dependency, semanticFingerprint: "sha256:tampered" }, 100, 99), "UNKNOWN");
 });
 
-const receiptScope = (extra = {}) => ({ tenantId: "t", resourceId: "r", incarnationId: "i", versionToken: "v", validatorId: "val", authorizationContextDigest: "auth", policyDigest: "policy", queryFamily: "inventory", queryParts: ["sku", "stock"], scopes: ["/sku", "/stock"], causalFrontier: ["e1", "e2"], ...extra });
+const receiptScope = (extra = {}) => ({ tenantId: "t", resourceId: "r", incarnationId: "i", versionScheme: "etag", versionToken: "v", validatorId: "val", authorizationContextDigest: "auth", policyDigest: "policy", changeSetDigest: null, queryFamily: "inventory", queryParts: ["sku", "stock"], scopes: ["/sku", "/stock"], causalFrontier: ["e1", "e2"], ...extra });
 const receipt = (extra = {}) => ({ receiptId: "z", scope: receiptScope(), observedAt: "2026-01-01T00:00:00Z", expiresAt: "2026-01-01T01:00:00Z", value: { ok: true }, ...extra });
 const requirement = (extra = {}) => ({ scope: receiptScope(), requiredQueryParts: ["stock"], requiredScopes: ["/stock"], requiredFrontier: ["e1"], now: "2026-01-01T00:10:00Z", ...extra });
 
@@ -47,6 +47,8 @@ test("receipt subsumption requires exact safety scope and only relaxes query cov
   assert.equal(assessReceiptSubsumption(receipt(), requirement()).eligible, true);
   assert.equal(assessReceiptSubsumption(receipt({ scope: receiptScope({ tenantId: "other" }) }), requirement()).reason, "TENANT_MISMATCH");
   assert.equal(assessReceiptSubsumption(receipt({ scope: receiptScope({ versionToken: "old" }) }), requirement()).reason, "VERSION_MISMATCH");
+  assert.equal(assessReceiptSubsumption(receipt({ scope: receiptScope({ versionScheme: "commit" }) }), requirement()).reason, "VERSION_SCHEME_MISMATCH");
+  assert.equal(assessReceiptSubsumption(receipt({ scope: receiptScope({ changeSetDigest: "changes:1" }) }), requirement()).reason, "CHANGE_SET_MISMATCH");
   assert.equal(assessReceiptSubsumption(receipt({ scope: receiptScope({ queryParts: ["sku"] }) }), requirement()).reason, "QUERY_INSUFFICIENT");
   assert.equal(selectSubsumingReceipt([receipt({ receiptId: "b" }), receipt({ receiptId: "a" })], requirement()).receipt?.receiptId, "a");
   assert.equal(assessReceiptSubsumption(receipt({ observedAt: "2026-01-01T02:00:00Z", expiresAt: "2026-01-01T03:00:00Z" }), requirement()).reason, "INVALID");

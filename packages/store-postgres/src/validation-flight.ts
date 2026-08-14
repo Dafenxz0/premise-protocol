@@ -1,17 +1,13 @@
-import { createHash } from "node:crypto";
+import {
+  normalizePremiseValidationScope,
+  premiseValidationScopeKey,
+  type PremiseValidationScope
+} from "@premise/runtime-core";
 import type { PostgresAdapter } from "./driver.js";
 import { identifier, json, jsonValue, setTenantContext, withPostgresTransaction } from "./driver.js";
 
-export interface ValidationFlightScope {
-  readonly tenantId: string;
-  readonly resourceId: string;
-  readonly versionScheme: string;
-  readonly versionToken: string;
-  readonly authorizationContextDigest: string;
-  readonly policyDigest: string;
-  readonly queryDigest: string;
-  readonly frontierDigest: string;
-}
+/** @deprecated Use PremiseValidationScope. Kept as a complete-scope alias. */
+export type ValidationFlightScope = PremiseValidationScope;
 
 export type ValidationFlightClaim<T = unknown> =
   | Readonly<{ readonly kind: "LEADER"; readonly fencingToken: number; readonly expiresAt: number }>
@@ -57,17 +53,6 @@ type FlightRow = Readonly<Record<string, unknown>>;
 const DEFAULT_TABLE_NAME = "premise_validation_flights";
 const DEFAULT_LEASE_MS = 30_000;
 const DEFAULT_RETENTION_MS = 60_000;
-const SCOPE_FIELDS = [
-  "tenantId",
-  "resourceId",
-  "versionScheme",
-  "versionToken",
-  "authorizationContextDigest",
-  "policyDigest",
-  "queryDigest",
-  "frontierDigest"
-] as const;
-
 function required(value: unknown, name: string): string {
   if (typeof value !== "string" || value.length === 0 || value.trim() !== value) throw new TypeError(`${name} must be a non-empty string`);
   return value;
@@ -90,18 +75,12 @@ function integerRow(value: unknown, name: string): number {
   return positiveInteger(parsed, name);
 }
 
-function validateScope(scope: ValidationFlightScope): void {
-  for (const field of SCOPE_FIELDS) required(scope?.[field], field);
-}
-
-function scopePayload(scope: ValidationFlightScope): Record<string, string> {
-  validateScope(scope);
-  return Object.fromEntries(SCOPE_FIELDS.map((field) => [field, scope[field]]));
+function scopePayload(scope: ValidationFlightScope): PremiseValidationScope {
+  return normalizePremiseValidationScope(scope);
 }
 
 export function validationFlightScopeDigest(scope: ValidationFlightScope): string {
-  const payload = scopePayload(scope);
-  return `sha256:${createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex")}`;
+  return premiseValidationScopeKey(scope);
 }
 
 function rowText(row: FlightRow, field: string): string {
@@ -182,15 +161,15 @@ export class PostgresValidationFlightStore {
 
   async claim<T = unknown>(scope: ValidationFlightScope, owner: string, flightId: string, now: number, leaseMs = this.defaultLeaseMs): Promise<ValidationFlightClaim<T>> {
     try {
-      validateScope(scope);
+      const normalizedScope = scopePayload(scope);
       required(owner, "owner");
       required(flightId, "flightId");
       nonNegativeInteger(now, "now");
       positiveInteger(leaseMs, "leaseMs");
       const expiresAt = assertExpiry(now, leaseMs);
-      const digest = validationFlightScopeDigest(scope);
-      const scopeJson = json(scopePayload(scope), "flight scope");
-      return await this.inTenant(scope.tenantId, async (client) => {
+      const digest = validationFlightScopeDigest(normalizedScope);
+      const scopeJson = json(normalizedScope, "flight scope");
+      return await this.inTenant(normalizedScope.tenantId, async (client) => {
         for (let attempt = 0; attempt < 2; attempt += 1) {
           const inserted = await client.query<FlightRow>(`
             INSERT INTO ${this.table} (scope_digest, tenant_id, scope_json, owner, flight_id, fencing_token, state, receipt_json, updated_at, expires_at)
@@ -207,11 +186,11 @@ export class PostgresValidationFlightStore {
               expires_at = EXCLUDED.expires_at
             WHERE ${this.table}.expires_at <= $6
             RETURNING fencing_token, state, expires_at, receipt_json
-          `, [digest, scope.tenantId, scopeJson, owner, flightId, now, expiresAt]);
+          `, [digest, normalizedScope.tenantId, scopeJson, owner, flightId, now, expiresAt]);
           const insertedRow = inserted.rows[0];
           if (insertedRow !== undefined) return { kind: "LEADER", fencingToken: integerRow(insertedRow.fencing_token, "fencing_token"), expiresAt: integerRow(insertedRow.expires_at, "expires_at") };
 
-          const current = await this.current(client, scope, digest);
+          const current = await this.current(client, normalizedScope, digest);
           if (current === undefined) continue;
           if (current.state === "COMPLETED" && current.expiresAt > now) return { kind: "COMPLETED", fencingToken: current.fencingToken, receipt: current.receipt as T };
           if (current.state === "IN_PROGRESS" && current.expiresAt > now) return { kind: "FOLLOWER", fencingToken: current.fencingToken, expiresAt: current.expiresAt };
@@ -226,24 +205,24 @@ export class PostgresValidationFlightStore {
 
   async complete<T = unknown>(scope: ValidationFlightScope, owner: string, flightId: string, fencingToken: number, receipt: T, now: number, retentionMs = this.completedRetentionMs): Promise<ValidationFlightCompletion> {
     try {
-      validateScope(scope);
+      const normalizedScope = scopePayload(scope);
       required(owner, "owner");
       required(flightId, "flightId");
       positiveInteger(fencingToken, "fencingToken");
       nonNegativeInteger(now, "now");
       positiveInteger(retentionMs, "retentionMs");
       const expiresAt = assertExpiry(now, retentionMs);
-      const digest = validationFlightScopeDigest(scope);
+      const digest = validationFlightScopeDigest(normalizedScope);
       const receiptJson = json(receipt, "flight receipt");
-      return await this.inTenant(scope.tenantId, async (client) => {
+      return await this.inTenant(normalizedScope.tenantId, async (client) => {
         const result = await client.query(`
           UPDATE ${this.table}
           SET state = 'COMPLETED', receipt_json = $6::jsonb, updated_at = $7, expires_at = $8
           WHERE scope_digest = $1 AND tenant_id = $2 AND owner = $3 AND flight_id = $4
             AND fencing_token = $5 AND state = 'IN_PROGRESS' AND expires_at > $7
-        `, [digest, scope.tenantId, owner, flightId, fencingToken, receiptJson, now, expiresAt]);
+        `, [digest, normalizedScope.tenantId, owner, flightId, fencingToken, receiptJson, now, expiresAt]);
         if ((result.rowCount ?? 0) > 0) return { kind: "COMPLETED" };
-        const current = await this.current(client, scope, digest);
+        const current = await this.current(client, normalizedScope, digest);
         if (current === undefined) return { kind: "REJECTED", reason: "MISSING" };
         if (current.expiresAt <= now) return { kind: "REJECTED", reason: "EXPIRED" };
         return { kind: "REJECTED", reason: "FENCED" };
@@ -256,11 +235,11 @@ export class PostgresValidationFlightStore {
 
   async read<T = unknown>(scope: ValidationFlightScope, now: number): Promise<ValidationFlightRead<T>> {
     try {
-      validateScope(scope);
+      const normalizedScope = scopePayload(scope);
       nonNegativeInteger(now, "now");
-      const digest = validationFlightScopeDigest(scope);
-      return await this.inTenant(scope.tenantId, async (client) => {
-        const current = await this.current(client, scope, digest);
+      const digest = validationFlightScopeDigest(normalizedScope);
+      return await this.inTenant(normalizedScope.tenantId, async (client) => {
+        const current = await this.current(client, normalizedScope, digest);
         if (current === undefined) return { kind: "MISSING" };
         if (current.expiresAt <= now) return { kind: "EXPIRED", fencingToken: current.fencingToken };
         if (current.state === "COMPLETED") return { kind: "COMPLETED", fencingToken: current.fencingToken, receipt: current.receipt as T };

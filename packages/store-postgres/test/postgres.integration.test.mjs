@@ -93,12 +93,16 @@ try {
   const flightScope = {
     tenantId: "tenant:ci",
     resourceId: "github:integration/repo#main",
+    incarnationId: "incarnation:ci",
     versionScheme: "github.commit",
     versionToken: "commit:ci",
+    validatorId: "validator:ci",
     authorizationContextDigest: "auth:ci",
     policyDigest: "policy:ci",
     queryDigest: "query:ci",
-    frontierDigest: "frontier:ci"
+    scopes: ["read:integration"],
+    changeSetDigest: null,
+    causalFrontier: ["frontier:ci"]
   };
   const [flightFirst, flightSecond] = await Promise.all([
     flightStore.claim(flightScope, "agent:one", "flight:one", 1_000),

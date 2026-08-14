@@ -1,13 +1,10 @@
 import { createHash } from "node:crypto";
-import {
-  premiseReceiptSharingKey,
-  type PremiseReceiptSharingScope
-} from "./premise-policy.js";
+import { premiseValidationScopeKey, type PremiseValidationScope } from "./validation-scope.js";
 
 export type RuntimeReceiptState = "FRESH";
 
 export interface RuntimeReceipt<T = unknown> {
-  readonly scope: PremiseReceiptSharingScope;
+  readonly scope: PremiseValidationScope;
   readonly state: RuntimeReceiptState;
   readonly valid: true;
   readonly observedAt: string;
@@ -50,7 +47,7 @@ function clone<T>(value: T): T {
   return JSON.parse(serialized) as T;
 }
 
-function cloneScope(scope: PremiseReceiptSharingScope): PremiseReceiptSharingScope {
+function cloneScope(scope: PremiseValidationScope): PremiseValidationScope {
   return Object.freeze({
     ...scope,
     scopes: Object.freeze([...scope.scopes]),
@@ -93,7 +90,7 @@ export class RuntimeReceiptCache<T = unknown> {
     assertTimestamp(receipt.observedAt, "receipt.observedAt");
     assertTimestamp(receipt.expiresAt, "receipt.expiresAt");
     if (!sameOrBefore(receipt.observedAt, receipt.expiresAt)) throw new RangeError("receipt expiry must be after observation");
-    const key = premiseReceiptSharingKey(receipt.scope);
+    const key = premiseValidationScopeKey(receipt.scope);
     if (this.entries.has(key)) this.entries.delete(key);
     this.entries.set(key, Object.freeze({ ...receipt, scope: cloneScope(receipt.scope), value: clone(receipt.value) }));
     while (this.entries.size > this.maxEntries) {
@@ -105,11 +102,11 @@ export class RuntimeReceiptCache<T = unknown> {
     return key;
   }
 
-  get(scope: PremiseReceiptSharingScope, now: string): RuntimeReceiptLookup<T> {
+  get(scope: PremiseValidationScope, now: string): RuntimeReceiptLookup<T> {
     assertTimestamp(now, "now");
     let key: string;
     try {
-      key = premiseReceiptSharingKey(scope);
+      key = premiseValidationScopeKey(scope);
     } catch {
       return Object.freeze({ status: "REJECT", reason: "INVALID_SCOPE" });
     }
@@ -127,9 +124,9 @@ export class RuntimeReceiptCache<T = unknown> {
     return Object.freeze({ status: "HIT", receipt: clone(receipt) });
   }
 
-  invalidate(scope: PremiseReceiptSharingScope): boolean {
+  invalidate(scope: PremiseValidationScope): boolean {
     let key: string;
-    try { key = premiseReceiptSharingKey(scope); } catch { return false; }
+    try { key = premiseValidationScopeKey(scope); } catch { return false; }
     return this.entries.delete(key);
   }
 
@@ -194,10 +191,10 @@ export class RuntimeNegativeCache {
     }
   }
 
-  put(scope: PremiseReceiptSharingScope, reason: string, expiresAt: string): string {
+  put(scope: PremiseValidationScope, reason: string, expiresAt: string): string {
     if (typeof reason !== "string" || reason.length === 0) throw new TypeError("negative-cache reason must be non-empty");
     assertTimestamp(expiresAt, "expiresAt");
-    const key = premiseReceiptSharingKey(scope);
+    const key = premiseValidationScopeKey(scope);
     this.delete(key, "replace");
     this.entries.set(key, { tenantId: scope.tenantId, reason, expiresAt });
     this.tenantCounts.set(scope.tenantId, (this.tenantCounts.get(scope.tenantId) ?? 0) + 1);
@@ -206,11 +203,11 @@ export class RuntimeNegativeCache {
     return key;
   }
 
-  get(scope: PremiseReceiptSharingScope, now: string): { status: "NEGATIVE" | "MISS"; reason?: string } {
+  get(scope: PremiseValidationScope, now: string): { status: "NEGATIVE" | "MISS"; reason?: string } {
     assertTimestamp(now, "now");
     let key: string;
     try {
-      key = premiseReceiptSharingKey(scope);
+      key = premiseValidationScopeKey(scope);
     } catch {
       this.misses += 1;
       return Object.freeze({ status: "MISS" });

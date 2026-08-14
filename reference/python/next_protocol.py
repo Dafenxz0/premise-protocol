@@ -330,6 +330,7 @@ _RECEIPT_STRING_FIELDS = (
     "tenantId",
     "resourceId",
     "incarnationId",
+    "versionScheme",
     "versionToken",
     "validatorId",
     "authorizationContextDigest",
@@ -351,6 +352,8 @@ def _receipt_scope(value: Any) -> JsonObject:
     scope = _object(value)
     for field in _RECEIPT_STRING_FIELDS:
         _required_text(scope.get(field), field)
+    if scope.get("changeSetDigest") is not None:
+        _required_text(scope.get("changeSetDigest"), "changeSetDigest")
     for field in _RECEIPT_LIST_FIELDS:
         _string_set(scope.get(field), field)
     return scope
@@ -365,10 +368,12 @@ def _receipt_scope_reason(candidate: JsonObject, required: JsonObject, requireme
         ("tenantId", "TENANT_MISMATCH"),
         ("resourceId", "RESOURCE_MISMATCH"),
         ("incarnationId", "INCARNATION_MISMATCH"),
+        ("versionScheme", "VERSION_SCHEME_MISMATCH"),
         ("versionToken", "VERSION_MISMATCH"),
         ("validatorId", "VALIDATOR_MISMATCH"),
         ("authorizationContextDigest", "AUTHORIZATION_MISMATCH"),
         ("policyDigest", "POLICY_MISMATCH"),
+        ("changeSetDigest", "CHANGE_SET_MISMATCH"),
         ("queryFamily", "QUERY_FAMILY_MISMATCH"),
     ):
         if candidate[field] != required[field]:
