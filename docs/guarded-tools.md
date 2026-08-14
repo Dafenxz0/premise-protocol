@@ -20,6 +20,8 @@ The module does not discover, monkey-patch or implicitly wrap existing tools.
 The application supplies three callbacks explicitly:
 
 ```ts
+import { createGuardedTool } from "@premise/runtime-core";
+
 const tool = createGuardedTool({
   callbacks: {
     check: ({ tenantId, resource }) => source.check({ tenantId, resource }),

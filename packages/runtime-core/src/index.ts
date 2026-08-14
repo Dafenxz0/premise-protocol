@@ -41,6 +41,7 @@ export * from "./session.js";
 export * from "./explainability.js";
 export * from "./validation-lease.js";
 export * from "./fenced-single-flight.js";
+export * from "./guarded-tools.js";
 
 export interface RuntimeRecord<T> {
   readonly envelope: MemoryEnvelopeV2;

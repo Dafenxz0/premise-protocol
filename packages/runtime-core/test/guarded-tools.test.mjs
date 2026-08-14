@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGuardedTool } from "../dist/guarded-tools.js";
+import { createGuardedTool } from "../dist/index.js";
 
 const resource = { tenantId: "tenant:acme", resource: "github://acme/repo/pull/42" };
 const v1 = { scheme: "github.commit", token: "a1" };

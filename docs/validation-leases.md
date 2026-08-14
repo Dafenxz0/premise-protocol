@@ -35,12 +35,10 @@ failures:
 
 ## Minimal usage
 
-The module is deliberately not exported from `@premise/runtime-core` yet. The
-direct import below is the PR50 contract surface while the later integration
-work remains separate:
+The public PR50-PR51 surface exports the manager from the package root:
 
 ```ts
-import { ValidationLeaseManager } from "@premise/runtime-core/dist/validation-lease.js";
+import { ValidationLeaseManager } from "@premise/runtime-core";
 
 const leases = new ValidationLeaseManager({
   leaseDurationMs: 30_000,
