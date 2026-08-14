@@ -1,0 +1,31 @@
+{
+  "format": "premise-next-conformance-manifest/1",
+  "specVersion": "premise-next/1",
+  "reference": "reference/python/next_protocol.py",
+  "vectors": [
+    "01-negative-absent.json",
+    "02-negative-entity-appeared.json",
+    "03-negative-frontier-changed.json",
+    "04-negative-expired.json",
+    "05-negative-not-found.json",
+    "06-predicate-preserved.json",
+    "07-predicate-invalidated.json",
+    "08-predicate-unknown.json",
+    "09-predicate-type-unknown.json",
+    "10-predicate-tampered-fingerprint.json",
+    "11-receipt-match.json",
+    "12-receipt-tenant-mismatch.json",
+    "13-receipt-query-insufficient.json",
+    "14-receipt-expired.json",
+    "15-receipt-selection.json",
+    "16-guarded-applied.json",
+    "17-guarded-stale-recovered.json",
+    "18-guarded-missing.json",
+    "19-guarded-unknown-check.json",
+    "20-guarded-changed-rejects.json",
+    "21-guarded-version-mismatch.json",
+    "22-guarded-action-rejected.json",
+    "23-guarded-action-unknown.json",
+    "24-guarded-idempotency-required.json"
+  ]
+}

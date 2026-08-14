@@ -1,0 +1,25 @@
+{
+  "id": "guarded-version-mismatch",
+  "specVersion": "premise-next/1",
+  "operation": "guarded",
+  "resource": { "tenantId": "tenant:a", "resource": "github://acme/repo/pull/42" },
+  "check": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/42",
+    "state": "FRESH",
+    "version": { "scheme": "github.commit", "token": "commit:1" }
+  },
+  "revalidate": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/42",
+    "outcome": "VERSION_MISMATCH",
+    "observedVersion": { "scheme": "github.commit", "token": "commit:2" }
+  },
+  "expected": {
+    "ready": false,
+    "accepted": false,
+    "outcome": "VERSION_MISMATCH",
+    "observedVersion": { "scheme": "github.commit", "token": "commit:2" },
+    "reason": "VERSION_MISMATCH"
+  }
+}

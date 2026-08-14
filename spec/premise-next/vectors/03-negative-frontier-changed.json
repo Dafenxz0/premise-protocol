@@ -1,0 +1,29 @@
+{
+  "id": "negative-frontier-changed",
+  "specVersion": "premise-next/1",
+  "operation": "negative",
+  "premise": {
+    "scope": {
+      "tenantId": "tenant:a",
+      "resource": "inventory",
+      "incarnationId": "inc:1",
+      "queryDigest": "query:empty",
+      "frontierDigest": "frontier:1",
+      "authorizationContextDigest": "auth:a"
+    },
+    "state": "ABSENT",
+    "observedAt": "2026-01-01T00:00:00Z",
+    "expiresAt": "2026-01-01T01:00:00Z"
+  },
+  "scope": {
+    "tenantId": "tenant:a",
+    "resource": "inventory",
+    "incarnationId": "inc:1",
+    "queryDigest": "query:empty",
+    "frontierDigest": "frontier:1",
+    "authorizationContextDigest": "auth:a"
+  },
+  "now": "2026-01-01T00:30:00Z",
+  "observation": { "frontierDigest": "frontier:2" },
+  "expected": { "state": "STALE", "decision": "REVALIDATE", "reason": "FRONTIER_CHANGED" }
+}

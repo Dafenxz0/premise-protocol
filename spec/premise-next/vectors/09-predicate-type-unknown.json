@@ -1,0 +1,15 @@
+{
+  "id": "predicate-type-unknown",
+  "specVersion": "premise-next/1",
+  "operation": "predicate",
+  "dependency": {
+    "tenantId": "tenant:a",
+    "resourceId": "stock",
+    "incarnationId": "inc:1",
+    "aspect": "available",
+    "predicate": { "operator": "gte", "value": 5 }
+  },
+  "previousValue": 99,
+  "currentValue": "unknown",
+  "expected": { "previousEvaluation": true, "currentEvaluation": "UNKNOWN", "change": "UNKNOWN" }
+}
