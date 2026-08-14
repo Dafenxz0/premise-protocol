@@ -1,5 +1,10 @@
 import type { VersionReference } from "@premise/protocol-types";
-import { normalizePremiseValidationScope, premiseValidationScopeKey, type PremiseValidationScope } from "./validation-scope.js";
+import {
+  normalizePremiseValidationScope,
+  premiseValidationScopeKey,
+  premiseValidationSupersessionKey,
+  type PremiseValidationScope
+} from "./validation-scope.js";
 
 export type FencedValidationResult = "UNCHANGED" | "CHANGED" | "MISSING" | "UNKNOWN";
 export type FencedValidationUnknownReason = "TIMEOUT" | "ABORTED" | "FENCED" | "SOURCE_UNKNOWN";
@@ -64,13 +69,19 @@ export interface FencedSingleFlightOptions {
 
 interface Flight<T> {
   readonly key: string;
-  readonly scopeKey: string;
+  readonly resourceKey: string;
+  readonly supersessionKey: string;
   readonly fencingToken: number;
   readonly controller: FencedAbortController;
   readonly promise: Promise<FencedValidationOutcome<T>>;
   timeoutTriggered: boolean;
   abortTriggered: boolean;
   timer?: unknown;
+}
+
+interface CurrentResourceVersion {
+  readonly supersessionKey: string;
+  readonly fencingToken: number;
 }
 
 const hostTimers = globalThis as unknown as { setTimeout(callback: () => void, delayMs: number): unknown; clearTimeout(handle: unknown): void };
@@ -132,7 +143,7 @@ function normalizeRequest(request: FencedValidationRequest): NormalizedRequest {
   };
 }
 
-function scopeKey(tenantId: string, resource: string): string {
+function resourceKey(tenantId: string, resource: string): string {
   return JSON.stringify([tenantId, resource]);
 }
 
@@ -152,12 +163,14 @@ function isAbortLike(error: unknown): boolean {
 }
 
 /**
- * Coalesces one exact validation while fencing older validations for the same
- * tenant/resource scope. It owns no I/O, storage, retries or side effects.
+ * Coalesces one exact validation while fencing older resource versions. The
+ * complete validation scope controls sharing; query/auth/policy differences
+ * alone do not supersede one another. It owns no I/O, storage, retries or side
+ * effects.
  */
 export class FencedSingleFlightCoordinator<T = unknown> {
   private readonly flights = new Map<string, Flight<T>>();
-  private readonly latestByScope = new Map<string, number>();
+  private readonly latestByResource = new Map<string, CurrentResourceVersion>();
   private readonly timers: FencedSingleFlightTimers;
   private readonly defaultTimeoutMs: number | undefined;
   private nextFencingToken = 0;
@@ -180,8 +193,17 @@ export class FencedSingleFlightCoordinator<T = unknown> {
     const existing = this.flights.get(key);
     if (existing !== undefined) return existing.promise;
 
-    const scope = scopeKey(request.tenantId, request.resource);
-    const fencingToken = ++this.nextFencingToken;
+    const resource = resourceKey(request.tenantId, request.resource);
+    // Legacy requests have no incarnation, so preserve their historical
+    // fail-closed behavior: every isolated request supersedes the previous one.
+    // Complete scopes use only resource version identity for supersession.
+    const supersession = request.scope === undefined
+      ? key
+      : premiseValidationSupersessionKey(request.scope);
+    const current = this.latestByResource.get(resource);
+    const fencingToken = current?.supersessionKey === supersession
+      ? current.fencingToken
+      : ++this.nextFencingToken;
     const controller = new AbortController();
     let resolvePublic!: (outcome: FencedValidationOutcome<T>) => void;
     let rejectPublic!: (error: unknown) => void;
@@ -192,7 +214,8 @@ export class FencedSingleFlightCoordinator<T = unknown> {
     });
     const flight: Flight<T> = {
       key,
-      scopeKey: scope,
+      resourceKey: resource,
+      supersessionKey: supersession,
       fencingToken,
       controller,
       promise: publicPromise,
@@ -200,7 +223,7 @@ export class FencedSingleFlightCoordinator<T = unknown> {
       abortTriggered: false
     };
     this.flights.set(key, flight);
-    this.latestByScope.set(scope, fencingToken);
+    this.latestByResource.set(resource, { supersessionKey: supersession, fencingToken });
 
     const settle = (outcome: FencedValidationOutcome<T>): void => {
       if (settled) return;
@@ -243,7 +266,10 @@ export class FencedSingleFlightCoordinator<T = unknown> {
 
     void operation.then((outcome) => {
       if (settled) return;
-      if (this.latestByScope.get(scope) !== fencingToken || outcome.fencingToken !== fencingToken) {
+      const latest = this.latestByResource.get(resource);
+      if (latest?.supersessionKey !== supersession
+        || latest.fencingToken !== fencingToken
+        || outcome.fencingToken !== fencingToken) {
         settle(unknown(fencingToken, "FENCED"));
         return;
       }
@@ -263,7 +289,10 @@ export class FencedSingleFlightCoordinator<T = unknown> {
       if (flight.timer !== undefined) this.timers.clearTimeout(flight.timer);
       request.signal?.removeEventListener("abort", onAbort);
       if (this.flights.get(key) === flight) this.flights.delete(key);
-      if (this.latestByScope.get(scope) === fencingToken) this.latestByScope.delete(scope);
+      const anotherFlightForResource = [...this.flights.values()].some((other) => other.resourceKey === resource);
+      if (!anotherFlightForResource) {
+        this.latestByResource.delete(resource);
+      }
     });
 
     return publicPromise;

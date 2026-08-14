@@ -25,6 +25,13 @@ const request = (tenantId, resource, token, extra = {}) => ({
   scope: validationScope(tenantId, resource, token),
   ...extra
 });
+const requestForScope = (scope, extra = {}) => ({
+  tenantId: scope.tenantId,
+  resource: scope.resourceId,
+  expectedVersion: { scheme: scope.versionScheme, token: scope.versionToken },
+  scope,
+  ...extra
+});
 
 function deferred() {
   let resolve;
@@ -193,4 +200,44 @@ test("never shares a promise or fencing token between tenants", async () => {
     { tenantId: "tenant:a", fencingToken: 1 },
     { tenantId: "tenant:b", fencingToken: 2 }
   ]);
+});
+
+test("does not fence concurrent query, authorization or policy scopes for one resource version", async () => {
+  const firstGate = deferred();
+  const secondGate = deferred();
+  const seen = [];
+  const coordinator = new FencedSingleFlightCoordinator({
+    validate: async ({ scope, fencingToken }) => {
+      seen.push({ query: scope.queryDigest, fencingToken });
+      await (scope.queryDigest === "query:first" ? firstGate.promise : secondGate.promise);
+      return { result: "UNCHANGED", fencingToken };
+    }
+  });
+  const firstScope = validationScope("tenant:a", "repo", "v1", {
+    authorizationContextDigest: "auth:first",
+    policyDigest: "policy:first",
+    queryDigest: "query:first",
+    scopes: ["read:first"]
+  });
+  const secondScope = validationScope("tenant:a", "repo", "v1", {
+    authorizationContextDigest: "auth:second",
+    policyDigest: "policy:second",
+    queryDigest: "query:second",
+    scopes: ["read:second"]
+  });
+  const first = coordinator.validate(requestForScope(firstScope));
+  const second = coordinator.validate(requestForScope(secondScope));
+
+  assert.notStrictEqual(first, second);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(seen, [
+    { query: "query:first", fencingToken: 1 },
+    { query: "query:second", fencingToken: 1 }
+  ]);
+
+  firstGate.resolve();
+  secondGate.resolve();
+  assert.deepEqual(await first, { result: "UNCHANGED", fencingToken: 1 });
+  assert.deepEqual(await second, { result: "UNCHANGED", fencingToken: 1 });
 });

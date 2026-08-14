@@ -40,6 +40,14 @@ test("keeps exact coalescing, authorization scopes and tenant isolation observab
   assert.equal(scopes.metrics.physicalValidations, 2);
   assert.equal(scopes.metrics.joins, 98);
   assert.equal(scopes.metrics.crossScopeShares, 0);
+  assert.deepEqual(scopes.outcomeCounts, { UNCHANGED: 100, CHANGED: 0, MISSING: 0, UNKNOWN: 0 });
+  assert.equal(scopes.crossScopeFlightsAreFenced, false);
+  assert.deepEqual(scopes.fencingTokens, [1, 1]);
+  const version = phases.find((phase) => phase.name === "version-supersession");
+  assert.deepEqual(version.outcomeCounts, { UNCHANGED: 50, CHANGED: 0, MISSING: 0, UNKNOWN: 50 });
+  assert.equal(version.oldOutcome, "FENCED");
+  assert.equal(version.currentOutcome, "UNCHANGED");
+  assert.deepEqual(version.fencingTokens, [1, 2]);
   assert.equal(tenants.metrics.physicalValidations, 100);
   assert.equal(tenants.metrics.joins, 0);
   assert.equal(tenants.metrics.crossTenantShares, 0);
