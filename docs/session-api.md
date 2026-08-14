@@ -34,7 +34,20 @@ const session = premise.session({ tenant: "agent:acme", adapter });
 `PremiseSession` also accepts the previous runtime-record adapter shape for
 compatibility: `observe(resource, { tenantId })`, `revalidate(evidence,
 record)`, and optional `conditionalAction`. Its legacy `derive` method is no
-longer called; derivation is always owned by the session.
+longer called and is not required; derivation is always owned by the session.
+
+The adapter route is selected by `capabilities()`, never by `derive`:
+
+- an SDK adapter must expose a callable `capabilities()` method;
+- a direct legacy adapter must omit `capabilities` and implement `observe` and
+  `revalidate` using the legacy signatures;
+- a non-callable `capabilities` property is rejected instead of being treated
+  as legacy.
+
+This keeps existing direct legacy adapters compatible, including adapters that
+never implemented `derive`. In TypeScript, the SDK adapter type requires the
+marker; JavaScript adapters using the SDK request shape must provide it because
+method signatures alone cannot distinguish that shape from the legacy one.
 
 An SDK adapter must return an observation for the requested tenant/resource,
 including a non-empty evidence list and a version. `conditionalAction` is

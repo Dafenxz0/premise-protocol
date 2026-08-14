@@ -54,11 +54,9 @@ test("PremiseSession consumes the SDK PremiseAdapter shape directly", async () =
   });
 });
 
-test("PremiseSession keeps accepting legacy runtime-record adapters", async () => {
-  let deriveCalls = 0;
+test("PremiseSession keeps accepting legacy runtime-record adapters without derive", async () => {
   const adapter = {
     observe: async (resource) => record(`memory:${resource}`, { resource }, [], resource),
-    derive: async () => { deriveCalls += 1; throw new Error("legacy derive must not be called"); },
     revalidate: async (currentEvidence, currentRecord) => ({
       memoryId: currentRecord.envelope.memoryId,
       result: "UNCHANGED",
@@ -75,11 +73,23 @@ test("PremiseSession keeps accepting legacy runtime-record adapters", async () =
   const observed = await session.observe("source://item");
   const claim = await session.derive({ claim: "item is ready", from: [observed] });
 
-  assert.equal(deriveCalls, 0);
   assert.deepEqual(await session.act({ premise: claim, action: "merge" }), {
     accepted: true,
     memoryId: claim.memoryId,
     expectedVersion: "v1",
     result: "merged"
   });
+});
+
+test("PremiseSession rejects a non-callable capabilities marker", () => {
+  const adapter = {
+    capabilities: { contract: "premise-adapter/2" },
+    observe: async () => record("memory:malformed", {}),
+    revalidate: async () => ({ result: "UNKNOWN", checkedAt: at })
+  };
+
+  assert.throws(
+    () => new PremiseSession({ tenant: "tenant:session", adapter }),
+    /adapter\.capabilities must be a function/
+  );
 });

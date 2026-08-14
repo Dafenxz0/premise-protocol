@@ -48,16 +48,16 @@ export type PremiseSessionConditionalActionRequest<TAction = unknown> = AdapterC
 export type PremiseSessionAdapterActionResult<TResult = unknown> = AdapterActionResult<TResult>;
 
 /**
- * The external adapter contract. Adapters observe and revalidate external
- * state, and may own a conditional write; Session owns derivation.
+ * The external SDK adapter contract. `capabilities()` is required because it
+ * is the runtime discriminator between this contract and the legacy adapter.
+ * Adapters observe and revalidate external state, and may own a conditional
+ * write; Session owns derivation.
  */
 export interface PremiseSessionAdapter<T = unknown, TAction = unknown, TResult = unknown>
-  extends Omit<PremiseAdapter<T, TAction, TResult>, "capabilities"> {
-  readonly capabilities?: () => PremiseSessionAdapterCapabilities;
-}
+  extends PremiseAdapter<T, TAction, TResult> {}
 
 /** The canonical SDK adapter type accepted directly by `PremiseSession`. */
-export type PremiseSessionSdkAdapter<T = unknown, TAction = unknown, TResult = unknown> = PremiseAdapter<T, TAction, TResult>;
+export type PremiseSessionSdkAdapter<T = unknown, TAction = unknown, TResult = unknown> = PremiseSessionAdapter<T, TAction, TResult>;
 
 /** @deprecated Runtime-record adapters remain accepted, but Session no longer calls `derive` on them. */
 export interface LegacyPremiseSessionAdapter<T = unknown, TAction = unknown> {
@@ -179,8 +179,20 @@ function derivedRecord<T>(tenant: string, input: PremiseSessionDeriveInput<T>, s
   };
 }
 
+type AdapterCapabilitiesMarker = { readonly capabilities?: unknown };
+
+function adapterCapabilities(adapter: object): unknown {
+  return (adapter as AdapterCapabilitiesMarker).capabilities;
+}
+
+function isSdkAdapter<T, TAction, TResult>(adapter: PremiseSessionCompatibleAdapter<T, TAction, TResult>): adapter is PremiseSessionAdapter<T, TAction, TResult> {
+  return typeof adapterCapabilities(adapter) === "function";
+}
+
 function isLegacyAdapter<T, TAction, TResult>(adapter: PremiseSessionCompatibleAdapter<T, TAction, TResult>): adapter is LegacyPremiseSessionAdapter<T, TAction> {
-  return typeof ("capabilities" in adapter ? adapter.capabilities : undefined) !== "function" && typeof (adapter as LegacyPremiseSessionAdapter<T, TAction>).derive === "function";
+  return adapterCapabilities(adapter) === undefined
+    && typeof (adapter as LegacyPremiseSessionAdapter<T, TAction>).observe === "function"
+    && typeof (adapter as LegacyPremiseSessionAdapter<T, TAction>).revalidate === "function";
 }
 
 function validationReport<T>(
@@ -223,8 +235,12 @@ export class PremiseSession<T = unknown, TAction = unknown, TResult = unknown> {
   constructor(options: PremiseSessionOptions<T, TAction, TResult>) {
     this.tenant = required(options.tenant, "tenant");
     this.adapter = options.adapter;
-    if (this.adapter === undefined || typeof this.adapter.observe !== "function" || typeof this.adapter.revalidate !== "function") {
-      throw new TypeError("adapter must implement observe and revalidate");
+    const capabilities = this.adapter === undefined ? undefined : adapterCapabilities(this.adapter);
+    if (capabilities !== undefined && typeof capabilities !== "function") {
+      throw new TypeError("adapter.capabilities must be a function for SDK adapters");
+    }
+    if (this.adapter === undefined || (!isSdkAdapter(this.adapter) && !isLegacyAdapter(this.adapter))) {
+      throw new TypeError("adapter must be an SDK adapter with capabilities() or a legacy adapter with observe/revalidate");
     }
     this.runtime = options.runtime ?? new PremiseRuntime<T>({ tenantId: this.tenant });
     if (this.runtime.tenantId !== this.tenant) throw new Error("Session tenant must match runtime tenant");
