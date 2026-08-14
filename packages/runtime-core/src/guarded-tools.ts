@@ -163,6 +163,11 @@ interface BoundedIdempotencyEntry<TResult> {
   result?: GuardedToolActionResult<TResult>;
 }
 
+interface InFlightAction<TResult> {
+  readonly fingerprint: string;
+  readonly result: Promise<GuardedToolActionResult<TResult>>;
+}
+
 /**
  * Bounded replay state that never evicts an accepted side effect. Once full,
  * new actions are rejected explicitly instead of forgetting replay history.
@@ -227,7 +232,7 @@ export class GuardedTool<TAction = unknown, TResult = unknown> {
   private readonly checks = new WeakMap<object, GuardedToolResource & { readonly state: GuardedToolState; readonly version?: VersionReference }>();
   private readonly ready = new WeakMap<object, ProofResource>();
   private readonly idempotencyStore: GuardedToolIdempotencyStore<TResult>;
-  private readonly inFlight = new Map<string, Promise<GuardedToolActionResult<TResult>>>();
+  private readonly inFlight = new Map<string, InFlightAction<TResult>>();
 
   constructor(options: GuardedToolOptions<TAction, TResult>) {
     if (options === undefined || options.callbacks === undefined) throw new TypeError("callbacks are required");
@@ -298,7 +303,11 @@ export class GuardedTool<TAction = unknown, TResult = unknown> {
     const fingerprint = `${resource.resource}\u0000${stored.version.scheme}\u0000${stored.version.token}\u0000${actionDigest}`;
     const key = `${resource.tenantId}\u0000${idempotencyKey}`;
     const pending = this.inFlight.get(key);
-    if (pending !== undefined) return pending;
+    if (pending !== undefined) {
+      return pending.fingerprint === fingerprint
+        ? pending.result
+        : Promise.resolve({ accepted: false, outcome: "REJECTED", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_CONFLICT" });
+    }
     const claim = this.idempotencyStore.claim(key, fingerprint);
     if (claim.kind === "COMPLETED") return Promise.resolve(claim.result);
     if (claim.kind === "CONFLICT") return Promise.resolve({ accepted: false, outcome: "REJECTED", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_CONFLICT" });
@@ -312,9 +321,9 @@ export class GuardedTool<TAction = unknown, TResult = unknown> {
         return { accepted: false, outcome: "UNKNOWN", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_STORE_UNAVAILABLE" };
       }
     });
-    this.inFlight.set(key, result);
+    this.inFlight.set(key, { fingerprint, result });
     void result.finally(() => {
-      if (this.inFlight.get(key) === result) this.inFlight.delete(key);
+      if (this.inFlight.get(key)?.result === result) this.inFlight.delete(key);
     });
     return result;
   }

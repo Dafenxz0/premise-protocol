@@ -83,6 +83,34 @@ test("idempotency executes one side effect and rejects key reuse with different 
   assert.equal(acts, 1);
 });
 
+test("concurrent reuse with a different fingerprint returns a conflict", async () => {
+  let acts = 0;
+  let markStarted;
+  let release;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  const blocked = new Promise((resolve) => { release = resolve; });
+  const tool = createGuardedTool({ callbacks: freshCallbacks({
+    act: async (input) => {
+      acts += 1;
+      markStarted();
+      await blocked;
+      return { ...input, outcome: "APPLIED", result: input.action };
+    }
+  }) });
+  const ready = await tool.revalidate(await tool.check(resource));
+  const first = tool.act(ready, { operation: "merge" }, "idem:concurrent");
+  await started;
+
+  assert.deepEqual(await tool.act(ready, { operation: "delete" }, "idem:concurrent"), {
+    accepted: false, outcome: "REJECTED", ...resource, expectedVersion: v1, reason: "IDEMPOTENCY_CONFLICT"
+  });
+  assert.equal(acts, 1);
+
+  release();
+  assert.deepEqual((await first).result, { operation: "merge" });
+  assert.equal(acts, 1);
+});
+
 test("side-effect timeout and thrown unknown are terminal, cached outcomes", async () => {
   let timedOutCalls = 0;
   const timedOut = createGuardedTool({
