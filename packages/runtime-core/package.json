@@ -4,6 +4,7 @@
   "description": "PREMiSE v2 runtime with evidence, dependency propagation, tenancy, validation, and replayable events.",
   "type": "module",
   "dependencies": {
+    "@premise/adapter-sdk": "workspace:*",
     "@premise/protocol-types": "workspace:*"
   },
   "exports": {
