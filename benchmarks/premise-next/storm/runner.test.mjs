@@ -6,7 +6,9 @@ test("runs the deterministic 100-worker coherence storm and passes safety gates"
   const report = await runCoherenceStorm({ seed: "test-seed" });
 
   assert.equal(report.workers, WORKER_COUNT);
-  assert.equal(report.contract, "deterministic-in-memory-contract-smoke");
+  assert.equal(report.contract, "runtime-core-dist-complete-scope-smoke");
+  assert.equal(report.coordinator, "packages/runtime-core/dist/fenced-single-flight.js");
+  assert.equal(report.scope, "complete PremiseValidationScope");
   assert.deepEqual(report.safety, {
     noCrossTenantSharing: true,
     noStaleAccepted: true,
@@ -16,6 +18,8 @@ test("runs the deterministic 100-worker coherence storm and passes safety gates"
   assert.equal(report.limitations.externalServices, false);
   assert.equal(report.limitations.distributedProof, false);
   assert.equal(report.limitations.virtualElapsedTime, true);
+  assert.equal(report.limitations.leaseApi, false);
+  assert.equal(report.limitations.eventInvalidationApi, false);
   assert.ok(report.metrics.physicalValidations > 0);
   assert.ok(report.metrics.joins > 0);
   assert.ok(report.metrics.staleOutcomes > 0);
@@ -41,19 +45,19 @@ test("keeps exact coalescing, authorization scopes and tenant isolation observab
   assert.equal(tenants.metrics.crossTenantShares, 0);
 });
 
-test("fences lease expiry, timeout, mutation, event and ABA outcomes", async () => {
+test("fences timeout, abort, mutation and ABA outcomes", async () => {
   const { phases } = await runCoherenceStorm({ seed: "adversarial-seed" });
-  const lease = phases.find((phase) => phase.name === "lease-expiry");
-  const timeout = phases.find((phase) => phase.name === "leader-timeout");
+  const timeout = phases.find((phase) => phase.name === "timeout-via-coordinator");
+  const abort = phases.find((phase) => phase.name === "abort-signal-during-flight");
   const mutation = phases.find((phase) => phase.name === "source-mutation-during-validation");
-  const event = phases.find((phase) => phase.name === "event-during-flight");
   const aba = phases.find((phase) => phase.name === "old-fence-and-aba");
 
-  assert.equal(lease.metrics.leaseExpiries, 1);
+  assert.equal(timeout.metrics.leaseExpiries, 0);
   assert.equal(timeout.metrics.timeoutSignals, 1);
   assert.equal(timeout.metrics.unknownOutcomes, 100);
+  assert.equal(abort.metrics.eventSignals, 1);
+  assert.equal(abort.metrics.unknownOutcomes, 100);
   assert.equal(mutation.metrics.staleOutcomes, 100);
-  assert.equal(event.metrics.eventSignals, 1);
   assert.ok(aba.metrics.fenceRejectedAttempts > 0);
   assert.ok(aba.oldFence > 0);
   assert.ok(aba.finalFence > aba.oldFence);
