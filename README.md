@@ -60,17 +60,13 @@ pnpm test
 
 The smallest useful integration is: observe a source, attach its revision to a premise, derive the action, call `check` immediately before the side effect, and perform the connector's conditional write. Start with [`@premise/runtime-core`](packages/runtime-core/README.md), then read the [integration guide](docs/api-v2.md). `PremiseSession` and the guarded-tools contract are available from the runtime package; connector-specific authorization and conditional writes remain application responsibilities.
 
-```ts
-// Target integration shape; use the current runtime primitives today.
-const observation = await adapter.observe(resource);
-const premise = session.observe(observation);
-const plan = agent.plan(premise);
-const check = await session.check(plan);
+The repository includes an executable quickstart rather than a conceptual snippet:
 
-if (check.decision === "USE") {
-  await adapter.conditionalAction(plan, check.receipt);
-}
+```bash
+pnpm example:quickstart
 ```
+
+The exact source is [`examples/quickstart.mjs`](examples/quickstart.mjs). It uses the current `PremiseSession` contract, verifies a `USABLE` decision, and performs the final action through a conditional adapter callback.
 
 The exact adapter contract is intentionally explicit: a protocol receipt is not a substitute for the source system's CAS, ETag, transaction, or permission check.
 
