@@ -26,6 +26,9 @@ jobs:
       - run: pnpm test:properties
       - run: pnpm conformance
       - run: pnpm conformance:v2
+      - run: pnpm conformance:next
+      - run: node --test benchmarks/premise-next/storm/runner.test.mjs
+      - run: pnpm benchmark:efficiency:v1:bounded:test
       - run: pnpm benchmark:smoke
       - run: pnpm benchmark:efficiency:check
       - run: pnpm benchmark:efficiency:self-check
