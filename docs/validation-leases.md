@@ -76,11 +76,27 @@ check by itself cannot stop a connector that ignores fencing tokens.
 
 ## Store boundary
 
-`ValidationLeaseStore` is the seam for a future durable adapter. Its acquire,
-renew, release, and validate operations must be atomic for an exact tenant and
-resource key. A real adapter must persist the fencing counter durably and
-compare the presented token at the write boundary; a best-effort cache is not
-enough.
+`ValidationLeaseStore` is the contract seam. The in-memory implementation is a
+deterministic reference, and `@premise/store-postgres` now provides the
+asynchronous `PostgresValidationLeaseStore` adapter. It uses one pinned
+transaction per operation, an atomic `INSERT ... ON CONFLICT` acquisition,
+durable fencing counters and forced tenant RLS. Its `initialize()` method must
+run with a migration-capable role; application traffic should use a least-
+privilege transaction adapter.
+
+```ts
+import { PostgresValidationLeaseStore } from "@premise/store-postgres";
+
+const leases = new PostgresValidationLeaseStore(adapter, {
+  tableName: "premise_validation_leases"
+});
+await leases.initialize();
+```
+
+Every acquire, renew, release and validate operation remains scoped to the
+exact tenant/resource key and compares owner, lease ID and fencing token. A
+lease receipt is not a substitute for the connector's own conditional write:
+the downstream system must enforce the token or equivalent version predicate.
 
 `InMemoryValidationLeaseStore` is only a deterministic reference store. Its
 synchronous `Map` makes race cases reproducible inside one process. It provides
@@ -98,8 +114,9 @@ does not solve clock synchronization.
 
 ## Explicit non-claims
 
-PR50 does **not** prove distributed correctness, HA, crash recovery, quorum
-behavior, fencing against an external database, or production security. It
-also does not use Redis or another external service. Those claims require a
-durable atomic store, failure-injection tests across processes, and an
-end-to-end connector that enforces the token.
+The in-memory manager does **not** prove distributed correctness, HA, crash
+recovery, quorum behavior, or external fencing. The PostgreSQL adapter proves
+only its tested SQL contract; its real integration campaign is opt-in when
+`POSTGRES_URL` and an application-provided `pg` driver are available. End-to-
+end claims still require failure-injection tests across processes and a
+connector that enforces the token.
