@@ -1,51 +1,125 @@
-# PREMiSE
+<div align="center">
+  <img src="assets/premise-logo.jpg" alt="PREMiSE — Memory Validity Protocol" width="420">
 
-![PREMiSE](assets/premise-logo.jpg)
+  <h1>Keep agent decisions coherent with a changing world.</h1>
 
-## Keep agent decisions coherent with a changing world
+  <p>
+    PREMiSE is a protocol and runtime that records the evidence behind an agent decision,
+    watches the versions and dependencies it relies on, and stops stale actions at the boundary.
+  </p>
 
-PREMiSE is an open protocol and runtime for agents that read external state, reason about it, and then act. It records which evidence a decision depends on, detects when that evidence changes, and prevents a stale decision from being used silently.
+  <p>
+    <a href="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI on main"></a>
+    <a href="https://nodejs.org/en/download"><img src="https://img.shields.io/badge/Node.js-24-1f6feb?logo=node.js&logoColor=white" alt="Node.js 24"></a>
+    <a href="https://github.com/Dafenxz0/premise-protocol/releases"><img src="https://img.shields.io/badge/status-candidate-f59e0b" alt="Candidate status"></a>
+    <a href="https://github.com/Dafenxz0/premise-protocol/blob/main/spec/premise-1/README.md"><img src="https://img.shields.io/badge/protocol-premise%2F1-6366f1" alt="PREMiSE protocol 1"></a>
+  </p>
+</div>
 
-PREMiSE is not a vector database, an embedding system, a retrieval engine, a primary memory, a dashboard, a cloud service, or an authority on truth. It is the coherence layer between an agent and the systems whose state can change while the agent is working.
+<p align="center">
+  <img src="assets/premise-readme-hero.png" alt="A validation core connecting changing sources to a guarded action gate" width="100%">
+</p>
 
-![PREMiSE flow](assets/premise-overview.jpg)
+<p align="center">
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#what-is-measured">Evidence</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/evidence/README.md">Evidence index</a>
+</p>
 
 ## PREMiSE in one sentence
 
-> PREMiSE lets an agent know when the facts behind its next action are still current—and makes it re-check them when they are not.
+> PREMiSE lets an agent know whether the facts behind its next action are still current — and makes it re-check them when they are not.
+
+The source system remains the source of truth. GitHub, a file, a database row, or an API still owns its data; PREMiSE supplies the coherence boundary between that mutable world and the agent's final action.
+
+## Why this matters
+
+An agent can read `config@v41`, spend several seconds reasoning, and then attempt a write after another process has already published `config@v42`. Ordinary memory can preserve the old observation perfectly and still make the action unsafe.
+
+PREMiSE attaches the observation and its version to the decision. Immediately before the side effect, the protocol checks that the premise is still usable. If the world moved, the agent revalidates or stops instead of silently acting on an obsolete plan.
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h3>01 · Observe</h3>
+      Read a source and record the evidence, version, validator and scope that matter for the decision.
+    </td>
+    <td width="33%" valign="top">
+      <h3>02 · Reason</h3>
+      Derive a premise or dependency graph. The agent can work normally while the outside world continues to change.
+    </td>
+    <td width="33%" valign="top">
+      <h3>03 · Guard</h3>
+      Check freshness at the action boundary. A stale, invalid or unknown premise cannot pass silently.
+    </td>
+  </tr>
+</table>
 
 ## How it works
 
-```text
-observe → record evidence and version → derive a decision → check before acting
-                                                     ↓
-                                    fresh: use · stale: revalidate · invalid: reject
+```mermaid
+flowchart LR
+    S["Mutable source<br/>GitHub · file · DB · API"] --> O["Observe<br/>evidence + version"]
+    O --> D["Derive<br/>decision + dependencies"]
+    D --> C{"Check before action"}
+    C -->|"FRESH"| U["USE<br/>conditional action"]
+    C -->|"STALE"| R["REVALIDATE<br/>refresh and decide again"]
+    C -->|"INVALID / UNKNOWN"| X["REJECT / STOP"]
+    R --> C
 ```
 
-The protocol is deliberately separate from the source system. GitHub, a file, a database row, or an API remains the owner of its data. PREMiSE stores the evidence, versions, dependencies, and receipts needed to make a safe decision at the boundary where an agent acts.
+The protocol keeps the important state small and explicit:
 
-### A small example
+| State | Meaning | Default decision |
+| --- | --- | --- |
+| `FRESH` | The recorded evidence still satisfies the policy. | `USE` |
+| `STALE` | A dependency, version or event says the decision needs checking again. | `REVALIDATE` |
+| `INVALID` | The premise no longer describes the source or its identity. | `REJECT` |
+| `UNKNOWN` | The source could not be checked with enough authority. | `REJECT` |
 
-1. An agent reads `config@v41` and prepares a change.
-2. Another process publishes `config@v42`.
-3. PREMiSE marks the dependent decision stale.
-4. The agent revalidates before writing, or the guarded action is rejected.
+<p align="center">
+  <img src="assets/premise-validity-architecture.png" alt="PREMiSE validation core connected to files, agents, databases and a guarded action gate" width="100%">
+</p>
 
-The important behavior is not that PREMiSE remembers more. It is that the agent cannot silently treat an old observation as current.
+<p align="center"><sub>One boundary, many sources: the connector owns the data and the conditional write; PREMiSE owns the decision's validity.</sub></p>
+
+## What PREMiSE is — and is not
+
+| PREMiSE is | PREMiSE is not |
+| --- | --- |
+| A portable coherence protocol for decisions that depend on mutable state | A vector database or embedding system |
+| A TypeScript runtime with guarded actions, receipts, leases and dependency semantics | A retrieval engine or primary memory replacement |
+| A place to express version, authorization, policy and revalidation boundaries | A dashboard, cloud service or universal truth authority |
+| A conformance surface with independent Python reference vectors | A guarantee that an agent's plan is semantically correct |
 
 ## What is in this repository today
 
-The repository contains the protocol contracts, a TypeScript runtime, reference implementations, stores and adapters, conformance vectors, and an evidence-driven benchmark lab.
-
-| Area | Current state |
+| Area | What you can use now |
 | --- | --- |
-| Protocol contracts | `premise/1`, `premise/1.1`, and PREMiSE NEXT portable vectors |
-| Runtime | TypeScript runtime with dependency propagation, revalidation, receipts, idempotency, and guarded actions |
-| Stores | In-memory, SQLite, and PostgreSQL-compatible packages |
-| Adapters | Filesystem, Git/GitHub-like, HTTP, webhook, and protocol examples |
-| Conformance | Independent Python reference plus 24 portable PREMiSE NEXT vectors; 15 shared semantic vectors also run in TypeScript |
-| Evidence | Deterministic experiments and their limitations are indexed in [`docs/evidence`](docs/evidence/README.md) |
-| Release status | Research/engineering candidate; not a universal GA claim |
+| Protocol contracts | `premise/1`, `premise/1.1` and the portable PREMiSE NEXT semantic slice |
+| Runtime | TypeScript runtime with dependency propagation, revalidation, receipts, idempotency, leases and guarded actions |
+| Session and SDK | `PremiseSession`, the public Adapter SDK and an executable quickstart |
+| Stores and adapters | In-memory, SQLite and PostgreSQL-compatible stores; filesystem, Git/GitHub-like, HTTP and webhook adapters |
+| Conformance | Independent Python reference, 24 Python NEXT cases and 15 shared TypeScript semantic vectors |
+| Evidence lab | Deterministic benchmark campaigns for safety, freshness, work, latency and cost accounting |
+| Release status | `2.0.0-rc.1` engineering candidate — not a universal GA claim |
+
+## What is measured
+
+The numbers below are deliberately labelled as deterministic contract evidence. They are useful for checking invariants in this repository; they are not a distributed capacity result, a provider-cost study or a promise that every connector behaves identically.
+
+| Check | Current result | What it proves |
+| --- | ---: | --- |
+| Coherence storm | 100 logical workers | The coordination path is exercised under concurrent contention |
+| Physical validations | 111 | The fixed storm seed and phase mix produce bounded/coalesced work in the tested runtime |
+| Joined validations | 591 | Compatible followers can share validation work under the tested scopes |
+| Stale actions accepted | 0 | The tested guard did not allow a stale action through |
+| Cross-tenant joins | 0 | The tested sharing scope kept tenants isolated |
+| Old-fence commits | 0 | The tested fencing path rejected superseded commits |
+| NEXT semantic vectors | 15 shared TS + 24 Python cases | The published semantic slice agrees across the two references |
+
+For the assumptions, seeds, limitations and negative results, start with the [evidence index](docs/evidence/README.md) and [PREMiSE NEXT status](docs/premise-next-status.md). The current evidence does **not** justify claims that PREMiSE is universally safer, cheaper, production-ready for every connector, or independently validated by an external holdout.
 
 ## Quick start
 
@@ -58,65 +132,72 @@ pnpm build
 pnpm test
 ```
 
-The smallest useful integration is: observe a source, attach its revision to a premise, derive the action, call `check` immediately before the side effect, and perform the connector's conditional write. Start with [`@premise/runtime-core`](packages/runtime-core/README.md), then read the [integration guide](docs/api-v2.md). `PremiseSession` and the guarded-tools contract are available from the runtime package; connector-specific authorization and conditional writes remain application responsibilities.
-
-The repository includes an executable quickstart rather than a conceptual snippet:
+Run the smallest end-to-end example:
 
 ```bash
 pnpm example:quickstart
 ```
 
-The exact source is [`examples/quickstart.mjs`](examples/quickstart.mjs). It uses the current `PremiseSession` contract, verifies a `USABLE` decision, and performs the final action through a conditional adapter callback.
+The source is [`examples/quickstart.mjs`](examples/quickstart.mjs). It uses the current `PremiseSession` contract, verifies a `USABLE` decision, and finishes through a conditional adapter callback. The connector remains responsible for authorization and its atomic write (CAS, ETag, transaction or equivalent).
 
-The exact adapter contract is intentionally explicit: a protocol receipt is not a substitute for the source system's CAS, ETag, transaction, or permission check.
+## A minimal integration shape
 
-## Evidence, not promises
+```ts
+const session = premise.session({ tenant: "acme", adapter });
+const source = await session.observe("github://acme/config");
+const plan = await session.derive({
+  claim: "The config is ready to publish",
+  from: [source],
+});
 
-PREMiSE is evaluated against changing sources, not only static examples. The benchmark lab measures safety, freshness, request work, reads, latency, and cost per successful fresh action. It also records negative and inconclusive results.
+const check = session.check(plan);
 
-The current NEXT evidence includes a deterministic 100-worker coherence storm
-with 0 stale actions accepted and 0 cross-tenant joins, PostgreSQL leases, and a
-durable validation-flight adapter with atomic leader/follower claims,
-monotonic fencing and forced tenant RLS. The storm is an in-memory contract
-smoke, and PostgreSQL integration is opt-in; none of these is a distributed
-capacity or universal production claim.
+if (check.decision === "USABLE") {
+  await session.act({ premise: plan, action: { type: "publish-config" } });
+}
+```
 
-The public evidence index is the right place to start: [`docs/evidence/README.md`](docs/evidence/README.md). It separates measured behavior from planned work and keeps benchmark archaeology out of this page.
+This sketch shows the boundary, not a universal connector API. See the [API guide](docs/api-v2.md), [session API](docs/session-api.md) and [HTTP adapter example](examples/sdk-http/README.md) for the exact contracts.
 
-The current evidence does **not** justify claims that PREMiSE is universally safer, cheaper, production-ready for every connector, or equivalent to an independent external evaluation. In particular, the long-horizon work shows why bounded operational state and durable audit history must be designed separately; the compaction experiment remains a no-go until its invariants are proven.
+## Explore the project
 
-## Documentation
-
-- [Concepts](docs/concepts.md)
-- [Protocol and versioning](docs/versioning.md)
-- [Runtime architecture](docs/architecture.md)
-- [API and integration](docs/api-v2.md)
-- [Benchmark evidence](docs/evidence/README.md)
-- [Operations and deployment](docs/deployment-v2.md)
-- [Security boundaries](docs/security-v2.md)
-- [Protocol specification: premise/1](spec/premise-1/README.md)
-- [Protocol specification: premise/1.1](spec/premise-1.1/README.md)
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Understand the protocol</h3>
+      <ul>
+        <li><a href="docs/concepts.md">Core concepts</a></li>
+        <li><a href="docs/versioning.md">Evidence and versioning</a></li>
+        <li><a href="docs/protocol/premise-1.md">PREMiSE/1 contract</a></li>
+        <li><a href="docs/protocol/premise-1.1.md">PREMiSE/1.1 contract</a></li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Build and evaluate</h3>
+      <ul>
+        <li><a href="docs/api-v2.md">Runtime and integration API</a></li>
+        <li><a href="docs/evidence/README.md">Evidence index</a></li>
+        <li><a href="docs/benchmarks/premisebench-agent.md">Agent benchmark methodology</a></li>
+        <li><a href="conformance/README.md">Conformance runner</a></li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ## Scope and non-goals
 
-PREMiSE does not decide whether a source is morally, legally, or semantically true. It does not replace source-of-truth systems, solve retrieval, or make an agent's plan correct by itself. It provides a deterministic coherence boundary: the decision may proceed only when its recorded premises still satisfy the policy required by the action.
+PREMiSE does not decide whether a source is morally, legally or semantically true. It does not replace source-of-truth systems, solve retrieval, or make an agent's plan correct by itself. It provides a deterministic coherence boundary: a decision may proceed only when its recorded premises still satisfy the policy required by the action.
 
-The next engineering milestone is connector-backed evidence and independent
-failure-injection campaigns: real PostgreSQL flight execution, distributed
-capacity and crash recovery, external holdout evaluation, and provider-cost
-measurement. See
-[`docs/premise-next-status.md`](docs/premise-next-status.md) and
-[`docs/evidence/README.md`](docs/evidence/README.md) for the status of each
-piece.
+The next evidence gate is connector-backed and independent: credentialed PostgreSQL and multi-process crash recovery, durable random-access journal storage, the remaining cross-language guarded-action vectors, external holdouts and provider-cost campaigns. Anything requiring credentials or external infrastructure must remain explicitly `skipped` until its infrastructure and manifests are present.
 
 ## Contributing
 
-Run the relevant package tests and the full validation suite before opening a pull request. New benchmark claims must include the workload manifest, evaluator rules, raw trace digest, and any negative result. Do not commit generated campaign artifacts unless a document explicitly treats them as a fixture.
+Run the relevant package tests and the full validation suite before opening a pull request. New benchmark claims should include the frozen workload and seed manifest, adapter/runtime version, evaluator rules, raw trace digest, denominators and negative or inconclusive results.
 
 ```bash
 pnpm build
 pnpm test
-pnpm lint
+pnpm conformance:next
 ```
 
-PREMiSE is currently an engineering/research project. If you need a connector, store, or deployment guarantee that is not represented by a passing conformance test and published evidence, treat it as work to validate—not as an existing promise.
+Generated campaign artifacts belong outside the source tree unless a document explicitly treats them as a fixture. If a connector, store or deployment guarantee is not represented by a passing conformance test and published evidence, treat it as work to validate — not as an existing promise.
