@@ -24,10 +24,12 @@ or every connector cross-language equivalent.
 
 ## Measured smoke result
 
-The fixed seed reports 111 physical validations and 591 joins across the storm
-phases. It records 0 cross-tenant shares, 0 stale actions accepted and 0 old
-fence commits. These are contract-smoke results, not a claim that all agents or
-connectors will achieve the same ratios.
+The default seed `premise-next-storm-20260814` reports 111 physical validations
+and 689 joins across the eight storm phases. Reproduce it with
+`node benchmarks/premise-next/storm/runner.mjs`. It records 0 cross-tenant
+shares, 0 stale actions accepted and 0 old fence commits. These are
+contract-smoke results, not a claim that all agents or connectors will achieve
+the same ratios.
 
 ## Not yet a claim
 

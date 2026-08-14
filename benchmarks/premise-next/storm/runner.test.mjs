@@ -20,8 +20,9 @@ test("runs the deterministic 100-worker coherence storm and passes safety gates"
   assert.equal(report.limitations.virtualElapsedTime, true);
   assert.equal(report.limitations.leaseApi, false);
   assert.equal(report.limitations.eventInvalidationApi, false);
-  assert.ok(report.metrics.physicalValidations > 0);
-  assert.ok(report.metrics.joins > 0);
+  assert.equal(report.phases.length, 8);
+  assert.equal(report.metrics.physicalValidations, 111);
+  assert.equal(report.metrics.joins, 689);
   assert.ok(report.metrics.staleOutcomes > 0);
   assert.ok(report.metrics.unknownOutcomes > 0);
   assert.ok(report.metrics.sideEffectAttempts > 0);
