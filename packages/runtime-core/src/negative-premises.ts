@@ -91,7 +91,7 @@ function check(state: NegativePremiseState, reason: NegativePremiseCheck["reason
 export class NegativePremiseStore {
   private readonly entries = new Map<string, StoredNegativePremise>();
   private readonly maxEntries: number;
-  private readonly maxEntriesPerTenant?: number;
+  private readonly maxEntriesPerTenant: number | undefined;
   private readonly tenantCounts = new Map<string, number>();
   private hits = 0;
   private misses = 0;
@@ -115,7 +115,14 @@ export class NegativePremiseStore {
     required(input.reason, "reason");
     if (Date.parse(expiresAt) <= Date.parse(observedAt)) throw new RangeError("expiresAt must be after observedAt");
     const premise: NegativePremise = Object.freeze({ ...input, specVersion: NEGATIVE_PREMISE_SPEC_VERSION, state: "ABSENT" });
-    const key = negativePremiseKey(premise);
+    const key = negativePremiseKey({
+      tenantId: premise.tenantId,
+      resource: premise.resource,
+      incarnationId: premise.incarnationId,
+      queryDigest: premise.queryDigest,
+      frontierDigest: premise.frontierDigest,
+      authorizationContextDigest: premise.authorizationContextDigest
+    });
     this.remove(key);
     this.entries.set(key, { ...premise, key });
     this.tenantCounts.set(premise.tenantId, (this.tenantCounts.get(premise.tenantId) ?? 0) + 1);

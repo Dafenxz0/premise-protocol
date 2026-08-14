@@ -48,7 +48,14 @@ export function predicateSemanticFingerprint(input: Omit<PredicateDependency, "s
   required(input.incarnationId, "incarnationId");
   required(input.aspect, "aspect");
   validPredicate(input.predicate);
-  return `sha256:${createHash("sha256").update(canonical({ domain: PREDICATE_DEPENDENCY_SPEC_VERSION, ...input }), "utf8").digest("hex")}`;
+  const identity = {
+    tenantId: input.tenantId,
+    resourceId: input.resourceId,
+    incarnationId: input.incarnationId,
+    aspect: input.aspect,
+    predicate: input.predicate
+  };
+  return `sha256:${createHash("sha256").update(canonical({ domain: PREDICATE_DEPENDENCY_SPEC_VERSION, ...identity }), "utf8").digest("hex")}`;
 }
 
 export function createPredicateDependency(input: Omit<PredicateDependency, "specVersion" | "semanticFingerprint">): PredicateDependency {
