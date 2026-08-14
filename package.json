@@ -95,6 +95,7 @@
     "ga:rollback:help": "node deploy/rollback-smoke.mjs --help",
     "ga:syntax": "node --check ops/auth.mjs && node ops/auth.test.mjs && node --test ops/server.routes.test.mjs && node --test ops/route-durability.test.mjs && node --check ops/backup.mjs && node --check ops/restore.mjs && node --check ops/healthcheck.mjs && node --check ops/smoke.mjs && node --check ops/postgres-settings.mjs && node --test ops/postgres-settings.test.mjs && node --check benchmarks/ga-soak/postgres-telemetry.mjs && node --check benchmarks/ga-soak/diagnostic.mjs && node --check benchmarks/ga-load/postgres-scale.mjs && node --check benchmarks/ga-load/signed-envelope-client.mjs && node --test benchmarks/ga-load/signed-envelope-client.test.mjs && node benchmarks/ga-load/postgres-scale.test.mjs && node benchmarks/ga-soak/self-check.mjs && node --test deploy/postgres-config.test.mjs",
     "examples:verify": "pnpm --filter @premise/example-generic-memory test && pnpm --filter @premise/example-openai-memory test && pnpm --filter @premise/example-mcp-memory test && node scripts/verify-adapters.mjs",
+    "example:quickstart": "pnpm build && node examples/quickstart.mjs",
     "artifacts:generate": "pnpm build && node scripts/generate-artifacts.mjs"
   },
   "devDependencies": {
