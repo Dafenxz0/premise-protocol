@@ -52,10 +52,17 @@ calling it through this module.
 - a repeated key with different input is rejected;
 - a timeout or thrown side-effect error is returned as `UNKNOWN` and cached;
   the module never retries it, because the remote effect may have happened.
+- replay state is held by an explicit idempotency store. The default store is
+  bounded and never evicts an accepted key; when it is full, a new action is
+  rejected with `IDEMPOTENCY_RETENTION_FULL` rather than risking a duplicate
+  side effect.
 
 The timeout aborts the supplied `AbortSignal`, but a connector must honor that
 signal and provide its own atomic conditional write. A timeout is therefore an
 unknown outcome, not evidence that no mutation occurred.
 
-This is a contract and in-process state machine, not authentication, a remote
-transaction, a durable idempotency store or a universal tool adapter.
+This is a contract and state machine, not authentication, a remote transaction
+or a universal tool adapter. `BoundedGuardedToolIdempotencyStore` is an
+in-process bounded implementation. Applications that need restart-safe replay
+must inject a store backed by their durable idempotency/transaction system;
+forgetting old accepted keys is never an implicit retention policy.

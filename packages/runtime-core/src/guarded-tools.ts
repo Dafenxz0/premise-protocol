@@ -53,6 +53,22 @@ export interface GuardedToolOptions<TAction = unknown, TResult = unknown> {
   readonly callbacks: GuardedToolCallbacks<TAction, TResult>;
   /** Maximum time allowed for the side-effect callback. Defaults to 10 seconds. */
   readonly sideEffectTimeoutMs?: number;
+  /** Replay-safe idempotency state. The default is bounded and never evicts. */
+  readonly idempotencyStore?: GuardedToolIdempotencyStore<TResult>;
+}
+
+export type GuardedToolIdempotencyClaim<TResult> =
+  | Readonly<{ readonly kind: "NEW" }>
+  | Readonly<{ readonly kind: "PENDING" }>
+  | Readonly<{ readonly kind: "COMPLETED"; readonly result: GuardedToolActionResult<TResult> }>
+  | Readonly<{ readonly kind: "CONFLICT" }>
+  | Readonly<{ readonly kind: "FULL" }>;
+
+export interface GuardedToolIdempotencyStore<TResult = unknown> {
+  /** Atomically reserves or returns the replay state for one tenant/key. */
+  claim(key: string, fingerprint: string): GuardedToolIdempotencyClaim<TResult>;
+  /** Persists the terminal result without dropping an earlier reservation. */
+  complete(key: string, fingerprint: string, result: GuardedToolActionResult<TResult>): void;
 }
 
 declare const checkProof: unique symbol;
@@ -88,11 +104,6 @@ export interface GuardedToolActionResult<TResult = unknown> extends GuardedToolR
 
 interface ProofResource extends GuardedToolResource {
   readonly version: VersionReference;
-}
-
-interface StoredAction<TResult> {
-  readonly fingerprint: string;
-  readonly result: Promise<GuardedToolActionResult<TResult>>;
 }
 
 function nonEmpty(value: unknown): value is string {
@@ -146,6 +157,49 @@ function canonicalJson(value: unknown, seen = new Set<object>()): string {
   }
 }
 
+interface BoundedIdempotencyEntry<TResult> {
+  readonly fingerprint: string;
+  state: "PENDING" | "COMPLETED";
+  result?: GuardedToolActionResult<TResult>;
+}
+
+/**
+ * Bounded replay state that never evicts an accepted side effect. Once full,
+ * new actions are rejected explicitly instead of forgetting replay history.
+ */
+export class BoundedGuardedToolIdempotencyStore<TResult = unknown> implements GuardedToolIdempotencyStore<TResult> {
+  private readonly entries = new Map<string, BoundedIdempotencyEntry<TResult>>();
+  private readonly maxEntries: number;
+
+  constructor(options: { readonly maxEntries?: number } = {}) {
+    this.maxEntries = options.maxEntries ?? 1024;
+    if (!Number.isSafeInteger(this.maxEntries) || this.maxEntries < 1) throw new RangeError("maxEntries must be a positive safe integer");
+  }
+
+  claim(key: string, fingerprint: string): GuardedToolIdempotencyClaim<TResult> {
+    if (!nonEmpty(key) || !nonEmpty(fingerprint)) throw new TypeError("idempotency key and fingerprint must be non-empty");
+    const existing = this.entries.get(key);
+    if (existing !== undefined) {
+      if (existing.fingerprint !== fingerprint) return { kind: "CONFLICT" };
+      return existing.state === "PENDING"
+        ? { kind: "PENDING" }
+        : { kind: "COMPLETED", result: existing.result! };
+    }
+    if (this.entries.size >= this.maxEntries) return { kind: "FULL" };
+    this.entries.set(key, { fingerprint, state: "PENDING" });
+    return { kind: "NEW" };
+  }
+
+  complete(key: string, fingerprint: string, result: GuardedToolActionResult<TResult>): void {
+    const existing = this.entries.get(key);
+    if (existing === undefined || existing.fingerprint !== fingerprint || existing.state !== "PENDING") {
+      throw new Error("idempotency completion does not match a pending claim");
+    }
+    existing.state = "COMPLETED";
+    existing.result = Object.freeze({ ...result });
+  }
+}
+
 function invalidCheck(input: GuardedToolResource, reason: string): GuardedToolCheckResult {
   return { ...input, state: "UNKNOWN", reason } as GuardedToolCheckResult;
 }
@@ -172,7 +226,8 @@ export class GuardedTool<TAction = unknown, TResult = unknown> {
   private readonly timeoutMs: number;
   private readonly checks = new WeakMap<object, GuardedToolResource & { readonly state: GuardedToolState; readonly version?: VersionReference }>();
   private readonly ready = new WeakMap<object, ProofResource>();
-  private readonly actions = new Map<string, StoredAction<TResult>>();
+  private readonly idempotencyStore: GuardedToolIdempotencyStore<TResult>;
+  private readonly inFlight = new Map<string, Promise<GuardedToolActionResult<TResult>>>();
 
   constructor(options: GuardedToolOptions<TAction, TResult>) {
     if (options === undefined || options.callbacks === undefined) throw new TypeError("callbacks are required");
@@ -182,6 +237,7 @@ export class GuardedTool<TAction = unknown, TResult = unknown> {
     this.callbacks = options.callbacks;
     this.timeoutMs = options.sideEffectTimeoutMs ?? 10_000;
     if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) throw new TypeError("sideEffectTimeoutMs must be positive");
+    this.idempotencyStore = options.idempotencyStore ?? new BoundedGuardedToolIdempotencyStore<TResult>();
   }
 
   async check(input: GuardedToolResource): Promise<GuardedToolCheckResult> {
@@ -241,14 +297,25 @@ export class GuardedTool<TAction = unknown, TResult = unknown> {
     }
     const fingerprint = `${resource.resource}\u0000${stored.version.scheme}\u0000${stored.version.token}\u0000${actionDigest}`;
     const key = `${resource.tenantId}\u0000${idempotencyKey}`;
-    const existing = this.actions.get(key);
-    if (existing !== undefined) {
-      return existing.fingerprint === fingerprint
-        ? existing.result
-        : Promise.resolve({ accepted: false, outcome: "REJECTED", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_CONFLICT" });
-    }
-    const result = Promise.resolve().then(() => this.performAction(resource, stored.version, action, idempotencyKey));
-    this.actions.set(key, { fingerprint, result });
+    const pending = this.inFlight.get(key);
+    if (pending !== undefined) return pending;
+    const claim = this.idempotencyStore.claim(key, fingerprint);
+    if (claim.kind === "COMPLETED") return Promise.resolve(claim.result);
+    if (claim.kind === "CONFLICT") return Promise.resolve({ accepted: false, outcome: "REJECTED", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_CONFLICT" });
+    if (claim.kind === "PENDING") return Promise.resolve({ accepted: false, outcome: "UNKNOWN", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_IN_PROGRESS" });
+    if (claim.kind === "FULL") return Promise.resolve({ accepted: false, outcome: "REJECTED", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_RETENTION_FULL" });
+    const result = Promise.resolve().then(() => this.performAction(resource, stored.version, action, idempotencyKey)).then((response): GuardedToolActionResult<TResult> => {
+      try {
+        this.idempotencyStore.complete(key, fingerprint, response);
+        return response;
+      } catch {
+        return { accepted: false, outcome: "UNKNOWN", ...resource, expectedVersion: stored.version, reason: "IDEMPOTENCY_STORE_UNAVAILABLE" };
+      }
+    });
+    this.inFlight.set(key, result);
+    void result.finally(() => {
+      if (this.inFlight.get(key) === result) this.inFlight.delete(key);
+    });
     return result;
   }
 
