@@ -39,11 +39,11 @@ The repository contains the protocol contracts, a TypeScript runtime, reference 
 
 | Area | Current state |
 | --- | --- |
-| Protocol contracts | `premise/1` and `premise/1.1` specifications with vectors |
+| Protocol contracts | `premise/1`, `premise/1.1`, and PREMiSE NEXT portable vectors |
 | Runtime | TypeScript runtime with dependency propagation, revalidation, receipts, idempotency, and guarded actions |
 | Stores | In-memory, SQLite, and PostgreSQL-compatible packages |
 | Adapters | Filesystem, Git/GitHub-like, HTTP, webhook, and protocol examples |
-| Conformance | TypeScript and Python reference paths are tested against shared vectors |
+| Conformance | Independent Python reference plus 24 portable PREMiSE NEXT vectors; cross-language equivalence remains an explicit gate |
 | Evidence | Deterministic experiments and their limitations are indexed in [`docs/evidence`](docs/evidence/README.md) |
 | Release status | Research/engineering candidate; not a universal GA claim |
 
@@ -58,7 +58,7 @@ pnpm build
 pnpm test
 ```
 
-The smallest useful integration is: observe a source, attach its revision to a premise, derive the action, call `check` immediately before the side effect, and perform the connector's conditional write. Start with [`@premise/runtime-core`](packages/runtime-core/README.md), then read the [integration guide](docs/api-v2.md). The convenient `PremiseSession` facade is part of the next implementation wave; the snippet below shows the intended boundary, not a claim that this facade is already released.
+The smallest useful integration is: observe a source, attach its revision to a premise, derive the action, call `check` immediately before the side effect, and perform the connector's conditional write. Start with [`@premise/runtime-core`](packages/runtime-core/README.md), then read the [integration guide](docs/api-v2.md). `PremiseSession` and the guarded-tools contract are available from the runtime package; connector-specific authorization and conditional writes remain application responsibilities.
 
 ```ts
 // Target integration shape; use the current runtime primitives today.
@@ -77,6 +77,12 @@ The exact adapter contract is intentionally explicit: a protocol receipt is not 
 ## Evidence, not promises
 
 PREMiSE is evaluated against changing sources, not only static examples. The benchmark lab measures safety, freshness, request work, reads, latency, and cost per successful fresh action. It also records negative and inconclusive results.
+
+The current NEXT evidence includes a deterministic 100-worker coherence storm
+with 0 stale actions accepted and 0 cross-tenant joins, plus a PostgreSQL lease
+adapter with atomic acquisition, monotonic fencing and forced tenant RLS. The
+storm is an in-memory contract smoke, and the PostgreSQL integration test is
+opt-in; neither is a distributed capacity or universal production claim.
 
 The public evidence index is the right place to start: [`docs/evidence/README.md`](docs/evidence/README.md). It separates measured behavior from planned work and keeps benchmark archaeology out of this page.
 
@@ -98,7 +104,12 @@ The current evidence does **not** justify claims that PREMiSE is universally saf
 
 PREMiSE does not decide whether a source is morally, legally, or semantically true. It does not replace source-of-truth systems, solve retrieval, or make an agent's plan correct by itself. It provides a deterministic coherence boundary: the decision may proceed only when its recorded premises still satisfy the policy required by the action.
 
-The next engineering milestone is bounded, restart-safe coherence infrastructure: durable journal separation, checkpoints, event continuity, a simpler adapter API, distributed single-flight, and stronger premise semantics. See [`docs/evidence/README.md`](docs/evidence/README.md) for the status of each piece.
+The next engineering milestone is independent semantic conformance and
+connector-backed evidence: shared vectors, negative-premise and predicate
+semantics, receipt subsumption, and real failure-injection campaigns. See
+[`docs/premise-next-status.md`](docs/premise-next-status.md) and
+[`docs/evidence/README.md`](docs/evidence/README.md) for the status of each
+piece.
 
 ## Contributing
 
