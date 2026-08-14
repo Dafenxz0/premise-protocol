@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import { PremiseClient, type MemoryRecord } from "@premise/sdk";
+import { PremiseClient, type MemoryRecord, type RevalidationReport } from "@premise/sdk";
 import * as z from "zod/v4";
 
 export const MCP_SERVER_VERSION = "0.1.0-rc.1" as const;
@@ -16,6 +16,58 @@ const actionInput = z.object({
 });
 
 type JsonValue = Record<string, unknown>;
+
+export interface PremiseMcpClient {
+  getMemory<TContent = unknown>(memoryId: string): Promise<MemoryRecord<TContent>>;
+  revalidate(memoryId: string): Promise<RevalidationReport>;
+}
+
+const LOCAL_TIMESTAMP = "2026-08-15T00:00:00.000Z";
+const LOCAL_MEMORY_ID = "local:premise";
+const LOCAL_RECORD: MemoryRecord<unknown> = {
+  envelope: {
+    specVersion: "premise/2",
+    tenantId: "local",
+    memoryId: LOCAL_MEMORY_ID,
+    evidence: [{
+      evidenceId: "evidence:local:premise",
+      sourceUri: "local://premise",
+      observedAt: LOCAL_TIMESTAMP,
+      version: { scheme: "local", token: "v1" }
+    }],
+    confidence: { score: null, method: "local-mcp", assessedAt: LOCAL_TIMESTAMP },
+    conflicts: [],
+    temporal: { asOf: LOCAL_TIMESTAMP },
+    validity: { status: "FRESH", checkedAt: LOCAL_TIMESTAMP, policy: "VERSIONED" },
+    dependsOn: [],
+    signatures: []
+  },
+  content: {
+    mode: "LOCAL",
+    message: "PREMiSE MCP is running in zero-config local mode."
+  }
+};
+
+class LocalPremiseClient implements PremiseMcpClient {
+  async getMemory<TContent = unknown>(memoryId: string): Promise<MemoryRecord<TContent>> {
+    if (memoryId !== LOCAL_MEMORY_ID) throw new Error(`Unknown local memory: ${memoryId}`);
+    return LOCAL_RECORD as MemoryRecord<TContent>;
+  }
+
+  async revalidate(memoryId: string): Promise<RevalidationReport> {
+    if (memoryId !== LOCAL_MEMORY_ID) throw new Error(`Unknown local memory: ${memoryId}`);
+    return {
+      memoryId,
+      result: "UNCHANGED",
+      status: "FRESH",
+      checkedAt: LOCAL_TIMESTAMP,
+      sourceUri: "local://premise",
+      version: { scheme: "local", token: "v1" },
+      evidenceId: "evidence:local:premise",
+      reason: "local deterministic source is unchanged"
+    };
+  }
+}
 
 function result(value: JsonValue) {
   return {
@@ -44,7 +96,7 @@ function observed(record: MemoryRecord<unknown>): JsonValue {
   };
 }
 
-export function createPremiseMcpServer(client: PremiseClient<unknown>): McpServer {
+export function createPremiseMcpServer(client: PremiseMcpClient): McpServer {
   const server = new McpServer({
     name: "premise",
     version: MCP_SERVER_VERSION
@@ -137,10 +189,17 @@ export function createPremiseMcpServer(client: PremiseClient<unknown>): McpServe
   return server;
 }
 
-export function createConfiguredClient(env: NodeJS.ProcessEnv = process.env): PremiseClient<unknown> {
-  const baseUrl = env.PREMISE_BASE_URL;
+export function createConfiguredClient(env: NodeJS.ProcessEnv = process.env): PremiseMcpClient {
+  const baseUrl = env.PREMISE_BASE_URL?.trim();
+  const configuredMode = env.PREMISE_MODE?.trim();
+  const mode = (configuredMode === undefined || configuredMode.length === 0
+    ? (baseUrl === undefined || baseUrl.length === 0 ? "LOCAL" : "REMOTE")
+    : configuredMode).toUpperCase();
+
+  if (mode === "LOCAL") return new LocalPremiseClient();
+  if (mode !== "REMOTE") throw new Error("PREMISE_MODE must be LOCAL or REMOTE");
   if (baseUrl === undefined || baseUrl.length === 0) {
-    throw new Error("PREMISE_BASE_URL is required");
+    throw new Error("PREMISE_BASE_URL is required in REMOTE mode");
   }
   return new PremiseClient({
     baseUrl,

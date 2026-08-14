@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { resolve } from "node:path";
+import { createConfiguredClient } from "../dist/index.js";
 
 const at = "2026-08-14T00:00:00Z";
 const record = {
@@ -87,6 +88,38 @@ try {
 } finally {
   await client.close();
   await new Promise((resolvePromise, reject) => httpServer.close((error) => error ? reject(error) : resolvePromise()));
+}
+
+const localEnv = { ...process.env };
+delete localEnv.PREMISE_MODE;
+delete localEnv.PREMISE_BASE_URL;
+delete localEnv.PREMISE_TENANT;
+delete localEnv.PREMISE_TOKEN;
+assert.doesNotThrow(() => createConfiguredClient(localEnv));
+assert.throws(() => createConfiguredClient({ PREMISE_MODE: "REMOTE" }), /PREMISE_BASE_URL is required/u);
+
+const localTransport = new StdioClientTransport({
+  command: process.execPath,
+  args: [serverPath],
+  env: localEnv
+});
+const localClient = new Client({ name: "premise-mcp-local-test", version: "1.0.0" });
+try {
+  await localClient.connect(localTransport);
+  const listed = await localClient.listTools();
+  assert.deepEqual(listed.tools.map((tool) => tool.name).sort(), ["check", "explain", "guard", "observe"]);
+  const observed = await localClient.callTool({ name: "observe", arguments: { memoryId: "local:premise" } });
+  assert.match(observed.content[0].text, /"tenantId": "local"/u);
+  const checked = await localClient.callTool({ name: "check", arguments: { memoryId: "local:premise" } });
+  assert.match(checked.content[0].text, /"status": "FRESH"/u);
+  const guarded = await localClient.callTool({
+    name: "guard",
+    arguments: { memoryId: "local:premise", action: "publish release", risk: "HIGH" }
+  });
+  assert.match(guarded.content[0].text, /"decision": "ALLOW"/u);
+  assert.match(guarded.content[0].text, /"executesSideEffect": false/u);
+} finally {
+  await localClient.close();
 }
 
 console.log("mcp server tests passed");

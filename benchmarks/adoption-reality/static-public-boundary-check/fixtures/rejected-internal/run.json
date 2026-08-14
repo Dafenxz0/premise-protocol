@@ -1,5 +1,5 @@
 {
-  "format": "premise-agent-integration-trace/1",
+  "format": "premise-static-public-boundary-check-trace/1",
   "success": false,
   "filesChanged": ["agent.mjs"],
   "internalImports": ["agent.mjs -> @premise/runtime-core"],

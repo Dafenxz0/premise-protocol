@@ -1,13 +1,13 @@
-# Agent Integration Challenge
+# Static Public-Boundary Check
 
-This challenge measures the smallest useful external integration with the
-public PREMiSE SDK. It is an offline structural check, not a model benchmark
-and not evidence that a server, connector, or credential works.
+This check measures the smallest useful external integration with the public
+PREMiSE SDK. It is an offline structural check, not a model benchmark, not a
+real agent run, and not evidence that a server, connector, or credential works.
 
 ## Isolation boundary
 
 The agent input is frozen to
-`benchmarks/adoption-reality/agent-challenge/fixtures/isolated-agent/`:
+`benchmarks/adoption-reality/static-public-boundary-check/fixtures/isolated-public-consumer/`:
 
 - `README.md` with the task;
 - `package.json` with the public `@premise/sdk` dependency;
@@ -18,8 +18,9 @@ private runtime packages, benchmark data, or repository checkout. A valid
 candidate imports `@premise/sdk` only. Workspace aliases, repository-relative
 imports, private packages, and evaluator answer data fail closed.
 
-The checker never launches a process, installs a package, calls a URL, reads
-an environment secret, or needs a credential. `reference-run` and
+The checker never launches Codex, Luna, or another agent; it does not install a
+package, call a URL, read an environment secret, or need a credential.
+`reference-run` and
 `rejected-internal` are static fixtures used by `--self-check`; no candidate
 module is executed.
 
@@ -29,7 +30,7 @@ The evaluator-side `run.json` contains deterministic events:
 
 ```json
 {
-  "format": "premise-agent-integration-trace/1",
+  "format": "premise-static-public-boundary-check-trace/1",
   "success": true,
   "filesChanged": ["agent.mjs"],
   "internalImports": [],
@@ -63,14 +64,14 @@ The same fields are repeated under `metrics` for machine consumers. Counts,
 From the repository root:
 
 ```powershell
-node benchmarks/adoption-reality/agent-challenge/checker.mjs
-node benchmarks/adoption-reality/agent-challenge/checker.mjs --self-check
+node benchmarks/adoption-reality/static-public-boundary-check/checker.mjs
+node benchmarks/adoption-reality/static-public-boundary-check/checker.mjs --self-check
 ```
 
 To inspect another static candidate without changing the repository:
 
 ```powershell
-node benchmarks/adoption-reality/agent-challenge/checker.mjs --candidate C:\path\to\candidate
+node benchmarks/adoption-reality/static-public-boundary-check/checker.mjs --candidate C:\path\to\candidate
 ```
 
 The default reference result is deterministic and should be `PASS`; the

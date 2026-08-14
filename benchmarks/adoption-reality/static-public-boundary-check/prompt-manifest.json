@@ -1,10 +1,10 @@
 {
   "format": "premise-agent-integration-prompt-manifest/1",
   "version": "1.0.0",
-  "challenge": "public-sdk-consumer",
-  "seed": "agent-integration-fixture-2026-08-14",
+  "check": "public-sdk-consumer",
+  "seed": "static-public-boundary-check-2026-08-14",
   "input": {
-    "root": "fixtures/isolated-agent",
+    "root": "fixtures/isolated-public-consumer",
     "allowedFiles": [
       "README.md",
       "package.json",

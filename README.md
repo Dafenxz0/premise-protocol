@@ -144,6 +144,9 @@ For agents working with mutable sources, the repository also ships a
 [PREMiSE Skill](.agents/skills/premise/SKILL.md) and a source
 [Codex plugin](plugins/premise-codex/README.md). They teach the workflow; the
 runtime and connector still enforce authorization and conditional writes.
+The plugin includes a dependency-free MCP launcher that defaults to LOCAL
+mode and can use REMOTE mode with `PREMISE_BASE_URL`; its copied-install gate
+is documented in the [isolated Codex/Luna experiment](docs/codex-luna-isolated-experiment.md).
 
 ```bash
 corepack enable

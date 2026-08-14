@@ -1,5 +1,5 @@
 {
-  "name": "premise-agent-integration-fixture",
+  "name": "premise-static-public-consumer-fixture",
   "version": "0.0.0",
   "private": true,
   "type": "module",

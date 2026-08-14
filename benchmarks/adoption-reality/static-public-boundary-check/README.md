@@ -1,15 +1,15 @@
-# Agent Integration Challenge
+# Static Public-Boundary Check
 
-This is a deterministic, offline check of a public PREMiSE SDK integration.
-It does not launch an agent, install packages, call a server, or read
-credentials.
+This is a deterministic, offline structural check of a public PREMiSE SDK
+integration. It is not an agent run: it does not launch Codex or Luna, install
+packages, call a server, or read credentials.
 
 ```powershell
-node benchmarks/adoption-reality/agent-challenge/checker.mjs
-node benchmarks/adoption-reality/agent-challenge/checker.mjs --self-check
+node benchmarks/adoption-reality/static-public-boundary-check/checker.mjs
+node benchmarks/adoption-reality/static-public-boundary-check/checker.mjs --self-check
 ```
 
-The isolated input is [`fixtures/isolated-agent`](./fixtures/isolated-agent/).
+The isolated input is [`fixtures/isolated-public-consumer`](./fixtures/isolated-public-consumer/).
 It contains only a `README.md`, a `package.json`, and public Markdown under
 `docs/`. The evaluator-only prompt manifest, checker, and candidate fixtures
 are outside that input. The reference candidate is a static fixture; it is not
@@ -29,4 +29,4 @@ always includes:
 - `timeToFirstSuccessMs`
 
 The complete boundary and metric definitions are in
-[`docs/agent-integration-challenge.md`](../../../docs/agent-integration-challenge.md).
+[`docs/static-public-boundary-check.md`](../../../docs/static-public-boundary-check.md).

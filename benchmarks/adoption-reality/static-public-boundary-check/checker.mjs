@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const DEFAULT_MANIFEST = join(ROOT, "prompt-manifest.json");
-const DEFAULT_INPUT = join(ROOT, "fixtures", "isolated-agent");
+const DEFAULT_INPUT = join(ROOT, "fixtures", "isolated-public-consumer");
 const DEFAULT_CANDIDATE = join(ROOT, "fixtures", "reference-run");
 const TRACE_FILE = "run.json";
 const PUBLIC_PACKAGE = "@premise/sdk";
@@ -96,7 +96,7 @@ function isAllowedInputPath(path, allowedFiles) {
 
 function baseResult() {
   return {
-    format: "premise-agent-integration-result/1",
+    format: "premise-static-public-boundary-check-result/1",
     status: "FAIL",
     success: false,
     filesChanged: [],
@@ -191,7 +191,7 @@ async function checkCandidate(candidateRoot, inputRoot, manifest, result) {
     trace = {};
   }
 
-  if (trace.format !== "premise-agent-integration-trace/1") addErrors(result, ["candidate trace format is invalid"]);
+  if (trace.format !== "premise-static-public-boundary-check-trace/1") addErrors(result, ["candidate trace format is invalid"]);
   if (!Array.isArray(trace.filesChanged) || !equalJson(trace.filesChanged, changedFiles)) addErrors(result, ["trace filesChanged does not match the candidate"]);
   if (!Array.isArray(trace.internalImports)) addErrors(result, ["trace internalImports must be an array"]);
   if (!Array.isArray(trace.docsReads)) addErrors(result, ["trace docsReads must be an array"]);
@@ -301,7 +301,7 @@ async function checkManifest(manifestPath, manifest, result) {
   if (typeof manifestPath !== "string" || manifestPath.length === 0) addErrors(result, ["prompt manifest path is empty"]);
 }
 
-export async function checkChallenge({ manifestPath = DEFAULT_MANIFEST, inputRoot = DEFAULT_INPUT, candidateRoot = DEFAULT_CANDIDATE } = {}) {
+export async function checkBoundary({ manifestPath = DEFAULT_MANIFEST, inputRoot = DEFAULT_INPUT, candidateRoot = DEFAULT_CANDIDATE } = {}) {
   const result = baseResult();
   let manifest;
   try {
@@ -324,7 +324,7 @@ function optionValue(args, name, fallback) {
 }
 
 async function selfCheck() {
-  const reference = await checkChallenge();
+  const reference = await checkBoundary();
   assert.equal(reference.status, "PASS", JSON.stringify(reference, null, 2));
   assert.equal(reference.success, true);
   assert.deepEqual(reference.internalImports, []);
@@ -335,7 +335,7 @@ async function selfCheck() {
   assert.equal(reference.timeToFirstSuccessMs, 37);
   assert.deepEqual(reference.metrics.filesChanged, ["agent.mjs"]);
 
-  const rejected = await checkChallenge({ candidateRoot: join(ROOT, "fixtures", "rejected-internal") });
+  const rejected = await checkBoundary({ candidateRoot: join(ROOT, "fixtures", "rejected-internal") });
   assert.equal(rejected.status, "FAIL");
   assert.equal(rejected.success, false);
   assert.ok(rejected.internalImports.some((entry) => entry.includes("@premise/runtime-core")));
@@ -352,7 +352,7 @@ if (args.includes("--self-check")) {
   const manifestPath = optionValue(args, "--manifest", DEFAULT_MANIFEST);
   const inputRoot = optionValue(args, "--input", DEFAULT_INPUT);
   const candidateRoot = optionValue(args, "--candidate", DEFAULT_CANDIDATE);
-  const result = await checkChallenge({ manifestPath, inputRoot, candidateRoot });
+  const result = await checkBoundary({ manifestPath, inputRoot, candidateRoot });
   console.log(JSON.stringify(result, null, 2));
   if (!result.success) process.exitCode = 1;
 }

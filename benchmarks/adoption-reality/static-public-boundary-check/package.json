@@ -1,5 +1,5 @@
 {
-  "name": "@premise/agent-integration-challenge",
+  "name": "@premise/static-public-boundary-check",
   "private": true,
   "type": "module",
   "engines": {
