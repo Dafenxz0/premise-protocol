@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  normalizePremiseValidationScope,
+  premiseValidationScopeKey,
+  type PremiseValidationScope
+} from "./validation-scope.js";
 
 export type PremisePolicyCapability =
   | "RESOURCE_IDENTITY"
@@ -148,92 +153,29 @@ export function negotiatePremisePolicyCapabilities(
   return { supported, unsupported, decision: unsupported.length === 0 ? "SUPPORTED" : "UNSUPPORTED" };
 }
 
-export interface PremiseReceiptSharingScope {
-  readonly tenantId: string;
-  readonly resourceId: string;
-  readonly incarnationId: string;
-  /** Opaque source version for the observation being coalesced. */
-  readonly versionToken: string;
-  readonly scopes: readonly string[];
-  /** Digest of the exact query/projection whose receipt may be reused. */
-  readonly queryDigest: string;
-  readonly validatorId: string;
-  readonly authorizationContextDigest: string;
-  readonly policyDigest: string;
-  /** Digest of the complete change set, or null when no change set applies. */
-  readonly changeSetDigest: string | null;
-  readonly causalFrontier: readonly string[];
-}
+/** @deprecated Use PremiseValidationScope. Kept as a complete-scope alias. */
+export type PremiseReceiptSharingScope = PremiseValidationScope;
 
-function canonical(value: unknown): string {
-  if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (typeof value === "object") {
-    const object = value as Record<string, unknown>;
-    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonical(object[key])}`).join(",")}}`;
-  }
-  throw new TypeError("PREMiSE policy values must be JSON serializable");
-}
-
-export function premiseReceiptSharingKey(scope: PremiseReceiptSharingScope): string {
-  const required = [
-    scope.tenantId,
-    scope.resourceId,
-    scope.incarnationId,
-    scope.versionToken,
-    scope.queryDigest,
-    scope.validatorId,
-    scope.authorizationContextDigest,
-    scope.policyDigest
-  ];
-  if (
-    required.some((value) => value.trim().length === 0)
-    || scope.changeSetDigest === undefined
-    || (typeof scope.changeSetDigest === "string" && scope.changeSetDigest.trim().length === 0)
-  ) {
-    throw new TypeError("PREMiSE sharing scope fields must be non-empty");
-  }
-  if ([...scope.scopes, ...scope.causalFrontier].some((value) => value.trim().length === 0)) {
-    throw new TypeError("PREMiSE sharing scope sets cannot contain empty values");
-  }
-  const canonicalSet = (values: readonly string[]) => [...new Set(values)].sort();
-  const projection = canonical({
-    domain: "premise-policy-sharing/1",
-    tenantId: scope.tenantId,
-    resourceId: scope.resourceId,
-    incarnationId: scope.incarnationId,
-    versionToken: scope.versionToken,
-    scopes: canonicalSet(scope.scopes),
-    queryDigest: scope.queryDigest,
-    validatorId: scope.validatorId,
-    authorizationContextDigest: scope.authorizationContextDigest,
-    policyDigest: scope.policyDigest,
-    changeSetDigest: scope.changeSetDigest,
-    causalFrontier: canonicalSet(scope.causalFrontier)
-  });
-  return `sha256:${createHash("sha256").update(projection, "utf8").digest("hex")}`;
-}
+/** @deprecated Use premiseValidationScopeKey. */
+export const premiseReceiptSharingKey = premiseValidationScopeKey;
 
 /**
  * Key for one complete multi-resource receipt frontier. Resource identity and
  * version stay per member; the shared query/auth/policy/change-set/causal
  * scope is still part of every member, so only an exact frontier can coalesce.
  */
-export function premiseReceiptSharingFrontierKey(scopes: readonly PremiseReceiptSharingScope[]): string {
+export function premiseReceiptSharingFrontierKey(scopes: readonly PremiseValidationScope[]): string {
   if (scopes.length === 0) throw new TypeError("PREMiSE frontier must contain at least one resource");
-  const members = scopes.map((scope) => ({ scope, key: premiseReceiptSharingKey(scope) }))
-    .sort((left, right) => left.scope.resourceId.localeCompare(right.scope.resourceId) || left.key.localeCompare(right.key));
+  const members = scopes.map((scope) => {
+    const normalized = normalizePremiseValidationScope(scope);
+    return { scope: normalized, key: premiseValidationScopeKey(normalized) };
+  }).sort((left, right) => left.scope.resourceId.localeCompare(right.scope.resourceId) || left.key.localeCompare(right.key));
   if (new Set(members.map(({ scope }) => scope.resourceId)).size !== members.length) {
     throw new TypeError("PREMiSE frontier cannot contain duplicate resources");
   }
-  const canonicalSet = (values: readonly string[]) => [...new Set(values)].sort();
-  const projection = canonical({
+  const projection = JSON.stringify({
     domain: "premise-policy-sharing-frontier/1",
-    members: members.map(({ scope }) => ({
-      ...scope,
-      scopes: canonicalSet(scope.scopes),
-      causalFrontier: canonicalSet(scope.causalFrontier)
-    }))
+    members: members.map(({ key }) => key)
   });
   return `sha256:${createHash("sha256").update(projection, "utf8").digest("hex")}`;
 }
@@ -269,11 +211,11 @@ export class PremiseSingleFlight<T> {
   }
 
   /** Derives the full protocol key so callers cannot accidentally coalesce a partial scope. */
-  runScoped(scope: PremiseReceiptSharingScope, task: () => Promise<T> | T): Promise<T> {
+  runScoped(scope: PremiseValidationScope, task: () => Promise<T> | T): Promise<T> {
     return this.run(premiseReceiptSharingKey(scope), task);
   }
 
-  runFrontier(scopes: readonly PremiseReceiptSharingScope[], task: () => Promise<T> | T): Promise<T> {
+  runFrontier(scopes: readonly PremiseValidationScope[], task: () => Promise<T> | T): Promise<T> {
     return this.run(premiseReceiptSharingFrontierKey(scopes), task);
   }
 }

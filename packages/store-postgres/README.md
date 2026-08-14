@@ -96,6 +96,12 @@ La API es asíncrona y requiere el mismo adaptador transaccional fijado que las
 leases. El adaptador implementa la coordinación durable y el fencing; todavía
 no constituye por sí solo una prueba de capacidad de producción a gran escala.
 
+The flight API accepts the complete `PremiseValidationScope`: tenant, resource,
+incarnation, version scheme/token, validator, authorization, policy, query,
+scopes, change-set digest, and causal frontier. Its digest is the same canonical
+runtime-core identity used for receipt and in-process flight sharing. An
+incomplete scope is rejected rather than reduced to a weaker sharing key.
+
 ## Migraciones y aislamiento
 
 Las migraciones v2 están versionadas en [`migrations/`](./migrations):

@@ -19,7 +19,7 @@ const continuity = assessOrderedEventContinuity(page.events, {
 });
 ```
 
-PR40 established the wire contract. The runtime now exposes additive `PremiseRuntime.applyStreamEvent`, which validates continuity and fails closed on gaps, reordering, conflicts, and deltas before a snapshot. The compatibility store, SQLite/PostgreSQL adapters, HTTP, and SDK paths still accept legacy `V2Event`; authoritative snapshot repair is the next increment and is not claimed by this contract alone.
+PR40 established the wire contract. The runtime now exposes additive `PremiseRuntime.applyStreamEvent`, which validates continuity and fails closed on gaps, reordering, conflicts, and deltas before a snapshot. The compatibility store, SQLite/PostgreSQL adapters, HTTP, and SDK paths still accept legacy `V2Event`; connector authentication and durable transactional snapshot repair remain adapter responsibilities.
 
 The runtime also exposes `repairStreamFromSnapshot(page)` for a terminal page that has already been authenticated and authorized by an adapter. The page must begin with `SNAPSHOT`, contain a contiguous sequence through `headSequence`, and omit `nextCursor`. The runtime validates those boundaries before applying events, treats exact persisted replays as duplicates, and leaves the stream fenced at the repair start if storage fails part-way through. This is an in-memory runtime path; adapter authentication and durable transactional repair remain adapter responsibilities.
 

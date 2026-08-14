@@ -6,9 +6,11 @@ another caller is asking about a newer version.
 
 It does four things:
 
-1. Coalesces concurrent calls only when all four key parts match:
-   `tenantId`, `resource`, `expectedVersion.scheme` and
-   `expectedVersion.token`.
+1. Coalesces concurrent calls only when one complete
+   `PremiseValidationScope` matches: tenant, resource, incarnation, version
+   scheme/token, validator, authorization, policy, query, scopes, change set
+   and causal frontier. Legacy requests without that complete scope remain
+   callable but are isolated rather than assigned a partial sharing key.
 2. Gives every new flight a monotonic fencing token. A result from an older
    flight, or a source result that echoes the wrong token, becomes
    `UNKNOWN/FENCED` and cannot be used.
@@ -21,14 +23,25 @@ or side-effect executor. The injected source performs one validation only:
 
 ```ts
 const coordinator = new FencedSingleFlightCoordinator({
-  validate: ({ tenantId, resource, expectedVersion, fencingToken, signal }) =>
-    connector.validate({ tenantId, resource, expectedVersion, fencingToken, signal })
+  validate: ({ tenantId, resource, expectedVersion, scope, fencingToken, signal }) =>
+    connector.validate({ tenantId, resource, expectedVersion, scope, fencingToken, signal })
 });
 
 const result = await coordinator.validate({
-  tenantId: "acme",
-  resource: "github://repo/pull/42",
-  expectedVersion: { scheme: "github.commit", token: "abc123" },
+  scope: {
+    tenantId: "acme",
+    resourceId: "github://repo/pull/42",
+    incarnationId: "pull:42",
+    versionScheme: "github.commit",
+    versionToken: "abc123",
+    validatorId: "github-read",
+    authorizationContextDigest: "auth:reader",
+    policyDigest: "policy:pull-read",
+    queryDigest: "query:head",
+    scopes: ["read:head"],
+    changeSetDigest: null,
+    causalFrontier: []
+  },
   timeoutMs: 500
 });
 ```

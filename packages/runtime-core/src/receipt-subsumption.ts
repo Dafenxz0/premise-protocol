@@ -1,18 +1,11 @@
-export const RECEIPT_SUBSUMPTION_SPEC_VERSION = "premise-receipt-subsumption/1" as const;
-export type ReceiptSubsumptionReason = "MATCH" | "TENANT_MISMATCH" | "RESOURCE_MISMATCH" | "INCARNATION_MISMATCH" | "VERSION_MISMATCH" | "AUTHORIZATION_MISMATCH" | "POLICY_MISMATCH" | "VALIDATOR_MISMATCH" | "QUERY_FAMILY_MISMATCH" | "QUERY_INSUFFICIENT" | "SCOPE_INSUFFICIENT" | "FRONTIER_INSUFFICIENT" | "EXPIRED" | "INVALID";
+import type { PremiseValidationScope } from "./validation-scope.js";
 
-export interface ReceiptScope {
-  readonly tenantId: string;
-  readonly resourceId: string;
-  readonly incarnationId: string;
-  readonly versionToken: string;
-  readonly validatorId: string;
-  readonly authorizationContextDigest: string;
-  readonly policyDigest: string;
+export const RECEIPT_SUBSUMPTION_SPEC_VERSION = "premise-receipt-subsumption/1" as const;
+export type ReceiptSubsumptionReason = "MATCH" | "TENANT_MISMATCH" | "RESOURCE_MISMATCH" | "INCARNATION_MISMATCH" | "VERSION_SCHEME_MISMATCH" | "VERSION_MISMATCH" | "AUTHORIZATION_MISMATCH" | "POLICY_MISMATCH" | "CHANGE_SET_MISMATCH" | "VALIDATOR_MISMATCH" | "QUERY_FAMILY_MISMATCH" | "QUERY_INSUFFICIENT" | "SCOPE_INSUFFICIENT" | "FRONTIER_INSUFFICIENT" | "EXPIRED" | "INVALID";
+
+export interface ReceiptScope extends PremiseValidationScope {
   readonly queryFamily: string;
   readonly queryParts: readonly string[];
-  readonly scopes: readonly string[];
-  readonly causalFrontier: readonly string[];
 }
 
 export interface ReceiptCandidate<T = unknown> {
@@ -57,10 +50,12 @@ function validateScope(scope: ReceiptScope, name: string): void {
   required(scope?.tenantId, `${name}.tenantId`);
   required(scope?.resourceId, `${name}.resourceId`);
   required(scope?.incarnationId, `${name}.incarnationId`);
+  required(scope?.versionScheme, `${name}.versionScheme`);
   required(scope?.versionToken, `${name}.versionToken`);
   required(scope?.validatorId, `${name}.validatorId`);
   required(scope?.authorizationContextDigest, `${name}.authorizationContextDigest`);
   required(scope?.policyDigest, `${name}.policyDigest`);
+  if (scope?.changeSetDigest !== null) required(scope?.changeSetDigest, `${name}.changeSetDigest`);
   required(scope?.queryFamily, `${name}.queryFamily`);
   set(scope.queryParts, `${name}.queryParts`);
   set(scope.scopes, `${name}.scopes`);
@@ -71,10 +66,12 @@ function scopeReason(candidate: ReceiptScope, requiredScope: ReceiptScope, requi
   if (candidate.tenantId !== requiredScope.tenantId) return "TENANT_MISMATCH";
   if (candidate.resourceId !== requiredScope.resourceId) return "RESOURCE_MISMATCH";
   if (candidate.incarnationId !== requiredScope.incarnationId) return "INCARNATION_MISMATCH";
+  if (candidate.versionScheme !== requiredScope.versionScheme) return "VERSION_SCHEME_MISMATCH";
   if (candidate.versionToken !== requiredScope.versionToken) return "VERSION_MISMATCH";
   if (candidate.validatorId !== requiredScope.validatorId) return "VALIDATOR_MISMATCH";
   if (candidate.authorizationContextDigest !== requiredScope.authorizationContextDigest) return "AUTHORIZATION_MISMATCH";
   if (candidate.policyDigest !== requiredScope.policyDigest) return "POLICY_MISMATCH";
+  if (candidate.changeSetDigest !== requiredScope.changeSetDigest) return "CHANGE_SET_MISMATCH";
   if (candidate.queryFamily !== requiredScope.queryFamily) return "QUERY_FAMILY_MISMATCH";
   if (!covers(set(candidate.queryParts, "candidate.queryParts"), set(requirement.requiredQueryParts, "requiredQueryParts"))) return "QUERY_INSUFFICIENT";
   if (!covers(set(candidate.scopes, "candidate.scopes"), set(requirement.requiredScopes, "requiredScopes"))) return "SCOPE_INSUFFICIENT";

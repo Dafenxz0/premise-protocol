@@ -1,4 +1,5 @@
 import type { VersionReference } from "@premise/protocol-types";
+import { normalizePremiseValidationScope, premiseValidationScopeKey, type PremiseValidationScope } from "./validation-scope.js";
 
 export type FencedValidationResult = "UNCHANGED" | "CHANGED" | "MISSING" | "UNKNOWN";
 export type FencedValidationUnknownReason = "TIMEOUT" | "ABORTED" | "FENCED" | "SOURCE_UNKNOWN";
@@ -18,9 +19,12 @@ interface FencedAbortController {
 declare const AbortController: { new (): FencedAbortController };
 
 export interface FencedValidationRequest {
-  readonly tenantId: string;
-  readonly resource: string;
-  readonly expectedVersion: VersionReference;
+  /** Complete scope opts into sharing. */
+  readonly scope?: PremiseValidationScope;
+  /** Legacy fields remain accepted, but are isolated when scope is absent. */
+  readonly tenantId?: string;
+  readonly resource?: string;
+  readonly expectedVersion?: VersionReference;
   readonly signal?: FencedAbortSignal;
   readonly timeoutMs?: number;
 }
@@ -29,6 +33,7 @@ export interface FencedValidationInvocation {
   readonly tenantId: string;
   readonly resource: string;
   readonly expectedVersion: VersionReference;
+  readonly scope?: PremiseValidationScope;
   readonly fencingToken: number;
   readonly signal: FencedAbortSignal;
 }
@@ -74,13 +79,43 @@ const defaultTimers: FencedSingleFlightTimers = {
   clearTimeout: (handle) => hostTimers.clearTimeout(handle)
 };
 
-function required(value: string, name: string): string {
+function required(value: unknown, name: string): string {
   if (typeof value !== "string" || value.trim().length === 0) throw new TypeError(`${name} must be a non-empty string`);
   return value;
 }
 
-function normalizeRequest(request: FencedValidationRequest): Required<Pick<FencedValidationRequest, "tenantId" | "resource" | "expectedVersion">> & Pick<FencedValidationRequest, "signal" | "timeoutMs"> {
+type NormalizedRequest = {
+  readonly tenantId: string;
+  readonly resource: string;
+  readonly expectedVersion: VersionReference;
+  readonly scope?: PremiseValidationScope;
+  readonly signal?: FencedAbortSignal;
+  readonly timeoutMs?: number;
+};
+
+function normalizeRequest(request: FencedValidationRequest): NormalizedRequest {
   if (request === undefined || request === null) throw new TypeError("validation request is required");
+  if (request.scope !== undefined) {
+    const scope = normalizePremiseValidationScope(request.scope);
+    const tenantId = request.tenantId === undefined ? scope.tenantId : required(request.tenantId, "tenantId");
+    const resource = request.resource === undefined ? scope.resourceId : required(request.resource, "resource");
+    const scheme = request.expectedVersion === undefined ? scope.versionScheme : required(request.expectedVersion.scheme, "expectedVersion.scheme");
+    const token = request.expectedVersion === undefined ? scope.versionToken : required(request.expectedVersion.token, "expectedVersion.token");
+    if (tenantId !== scope.tenantId || resource !== scope.resourceId || scheme !== scope.versionScheme || token !== scope.versionToken) {
+      throw new TypeError("validation request fields do not match its complete scope");
+    }
+    if (request.timeoutMs !== undefined && (!Number.isFinite(request.timeoutMs) || request.timeoutMs < 0)) {
+      throw new RangeError("timeoutMs must be a finite non-negative number");
+    }
+    return {
+      tenantId,
+      resource,
+      expectedVersion: { scheme, token },
+      scope,
+      ...(request.signal === undefined ? {} : { signal: request.signal }),
+      ...(request.timeoutMs === undefined ? {} : { timeoutMs: request.timeoutMs })
+    };
+  }
   const tenantId = required(request.tenantId, "tenantId");
   const resource = required(request.resource, "resource");
   const scheme = required(request.expectedVersion?.scheme, "expectedVersion.scheme");
@@ -99,10 +134,6 @@ function normalizeRequest(request: FencedValidationRequest): Required<Pick<Fence
 
 function scopeKey(tenantId: string, resource: string): string {
   return JSON.stringify([tenantId, resource]);
-}
-
-function flightKey(request: Pick<FencedValidationRequest, "tenantId" | "resource" | "expectedVersion">): string {
-  return JSON.stringify([request.tenantId, request.resource, request.expectedVersion.scheme, request.expectedVersion.token]);
 }
 
 function unknown<T>(fencingToken: number, reason: FencedValidationUnknownReason): FencedValidationOutcome<T> {
@@ -130,6 +161,7 @@ export class FencedSingleFlightCoordinator<T = unknown> {
   private readonly timers: FencedSingleFlightTimers;
   private readonly defaultTimeoutMs: number | undefined;
   private nextFencingToken = 0;
+  private legacyFlight = 0;
 
   constructor(private readonly source: FencedValidationSource<T>, options: FencedSingleFlightOptions = {}) {
     if (source === undefined || typeof source.validate !== "function") throw new TypeError("source.validate is required");
@@ -142,7 +174,9 @@ export class FencedSingleFlightCoordinator<T = unknown> {
 
   validate(input: FencedValidationRequest): Promise<FencedValidationOutcome<T>> {
     const request = normalizeRequest(input);
-    const key = flightKey(request);
+    const key = request.scope === undefined
+      ? `legacy-isolated:${++this.legacyFlight}`
+      : premiseValidationScopeKey(request.scope);
     const existing = this.flights.get(key);
     if (existing !== undefined) return existing.promise;
 
@@ -201,6 +235,7 @@ export class FencedSingleFlightCoordinator<T = unknown> {
         tenantId: request.tenantId,
         resource: request.resource,
         expectedVersion: request.expectedVersion,
+        ...(request.scope === undefined ? {} : { scope: request.scope }),
         fencingToken,
         signal: controller.signal
       });

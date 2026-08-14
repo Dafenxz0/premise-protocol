@@ -23,13 +23,14 @@ import {
   type RuntimeInstrumentation
 } from "./instrumentation.js";
 import { IncrementalFrontierEngine, type FrontierResult } from "./frontier-engine.js";
-import { premiseReceiptSharingKey, type PremiseReceiptSharingScope } from "./premise-policy.js";
+import { premiseValidationScopeKey, type PremiseValidationScope } from "./validation-scope.js";
 import { RuntimeReceiptCache } from "./receipt-cache.js";
 import { verifyRuntimeCheckpointRecovery } from "./checkpoint.js";
 import type { RuntimeCheckpointTailEntry, RuntimeIdempotencyRecord, RuntimeOperationalCheckpoint } from "./checkpoint.js";
 import type { RuntimeJournal, RuntimeJournalEventEntry } from "./journal.js";
 import { planRuntimeStreamBurst, type RuntimeStreamBurstCapabilities } from "./stream-burst.js";
 export * from "./premise-policy.js";
+export * from "./validation-scope.js";
 export * from "./premise-guard.js";
 export * from "./instrumentation.js";
 export * from "./frontier-engine.js";
@@ -164,7 +165,7 @@ export interface RuntimeValidationReport {
 export type RuntimeReceiptScopeFactory<T> = (
   evidence: EvidenceReference,
   record: RuntimeRecord<T>
-) => PremiseReceiptSharingScope | undefined;
+) => PremiseValidationScope | undefined;
 
 export type RuntimeValidator<T> = (evidence: EvidenceReference, record: RuntimeRecord<T>) => Promise<RuntimeValidationReport>;
 
@@ -1225,7 +1226,7 @@ export class PremiseRuntime<T = unknown> {
     return this.dependentClosure(direct);
   }
 
-  private validationScope(evidence: EvidenceReference, record: RuntimeRecord<T>): { key: string; scope?: PremiseReceiptSharingScope } {
+  private validationScope(evidence: EvidenceReference, record: RuntimeRecord<T>): { key: string; scope?: PremiseValidationScope } {
     if (this.receiptScope === undefined) {
       // A validator may depend on record-local policy, authorization or
       // content. Without an explicit complete scope, sharing across records
@@ -1234,14 +1235,14 @@ export class PremiseRuntime<T = unknown> {
       this.validationInvocation += 1;
       return { key: `isolated:${record.envelope.memoryId}:${evidence.evidenceId}:${this.validationInvocation}` };
     }
-    let scope: PremiseReceiptSharingScope | undefined;
+    let scope: PremiseValidationScope | undefined;
     try {
       const supplied = this.receiptScope(evidence, record);
       if (supplied !== undefined) {
         // Validate the factory contract before interpolating any field. In
         // particular, `undefined` must not become the literal string
         // "undefined" and accidentally form a shareable key.
-        premiseReceiptSharingKey(supplied);
+        premiseValidationScopeKey(supplied);
         // Bind dimensions the runtime can observe directly. The factory still
         // owns authorization, query, policy, change-set and incarnation
         // semantics, while a stale or copied evidence version cannot be
@@ -1256,7 +1257,7 @@ export class PremiseRuntime<T = unknown> {
           scopes: [...supplied.scopes],
           causalFrontier: [...supplied.causalFrontier]
         };
-        return { key: premiseReceiptSharingKey(scope), scope };
+        return { key: premiseValidationScopeKey(scope), scope };
       }
     } catch {
       // An incomplete or malformed scope must disable sharing, never broaden
@@ -1267,7 +1268,7 @@ export class PremiseRuntime<T = unknown> {
     return { key: `isolated:${record.envelope.memoryId}:${evidence.evidenceId}:${this.validationInvocation}` };
   }
 
-  private lookupReceipt(scope: PremiseReceiptSharingScope | undefined): RuntimeValidationReport | undefined {
+  private lookupReceipt(scope: PremiseValidationScope | undefined): RuntimeValidationReport | undefined {
     if (this.receiptCache === undefined || scope === undefined) return undefined;
     this.operation("receiptLookups");
     const lookup = this.receiptCache.get(scope, this.now());
@@ -1280,7 +1281,7 @@ export class PremiseRuntime<T = unknown> {
     return undefined;
   }
 
-  private storeReceipt(evidence: EvidenceReference, scope: PremiseReceiptSharingScope | undefined, report: RuntimeValidationReport): void {
+  private storeReceipt(evidence: EvidenceReference, scope: PremiseValidationScope | undefined, report: RuntimeValidationReport): void {
     if (this.receiptCache === undefined || scope === undefined || report.result !== "UNCHANGED") return;
     if (report.status !== "FRESH") return;
     if (typeof report.checkedAt !== "string" || Number.isNaN(Date.parse(report.checkedAt))) return;
@@ -1307,10 +1308,10 @@ export class PremiseRuntime<T = unknown> {
     }
   }
 
-  private invalidateReceipt(scope: PremiseReceiptSharingScope | undefined): void {
+  private invalidateReceipt(scope: PremiseValidationScope | undefined): void {
     if (this.receiptCache === undefined || scope === undefined) return;
     try {
-      premiseReceiptSharingKey(scope);
+      premiseValidationScopeKey(scope);
       this.receiptGeneration += 1;
       this.receiptCache.invalidate(scope);
     } catch { /* fail closed to a miss */ }

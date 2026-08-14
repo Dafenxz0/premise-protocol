@@ -110,6 +110,7 @@ test("sharing keys require exact query and change-set scope while canonicalizing
     tenantId: "tenant-a",
     resourceId: "resource-a",
     incarnationId: "incarnation-a",
+    versionScheme: "test.version",
     versionToken: "version-a",
     scopes: ["/head", "/status"],
     queryDigest: "sha256:query-a",
@@ -131,7 +132,7 @@ test("sharing keys require exact query and change-set scope while canonicalizing
 
 test("a complete multi-resource frontier shares one validation without dropping scope", async () => {
   const base = {
-    tenantId: "tenant-a", incarnationId: "incarnation-a", scopes: ["/checkout"],
+    tenantId: "tenant-a", incarnationId: "incarnation-a", versionScheme: "test.version", scopes: ["/checkout"],
     queryDigest: "sha256:query-a", validatorId: "validator-a", authorizationContextDigest: "sha256:auth-a",
     policyDigest: "sha256:policy-a", changeSetDigest: "sha256:change-a", causalFrontier: ["event-a"]
   };
