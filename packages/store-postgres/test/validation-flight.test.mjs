@@ -1,16 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { premiseValidationScopeKey } from "@premise/runtime-core";
 import { PostgresValidationFlightStore, validationFlightScopeDigest } from "../dist/index.js";
 
 const scope = {
   tenantId: "tenant:acme",
   resourceId: "github:acme/app#main",
+  incarnationId: "incarnation:7",
   versionScheme: "github.commit",
   versionToken: "commit:7",
+  validatorId: "validator:merge",
   authorizationContextDigest: "auth:read",
   policyDigest: "policy:merge",
   queryDigest: "query:pr",
-  frontierDigest: "frontier:42"
+  scopes: ["read:pull-request"],
+  changeSetDigest: null,
+  causalFrontier: ["event:42"]
 };
 
 class ScriptedPostgres {
@@ -88,6 +93,19 @@ test("invalid flight scope and receipts fail closed", async () => {
   const { store } = harness();
   assert.deepEqual(await store.claim({ ...scope, policyDigest: "" }, "agent:a", "flight:a", 1000), { kind: "REJECTED", reason: "INVALID" });
   assert.deepEqual(await store.complete(scope, "agent:a", "flight:a", 1, undefined, 1000), { kind: "REJECTED", reason: "INVALID" });
+});
+
+test("PostgreSQL flights use the runtime-core canonical validation identity", () => {
+  assert.equal(validationFlightScopeDigest(scope), premiseValidationScopeKey(scope));
+  for (const [name, override] of [
+    ["tenant", { tenantId: "tenant:other" }],
+    ["authorization", { authorizationContextDigest: "auth:write" }],
+    ["policy", { policyDigest: "policy:strict" }],
+    ["query", { queryDigest: "query:status" }],
+    ["scope", { scopes: ["read:other"] }],
+    ["change-set", { changeSetDigest: "changes:1" }],
+    ["frontier", { causalFrontier: ["event:other"] }]
+  ]) assert.notEqual(validationFlightScopeDigest(scope), validationFlightScopeDigest({ ...scope, ...override }), `${name} must not share`);
 });
 
 console.log("store-postgres validation flight tests passed");

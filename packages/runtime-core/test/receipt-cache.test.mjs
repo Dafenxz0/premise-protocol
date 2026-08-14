@@ -6,6 +6,7 @@ const scope = (overrides = {}) => ({
   tenantId: "tenant:a",
   resourceId: "doc:1",
   incarnationId: "inc:1",
+  versionScheme: "test.version",
   versionToken: "v1",
   scopes: ["/head"],
   queryDigest: "query:1",

@@ -3,10 +3,26 @@ import assert from "node:assert/strict";
 import { FencedSingleFlightCoordinator } from "../dist/fenced-single-flight.js";
 
 const version = (token) => ({ scheme: "test", token });
+const validationScope = (tenantId, resource, token, extra = {}) => ({
+  tenantId,
+  resourceId: resource,
+  incarnationId: `inc:${resource}`,
+  versionScheme: "test",
+  versionToken: token,
+  validatorId: "validator:test",
+  authorizationContextDigest: "auth:test",
+  policyDigest: "policy:test",
+  queryDigest: "query:test",
+  scopes: ["read:test"],
+  changeSetDigest: null,
+  causalFrontier: [],
+  ...extra
+});
 const request = (tenantId, resource, token, extra = {}) => ({
   tenantId,
   resource,
   expectedVersion: version(token),
+  scope: validationScope(tenantId, resource, token),
   ...extra
 });
 

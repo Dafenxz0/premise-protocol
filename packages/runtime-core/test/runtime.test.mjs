@@ -21,6 +21,7 @@ const sharingScope = (evidence, record) => ({
   tenantId: record.envelope.tenantId,
   resourceId: evidence.sourceUri,
   incarnationId: `inc:${evidence.evidenceId}`,
+  versionScheme: evidence.version.scheme,
   versionToken: `${evidence.version.scheme}:${evidence.version.token}`,
   scopes: ["read:source"],
   queryDigest: "query:runtime-test",
