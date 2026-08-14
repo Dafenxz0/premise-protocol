@@ -16,6 +16,8 @@ This index distinguishes implementation status from measured evidence. A benchma
 | Safe compaction | PR31 no-go; PR38 in-memory gate | **PARTIAL** | The in-memory checkpoint-plus-tail swap passes crash/idempotency tests; durable SQLite/PostgreSQL compaction remains unproven |
 | Root-explosion experiment | PR25 | **INCONCLUSIVE** | The campaign did not establish a mergeable production claim |
 | External provider / independent holdout | Scientific campaign | Not run or incomplete | No commercial claim should be derived from it |
+| PREMiSE NEXT semantic conformance | PR57, 15 shared TypeScript vectors plus 24 Python cases | Measured semantic slice | The full guarded-action chain is not yet cross-language equivalent |
+| Distributed validation coordination | PR58 flight adapter and deterministic fault campaign | Contract/fault smoke | The campaign uses the real flight class with an in-memory adapter; real PostgreSQL/process capacity remains opt-in |
 
 ## Evidence locations
 
@@ -42,4 +44,11 @@ If one of these is missing, the result may still be useful for local debugging, 
 
 ## Next evidence gate
 
-The next wave targets a bounded runtime with a durable journal, trusted checkpoints, crash-safe operational compaction, and event continuity integrated into `applyEvent`. The million-step campaign is a scalability experiment, not a claim that PREMiSE has been tested at enterprise scale.
+The next evidence gate is integration hardening: a canonical validation identity,
+the actual single-flight and PostgreSQL-flight implementations under storm and
+failure workloads, a bounded/durable idempotency policy, and a paged journal
+adapter. Credentialed PostgreSQL, multi-process crash recovery, external
+holdouts and provider-cost campaigns must remain explicitly `skipped` until
+their infrastructure and manifests are present. The million-step campaign is
+a scalability experiment, not a claim that PREMiSE has been tested at
+enterprise scale.
