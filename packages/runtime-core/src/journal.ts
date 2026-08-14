@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import * as nodeFs from "node:fs";
 import { dirname, join } from "node:path";
 import { parseV2Event, type V2Event } from "@premise/protocol-types";
 import type { RuntimeDecisionEvent } from "./instrumentation.js";
@@ -33,6 +34,19 @@ export interface RuntimeJournalReadOptions {
   readonly limit?: number;
 }
 
+export type RuntimeJournalPageOptions = RuntimeJournalReadOptions & { readonly limit: number };
+
+export interface RuntimeJournalPage {
+  readonly entries: readonly RuntimeJournalEntry[];
+  readonly nextCursor: number;
+  readonly hasMore: boolean;
+}
+
+/** Additive paged-read capability; the original RuntimeJournal contract is unchanged. */
+export interface RuntimeJournalPageReader {
+  readPage(cursor: number, options: RuntimeJournalPageOptions): RuntimeJournalPage;
+}
+
 /**
  * Audit history is deliberately separate from the bounded operational state.
  * Cursors are exclusive: readFrom(10) returns entries after cursor 10.
@@ -44,6 +58,95 @@ export interface RuntimeJournal {
   latestCursor(): number;
   checkpoint(value: RuntimeJournalCheckpoint): void;
   latestCheckpoint(): RuntimeJournalCheckpoint | undefined;
+}
+
+interface JournalEventIndex {
+  readonly cursor: number;
+  readonly eventId: string;
+  readonly requestDigest: string;
+}
+
+interface JournalLine {
+  readonly line: string;
+  readonly terminated: boolean;
+  readonly end: number;
+}
+
+const JOURNAL_READ_CHUNK_SIZE = 64 * 1024;
+
+interface SyncFileSystem {
+  openSync(path: string, flags: string): number;
+  readSync(descriptor: number, buffer: Uint8Array, offset: number, length: number, position: number | null): number;
+  closeSync(descriptor: number): void;
+  ftruncateSync(descriptor: number, length: number): void;
+}
+
+const syncFileSystem = nodeFs as unknown as SyncFileSystem;
+
+function decodeSegments(segments: readonly Uint8Array[], bytes: number): string {
+  const combined = new Uint8Array(bytes);
+  let offset = 0;
+  for (const segment of segments) {
+    combined.set(segment, offset);
+    offset += segment.length;
+  }
+  return new TextDecoder().decode(combined);
+}
+
+function* journalLines(path: string): Generator<JournalLine> {
+  const descriptor = syncFileSystem.openSync(path, "r");
+  let pending: Uint8Array[] = [];
+  let pendingBytes = 0;
+  let fileOffset = 0;
+  try {
+    const chunk = new Uint8Array(JOURNAL_READ_CHUNK_SIZE);
+    for (;;) {
+      const bytesRead = syncFileSystem.readSync(descriptor, chunk, 0, chunk.length, null);
+      if (bytesRead === 0) break;
+      let segmentStart = 0;
+      for (let index = 0; index < bytesRead; index += 1) {
+        if (chunk[index] !== 0x0a) continue;
+        const segment = chunk.subarray(segmentStart, index);
+        if (segment.length > 0) {
+          pending.push(new Uint8Array(segment));
+          pendingBytes += segment.length;
+        }
+        const end = fileOffset + index + 1;
+        yield {
+          line: pendingBytes === 0 ? "" : decodeSegments(pending, pendingBytes),
+          terminated: true,
+          end
+        };
+        pending = [];
+        pendingBytes = 0;
+        segmentStart = index + 1;
+      }
+      if (segmentStart < bytesRead) {
+        const segment = chunk.subarray(segmentStart, bytesRead);
+        pending.push(new Uint8Array(segment));
+        pendingBytes += segment.length;
+      }
+      fileOffset += bytesRead;
+    }
+    if (pendingBytes > 0) {
+      yield {
+        line: decodeSegments(pending, pendingBytes),
+        terminated: false,
+        end: fileOffset
+      };
+    }
+  } finally {
+    syncFileSystem.closeSync(descriptor);
+  }
+}
+
+function truncateJournal(path: string, bytes: number): void {
+  const descriptor = syncFileSystem.openSync(path, "r+");
+  try {
+    syncFileSystem.ftruncateSync(descriptor, bytes);
+  } finally {
+    syncFileSystem.closeSync(descriptor);
+  }
 }
 
 function clone<T>(value: T): T {
@@ -135,9 +238,9 @@ function readOptions(options: RuntimeJournalReadOptions | undefined): RuntimeJou
   return options;
 }
 
-abstract class BaseJournal implements RuntimeJournal {
+abstract class BaseJournal implements RuntimeJournal, RuntimeJournalPageReader {
   protected readonly entries: RuntimeJournalEntry[] = [];
-  protected readonly eventCursors = new Map<string, number>();
+  protected readonly eventCursors = new Map<string, JournalEventIndex>();
   protected nextCursorValue = 1;
   protected lastCheckpoint: RuntimeJournalCheckpoint | undefined;
 
@@ -146,16 +249,15 @@ abstract class BaseJournal implements RuntimeJournal {
     const key = `${parsed.tenantId}\u0000${parsed.idempotencyKey}`;
     const previousCursor = this.eventCursors.get(key);
     if (previousCursor !== undefined) {
-      const previous = this.entries.find((entry) => entry.cursor === previousCursor);
-      if (previous?.kind !== "event" || previous.event.requestDigest !== parsed.requestDigest || previous.event.eventId !== parsed.eventId) {
+      if (previousCursor.requestDigest !== parsed.requestDigest || previousCursor.eventId !== parsed.eventId) {
         throw new Error(`Conflicting journal event: ${parsed.idempotencyKey}`);
       }
-      return previousCursor;
+      return previousCursor.cursor;
     }
     const entry = checkedEntry({ kind: "event", cursor: this.nextCursorValue, tenantId: parsed.tenantId, event: parsed });
     this.nextCursorValue += 1;
-    this.entries.push(entry);
-    this.eventCursors.set(key, entry.cursor);
+    this.retainEntry(entry);
+    this.eventCursors.set(key, { cursor: entry.cursor, eventId: parsed.eventId, requestDigest: parsed.requestDigest });
     this.persistEntry(entry);
     return entry.cursor;
   }
@@ -165,7 +267,7 @@ abstract class BaseJournal implements RuntimeJournal {
     assertTimestamp(occurredAt, "occurredAt");
     const entry = checkedEntry({ kind: "decision", cursor: this.nextCursorValue, tenantId, occurredAt, decision });
     this.nextCursorValue += 1;
-    this.entries.push(entry);
+    this.retainEntry(entry);
     this.persistEntry(entry);
     return entry.cursor;
   }
@@ -173,8 +275,23 @@ abstract class BaseJournal implements RuntimeJournal {
   readFrom(cursor: number, options?: RuntimeJournalReadOptions): readonly RuntimeJournalEntry[] {
     assertCursor(cursor);
     const checked = readOptions(options);
-    const filtered = this.entries.filter((entry) => entry.cursor > cursor && (checked.tenantId === undefined || entry.tenantId === checked.tenantId));
-    return Object.freeze(filtered.slice(0, checked.limit).map((entry) => clone(entry)));
+    return Object.freeze(this.readEntries(cursor, checked, checked.limit).map((entry) => clone(entry)));
+  }
+
+  readPage(cursor: number, options: RuntimeJournalPageOptions): RuntimeJournalPage {
+    assertCursor(cursor);
+    if (options === undefined || options.limit === undefined) throw new TypeError("journal page limit is required");
+    const checked = readOptions(options);
+    const limit = options.limit;
+    const scanLimit = limit === Number.MAX_SAFE_INTEGER ? limit : limit + 1;
+    const selected = this.readEntries(cursor, checked, scanLimit);
+    const hasMore = selected.length > limit;
+    const entries = hasMore ? selected.slice(0, limit) : selected;
+    return Object.freeze({
+      entries: Object.freeze(entries.map((entry) => clone(entry))),
+      nextCursor: entries.at(-1)?.cursor ?? cursor,
+      hasMore
+    });
   }
 
   latestCursor(): number {
@@ -191,6 +308,15 @@ abstract class BaseJournal implements RuntimeJournal {
 
   latestCheckpoint(): RuntimeJournalCheckpoint | undefined {
     return this.lastCheckpoint === undefined ? undefined : clone(this.lastCheckpoint);
+  }
+
+  protected retainEntry(entry: RuntimeJournalEntry): void {
+    this.entries.push(entry);
+  }
+
+  protected readEntries(cursor: number, options: RuntimeJournalReadOptions, maxEntries?: number): RuntimeJournalEntry[] {
+    const filtered = this.entries.filter((entry) => entry.cursor > cursor && (options.tenantId === undefined || entry.tenantId === options.tenantId));
+    return maxEntries === undefined ? filtered : filtered.slice(0, maxEntries);
   }
 
   protected abstract persistEntry(entry: RuntimeJournalEntry): void;
@@ -223,6 +349,22 @@ export class FileJournal extends BaseJournal {
     appendFileSync(this.path, `${JSON.stringify(entry)}\n`, "utf8");
   }
 
+  protected override retainEntry(_entry: RuntimeJournalEntry): void {
+    // FileJournal reads pages from disk; it does not retain the complete history.
+  }
+
+  protected override readEntries(cursor: number, options: RuntimeJournalReadOptions, maxEntries?: number): RuntimeJournalEntry[] {
+    const entries: RuntimeJournalEntry[] = [];
+    for (const item of journalLines(this.path)) {
+      if (item.line.length === 0) continue;
+      const entry = checkedEntry(JSON.parse(item.line));
+      if (entry.cursor <= cursor || (options.tenantId !== undefined && entry.tenantId !== options.tenantId)) continue;
+      entries.push(entry);
+      if (maxEntries !== undefined && entries.length >= maxEntries) break;
+    }
+    return entries;
+  }
+
   protected persistCheckpoint(checkpoint: RuntimeJournalCheckpoint): void {
     const temporary = join(dirname(this.checkpointPath), `.${this.checkpointPath.split(/[\\/]/u).at(-1)!}.tmp-${process.pid}-${Date.now()}`);
     writeFileSync(temporary, `${JSON.stringify(checkpoint)}\n`, "utf8");
@@ -237,29 +379,36 @@ export class FileJournal extends BaseJournal {
 
   private load(): void {
     if (existsSync(this.path)) {
-      const source = readFileSync(this.path, "utf8");
-      const lines = source.split("\n");
       let validBytes = 0;
-      for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index]!;
-        const isFinalPartial = index === lines.length - 1 && line.length > 0;
+      let needsTrailingNewline = false;
+      let truncateBytes: number | undefined;
+      for (const item of journalLines(this.path)) {
+        const { line } = item;
         if (line.length === 0) {
-          validBytes += Buffer.byteLength(index === lines.length - 1 ? "" : "\n", "utf8");
+          validBytes = item.end;
           continue;
         }
         try {
           const entry = checkedEntry(JSON.parse(line));
           if (entry.cursor !== this.nextCursorValue) throw new Error("journal cursors must be contiguous");
-          this.entries.push(entry);
-          if (entry.kind === "event") this.eventCursors.set(`${entry.tenantId}\u0000${entry.event.idempotencyKey}`, entry.cursor);
+          if (entry.kind === "event") {
+            this.eventCursors.set(`${entry.tenantId}\u0000${entry.event.idempotencyKey}`, {
+              cursor: entry.cursor,
+              eventId: entry.event.eventId,
+              requestDigest: entry.event.requestDigest
+            });
+          }
           this.nextCursorValue += 1;
-          validBytes += Buffer.byteLength(line, "utf8") + (isFinalPartial ? 0 : Buffer.byteLength("\n", "utf8"));
+          validBytes = item.end;
+          needsTrailingNewline = !item.terminated;
         } catch (error) {
-          if (!isFinalPartial) throw error;
-          writeFileSync(this.path, Buffer.from(source, "utf8").subarray(0, validBytes));
+          if (item.terminated) throw error;
+          truncateBytes = validBytes;
           break;
         }
       }
+      if (truncateBytes !== undefined) truncateJournal(this.path, truncateBytes);
+      else if (needsTrailingNewline) appendFileSync(this.path, "\n", "utf8");
     } else writeFileSync(this.path, "", "utf8");
     if (existsSync(this.checkpointPath)) {
       const source = readFileSync(this.checkpointPath, "utf8").trim();

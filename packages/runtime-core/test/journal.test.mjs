@@ -74,6 +74,54 @@ test("file journal recovers a torn final line without accepting it", () => {
   }
 });
 
+test("file journal pages from disk without retaining the full history", () => {
+  const directory = mkdtempSync(join(tmpdir(), "premise-journal-page-"));
+  const path = join(directory, "events.jsonl");
+  try {
+    const first = new FileJournal(path);
+    first.appendEvent(event("e:1"));
+    first.appendDecision("tenant:a", decision, at);
+    first.appendEvent(event("e:2"));
+
+    const journal = new FileJournal(path);
+    assert.equal(Reflect.get(journal, "entries").length, 0);
+
+    const page1 = journal.readPage(0, { limit: 2 });
+    assert.deepEqual(page1.entries.map((entry) => entry.cursor), [1, 2]);
+    assert.equal(page1.nextCursor, 2);
+    assert.equal(page1.hasMore, true);
+    assert.ok(page1.entries.length <= 2);
+
+    const page2 = journal.readPage(page1.nextCursor, { limit: 2 });
+    assert.deepEqual(page2.entries.map((entry) => entry.cursor), [3]);
+    assert.equal(page2.nextCursor, 3);
+    assert.equal(page2.hasMore, false);
+    assert.deepEqual(journal.readFrom(0).map((entry) => entry.cursor), [1, 2, 3]);
+    assert.equal(journal.appendEvent(event("e:1")), 1);
+    assert.throws(() => journal.appendEvent({ ...event("e:1"), requestDigest: `sha256:${"b".repeat(64)}` }), /Conflicting journal event/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("file journal keeps a valid unterminated tail append-safe after recovery", () => {
+  const directory = mkdtempSync(join(tmpdir(), "premise-journal-tail-"));
+  const path = join(directory, "events.jsonl");
+  try {
+    const first = new FileJournal(path);
+    first.appendEvent(event("e:1"));
+    const source = readFileSync(path, "utf8");
+    writeFileSync(path, source.endsWith("\n") ? source.slice(0, -1) : source, "utf8");
+
+    const recovered = new FileJournal(path);
+    assert.equal(recovered.latestCursor(), 1);
+    assert.equal(recovered.appendDecision("tenant:a", decision, at), 2);
+    assert.deepEqual(recovered.readFrom(0).map((entry) => entry.cursor), [1, 2]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("runtime sends committed events and decisions to the separate audit journal", () => {
   const journal = new InMemoryJournal();
   const runtime = new PremiseRuntime({ tenantId: "tenant:a", now: () => at, journal });

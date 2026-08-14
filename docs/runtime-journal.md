@@ -14,6 +14,8 @@ const runtime = new PremiseRuntime({ store, journal, tenantId: "tenant:acme" });
 
 Journal cursors are monotonic and reads are exclusive: `readFrom(10)` returns entries after cursor 10. Event appends are idempotent by tenant and idempotency key. A malformed final JSONL line is treated as a torn write and truncated; malformed history in the middle of the file fails closed.
 
+`FileJournal` also exposes the additive `readPage(cursor, { limit, tenantId? })` capability. It returns at most `limit` entries, the cursor to use for the next page, and `hasMore`; pages are exclusive of the supplied cursor. `FileJournal` validates the JSONL file incrementally during construction and reads pages incrementally from disk, so it does not retain a full history `entries` array. Its memory use is bounded by the requested page, one in-flight JSONL line, the latest checkpoint state, and the event idempotency index needed to preserve append recovery semantics. The index still grows with the number of unique events, and each page rescans the file from the beginning; this is bounded-memory pagination, not random access or an async streaming iterator. The compatibility `readFrom` method remains unchanged and can still materialize a full result when called without `limit`.
+
 Runtime checkpoints are separate, digest-bound objects. They contain the active record set and the minimum operational frontier, incarnation, receipt, idempotency, source-version, dependency, and event-cursor state required to resume. `verifyRuntimeCheckpointRecovery` accepts only a contiguous journal tail after the checkpoint cursor.
 
 ## Current boundary
