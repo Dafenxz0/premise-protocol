@@ -10,14 +10,16 @@ This index distinguishes implementation status from measured evidence. A benchma
 | Incremental frontier resolve | Efficiency Lab PR26 | Measured | Reuse is bounded by explicit frontier semantics |
 | Dirty propagation | Efficiency Lab PR27 | Measured | Local invalidation avoids unrelated work in the tested graph |
 | Exact receipt reuse | Efficiency Lab PR28 | Measured | Exact compatible receipts can be reused under their scope |
-| Event continuity | Efficiency Lab PR29 | Contract evidence | Helpers and vectors exist; end-to-end runtime integration is a next wave |
-| Long horizon | Efficiency Lab PR30–33 | Measured with limits | Heap and snapshot behavior were observed; operational history is not yet separated from audit history |
+| Event continuity | Efficiency Lab PR29; NEXT runtime stream/repair | Measured contract slice | Ordered streams, continuity checks, and snapshot repair are covered; connector-specific end-to-end evidence remains separate |
+| Long horizon | Efficiency Lab PR30–33; bounded FileJournal pages | Measured with limits | Operational state is bounded and journal reads are paged; each file page still rescans the file, so durable random-access storage is not proven |
 | Bounded runtime campaign | PR39 harness | Smoke measured; full scale opt-in | Audit count, operational tail, idempotency window, and checkpoint recovery are reported separately |
 | Safe compaction | PR31 no-go; PR38 in-memory gate | **PARTIAL** | The in-memory checkpoint-plus-tail swap passes crash/idempotency tests; durable SQLite/PostgreSQL compaction remains unproven |
 | Root-explosion experiment | PR25 | **INCONCLUSIVE** | The campaign did not establish a mergeable production claim |
 | External provider / independent holdout | Scientific campaign | Not run or incomplete | No commercial claim should be derived from it |
-| PREMiSE NEXT semantic conformance | PR57, 15 shared TypeScript vectors plus 24 Python cases | Measured semantic slice | The full guarded-action chain is not yet cross-language equivalent |
-| Distributed validation coordination | PR58 flight adapter and deterministic fault campaign | Contract/fault smoke | The campaign uses the real flight class with an in-memory adapter; real PostgreSQL/process capacity remains opt-in |
+| PREMiSE NEXT semantic conformance | PR57, 15 shared TypeScript vectors plus 24 Python cases | Measured semantic slice | Canonical validation scope and the current vector set are protected; the full guarded-action chain is not yet cross-language equivalent |
+| Session + Adapter SDK | NEXT integration hardening | Measured API slice | PremiseSession accepts the public Adapter SDK and owns derivation; HTTP end-to-end deployment remains adapter-specific |
+| Guarded-tool idempotency | NEXT integration hardening | Bounded in-memory policy | Retention is explicit and fail-closed; durable external replay storage is still required for process restarts |
+| Distributed validation coordination | PR58, PR66, PR69, PR70 | Contract/fault smoke | Storm and failure campaigns exercise the real fenced coordinator with complete scope; real PostgreSQL/process capacity remains opt-in |
 
 ## Evidence locations
 
@@ -44,11 +46,13 @@ If one of these is missing, the result may still be useful for local debugging, 
 
 ## Next evidence gate
 
-The next evidence gate is integration hardening: a canonical validation identity,
-the actual single-flight and PostgreSQL-flight implementations under storm and
-failure workloads, a bounded/durable idempotency policy, and a paged journal
-adapter. Credentialed PostgreSQL, multi-process crash recovery, external
-holdouts and provider-cost campaigns must remain explicitly `skipped` until
-their infrastructure and manifests are present. The million-step campaign is
-a scalability experiment, not a claim that PREMiSE has been tested at
-enterprise scale.
+The next evidence gate is independent integration evidence: credentialed
+PostgreSQL and multi-process crash recovery, durable random-access journal
+storage, the remaining cross-language guarded-action vectors, external
+holdouts, and provider-cost campaigns. Repository CI now protects the
+canonical scope, executable quickstart, real in-process storm, distributed
+failure smoke, NEXT conformance, and bounded runtime gates. Anything that
+requires credentials or external infrastructure must remain explicitly
+`skipped` until its infrastructure and manifests are present. The million-step
+campaign is a scalability experiment, not a claim that PREMiSE has been tested
+at enterprise scale.
