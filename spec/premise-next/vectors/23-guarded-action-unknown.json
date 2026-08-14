@@ -1,0 +1,32 @@
+{
+  "id": "guarded-action-unknown",
+  "specVersion": "premise-next/1",
+  "operation": "guarded",
+  "resource": { "tenantId": "tenant:a", "resource": "db://orders/42" },
+  "check": {
+    "tenantId": "tenant:a",
+    "resource": "db://orders/42",
+    "state": "FRESH",
+    "version": { "scheme": "etag", "token": "v1" }
+  },
+  "revalidate": {
+    "tenantId": "tenant:a",
+    "resource": "db://orders/42",
+    "outcome": "FRESH",
+    "observedVersion": { "scheme": "etag", "token": "v1" }
+  },
+  "action": {
+    "tenantId": "tenant:a",
+    "resource": "db://orders/42",
+    "outcome": "UNKNOWN",
+    "reason": "REMOTE_TIMEOUT"
+  },
+  "idempotencyKey": "order:update:42:retry",
+  "expected": {
+    "ready": true,
+    "accepted": false,
+    "outcome": "UNKNOWN",
+    "expectedVersion": { "scheme": "etag", "token": "v1" },
+    "reason": "REMOTE_TIMEOUT"
+  }
+}

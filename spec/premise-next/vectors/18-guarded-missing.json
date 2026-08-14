@@ -1,0 +1,12 @@
+{
+  "id": "guarded-missing",
+  "specVersion": "premise-next/1",
+  "operation": "guarded",
+  "resource": { "tenantId": "tenant:a", "resource": "github://acme/repo/pull/404" },
+  "check": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/404",
+    "state": "MISSING"
+  },
+  "expected": { "ready": false, "accepted": false, "outcome": "MISSING", "reason": "MISSING_RESOURCE" }
+}

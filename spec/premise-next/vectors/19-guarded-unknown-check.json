@@ -1,0 +1,12 @@
+{
+  "id": "guarded-unknown-check",
+  "specVersion": "premise-next/1",
+  "operation": "guarded",
+  "resource": { "tenantId": "tenant:a", "resource": "github://acme/repo/pull/unknown" },
+  "check": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/unknown",
+    "state": "UNKNOWN"
+  },
+  "expected": { "ready": false, "accepted": false, "outcome": "UNKNOWN", "reason": "UNKNOWN_CHECK" }
+}

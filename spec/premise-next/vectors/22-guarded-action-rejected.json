@@ -1,0 +1,32 @@
+{
+  "id": "guarded-action-rejected",
+  "specVersion": "premise-next/1",
+  "operation": "guarded",
+  "resource": { "tenantId": "tenant:a", "resource": "db://orders/42" },
+  "check": {
+    "tenantId": "tenant:a",
+    "resource": "db://orders/42",
+    "state": "FRESH",
+    "version": { "scheme": "etag", "token": "v1" }
+  },
+  "revalidate": {
+    "tenantId": "tenant:a",
+    "resource": "db://orders/42",
+    "outcome": "FRESH",
+    "observedVersion": { "scheme": "etag", "token": "v1" }
+  },
+  "action": {
+    "tenantId": "tenant:a",
+    "resource": "db://orders/42",
+    "outcome": "REJECTED",
+    "reason": "CAS_REJECTED"
+  },
+  "idempotencyKey": "order:update:42",
+  "expected": {
+    "ready": true,
+    "accepted": false,
+    "outcome": "REJECTED",
+    "expectedVersion": { "scheme": "etag", "token": "v1" },
+    "reason": "CAS_REJECTED"
+  }
+}

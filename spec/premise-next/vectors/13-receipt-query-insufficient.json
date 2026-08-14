@@ -1,0 +1,43 @@
+{
+  "id": "receipt-query-insufficient",
+  "specVersion": "premise-next/1",
+  "operation": "receipt",
+  "candidate": {
+    "receiptId": "receipt:narrow",
+    "scope": {
+      "tenantId": "tenant:a",
+      "resourceId": "inventory",
+      "incarnationId": "inc:1",
+      "versionToken": "v:7",
+      "validatorId": "validator:1",
+      "authorizationContextDigest": "auth:a",
+      "policyDigest": "policy:write",
+      "queryFamily": "inventory",
+      "queryParts": ["sku"],
+      "scopes": ["/stock", "/sku"],
+      "causalFrontier": ["event:1"]
+    },
+    "observedAt": "2026-01-01T00:00:00Z",
+    "expiresAt": "2026-01-01T01:00:00Z"
+  },
+  "requirement": {
+    "scope": {
+      "tenantId": "tenant:a",
+      "resourceId": "inventory",
+      "incarnationId": "inc:1",
+      "versionToken": "v:7",
+      "validatorId": "validator:1",
+      "authorizationContextDigest": "auth:a",
+      "policyDigest": "policy:write",
+      "queryFamily": "inventory",
+      "queryParts": ["stock"],
+      "scopes": ["/stock"],
+      "causalFrontier": ["event:1"]
+    },
+    "requiredQueryParts": ["stock"],
+    "requiredScopes": ["/stock"],
+    "requiredFrontier": ["event:1"],
+    "now": "2026-01-01T00:30:00Z"
+  },
+  "expected": { "eligible": false, "reason": "QUERY_INSUFFICIENT" }
+}

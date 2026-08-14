@@ -1,0 +1,30 @@
+{
+  "id": "guarded-stale-recovered",
+  "specVersion": "premise-next/1",
+  "operation": "guarded",
+  "resource": { "tenantId": "tenant:a", "resource": "github://acme/repo/pull/42" },
+  "check": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/42",
+    "state": "STALE",
+    "version": { "scheme": "github.commit", "token": "commit:1" }
+  },
+  "revalidate": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/42",
+    "outcome": "FRESH",
+    "observedVersion": { "scheme": "github.commit", "token": "commit:2" }
+  },
+  "action": {
+    "tenantId": "tenant:a",
+    "resource": "github://acme/repo/pull/42",
+    "outcome": "APPLIED"
+  },
+  "idempotencyKey": "merge:pull-42:2",
+  "expected": {
+    "ready": true,
+    "accepted": true,
+    "outcome": "APPLIED",
+    "expectedVersion": { "scheme": "github.commit", "token": "commit:2" }
+  }
+}
