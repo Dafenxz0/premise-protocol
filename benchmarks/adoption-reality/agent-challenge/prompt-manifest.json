@@ -1,0 +1,24 @@
+{
+  "format": "premise-agent-integration-prompt-manifest/1",
+  "version": "1.0.0",
+  "challenge": "public-sdk-consumer",
+  "seed": "agent-integration-fixture-2026-08-14",
+  "input": {
+    "root": "fixtures/isolated-agent",
+    "allowedFiles": [
+      "README.md",
+      "package.json",
+      "docs/api.md",
+      "docs/integration.md"
+    ],
+    "publicOnly": true,
+    "network": false,
+    "credentials": false
+  },
+  "prompt": "Create a minimal Node 24 integration for the public @premise/sdk package. Read the supplied public README and docs, add a small importable client factory, and leave the integration ready for a caller to provide its own endpoint and tenant. Do not access files outside the supplied input or add a workspace dependency.",
+  "successContract": {
+    "sourceImport": "@premise/sdk",
+    "traceFile": "run.json",
+    "traceEvents": ["read", "success", "error"]
+  }
+}

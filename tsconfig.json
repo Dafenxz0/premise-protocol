@@ -21,6 +21,7 @@
     { "path": "./packages/adapter-sdk" },
     { "path": "./packages/adapter-http" },
     { "path": "./packages/mcp-bridge" },
+    { "path": "./packages/mcp-server" },
     { "path": "./packages/premise-server" },
     { "path": "./packages/testkit" },
     { "path": "./benchmarks/premise-memory-bench" },

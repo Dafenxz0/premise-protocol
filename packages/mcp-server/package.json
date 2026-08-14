@@ -1,0 +1,32 @@
+{
+  "name": "@premise/mcp-server",
+  "version": "0.1.0-rc.1",
+  "description": "Minimal MCP server exposing PREMiSE observe, check, explain, and guard tools.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "@premise/sdk": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@types/node": "24.13.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "bin": {
+    "premise-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "pnpm --filter @premise/sdk build && tsc -p tsconfig.json",
+    "test": "pnpm build && node test/mcp-server.test.mjs"
+  }
+}

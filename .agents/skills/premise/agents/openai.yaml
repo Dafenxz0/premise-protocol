@@ -1,0 +1,6 @@
+interface:
+  display_name: "PREMiSE Coherence"
+  short_description: "Keep agent actions grounded in fresh evidence"
+  default_prompt: "Use $premise to keep mutable evidence fresh before guarded actions."
+policy:
+  allow_implicit_invocation: true

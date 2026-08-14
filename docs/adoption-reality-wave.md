@@ -1,0 +1,64 @@
+# PREMiSE Adoption & Reality Wave
+
+This document freezes the evidence boundary for the public-adoption work.
+
+## Baseline
+
+- Baseline commit: 20fd8bb (docs: sync coherence storm evidence)
+- Working branch: codex/adoption-reality-wave
+- Runtime requirement: Node 24 and pnpm 10
+- Release channel: candidate
+- Public facade target: @premise/sdk
+- License: not selected in the repository; registry publication remains
+  blocked until the project owner chooses and adds a license.
+
+The root repository remains private as a monorepo. Only package directories
+with an explicit public manifest are candidates for distribution.
+
+## Scope freeze
+
+The core protocol is frozen for this wave. A change to the runtime or protocol
+is allowed only when it fixes a demonstrated correctness bug, closes a
+semantic safety gap, or materially improves an existing certification result.
+
+This wave measures whether an external engineer can install and use the public
+surface without importing workspace internals. It does not turn PREMiSE into a
+database, retrieval engine, embedding system, cloud service, or universal
+truth authority.
+
+## Evidence rules
+
+- A local tarball install is reported as a package-publication gate, not as
+  proof that the package is available from the public registry.
+- A real connector campaign is PASS only when the connector was actually
+  reached and its evidence is retained.
+- Missing credentials, unavailable infrastructure, or deliberately disabled
+  external systems are NOT_RUN.
+- Deterministic mocks can test protocol handling, but cannot support claims
+  about a third-party service.
+- Generated reports live under .tmp/ and are not committed.
+
+## Acceptance gates
+
+1. @premise/sdk builds and packs without workspace dependencies.
+2. Three fresh consumer projects install the tarball with npm and run without
+   the monorepo or a workspace lockfile.
+3. The Skill explains the boundary between agent workflow and runtime
+   enforcement.
+4. The MCP surface exposes only the minimum documented operations.
+5. Filesystem, HTTP, and process failure tests run against actual local
+   processes and files.
+6. PostgreSQL is either executed against POSTGRES_URL or reported
+   NOT_RUN.
+7. The isolated Agent Integration Challenge rejects private imports and
+   records deterministic integration metrics without launching an agent.
+8. CI validates the package gate, certification, and the no-internal-import
+   rule.
+
+## Public claims after this wave
+
+The project may claim that the public SDK is installable from a tested local
+package artifact when the package gate passes. It may claim real-world
+certification only for the connectors and failure modes whose artifacts show
+PASS. It must continue to label registry publication, independent external
+holdout evaluation, production availability, and license selection separately.

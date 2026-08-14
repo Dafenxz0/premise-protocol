@@ -44,3 +44,32 @@ jobs:
       - run: pnpm benchmark:v2:offline
       - run: pnpm benchmark:v2:giant
       - run: pnpm examples:verify
+
+  adoption:
+    name: Adoption gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Package gate and fixture self-check
+        run: pnpm adoption:package-gate
+      - name: Skill public-boundary gate
+        run: pnpm adoption:skill-gate
+      - name: Blind agent integration challenge
+        run: pnpm adoption:challenge
+      - name: Local real-world certification
+        run: pnpm adoption:certification:test
+      - name: Certification report
+        run: pnpm adoption:certification
+      - name: MCP server test gate
+        run: pnpm mcp:test
+      - name: Adoption wave fixture self-check
+        run: pnpm adoption:wave-check

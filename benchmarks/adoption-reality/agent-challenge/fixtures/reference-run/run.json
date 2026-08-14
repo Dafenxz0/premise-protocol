@@ -1,0 +1,18 @@
+{
+  "format": "premise-agent-integration-trace/1",
+  "success": true,
+  "filesChanged": ["agent.mjs"],
+  "internalImports": [],
+  "docsReads": ["README.md", "docs/api.md", "docs/integration.md"],
+  "packageReads": ["package.json"],
+  "errors": [],
+  "events": [
+    { "type": "read", "path": "README.md", "atMs": 0 },
+    { "type": "read", "path": "package.json", "atMs": 3 },
+    { "type": "read", "path": "docs/integration.md", "atMs": 7 },
+    { "type": "read", "path": "docs/api.md", "atMs": 11 },
+    { "type": "success", "atMs": 37 }
+  ],
+  "timeToFirstSuccessMs": 37,
+  "credentialsUsed": false
+}

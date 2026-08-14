@@ -1,0 +1,19 @@
+{
+  "name": "premise-codex",
+  "version": "0.1.0",
+  "description": "PREMiSE workflow guidance and minimal coherence tools for Codex agents.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Premise Codex",
+    "shortDescription": "Keep agent actions grounded in fresh evidence.",
+    "longDescription": "PREMiSE teaches agents to record source versions, revalidate mutable evidence, and guard consequential actions without pretending to be a database or truth oracle.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use PREMiSE to keep mutable evidence fresh before a guarded action."
+  },
+  "mcpServers": "./.mcp.json"
+}

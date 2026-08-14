@@ -125,6 +125,26 @@ For the assumptions, seeds, limitations and negative results, start with the [ev
 
 Requirements: Node.js 24 and pnpm 10.
 
+### Use the public SDK
+
+The public integration surface is @premise/sdk, an ESM-only Node 24 client
+for the premise/2 HTTP API. It has no runtime dependency on this monorepo and
+is tested in three external projects without workspaces:
+
+    npm install @premise/sdk
+
+The registry publication is still a separate release step for this candidate.
+The repository gate already builds the package, creates a tarball, installs it
+with npm in clean GitHub-like, REST and filesystem consumers, and records the
+registry status as NOT_RUN until a release is intentionally published. See the
+[adoption and reality wave](docs/adoption-reality-wave.md) for the exact claim
+boundary.
+
+For agents working with mutable sources, the repository also ships a
+[PREMiSE Skill](.agents/skills/premise/SKILL.md) and a source
+[Codex plugin](plugins/premise-codex/README.md). They teach the workflow; the
+runtime and connector still enforce authorization and conditional writes.
+
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
