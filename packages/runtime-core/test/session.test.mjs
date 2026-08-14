@@ -51,3 +51,41 @@ test("session can use a caller-owned runtime when tenants match", () => {
   const runtime = new PremiseRuntime({ tenantId: "tenant:session", now: () => at });
   assert.ok(premise.session({ tenant: "tenant:session", adapter: adapter(), runtime }) instanceof PremiseSession);
 });
+
+test("session recognizes a legacy adapter without derive by its legacy shape", async () => {
+  let observedCall;
+  const legacy = {
+    observe: async (resource, context) => {
+      observedCall = { resource, context };
+      return { envelope: envelope(`legacy:${resource}`, "FRESH", [], resource), content: { resource } };
+    },
+    revalidate: async (evidence, record) => ({
+      memoryId: record.envelope.memoryId,
+      result: "UNCHANGED",
+      status: "FRESH",
+      checkedAt: at,
+      sourceUri: evidence.sourceUri,
+      evidenceId: evidence.evidenceId,
+      version: evidence.version
+    })
+  };
+
+  const session = new PremiseSession({ tenant: "tenant:session", adapter: legacy });
+  const observed = await session.observe("legacy://item");
+
+  assert.deepEqual(observedCall, { resource: "legacy://item", context: { tenantId: "tenant:session" } });
+  assert.deepEqual(observed.record.content, { resource: "legacy://item" });
+});
+
+test("session rejects a malformed capabilities marker instead of treating it as legacy", () => {
+  const malformed = {
+    capabilities: { contract: "premise-adapter/2" },
+    observe: async () => ({ envelope: envelope("malformed"), content: {} }),
+    revalidate: async () => ({ result: "UNKNOWN", checkedAt: at })
+  };
+
+  assert.throws(
+    () => new PremiseSession({ tenant: "tenant:session", adapter: malformed }),
+    /adapter\.capabilities must be a function/
+  );
+});
