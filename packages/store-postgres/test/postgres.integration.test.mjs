@@ -15,7 +15,7 @@ try {
 }
 
 const { Pool } = pg;
-const { PostgresRuntimeStore, PostgresSignatureReplayStore } = await import("../dist/index.js");
+const { PostgresRuntimeStore, PostgresSignatureReplayStore, PostgresValidationLeaseStore } = await import("../dist/index.js");
 const pool = new Pool({ connectionString: url });
 const prefix = `premise_v2_ci_${process.pid}`;
 const at = new Date().toISOString();
@@ -66,6 +66,24 @@ const adapter = {
 const store = new PostgresRuntimeStore(adapter, { tablePrefix: prefix, tenantId: "tenant:ci" });
 try {
   await store.migrate();
+  const leaseStore = new PostgresValidationLeaseStore(adapter, { tableName: `${prefix}_validation_leases` });
+  await leaseStore.initialize();
+  const leaseScope = { tenantId: "tenant:ci", resourceId: "resource:integration" };
+  const leaseRequest = { ...leaseScope, owner: "agent:one", leaseId: "lease:one", expiresAt: 2_000 };
+  const leaseContender = { ...leaseScope, owner: "agent:two", leaseId: "lease:two", expiresAt: 2_000 };
+  const [leaseFirst, leaseSecond] = await Promise.all([
+    leaseStore.acquire(leaseRequest, 1_000),
+    leaseStore.acquire(leaseContender, 1_000)
+  ]);
+  assert.deepEqual([leaseFirst.kind, leaseSecond.kind].sort(), ["ACQUIRED", "HELD"]);
+  const acquiredLease = leaseFirst.kind === "ACQUIRED" ? leaseFirst.lease : leaseSecond.lease;
+  assert.equal((await leaseStore.validate({ ...leaseScope, owner: acquiredLease.owner, leaseId: acquiredLease.leaseId, fencingToken: acquiredLease.fencingToken }, 1_000)).kind, "VALID");
+  assert.equal((await leaseStore.release({ ...leaseScope, owner: acquiredLease.owner, leaseId: acquiredLease.leaseId, fencingToken: acquiredLease.fencingToken }, 1_100)).kind, "RELEASED");
+  const replacement = await leaseStore.acquire(leaseContender, 1_101);
+  assert.equal(replacement.kind, "ACQUIRED");
+  assert.equal(replacement.lease.fencingToken > acquiredLease.fencingToken, true);
+  const otherTenant = await leaseStore.acquire({ ...leaseContender, tenantId: "tenant:other" }, 1_000);
+  assert.equal(otherTenant.kind, "ACQUIRED");
   const signatureReplay = new PostgresSignatureReplayStore(adapter, { tablePrefix: prefix, tenantId: "tenant:ci" });
   await signatureReplay.initialize();
   const signatureClaim = { key: "signature:integration", tenantId: "tenant:ci", signatureId: "sig:integration", keyId: "key:integration", signedAt: at, acceptedAt: at, expiresAt: new Date(Date.parse(at) + 60_000).toISOString() };
@@ -105,7 +123,7 @@ try {
 } finally {
   const client = await pool.connect();
   try {
-  await client.query(`DROP TABLE IF EXISTS "${prefix}_signature_replays", "${prefix}_http_idempotency", "${prefix}_replay_checkpoints", "${prefix}_snapshots", "${prefix}_events", "${prefix}_records", "${prefix}_schema_migrations"`);
+  await client.query(`DROP TABLE IF EXISTS "${prefix}_validation_leases", "${prefix}_signature_replays", "${prefix}_http_idempotency", "${prefix}_replay_checkpoints", "${prefix}_snapshots", "${prefix}_events", "${prefix}_records", "${prefix}_schema_migrations"`);
   } finally {
     client.release();
   }
