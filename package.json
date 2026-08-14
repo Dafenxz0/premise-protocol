@@ -17,6 +17,7 @@
     "conformance": "pnpm --filter @premise/conformance test",
     "conformance:premise1": "node conformance/run.mjs",
     "conformance:protocol": "node conformance/run.mjs && python -m unittest discover -s reference/python -p \"test_*.py\"",
+    "conformance:next": "pnpm --filter @premise/runtime-core build && node --test packages/runtime-core/test/next-vectors.test.mjs && python -m unittest discover -s reference/python -p \"test_next_protocol.py\"",
     "protocol:self-check": "node scripts/protocol-evolution/self-check.mjs",
     "conformance:v2": "pnpm build && node scripts/verify-v2-vectors.mjs",
     "benchmark:smoke": "pnpm --filter @premise/benchmark benchmark:smoke",
