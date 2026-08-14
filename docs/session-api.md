@@ -18,29 +18,10 @@ if (session.check(ready).decision === "USABLE") {
 }
 ```
 
-The preferred adapter is `PremiseAdapter` from `@premise/adapter-sdk`. Pass it
-directly to `premise.session`; `PremiseSession` supplies the session tenant,
-converts observations into runtime records, and owns local derivation. The
-adapter keeps external I/O, revalidation and any remote conditional write.
-
-```ts
-import type { PremiseAdapter } from "@premise/adapter-sdk";
-import { premise } from "@premise/runtime-core";
-
-const adapter: PremiseAdapter<MyValue, MyAction, MyResult> = /* connector */;
-const session = premise.session({ tenant: "agent:acme", adapter });
-```
-
-`PremiseSession` also accepts the previous runtime-record adapter shape for
-compatibility: `observe(resource, { tenantId })`, `revalidate(evidence,
-record)`, and optional `conditionalAction`. Its legacy `derive` method is no
-longer called; derivation is always owned by the session.
-
-An SDK adapter must return an observation for the requested tenant/resource,
-including a non-empty evidence list and a version. `conditionalAction` is
-optional; without it `session.act` refuses to execute anything. That callback
-must perform the connector's own atomic CAS, so the session API is not a
-substitute for GitHub, SQL or HTTP concurrency control.
+An adapter must provide only `observe`, `derive` and `revalidate`. It may add
+`conditionalAction`; without that callback `session.act` refuses to execute
+anything. The callback must perform the connector's own atomic CAS, so the
+session API is not a substitute for GitHub, SQL or HTTP concurrency control.
 
 The session validates tenant boundaries and dependency declarations. It does
 not provide retrieval, embeddings, a vector database, an LLM, authentication,
