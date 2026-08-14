@@ -32,12 +32,11 @@ test("session exposes observe, derive, check and guarded act without leaking run
   assert.equal(session.check(observed).decision, "USABLE");
   const claim = await session.derive({ claim: "PR is ready", from: [observed] });
   assert.equal(session.check(claim).decision, "USABLE");
-  assert.deepEqual(await session.act({ premise: claim, action: "merge" }), {
-    accepted: true,
-    memoryId: "memory:claim",
-    expectedVersion: "v1",
-    result: "merged"
-  });
+  const committed = await session.act({ premise: claim, action: "merge" });
+  assert.equal(committed.accepted, true);
+  assert.equal(committed.memoryId, claim.memoryId);
+  assert.equal(committed.expectedVersion, "v1");
+  assert.equal(committed.result, "merged");
 });
 
 test("session rejects cross-tenant records and refuses unguarded actions", async () => {

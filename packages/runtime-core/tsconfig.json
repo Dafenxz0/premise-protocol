@@ -8,5 +8,5 @@
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
-  "references": [{ "path": "../protocol-types" }]
+  "references": [{ "path": "../protocol-types" }, { "path": "../adapter-sdk" }]
 }
