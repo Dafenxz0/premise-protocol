@@ -2,8 +2,9 @@
   "mcpServers": {
     "premise": {
       "command": "node",
+      "cwd": ".",
       "args": [
-        "mcp/server.mjs"
+        "./mcp/server.mjs"
       ]
     }
   }

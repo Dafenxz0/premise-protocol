@@ -112,7 +112,8 @@ const manifest = JSON.parse(await readFile(join(installedPlugin, ".codex-plugin"
 const mcpManifest = JSON.parse(await readFile(join(installedPlugin, ".mcp.json"), "utf8"));
 assert.equal(manifest.mcpServers, "./.mcp.json");
 assert.equal(mcpManifest.mcpServers.premise.command, "node");
-assert.deepEqual(mcpManifest.mcpServers.premise.args, ["mcp/server.mjs"]);
+assert.equal(mcpManifest.mcpServers.premise.cwd, ".");
+assert.deepEqual(mcpManifest.mcpServers.premise.args, ["./mcp/server.mjs"]);
 assert.equal(await stat(serverPath).then(() => true), true);
 
 const copiedFiles = await filesUnder(installedPlugin);
