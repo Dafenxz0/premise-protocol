@@ -113,6 +113,12 @@ const mcpManifest = JSON.parse(await readFile(join(installedPlugin, ".mcp.json")
 assert.equal(manifest.mcpServers, "./.mcp.json");
 assert.equal(mcpManifest.mcpServers.premise.command, "node");
 assert.equal(mcpManifest.mcpServers.premise.cwd, ".");
+assert.deepEqual(mcpManifest.mcpServers.premise.env_vars, [
+  "PREMISE_MODE",
+  "PREMISE_BASE_URL",
+  "PREMISE_TENANT",
+  "PREMISE_TOKEN"
+]);
 assert.deepEqual(mcpManifest.mcpServers.premise.args, ["./mcp/server.mjs"]);
 assert.equal(await stat(serverPath).then(() => true), true);
 

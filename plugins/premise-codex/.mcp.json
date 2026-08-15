@@ -3,6 +3,12 @@
     "premise": {
       "command": "node",
       "cwd": ".",
+      "env_vars": [
+        "PREMISE_MODE",
+        "PREMISE_BASE_URL",
+        "PREMISE_TENANT",
+        "PREMISE_TOKEN"
+      ],
       "args": [
         "./mcp/server.mjs"
       ]
