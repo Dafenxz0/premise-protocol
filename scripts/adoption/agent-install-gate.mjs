@@ -4,7 +4,7 @@ import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(new URL("../..", import.meta.url).pathname.replace(/^\//u, ""));
+const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const sourcePlugin = join(root, "plugins", "premise-codex");
 const artifactRoot = join(root, ".tmp", "adoption", "agent-install-gate");
 const copiedPlugin = join(artifactRoot, "copied-plugin");
