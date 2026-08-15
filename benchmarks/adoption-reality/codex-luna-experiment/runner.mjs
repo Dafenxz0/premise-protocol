@@ -30,6 +30,7 @@ function args() {
     prepareOnly: values.includes("--prepare-only"),
     evaluateOnly: values.includes("--evaluate-only"),
     securitySelfCheck: values.includes("--security-self-check"),
+    candidateSmokeSelfCheck: values.includes("--candidate-smoke-self-check"),
     run: values.includes("--run")
   };
 }
@@ -214,6 +215,14 @@ function scrubbedAgentEnvironment() {
   };
 }
 
+function runCandidateSmoke() {
+  return run(process.execPath, [
+    "--input-type=module",
+    "-e",
+    "const m = await import('./agent.mjs'); const c = m.createClient({ baseUrl: 'http://example.invalid/', tenantId: 'tenant:experiment' }); if (!c || c.constructor.name !== 'PremiseClient') process.exit(1);"
+  ], candidateRoot, scrubbedAgentEnvironment());
+}
+
 async function launchAgent() {
   const command = commandFromEnvironment();
   if (command === undefined) return { status: "NOT_RUN", success: false, agentLaunched: false, reason: "set PREMISE_LUNA_COMMAND or PREMISE_CODEX_COMMAND to launch an external runner" };
@@ -229,11 +238,11 @@ async function launchAgent() {
     : { status: "FAIL", success: false, errors: [`agent exited with code ${result.code}`], agentLaunched: true, credentialsUsed: false };
   if (result.code === 0 && evaluation.success) {
     const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-    const install = await run(npm, ["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"], candidateRoot);
+    const install = await run(npm, ["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"], candidateRoot, scrubbedAgentEnvironment());
     if (install.code !== 0) {
       evaluation = { ...evaluation, status: "FAIL", success: false, errors: [...evaluation.errors, `offline package install failed: ${install.stderr.slice(-1_000)}`] };
     } else {
-      const smoke = await run(process.execPath, ["--input-type=module", "-e", "const m = await import('./agent.mjs'); const c = m.createClient({ baseUrl: 'http://example.invalid/', tenantId: 'tenant:experiment' }); if (!c || c.constructor.name !== 'PremiseClient') process.exit(1);"], candidateRoot);
+      const smoke = await runCandidateSmoke();
       if (smoke.code !== 0) evaluation = { ...evaluation, status: "FAIL", success: false, errors: [...evaluation.errors, `candidate smoke failed: ${smoke.stderr.slice(-1_000)}`] };
     }
   }
@@ -241,8 +250,28 @@ async function launchAgent() {
 }
 
 const options = args();
-if (options.securitySelfCheck) {
-  const sentinel = "premise-sentinel-do-not-forward-7f44e8";
+if (options.candidateSmokeSelfCheck) {
+  const sentinel = process.env.PREMISE_SENTINEL_SECRET ?? "premise-candidate-smoke-sentinel-91c2d7";
+  process.env.PREMISE_SENTINEL_SECRET = sentinel;
+  await rm(candidateRoot, { recursive: true, force: true });
+  await mkdir(candidateRoot, { recursive: true });
+  await writeFile(join(candidateRoot, "agent.mjs"), [
+    "if (process.env.PREMISE_SENTINEL_SECRET !== undefined) process.exit(73);",
+    "class PremiseClient {}",
+    "export function createClient() { return new PremiseClient(); }"
+  ].join("\n") + "\n", "utf8");
+  const result = await runCandidateSmoke();
+  const report = {
+    format: "premise-isolated-codex-candidate-smoke-self-check/1",
+    status: result.code === 0 ? "PASS" : "FAIL",
+    success: result.code === 0,
+    credentialExposed: result.code === 73,
+    exitCode: result.code
+  };
+  console.log(JSON.stringify(report, null, 2));
+  if (!report.success) process.exitCode = 1;
+} else if (options.securitySelfCheck) {
+  const sentinel = process.env.PREMISE_SENTINEL_SECRET ?? "premise-sentinel-do-not-forward-7f44e8";
   process.env.PREMISE_SENTINEL_SECRET = sentinel;
   await mkdir(runRoot, { recursive: true });
   const result = await run(process.execPath, ["-e", "process.exit(process.env.PREMISE_SENTINEL_SECRET === undefined ? 0 : 73)"], runRoot, scrubbedAgentEnvironment());
