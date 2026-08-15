@@ -119,6 +119,26 @@ The table below is a snapshot of the deterministic local coherence-storm runner 
 | Old-fence commits | 0 | The tested fencing path rejected superseded commits |
 | NEXT semantic vectors | 15 shared TS + 24 Python cases | The published semantic slice agrees across the two references |
 
+### Mutable-agent comparison (internal candidate evidence)
+
+The following campaign used two isolated Codex/Luna Max agents on the same
+SkillProof task, then a blind evaluator, plus six separate mutation worlds with
+300 deterministic tasks. It is deliberately shown as a safety/cost trade-off:
+the result supports a strong freshness and action-safety signal, but it does
+**not** yet support a claim that PREMiSE uses fewer raw requests.
+
+| Arm | Changed/error decisions | Unsafe stale actions | Safe completions | Tool calls | Requests / safe completion |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **PREMiSE + isolated LLM** | **162/162 · 100%** | **0/113 · 0%** | **113/113 · 100%** | 815 | 7.21 |
+| Baseline memory | 0/162 · 0% | 162/275 · 58.91% | 113/275 · 41.09% | **575** | **5.09** |
+
+**What this says:** PREMiSE prevented every unsafe action in this campaign and
+correctly handled every changed or errored source. The baseline used 29.45%
+fewer raw calls because it skipped validation and guards, but it acted on stale
+state. This is a promising safety result, not yet an efficiency victory. The
+full methodology and claim boundary are in the [mutable-agent campaign
+record](docs/evidence/mutable-agent-campaign-2026-08-15.md).
+
 For the assumptions, seeds, limitations and negative results, start with the [evidence index](docs/evidence/README.md) and [PREMiSE NEXT status](docs/premise-next-status.md). The current evidence does **not** justify claims that PREMiSE is universally safer, cheaper, production-ready for every connector, or independently validated by an external holdout.
 
 ## Quick start
