@@ -67,6 +67,8 @@ jobs:
         run: pnpm adoption:static-boundary-check
       - name: Standalone plugin install gate
         run: pnpm adoption:plugin-install-gate
+      - name: Cross-agent install gate
+        run: pnpm adoption:agent-install-gate
       - name: Isolated Codex/Luna experiment contract
         run: pnpm adoption:codex-luna:contract
       - name: Isolated Codex/Luna credential sentinel regression
