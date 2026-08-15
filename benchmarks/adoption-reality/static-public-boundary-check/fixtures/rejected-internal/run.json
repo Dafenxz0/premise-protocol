@@ -1,0 +1,16 @@
+{
+  "format": "premise-static-public-boundary-check-trace/1",
+  "success": false,
+  "filesChanged": ["agent.mjs"],
+  "internalImports": ["agent.mjs -> @premise/runtime-core"],
+  "docsReads": ["README.md", "docs/integration.md"],
+  "packageReads": ["package.json"],
+  "errors": [],
+  "events": [
+    { "type": "read", "path": "README.md", "atMs": 0 },
+    { "type": "read", "path": "package.json", "atMs": 2 },
+    { "type": "read", "path": "docs/integration.md", "atMs": 4 }
+  ],
+  "timeToFirstSuccessMs": null,
+  "credentialsUsed": false
+}

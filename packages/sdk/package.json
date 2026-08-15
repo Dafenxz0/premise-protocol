@@ -1,15 +1,39 @@
 {
   "name": "@premise/sdk",
   "version": "2.0.0-rc.1",
-  "description": "Release-candidate TypeScript SDK for the PREMiSE v2 HTTP API.",
+  "description": "Public TypeScript SDK for the PREMiSE v2 coherence API.",
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dafenxz0/premise-protocol.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/Dafenxz0/premise-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/Dafenxz0/premise-protocol/issues"
+  },
+  "keywords": [
+    "premise",
+    "coherence",
+    "freshness",
+    "ai-agents",
+    "memory",
+    "typescript"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "README.md"],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "pnpm build && node test/sdk.test.mjs"

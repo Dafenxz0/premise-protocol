@@ -119,11 +119,54 @@ The table below is a snapshot of the deterministic local coherence-storm runner 
 | Old-fence commits | 0 | The tested fencing path rejected superseded commits |
 | NEXT semantic vectors | 15 shared TS + 24 Python cases | The published semantic slice agrees across the two references |
 
+### Mutable-agent comparison (internal candidate evidence)
+
+The following campaign used two isolated Codex/Luna Max agents on the same
+SkillProof task, then a blind evaluator, plus six separate mutation worlds with
+300 deterministic tasks. It is deliberately shown as a safety/cost trade-off:
+the result supports a strong freshness and action-safety signal, but it does
+**not** yet support a claim that PREMiSE uses fewer raw requests.
+
+| Arm | Changed/error decisions | Unsafe stale actions | Safe completions | Tool calls | Requests / safe completion |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **PREMiSE + isolated LLM** | **162/162 · 100%** | **0/113 · 0%** | **113/113 · 100%** | 815 | 7.21 |
+| Baseline memory | 0/162 · 0% | 162/275 · 58.91% | 113/275 · 41.09% | **575** | **5.09** |
+
+**What this says:** PREMiSE prevented every unsafe action in this campaign and
+correctly handled every changed or errored source. The baseline used 29.45%
+fewer raw calls because it skipped validation and guards, but it acted on stale
+state. This is a promising safety result, not yet an efficiency victory. The
+full methodology and claim boundary are in the [mutable-agent campaign
+record](docs/evidence/mutable-agent-campaign-2026-08-15.md).
+
 For the assumptions, seeds, limitations and negative results, start with the [evidence index](docs/evidence/README.md) and [PREMiSE NEXT status](docs/premise-next-status.md). The current evidence does **not** justify claims that PREMiSE is universally safer, cheaper, production-ready for every connector, or independently validated by an external holdout.
 
 ## Quick start
 
 Requirements: Node.js 24 and pnpm 10.
+
+### Use the public SDK
+
+The public integration surface is @premise/sdk, an ESM-only Node 24 client
+for the premise/2 HTTP API. It has no runtime dependency on this monorepo and
+is tested in three external projects without workspaces:
+
+    npm install @premise/sdk
+
+The registry publication is still a separate release step for this candidate.
+The repository gate already builds the package, creates a tarball, installs it
+with npm in clean GitHub-like, REST and filesystem consumers, and records the
+registry status as NOT_RUN until a release is intentionally published. See the
+[adoption and reality wave](docs/adoption-reality-wave.md) for the exact claim
+boundary.
+
+For agents working with mutable sources, the repository also ships a
+[PREMiSE Skill](.agents/skills/premise/SKILL.md) and a source
+[Codex plugin](plugins/premise-codex/README.md). They teach the workflow; the
+runtime and connector still enforce authorization and conditional writes.
+The plugin includes a dependency-free MCP launcher that defaults to LOCAL
+mode and can use REMOTE mode with `PREMISE_BASE_URL`; its copied-install gate
+is documented in the [isolated Codex/Luna experiment](docs/codex-luna-isolated-experiment.md).
 
 ```bash
 corepack enable
