@@ -29,6 +29,7 @@ jobs:
       - run: pnpm conformance:next
       - run: pnpm example:quickstart
       - run: pnpm example:quickstart:test
+      - run: pnpm demo:agent-change-control:self-check
       - run: node --test benchmarks/premise-next/storm/runner.test.mjs
       - run: pnpm benchmark:next:distributed-failures
       - run: pnpm benchmark:efficiency:v1:bounded:test
@@ -67,6 +68,8 @@ jobs:
         run: pnpm adoption:static-boundary-check
       - name: Standalone plugin install gate
         run: pnpm adoption:plugin-install-gate
+      - name: Cross-agent install gate
+        run: pnpm adoption:agent-install-gate
       - name: Isolated Codex/Luna experiment contract
         run: pnpm adoption:codex-luna:contract
       - name: Isolated Codex/Luna credential sentinel regression

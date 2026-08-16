@@ -8,6 +8,32 @@ PREMiSE es un protocolo abierto y un runtime para agentes que leen información 
 
 PREMiSE no es una base de datos vectorial, un sistema de embeddings, un motor de retrieval, una memoria principal, un dashboard, un servicio cloud ni una autoridad sobre la verdad. Es la capa de coherencia entre un agente y los sistemas cuyo estado puede cambiar mientras el agente trabaja.
 
+## Instalar en dos minutos
+
+PREMiSE no depende de un proveedor de agentes. No necesitas instalar este
+monorepo, una base de datos ni un servicio cloud para añadir el protocolo y su
+servidor MCP portable a un proyecto.
+
+```bash
+git clone --depth 1 https://github.com/Dafenxz0/premise-protocol.git .premise-source
+node .premise-source/plugins/premise-codex/install.mjs --agent all --project .
+node .premise-source/plugins/premise-codex/install.mjs --check --agent all --project .
+```
+
+| Host | Comando | Qué instala |
+| --- | --- | --- |
+| Codex | `--agent codex` | `.agents/skills/premise` y la entrada MCP portable |
+| Claude Code | `--agent claude-code` | import gestionado en `CLAUDE.md` y `.mcp.json` |
+| Otros agentes compatibles con MCP | `--agent generic` | guía en `AGENTS.md` y `.premise/premise.mcp.json` |
+| Todos | `--agent all` | el kit portable completo |
+
+El modo inicial es `SELFTEST`: comprueba que el servidor copiado arranca y
+responde, pero no es una memoria local ni una autoridad sobre la verdad. Para
+un despliegue remoto define `PREMISE_MODE`, `PREMISE_BASE_URL`,
+`PREMISE_TENANT` y `PREMISE_TOKEN` solo en el entorno del proceso. Nunca
+guardes credenciales en `.mcp.json`. Consulta la [guía de instalación de
+agentes](docs/agent-installation.md) para PowerShell, modo remoto y retirada.
+
 ![Flujo de PREMiSE](assets/premise-overview.jpg)
 
 ## PREMiSE en una frase
@@ -47,7 +73,7 @@ Incluye los contratos del protocolo, un runtime TypeScript, implementaciones de 
 | Evidencia | Experimentos deterministas indexados en [`docs/evidence`](docs/evidence/README.md) |
 | Estado | Candidato de ingeniería/investigación; no es una promesa de GA universal |
 
-## Empezar
+## Desarrollar el repositorio
 
 Requisitos: Node.js 24 y pnpm 10.
 
