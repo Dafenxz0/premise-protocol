@@ -106,6 +106,7 @@
     "adoption:certification": "node benchmarks/adoption-reality/runner.mjs",
     "adoption:certification:test": "node --test benchmarks/adoption-reality/runner.test.mjs",
     "adoption:wave-check": "node scripts/adoption/wave-check.mjs",
+    "demo:agent-change-control:self-check": "node apps/agent-change-control/self-check.mjs",
     "mcp:build": "pnpm --filter @premise/mcp-server build",
     "mcp:test": "pnpm --filter @premise/mcp-server test",
     "examples:verify": "pnpm --filter @premise/example-generic-memory test && pnpm --filter @premise/example-openai-memory test && pnpm --filter @premise/example-mcp-memory test && node scripts/verify-adapters.mjs",

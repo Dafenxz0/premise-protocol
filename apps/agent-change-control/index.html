@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A small visual demonstration of PREMiSE change control for agents.">
+    <title>PREMiSE · Agent Change Control</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="brand"><span class="mark">P</span><span>PREMiSE</span></div>
+        <p class="eyebrow">AGENT CHANGE CONTROL</p>
+        <h1>Keep an agent from publishing yesterday’s plan.</h1>
+        <p class="lede">A tiny simulation of the moment where a source changes while an agent is thinking.</p>
+        <div class="hero-note"><span class="pulse"></span><span id="hero-status">Source is ready at v1</span></div>
+      </header>
+
+      <section class="stage" aria-label="Change control simulation">
+        <div class="timeline">
+          <article class="step active" data-step="observe">
+            <div class="step-index">01</div>
+            <div><span class="step-kicker">OBSERVE</span><h2>Record the source</h2><p>The agent reads the current version and keeps the evidence behind its plan.</p></div>
+            <span class="status-pill green" id="observe-status">Done · v1</span>
+          </article>
+          <article class="step" data-step="change">
+            <div class="step-index">02</div>
+            <div><span class="step-kicker">WORLD CHANGES</span><h2>A teammate updates it</h2><p>The source moves to a new version while the agent is still reasoning.</p></div>
+            <span class="status-pill muted" id="change-status">Waiting</span>
+          </article>
+          <article class="step" data-step="guard">
+            <div class="step-index">03</div>
+            <div><span class="step-kicker">GUARD</span><h2>Check before the side effect</h2><p>PREMiSE compares the plan’s version with the source before allowing the action.</p></div>
+            <span class="status-pill muted" id="guard-status">Waiting</span>
+          </article>
+          <article class="step" data-step="commit">
+            <div class="step-index">04</div>
+            <div><span class="step-kicker">RECOVER</span><h2>Refresh, then commit</h2><p>The agent gets fresh evidence and can safely continue against the new version.</p></div>
+            <span class="status-pill muted" id="commit-status">Waiting</span>
+          </article>
+        </div>
+
+        <aside class="control-panel">
+          <div class="panel-label">LIVE SIMULATION</div>
+          <div class="source-card"><div><span class="source-label">SOURCE</span><strong id="source-name">release-config</strong></div><span class="version" id="source-version">v1</span></div>
+          <div class="decision" id="decision" data-state="ready"><span class="decision-icon" id="decision-icon">✓</span><div><span class="source-label">CURRENT DECISION</span><strong id="decision-title">Safe to prepare</strong><p id="decision-copy">The plan matches the source.</p></div></div>
+          <div class="actions"><button class="button primary" id="change-button">Change the source</button><button class="button secondary" id="commit-button" disabled>Revalidate &amp; commit</button><button class="button text" id="reset-button">Reset demo</button></div>
+        </aside>
+      </section>
+
+      <section class="plain-language"><div class="plain-icon">↗</div><div><span class="step-kicker">IN PLAIN LANGUAGE</span><h2>Memory remembers. PREMiSE checks.</h2><p>Normal memory can keep an old fact perfectly. PREMiSE adds a final question: “is this still the same source?” If not, it pauses the action before it can do damage.</p></div></section>
+
+      <footer><span>PREMiSE protocol · deterministic local demo</span><span>Stale actions stop at the boundary.</span></footer>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

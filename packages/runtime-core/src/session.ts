@@ -91,6 +91,38 @@ export interface PremiseSessionAction<T = unknown, TAction = unknown> {
   readonly expectedVersion?: VersionReference;
 }
 
+export type PremiseGuardedWriteCode =
+  | "STALE_SOURCE"
+  | "VALIDATION_UNAVAILABLE"
+  | "ACTION_NOT_ATOMIC"
+  | "POLICY_DENIED"
+  | "IDEMPOTENCY_CONFLICT";
+
+export type PremiseGuardedWriteResult<TResult = unknown> =
+  | {
+      readonly status: "committed";
+      readonly memoryId: string;
+      readonly expectedVersion: string;
+      readonly result?: TResult;
+    }
+  | {
+      readonly status: "blocked";
+      readonly code: PremiseGuardedWriteCode;
+      readonly message: string;
+      readonly memoryId?: string;
+      readonly expectedVersion?: string;
+      readonly observedVersion?: string;
+      readonly retryable: boolean;
+    };
+
+export interface PremisePreparedAction<T = unknown, TAction = unknown, TResult = unknown> {
+  readonly premise: PremiseSessionPremise<T>;
+  readonly resource: string;
+  readonly action: TAction;
+  /** Commits only through the adapter's conditional-action capability. */
+  readonly commitIfFresh: () => Promise<PremiseGuardedWriteResult<TResult>>;
+}
+
 function required(value: unknown, name: string): string {
   if (typeof value !== "string" || value.trim().length === 0) throw new TypeError(`${name} must be a non-empty string`);
   return value;
@@ -223,6 +255,42 @@ function actionCommit<TResult>(result: PremiseSessionAdapterActionResult<TResult
   };
 }
 
+function guardedWriteCode(reason: RuntimeActionResult<unknown>["reason"]): PremiseGuardedWriteCode {
+  switch (reason) {
+    case "VERSION_MISMATCH": return "STALE_SOURCE";
+    case "REVALIDATE": return "STALE_SOURCE";
+    case "CAS_REQUIRED": return "ACTION_NOT_ATOMIC";
+    case "REJECT": return "POLICY_DENIED";
+    default: return "VALIDATION_UNAVAILABLE";
+  }
+}
+
+function guardedWriteResult<TResult>(result: RuntimeActionResult<TResult>): PremiseGuardedWriteResult<TResult> {
+  if (result.accepted) {
+    return {
+      status: "committed",
+      memoryId: result.memoryId,
+      expectedVersion: result.expectedVersion,
+      ...(result.result === undefined ? {} : { result: result.result })
+    };
+  }
+  return {
+    status: "blocked",
+    code: guardedWriteCode(result.reason),
+    message: result.reason === "VERSION_MISMATCH"
+      ? "The source changed before the conditional action was accepted."
+      : result.reason === "CAS_REQUIRED"
+        ? "The adapter does not expose an atomic conditional action."
+        : result.reason === "REJECT"
+          ? "The current premise or policy does not allow this action."
+          : "PREMiSE could not prove that the action was safe to commit.",
+    memoryId: result.memoryId,
+    expectedVersion: result.expectedVersion,
+    ...(result.observedVersion === undefined ? {} : { observedVersion: result.observedVersion }),
+    retryable: result.reason === "VERSION_MISMATCH" || result.reason === "REVALIDATE"
+  };
+}
+
 /**
  * Small façade over the runtime. It owns orchestration and derivation while
  * adapters retain source I/O, authentication and remote conditional writes.
@@ -273,6 +341,40 @@ export class PremiseSession<T = unknown, TAction = unknown, TResult = unknown> {
 
   check(premise: PremiseSessionPremise<T>) {
     return this.runtime.check([premise.memoryId])[0]!;
+  }
+
+  /**
+   * Prepare a source-bound action without executing it. The returned commit
+   * function remains safe because it routes through the runtime check and the
+   * adapter-owned conditional write.
+   */
+  async prepareAction(action: { readonly source: string; readonly action: TAction }): Promise<PremisePreparedAction<T, TAction, TResult>> {
+    if (action === undefined || action === null || typeof action !== "object") throw new TypeError("prepareAction requires source and action");
+    const resource = required(action.source, "source");
+    const premise = await this.observe(resource);
+    return {
+      premise,
+      resource,
+      action: action.action,
+      commitIfFresh: async () => {
+        try {
+          return guardedWriteResult(await this.act({ premise, resource, action: action.action }));
+        } catch (error) {
+          return {
+            status: "blocked",
+            code: error instanceof Error && /conditionalAction|conditional action|CAS/i.test(error.message) ? "ACTION_NOT_ATOMIC" : "VALIDATION_UNAVAILABLE",
+            message: error instanceof Error ? error.message : "PREMiSE could not prove that the action was safe to commit.",
+            memoryId: premise.memoryId,
+            retryable: false
+          };
+        }
+      }
+    };
+  }
+
+  /** Observe and commit one action through the adapter's atomic boundary. */
+  async guardedWrite(action: { readonly source: string; readonly action: TAction }): Promise<PremiseGuardedWriteResult<TResult>> {
+    return (await this.prepareAction(action)).commitIfFresh();
   }
 
   async revalidate(premise: PremiseSessionPremise<T>): Promise<RuntimeValidationReport> {

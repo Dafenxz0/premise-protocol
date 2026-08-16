@@ -29,6 +29,7 @@ jobs:
       - run: pnpm conformance:next
       - run: pnpm example:quickstart
       - run: pnpm example:quickstart:test
+      - run: pnpm demo:agent-change-control:self-check
       - run: node --test benchmarks/premise-next/storm/runner.test.mjs
       - run: pnpm benchmark:next:distributed-failures
       - run: pnpm benchmark:efficiency:v1:bounded:test

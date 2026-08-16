@@ -34,6 +34,32 @@
 
 The source system remains the source of truth. GitHub, a file, a database row, or an API still owns its data; PREMiSE supplies the coherence boundary between that mutable world and the agent's final action.
 
+## The product path: observe → prepare → guard → commit
+
+The smallest useful PREMiSE integration is a guarded change, not a new memory
+database. An adapter observes a source and its version; the agent can reason for
+as long as it needs; the final write is accepted only through the source's own
+conditional boundary.
+
+```ts
+const session = premise.session({ tenant: "acme", adapter });
+const prepared = await session.prepareAction({
+  source: "github://acme/service/pull/42",
+  action: { type: "merge" }
+});
+
+const outcome = await prepared.commitIfFresh();
+if (outcome.status === "blocked") {
+  console.log(outcome.code); // e.g. STALE_SOURCE
+  // Observe again and make a new decision. Do not replay the old premise.
+}
+```
+
+`guardedWrite()` is the one-shot form. Both paths fail closed when the adapter
+cannot provide an atomic conditional action. See the [product golden path](docs/product-golden-path.md)
+and open the dependency-free [Agent Change Control demo](apps/agent-change-control/index.html)
+to see the stale-write boundary in plain language.
+
 ## Install in two minutes
 
 PREMiSE is host-agnostic. You do not need to install this monorepo, a
@@ -128,6 +154,7 @@ The protocol keeps the important state small and explicit:
 | Runtime | TypeScript runtime with dependency propagation, revalidation, receipts, idempotency, leases and guarded actions |
 | Session and SDK | `PremiseSession`, the public Adapter SDK and an executable quickstart |
 | Stores and adapters | In-memory, SQLite and PostgreSQL-compatible stores; filesystem, Git/GitHub-like, HTTP and webhook adapters |
+| Product surface | `prepareAction()`, `guardedWrite()` and a dependency-free Agent Change Control demo |
 | Conformance | Independent Python reference, 24 Python NEXT cases and 15 shared TypeScript semantic vectors |
 | Evidence lab | Deterministic benchmark campaigns for safety, freshness, work, latency and cost accounting |
 | Release status | `2.0.0-rc.1` engineering candidate — not a universal GA claim |
@@ -246,6 +273,8 @@ This sketch shows the boundary, not a universal connector API. See the [API guid
       <h3>Build and evaluate</h3>
       <ul>
         <li><a href="docs/api-v2.md">Runtime and integration API</a></li>
+        <li><a href="docs/product-golden-path.md">Product golden path</a></li>
+        <li><a href="apps/agent-change-control/index.html">Agent Change Control demo</a></li>
         <li><a href="docs/agent-installation.md">Install for Codex, Claude Code and MCP hosts</a></li>
         <li><a href="docs/evidence/README.md">Evidence index</a></li>
         <li><a href="docs/benchmarks/premisebench-agent.md">Agent benchmark methodology</a></li>
