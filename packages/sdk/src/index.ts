@@ -1,4 +1,4 @@
-export const SDK_VERSION = "2.0.0-rc.1" as const;
+export const SDK_VERSION = "2.0.0-rc.2" as const;
 export const SDK_RELEASE_CHANNEL = "candidate" as const;
 export const API_SPEC_VERSION = "premise/2" as const;
 export const SPEC_VERSION_V2 = API_SPEC_VERSION;

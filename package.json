@@ -1,9 +1,19 @@
 {
   "name": "premise-protocol",
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "private": true,
+  "license": "Apache-2.0",
   "description": "PREMiSE coherence protocol and runtime for AI agents working with mutable external state.",
   "type": "module",
+  "bin": {
+    "premise-install": "plugins/premise-codex/install.mjs"
+  },
+  "files": [
+    "plugins/premise-codex",
+    "LICENSE",
+    "README.md",
+    "docs/agent-installation.md"
+  ],
   "packageManager": "pnpm@10.13.1",
   "engines": {
     "node": ">=24.0.0 <25",
@@ -106,6 +116,8 @@
     "adoption:certification": "node benchmarks/adoption-reality/runner.mjs",
     "adoption:certification:test": "node --test benchmarks/adoption-reality/runner.test.mjs",
     "adoption:wave-check": "node scripts/adoption/wave-check.mjs",
+    "release:check": "node scripts/release/check.mjs",
+    "release:sbom": "node scripts/release/generate-sdk-sbom.mjs",
     "demo:agent-change-control:self-check": "node apps/agent-change-control/self-check.mjs",
     "mcp:build": "pnpm --filter @premise/mcp-server build",
     "mcp:test": "pnpm --filter @premise/mcp-server test",

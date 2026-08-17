@@ -119,7 +119,7 @@ async function makeEvidenceDirectory(t, mutate = () => {}) {
     });
     if (requirement.name === "sdk-contract.json" || requirement.name === "openapi-validation.json") {
       Object.assign(document, { status: "passed", ok: true, apiVersion: "premise/2", tests: { passed: true, total: 10, failed: 0 }, checks: { schemas: true, pagination: true, typedErrors: true, compatibility: true }, compatibility: { policy: "backward-compatible additive v2" } });
-      if (requirement.name === "sdk-contract.json") document.sdk = { package: "@premise/sdk", version: "2.0.0-rc.1" };
+      if (requirement.name === "sdk-contract.json") document.sdk = { package: "@premise/sdk", version: "2.0.0-rc.2" };
       else Object.assign(document, { spec: { path: "openapi.json", sha256: "" }, validation: { passed: true, operations: 10, schemas: 10 } });
     }
     if (requirement.name === "soak-availability.json") Object.assign(document, {

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const artifactRoot = join(root, ".tmp", "adoption", "package-gate");
+const artifactRoot = await mkdtemp(join(tmpdir(), "premise-package-gate-"));
 const packageDir = join(root, "packages", "sdk");
 const consumerRoot = join(root, "adoption", "external-consumers");
 const isWindows = process.platform === "win32";
@@ -43,8 +44,7 @@ function run(command, args, cwd) {
   });
 }
 
-await rm(artifactRoot, { recursive: true, force: true });
-await mkdir(artifactRoot, { recursive: true });
+try {
 
 await run(pnpmCommand, ["--filter", "@premise/sdk", "build"], root);
 await run(npmCommand, ["pack", "--ignore-scripts", "--pack-destination", artifactRoot], packageDir);
@@ -87,3 +87,6 @@ const report = {
 };
 await writeFile(join(artifactRoot, "report.json"), JSON.stringify(report, null, 2) + "\n", "utf8");
 console.log(JSON.stringify(report, null, 2));
+} finally {
+  await rm(artifactRoot, { recursive: true, force: true });
+}

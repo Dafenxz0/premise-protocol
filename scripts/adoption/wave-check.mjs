@@ -7,9 +7,16 @@ const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const localSkill = join(root, ".agents", "skills", "premise");
 const pluginSkill = join(root, "plugins", "premise-codex", "skills", "premise");
 const pluginRoot = join(root, "plugins", "premise-codex");
+const rootManifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+const readme = await readFile(join(root, "README.md"), "utf8");
 
 const sdkManifest = JSON.parse(await readFile(join(root, "packages", "sdk", "package.json"), "utf8"));
 assert.equal(sdkManifest.name, "@premise/sdk");
+assert.equal(sdkManifest.version, "2.0.0-rc.2");
+assert.equal(rootManifest.version, sdkManifest.version);
+assert.equal(rootManifest.license, "Apache-2.0");
+assert.equal(sdkManifest.license, "Apache-2.0");
+assert.equal(rootManifest.bin?.["premise-install"], "plugins/premise-codex/install.mjs");
 assert.deepEqual(sdkManifest.dependencies ?? {}, {});
 assert.equal(sdkManifest.publishConfig.access, "public");
 
@@ -35,5 +42,7 @@ assert.equal(mcpManifest.mcpServers.premise.args.some((arg) => arg.includes("pac
 await readFile(join(pluginRoot, "mcp", "server.mjs"), "utf8");
 await readFile(join(pluginRoot, "mcp", "README.md"), "utf8");
 await readFile(join(root, "packages", "mcp-server", "dist", "index.js"), "utf8");
+assert.match(readme, /PREMiSE 2 is the current candidate protocol/u);
+assert.match(readme, /premise-install/u);
 
 console.log("PREMiSE adoption wave check passed");
