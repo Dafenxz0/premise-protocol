@@ -12,7 +12,7 @@
     <a href="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI on main"></a>
     <a href="https://nodejs.org/en/download"><img src="https://img.shields.io/badge/Node.js-24-1f6feb?logo=node.js&logoColor=white" alt="Node.js 24"></a>
     <a href="https://github.com/Dafenxz0/premise-protocol/releases"><img src="https://img.shields.io/badge/status-candidate-f59e0b" alt="Candidate status"></a>
-    <a href="https://github.com/Dafenxz0/premise-protocol/blob/main/spec/v2/README.md"><img src="https://img.shields.io/badge/protocol-premise%2F2-6366f1" alt="PREMiSE protocol 2"></a>
+    <a href="https://github.com/Dafenxz0/premise-protocol/blob/v2.0.0-rc.2/spec/v2/README.md"><img src="https://img.shields.io/badge/protocol-premise%2F2-6366f1" alt="PREMiSE protocol 2"></a>
   </p>
 </div>
 
@@ -76,13 +76,13 @@ database, or a cloud service to give an agent the protocol workflow and its
 standalone MCP tools.
 
 ```bash
-npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+npx --yes --package github:Dafenxz0/premise-protocol#v2.0.0-rc.2 premise-install --agent all --project .
 ```
 
 For an offline or reviewed checkout, the equivalent explicit path is:
 
 ```bash
-git clone --depth 1 https://github.com/Dafenxz0/premise-protocol.git .premise-source
+git clone --depth 1 --branch v2.0.0-rc.2 https://github.com/Dafenxz0/premise-protocol.git .premise-source
 node .premise-source/plugins/premise-codex/install.mjs --agent all --project .
 node .premise-source/plugins/premise-codex/install.mjs --check --agent all --project .
 ```

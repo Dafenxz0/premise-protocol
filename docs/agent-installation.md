@@ -9,7 +9,7 @@ the small host-specific bridge each agent understands.
 From the root of the project where the agent will work:
 
 ```bash
-npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+npx --yes --package github:Dafenxz0/premise-protocol#v2.0.0-rc.2 premise-install --agent all --project .
 ```
 
 The command above downloads the standalone installer from GitHub and writes
@@ -17,7 +17,7 @@ only the managed agent files into the current project. For an offline or
 reviewed checkout, use the explicit equivalent:
 
 ```bash
-git clone --depth 1 https://github.com/Dafenxz0/premise-protocol.git .premise-source
+git clone --depth 1 --branch v2.0.0-rc.2 https://github.com/Dafenxz0/premise-protocol.git .premise-source
 node .premise-source/plugins/premise-codex/install.mjs --agent all --project .
 node .premise-source/plugins/premise-codex/install.mjs --check --agent all --project .
 ```

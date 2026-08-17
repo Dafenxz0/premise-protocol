@@ -60,6 +60,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Release metadata and packaged installer gate
+        run: pnpm release:check
+      - name: SDK CycloneDX SBOM gate
+        run: pnpm release:sbom
       - name: Package gate and fixture self-check
         run: pnpm adoption:package-gate
       - name: Skill public-boundary gate

@@ -9,7 +9,7 @@ the repository is licensed under Apache-2.0.
 From the project where an agent will work:
 
 ```bash
-npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+npx --yes --package github:Dafenxz0/premise-protocol#v2.0.0-rc.2 premise-install --agent all --project .
 ```
 
 The installer is dependency-free and defaults to `SELFTEST`. Remote mode is
@@ -31,7 +31,9 @@ pnpm adoption:agent-install-gate
 `release:sbom` writes a CycloneDX report under `.tmp/release/`. The adoption
 package gate creates consumers in the operating-system temporary directory,
 installs a local SDK tarball with npm and removes those consumers after the
-run. It does not claim npm registry publication.
+run. `release:check` also packs the repository and invokes the published
+`premise-install` bin through `npx` in a clean temporary project, including a
+second `--check` pass. It does not claim npm registry publication.
 
 ## Evidence boundary
 
