@@ -11,7 +11,7 @@ From the project where Codex, Claude Code or another MCP-compatible agent will
 work, install the candidate in one command:
 
 ```bash
-npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+npx --yes --package github:Dafenxz0/premise-protocol#v2.0.0-rc.2 premise-install --agent all --project .
 ```
 
 For an offline or reviewed checkout, run the installer directly:
