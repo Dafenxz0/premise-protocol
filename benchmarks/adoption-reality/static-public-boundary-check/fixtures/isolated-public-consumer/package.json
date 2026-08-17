@@ -7,6 +7,6 @@
     "node": ">=24.0.0 <25"
   },
   "dependencies": {
-    "@premise/sdk": "2.0.0-rc.1"
+    "@premise/sdk": "2.0.0-rc.2"
   }
 }

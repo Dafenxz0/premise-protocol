@@ -41,7 +41,8 @@ the monorepo's private internals.
   for every arm; keep the evaluator blind to the arm identity.
 - Measure safe completions, stale actions blocked, re-observations, tool calls,
   latency and cost per safe completion.
-- Publish a threat model, security response process, SBOM and selected license.
+- Maintain the threat model, security response process, release-specific SBOM
+  and Apache-2.0 license metadata.
 - Review the public README against generated evidence and remove unsupported
   claims.
 

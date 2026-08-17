@@ -12,7 +12,7 @@
     <a href="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/Dafenxz0/premise-protocol/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI on main"></a>
     <a href="https://nodejs.org/en/download"><img src="https://img.shields.io/badge/Node.js-24-1f6feb?logo=node.js&logoColor=white" alt="Node.js 24"></a>
     <a href="https://github.com/Dafenxz0/premise-protocol/releases"><img src="https://img.shields.io/badge/status-candidate-f59e0b" alt="Candidate status"></a>
-    <a href="https://github.com/Dafenxz0/premise-protocol/blob/main/spec/premise-1/README.md"><img src="https://img.shields.io/badge/protocol-premise%2F1-6366f1" alt="PREMiSE protocol 1"></a>
+    <a href="https://github.com/Dafenxz0/premise-protocol/blob/main/spec/v2/README.md"><img src="https://img.shields.io/badge/protocol-premise%2F2-6366f1" alt="PREMiSE protocol 2"></a>
   </p>
 </div>
 
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="#how-it-works">How it works</a> ·
-  <a href="#install-in-two-minutes">Install</a> ·
+  <a href="#install-in-one-command">Install</a> ·
   <a href="#what-is-measured">Evidence</a> ·
   <a href="#develop-the-repository">Develop</a> ·
   <a href="docs/evidence/README.md">Evidence index</a>
@@ -33,6 +33,15 @@
 > PREMiSE lets an agent know whether the facts behind its next action are still current — and makes it re-check them when they are not.
 
 The source system remains the source of truth. GitHub, a file, a database row, or an API still owns its data; PREMiSE supplies the coherence boundary between that mutable world and the agent's final action.
+
+## Public status
+
+**PREMiSE 2 is the current candidate protocol.** The public HTTP contract is
+`premise/2`, and the current SDK candidate is `@premise/sdk@2.0.0-rc.2`.
+`premise/1` and `premise/1.1` are frozen compatibility specifications. PREMiSE
+NEXT contains experimental semantics and is not a stable protocol surface.
+This repository is a serious candidate release, not a universal production or
+GA claim for every connector and deployment.
 
 ## The product path: observe → prepare → guard → commit
 
@@ -60,11 +69,17 @@ cannot provide an atomic conditional action. See the [product golden path](docs/
 and open the dependency-free [Agent Change Control demo](apps/agent-change-control/index.html)
 to see the stale-write boundary in plain language.
 
-## Install in two minutes
+## Install in one command
 
 PREMiSE is host-agnostic. You do not need to install this monorepo, a
 database, or a cloud service to give an agent the protocol workflow and its
 standalone MCP tools.
+
+```bash
+npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+```
+
+For an offline or reviewed checkout, the equivalent explicit path is:
 
 ```bash
 git clone --depth 1 https://github.com/Dafenxz0/premise-protocol.git .premise-source
@@ -150,14 +165,14 @@ The protocol keeps the important state small and explicit:
 
 | Area | What you can use now |
 | --- | --- |
-| Protocol contracts | `premise/1`, `premise/1.1` and the portable PREMiSE NEXT semantic slice |
+| Protocol contracts | Current candidate `premise/2`; frozen `premise/1` and `premise/1.1`; experimental PREMiSE NEXT |
 | Runtime | TypeScript runtime with dependency propagation, revalidation, receipts, idempotency, leases and guarded actions |
 | Session and SDK | `PremiseSession`, the public Adapter SDK and an executable quickstart |
 | Stores and adapters | In-memory, SQLite and PostgreSQL-compatible stores; filesystem, Git/GitHub-like, HTTP and webhook adapters |
 | Product surface | `prepareAction()`, `guardedWrite()` and a dependency-free Agent Change Control demo |
 | Conformance | Independent Python reference, 24 Python NEXT cases and 15 shared TypeScript semantic vectors |
 | Evidence lab | Deterministic benchmark campaigns for safety, freshness, work, latency and cost accounting |
-| Release status | `2.0.0-rc.1` engineering candidate — not a universal GA claim |
+| Release status | `2.0.0-rc.2` engineering candidate — not a universal GA claim |
 
 ## What is measured
 
@@ -205,7 +220,7 @@ The public integration surface is @premise/sdk, an ESM-only Node 24 client
 for the premise/2 HTTP API. It has no runtime dependency on this monorepo and
 is tested in three external projects without workspaces:
 
-    npm install @premise/sdk
+    npm install @premise/sdk@2.0.0-rc.2
 
 The registry publication is still a separate release step for this candidate.
 The repository gate already builds the package, creates a tarball, installs it
@@ -276,6 +291,7 @@ This sketch shows the boundary, not a universal connector API. See the [API guid
         <li><a href="docs/product-golden-path.md">Product golden path</a></li>
         <li><a href="apps/agent-change-control/index.html">Agent Change Control demo</a></li>
         <li><a href="docs/agent-installation.md">Install for Codex, Claude Code and MCP hosts</a></li>
+        <li><a href="docs/release-candidate.md">Release candidate and adoption checks</a></li>
         <li><a href="docs/evidence/README.md">Evidence index</a></li>
         <li><a href="docs/benchmarks/premisebench-agent.md">Agent benchmark methodology</a></li>
         <li><a href="conformance/README.md">Conformance runner</a></li>

@@ -4,16 +4,17 @@ This document freezes the evidence boundary for the public-adoption work.
 
 ## Baseline
 
-- Baseline commit: 20fd8bb (docs: sync coherence storm evidence)
-- Working branch: codex/adoption-reality-wave
+- Baseline commit: cb6583c (portable PREMiSE change-control product path)
+- Working branch: agent/release-candidate-product-hardening
 - Runtime requirement: Node 24 and pnpm 10
-- Release channel: candidate
+- Release channel: candidate `2.0.0-rc.2`
+- Current public protocol: `premise/2`
 - Public facade target: @premise/sdk
-- License: not selected in the repository; registry publication remains
-  blocked until the project owner chooses and adds a license.
+- License: Apache-2.0
 
-The root repository remains private as a monorepo. Only package directories
-with an explicit public manifest are candidates for distribution.
+The GitHub repository is public. The root package remains private as a
+workspace source tree; `@premise/sdk@2.0.0-rc.2` and the standalone plugin are
+the explicitly documented distribution surfaces.
 
 ## Scope freeze
 
@@ -41,8 +42,9 @@ truth authority.
 ## Acceptance gates
 
 1. @premise/sdk builds and packs without workspace dependencies.
-2. Three fresh consumer projects install the tarball with npm and run without
-   the monorepo or a workspace lockfile.
+2. Three fresh consumer projects are created in an operating-system temporary
+   directory, install the SDK tarball with npm, and run without the monorepo or
+   a workspace lockfile.
 3. The Skill explains the boundary between agent workflow and runtime
    enforcement.
 4. The MCP surface exposes only the minimum documented operations.
@@ -66,7 +68,9 @@ truth authority.
 ## Public claims after this wave
 
 The project may claim that the public SDK is installable from a tested local
-package artifact when the package gate passes. It may claim real-world
-certification only for the connectors and failure modes whose artifacts show
-PASS. It must continue to label registry publication, independent external
-holdout evaluation, production availability, and license selection separately.
+package artifact when the package gate passes. The isolated fixtures cover
+GitHub-like, REST and filesystem consumers outside the checkout; they are
+package-boundary fixtures, not proof of live GitHub or third-party adoption.
+It may claim real-world certification only for the connectors and failure modes
+whose artifacts show PASS. Registry publication, independent external holdout
+evaluation and production availability remain separate claims.

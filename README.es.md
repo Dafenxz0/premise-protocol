@@ -8,11 +8,25 @@ PREMiSE es un protocolo abierto y un runtime para agentes que leen información 
 
 PREMiSE no es una base de datos vectorial, un sistema de embeddings, un motor de retrieval, una memoria principal, un dashboard, un servicio cloud ni una autoridad sobre la verdad. Es la capa de coherencia entre un agente y los sistemas cuyo estado puede cambiar mientras el agente trabaja.
 
-## Instalar en dos minutos
+## Estado público
+
+**PREMiSE 2 es el protocolo candidato actual.** La superficie HTTP pública es
+`premise/2` y el SDK candidato es `@premise/sdk@2.0.0-rc.2`. `premise/1` y
+`premise/1.1` quedan congelados como contratos de compatibilidad; PREMiSE NEXT
+es experimental. Este repositorio no se presenta como una solución universal
+GA para cualquier conector o despliegue.
+
+## Instalar en un comando
 
 PREMiSE no depende de un proveedor de agentes. No necesitas instalar este
 monorepo, una base de datos ni un servicio cloud para añadir el protocolo y su
 servidor MCP portable a un proyecto.
+
+```bash
+npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+```
+
+Para un checkout offline o revisado:
 
 ```bash
 git clone --depth 1 https://github.com/Dafenxz0/premise-protocol.git .premise-source
@@ -65,13 +79,13 @@ Incluye los contratos del protocolo, un runtime TypeScript, implementaciones de 
 
 | Área | Estado actual |
 | --- | --- |
-| Contratos | Especificaciones `premise/1` y `premise/1.1` con vectores |
+| Contratos | Candidato actual `premise/2`; compatibilidad congelada `premise/1` y `premise/1.1`; NEXT experimental |
 | Runtime | Propagación de dependencias, revalidación, recibos, idempotencia y acciones protegidas |
 | Stores | Paquetes en memoria, SQLite y compatibles con PostgreSQL |
 | Adapters | Filesystem, Git/GitHub-like, HTTP, webhook y ejemplos del protocolo |
 | Conformidad | TypeScript y Python se comprueban contra vectores compartidos |
 | Evidencia | Experimentos deterministas indexados en [`docs/evidence`](docs/evidence/README.md) |
-| Estado | Candidato de ingeniería/investigación; no es una promesa de GA universal |
+| Estado | `2.0.0-rc.2`, licencia Apache-2.0; candidato, no promesa de GA universal |
 
 ## Desarrollar el repositorio
 
@@ -100,6 +114,7 @@ Los resultados actuales no justifican afirmar que PREMiSE sea universalmente má
 - [Protocolo y versionado](docs/versioning.md)
 - [Arquitectura](docs/architecture.md)
 - [API e integración](docs/api-v2.md)
+- [Candidato de release y gates de adopción](docs/release-candidate.md)
 - [Evidencia de benchmarks](docs/evidence/README.md)
 - [Operaciones y despliegue](docs/deployment-v2.md)
 - [Límites de seguridad](docs/security-v2.md)

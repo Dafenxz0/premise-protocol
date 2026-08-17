@@ -150,7 +150,7 @@ const client = new PremiseClient({
 });
 
 try {
-  assert.equal(SDK_VERSION, "2.0.0-rc.1");
+  assert.equal(SDK_VERSION, "2.0.0-rc.2");
   assert.equal(SDK_RELEASE_CHANNEL, "candidate");
   assert.throws(() => new PremiseClient({ baseUrl, requireHttps: true }), /baseUrl must use https/);
 

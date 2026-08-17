@@ -4,9 +4,17 @@ PREMiSE is a protocol, not a vendor-specific memory plugin. The portable kit
 uses one dependency-free MCP server and one shared instruction file, then adds
 the small host-specific bridge each agent understands.
 
-## Two-minute installation
+## One-command installation
 
 From the root of the project where the agent will work:
+
+```bash
+npx --yes --package github:Dafenxz0/premise-protocol#main premise-install --agent all --project .
+```
+
+The command above downloads the standalone installer from GitHub and writes
+only the managed agent files into the current project. For an offline or
+reviewed checkout, use the explicit equivalent:
 
 ```bash
 git clone --depth 1 https://github.com/Dafenxz0/premise-protocol.git .premise-source

@@ -40,7 +40,8 @@ The main properties we test are:
 - PREMiSE cannot judge the semantic correctness of an agent's plan.
 - Local self-tests do not prove PostgreSQL, GitHub or provider availability.
 - The current candidate is not a universal production-security certification.
-- A license and a release-specific dependency/SBOM review are still required
+- The candidate is distributed under Apache-2.0; every release still requires
+  the release-specific dependency/SBOM review and the documented adoption gates
   before broad distribution.
 
 ## Release hygiene

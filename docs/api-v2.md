@@ -5,7 +5,7 @@ la implementación interna. PREMiSE conserva memoria con evidencias, estado de
 validez y relaciones; tu aplicación sigue siendo responsable de decidir qué
 hacer con el contexto recibido.
 
-> Estado actual: la API v2 y el SDK están en `2.0.0-rc.1`. El contrato de
+> Estado actual: la API v2 y el SDK están en `2.0.0-rc.2`. El contrato de
 > integración está estabilizado para la release candidate, pero PREMiSE no se
 > declara GA hasta cerrar los benchmarks externos, seguridad, despliegue y
 > recuperación indicados en [`docs/v2-ga-acceptance.md`](./v2-ga-acceptance.md).
@@ -26,7 +26,7 @@ errores fáciles de manejar.
 ## 2. Instalar y crear el cliente
 
 ```bash
-pnpm add @premise/sdk@2.0.0-rc.1
+pnpm add @premise/sdk@2.0.0-rc.2
 ```
 
 El caso más sencillo usa un token Bearer:
@@ -308,7 +308,7 @@ política por llamada puede ser más restrictiva.
 Hay dos versiones distintas:
 
 1. `specVersion: "premise/2"` es la versión del contrato de datos y HTTP.
-2. `@premise/sdk@2.0.0-rc.1` y `SDK_VERSION` son la versión del cliente.
+2. `@premise/sdk@2.0.0-rc.2` y `SDK_VERSION` son la versión del cliente.
 
 El SDK sigue SemVer: las correcciones y campos opcionales pueden publicarse en
 `2.0.x`; una ruta, cabecera obligatoria, tipo público o semántica incompatible
